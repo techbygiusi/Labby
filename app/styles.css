@@ -37,7 +37,7 @@ body { margin: 0; font-family: Inter, system-ui, sans-serif; background: var(--b
 
 button, input, select, textarea { touch-action: manipulation; }
 
-.topbar { width: 100%; margin: 0 auto; padding: clamp(8px, 0.9vw, 14px) var(--app-pad); display: flex; justify-content: space-between; align-items: flex-start; gap: 0.6rem; }
+.topbar { width: min(80vw, 1920px); margin: 0 auto; padding: clamp(8px, 0.9vw, 14px) var(--app-pad); display: flex; justify-content: space-between; align-items: flex-start; gap: 0.6rem; }
 .brand-wrap { display: flex; gap: 0.75rem; align-items: flex-start; }
 .logo { width: clamp(34px, 2.1vw, 44px); height: clamp(34px, 2.1vw, 44px); border-radius: 10px; border: 2px solid var(--line); background: var(--panel); box-shadow: 0 4px 0 rgba(0, 0, 0, 0.15); }
 .topbar-actions { display: flex; gap: 0.5rem; }
@@ -47,7 +47,7 @@ h1 { margin: 0.18rem 0 0.1rem; font-family: 'Space Mono', monospace; font-size: 
 .subtitle { margin: 0; color: var(--muted); }
 
 .phone-grid {
-  width: 100%;
+  width: min(80vw, 1920px);
   margin: 0 auto;
   padding: 0 var(--app-pad) max(62px, env(safe-area-inset-bottom));
   height: calc(100vh - clamp(78px, 9.3vh, 114px));
@@ -58,7 +58,6 @@ h1 { margin: 0.18rem 0 0.1rem; font-family: 'Space Mono', monospace; font-size: 
   overflow: hidden;
 }
 .phone { background: var(--phone); border: 3px solid var(--line); border-radius: 24px; padding: 0.78rem; box-shadow: var(--shadow); min-height: 0; overflow: hidden; display: flex; flex-direction: column; transition: transform 180ms ease, box-shadow 180ms ease; }
-.phone:hover { transform: translateY(-2px); }
 .panel-center { grid-column: 2; }
 
 h2, h3, legend { font-family: 'Space Mono', monospace; margin: 0 0 0.45rem; }
@@ -145,7 +144,6 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .column { border: 2px solid var(--line); border-radius: 12px; padding: 0.5rem; background: rgba(255, 255, 255, 0.4); }
 
 .card { border: 2px solid var(--line); border-radius: 10px; padding: 0.42rem; background: var(--panel); margin-bottom: 0.32rem; }
-.card:hover { transform: translateY(-1px); box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12); }
 .card[data-type='hardware'] { background: var(--blue); }
 .card[data-type='vm'] { background: #d6f0ff; }
 .card[data-type='lxc'] { background: #d0f7ef; }
@@ -270,9 +268,48 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--line) 70%, transparent) color-mix(in srgb, var(--panel) 70%, transparent);
+}
+
+#resource-form::-webkit-scrollbar,
+.boards::-webkit-scrollbar,
+.tree-content::-webkit-scrollbar,
+.tree-dialog::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+#resource-form::-webkit-scrollbar-track,
+.boards::-webkit-scrollbar-track,
+.tree-content::-webkit-scrollbar-track,
+.tree-dialog::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--panel) 80%, transparent);
+  border-radius: 999px;
+}
+
+#resource-form::-webkit-scrollbar-thumb,
+.boards::-webkit-scrollbar-thumb,
+.tree-content::-webkit-scrollbar-thumb,
+.tree-dialog::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, var(--panel) 80%, transparent);
+}
+
+#resource-form::-webkit-scrollbar-thumb:hover,
+.boards::-webkit-scrollbar-thumb:hover,
+.tree-content::-webkit-scrollbar-thumb:hover,
+.tree-dialog::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--line) 85%, transparent);
+}
+
 
 @media (max-width: 1100px) {
   body { height: auto; min-height: 100vh; overflow: auto; }
+  .topbar,
+  .phone-grid { width: 100%; }
   .topbar { align-items: stretch; gap: 0.8rem; }
   .topbar-actions { flex-wrap: wrap; justify-content: flex-end; }
   .phone-grid { grid-template-columns: 1fr; height: auto; overflow: visible; }
@@ -284,8 +321,12 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 }
 
 @media (min-width: 2000px) {
-  .topbar { padding-inline: clamp(22px, 2vw, 48px); }
+  .topbar {
+    width: min(80vw, 2200px);
+    padding-inline: clamp(22px, 2vw, 48px);
+  }
   .phone-grid {
+    width: min(80vw, 2200px);
     padding-inline: clamp(22px, 2vw, 48px);
     grid-template-columns: minmax(400px, 0.95fr) minmax(900px, 2.3fr);
     gap: clamp(14px, 1.2vw, 24px);
