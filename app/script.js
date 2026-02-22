@@ -1,4 +1,4 @@
-const storageKey = 'labby-data-v6';
+const storageKey = 'labby-data-v7';
 const themeKey = 'labby-theme';
 const types = ['hardware', 'vm', 'lxc', 'app', 'network'];
 const networkPalette = ['#3b82f6', '#10b981', '#22c55e', '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#a855f7', '#14b8a6', '#84cc16', '#06b6d4', '#8b5cf6'];
@@ -11,15 +11,21 @@ const seedDemo = document.getElementById('seed-demo');
 const clearAll = document.getElementById('clear-all');
 const themeToggle = document.getElementById('theme-toggle');
 const template = document.getElementById('item-template');
-const connectionsSelect = document.getElementById('connections');
 const hostedOnSelect = document.getElementById('hosted-on');
 const hostedOnWrap = document.getElementById('hosted-on-wrap');
+const appHostedOnSelect = document.getElementById('app-hosted-on');
+const appHostedOnWrap = document.getElementById('app-hosted-on-wrap');
 const networkFields = document.getElementById('network-fields');
 const ipInput = document.getElementById('ip-address');
+const ipPortInput = document.getElementById('ip-port');
+const ipPortWrap = document.getElementById('ip-port-wrap');
+const webUrlInput = document.getElementById('web-url');
+const webUrlWrap = document.getElementById('web-url-wrap');
+const notesInput = document.getElementById('notes');
+const notesWrap = document.getElementById('notes-wrap');
 const subnetInput = document.getElementById('subnet');
 const gatewayInput = document.getElementById('gateway');
 const colorPicker = document.getElementById('network-color-picker');
-const notesInput = document.getElementById('notes');
 const cancelEditBtn = document.getElementById('cancel-edit');
 const saveBtn = document.getElementById('save-btn');
 const formTitle = document.getElementById('form-title');
@@ -50,9 +56,11 @@ form.addEventListener('submit', (event) => {
   const name = document.getElementById('name').value.trim();
   const description = document.getElementById('description').value.trim();
   const notes = notesInput.value.trim();
-  const connections = selectedConnections();
   const ip = ipInput.value.trim();
+  const ipPort = ipPortInput.value.trim();
+  const webUrl = webUrlInput.value.trim();
   const hostedOn = hostedOnSelect.value || '';
+  const appHostedOn = appHostedOnSelect.value || '';
   const subnet = subnetInput.value.trim();
   const gateway = gatewayInput.value.trim();
 
@@ -66,20 +74,22 @@ form.addEventListener('submit', (event) => {
     type,
     name,
     description,
-    notes,
-    connections,
+    notes: supportsNotes(type) ? notes : '',
     ip: ['hardware', 'vm', 'lxc'].includes(type) ? ip : '',
+    ipPort: type === 'app' ? ipPort : '',
+    webUrl: type === 'app' ? webUrl : '',
     subnet: type === 'network' ? subnet : '',
     gateway: type === 'network' ? gateway : '',
     networkColor: type === 'network' ? selectedNetworkColor : '',
     hostedOn: ['vm', 'lxc'].includes(type) ? hostedOn : '',
+    appHostedOn: type === 'app' ? appHostedOn : '',
+    connections: [],
   };
 
   if (editingId) {
     const existing = findById(editingId);
     if (!existing) return;
     Object.assign(existing, payload);
-    existing.connections = payload.connections.filter((id) => id !== existing.id);
     stopEditing();
   } else {
     items.push({ id: `${type}-${Date.now()}`, ...payload });
@@ -113,12 +123,12 @@ treeClose.addEventListener('click', () => treeDialog.close());
 
 seedDemo.addEventListener('click', () => {
   items = [
-    { id: 'network-1', type: 'network', name: 'LAN', description: 'Main VLAN', notes: 'Client and servers', connections: [], ip: '', subnet: '192.168.10.0/24', gateway: '192.168.10.1', networkColor: '#10b981', hostedOn: '' },
-    { id: 'network-2', type: 'network', name: 'DMZ', description: 'Public services', notes: 'Reverse proxy edge', connections: [], ip: '', subnet: '192.168.20.0/24', gateway: '192.168.20.1', networkColor: '#f97316', hostedOn: '' },
-    { id: 'hardware-1', type: 'hardware', name: 'MS-01', description: 'Main Proxmox host', notes: 'Rack shelf A1', connections: ['network-1'], ip: '192.168.10.10', subnet: '', gateway: '', networkColor: '', hostedOn: '' },
-    { id: 'vm-1', type: 'vm', name: 'onebitlabs', description: 'Docker workloads', notes: 'Ubuntu 24.04', connections: ['network-1'], ip: '192.168.10.30', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-1' },
-    { id: 'lxc-1', type: 'lxc', name: 'adguard-lxc', description: 'DNS filtering', notes: 'Port 53 internal only', connections: ['network-1'], ip: '192.168.10.40', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-1' },
-    { id: 'app-1', type: 'app', name: 'Immich', description: 'Photos', notes: 'External backup nightly', connections: ['vm-1', 'network-1'], ip: '', subnet: '', gateway: '', networkColor: '', hostedOn: '' },
+    { id: 'network-1', type: 'network', name: 'LAN', description: 'Main VLAN', notes: 'Client and servers', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.10.0.0/24', gateway: '10.10.0.1', networkColor: '#10b981', hostedOn: '', appHostedOn: '' },
+    { id: 'network-2', type: 'network', name: 'DMZ', description: 'Public services', notes: 'Reverse proxy edge', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.20.0.0/24', gateway: '10.20.0.1', networkColor: '#f97316', hostedOn: '', appHostedOn: '' },
+    { id: 'hardware-1', type: 'hardware', name: 'MS-01', description: 'Main Proxmox host', notes: 'Rack shelf A1', connections: [], ip: '10.10.0.10/24', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '' },
+    { id: 'vm-1', type: 'vm', name: 'onebitlabs', description: 'Docker workloads', notes: 'Ubuntu 24.04', connections: [], ip: '10.10.0.30/24', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-1', appHostedOn: '' },
+    { id: 'lxc-1', type: 'lxc', name: 'adguard-lxc', description: 'DNS filtering', notes: 'Port 53 internal only', connections: [], ip: '10.10.0.40/24', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-1', appHostedOn: '' },
+    { id: 'app-1', type: 'app', name: 'Immich', description: 'Photos', notes: '', connections: [], ip: '', ipPort: '10.10.0.30:2283', webUrl: 'https://immich.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-1' },
   ];
   stopEditing();
   normalizeItems();
@@ -199,6 +209,10 @@ function saveItems() {
   localStorage.setItem(storageKey, JSON.stringify(items));
 }
 
+function supportsNotes(type) {
+  return ['hardware', 'vm', 'lxc', 'network'].includes(type);
+}
+
 function sanitizeItems(raw) {
   if (!Array.isArray(raw)) return [];
   const normalized = raw
@@ -211,10 +225,13 @@ function sanitizeItems(raw) {
       notes: item.notes ? String(item.notes) : '',
       connections: Array.isArray(item.connections) ? [...new Set(item.connections.map(String))] : [],
       ip: item.ip ? String(item.ip) : '',
+      ipPort: item.ipPort ? String(item.ipPort) : '',
+      webUrl: item.webUrl ? String(item.webUrl) : '',
       subnet: item.subnet ? String(item.subnet) : '',
       gateway: item.gateway ? String(item.gateway) : '',
       networkColor: networkPalette.includes(item.networkColor) ? item.networkColor : networkPalette[0],
       hostedOn: item.hostedOn ? String(item.hostedOn) : '',
+      appHostedOn: item.appHostedOn ? String(item.appHostedOn) : '',
     }));
   return normalizeList(normalized);
 }
@@ -226,10 +243,18 @@ function normalizeItems() {
 function normalizeList(list) {
   const known = new Set(list.map((item) => item.id));
   const hardwareIds = new Set(list.filter((item) => item.type === 'hardware').map((item) => item.id));
-  return list.map((item) => {
+  const hostableAppIds = new Set(list.filter((item) => item.type === 'vm' || item.type === 'lxc').map((item) => item.id));
+
+  const normalized = list.map((item) => {
     const next = { ...item };
     next.connections = next.connections.filter((id) => known.has(id) && id !== next.id);
+    if (!supportsNotes(next.type)) next.notes = '';
     if (!['hardware', 'vm', 'lxc'].includes(next.type)) next.ip = '';
+    if (next.type !== 'app') {
+      next.ipPort = '';
+      next.webUrl = '';
+      next.appHostedOn = '';
+    }
     if (next.type !== 'network') {
       next.subnet = '';
       next.gateway = '';
@@ -238,27 +263,89 @@ function normalizeList(list) {
       next.networkColor = networkPalette[0];
     }
     if (!['vm', 'lxc'].includes(next.type) || !hardwareIds.has(next.hostedOn)) next.hostedOn = '';
+    if (next.type === 'app' && !hostableAppIds.has(next.appHostedOn)) next.appHostedOn = '';
     return next;
   });
+
+  return applyAutoConnections(normalized);
+}
+
+function applyAutoConnections(list) {
+  const byId = Object.fromEntries(list.map((item) => [item.id, item]));
+  const networkIdsByItemId = Object.fromEntries(list.map((item) => [item.id, inferNetworks(item, list).map((net) => net.id)]));
+
+  return list.map((item) => {
+    const next = { ...item };
+    const manual = next.connections.filter((id) => byId[id]);
+    const auto = [];
+
+    if (item.type === 'app' && item.appHostedOn && byId[item.appHostedOn]) {
+      auto.push(item.appHostedOn);
+    }
+
+    const networkIds = networkIdsByItemId[item.id] || [];
+    auto.push(...networkIds);
+
+    next.connections = [...new Set([...manual, ...auto])].filter((id) => id !== next.id);
+    return next;
+  });
+}
+
+function inferNetworks(item, list) {
+  if (item.type === 'network') return [];
+  const networks = list.filter((candidate) => candidate.type === 'network');
+
+  const ips = [];
+  if (item.ip) ips.push(item.ip);
+  if (item.type === 'app' && item.ipPort) {
+    const hostIp = item.ipPort.split(':')[0].trim();
+    if (hostIp) ips.push(hostIp);
+  }
+
+  return networks.filter((network) => ips.some((ip) => ipInSubnet(ip, network.subnet)));
+}
+
+function ipInSubnet(ipWithMask, subnetCidr) {
+  const ipPart = String(ipWithMask).split('/')[0].trim();
+  const [subnetIp, prefixRaw] = String(subnetCidr).split('/');
+  const prefix = Number(prefixRaw);
+
+  const ipInt = toIPv4Int(ipPart);
+  const subnetInt = toIPv4Int((subnetIp || '').trim());
+  if (ipInt === null || subnetInt === null || Number.isNaN(prefix) || prefix < 0 || prefix > 32) return false;
+
+  const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0;
+  return (ipInt & mask) === (subnetInt & mask);
+}
+
+function toIPv4Int(ip) {
+  const parts = String(ip).split('.').map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => Number.isNaN(part) || part < 0 || part > 255)) return null;
+  return (((parts[0] << 24) >>> 0) + ((parts[1] << 16) >>> 0) + ((parts[2] << 8) >>> 0) + (parts[3] >>> 0)) >>> 0;
 }
 
 function applyTypeVisibility() {
   const type = typeSelect.value;
   const isNetwork = type === 'network';
-  const isHosted = type === 'vm' || type === 'lxc';
-  const supportsIp = type === 'hardware' || type === 'vm' || type === 'lxc';
+  const isVmOrLxc = type === 'vm' || type === 'lxc';
+  const isApp = type === 'app';
+  const supportsIp = type === 'hardware' || isVmOrLxc;
 
   networkFields.classList.toggle('hidden', !isNetwork);
-  hostedOnWrap.classList.toggle('hidden', !isHosted);
+  hostedOnWrap.classList.toggle('hidden', !isVmOrLxc);
+  appHostedOnWrap.classList.toggle('hidden', !isApp);
   ipInput.closest('label').classList.toggle('hidden', !supportsIp);
+  ipPortWrap.classList.toggle('hidden', !isApp);
+  webUrlWrap.classList.toggle('hidden', !isApp);
+  notesWrap.classList.toggle('hidden', !supportsNotes(type));
 
   subnetInput.required = isNetwork;
   gatewayInput.required = isNetwork;
 }
 
 function render() {
-  refreshConnectionOptions();
   refreshHostOptions();
+  refreshAppHostOptions();
 
   const filtered = applyFilters(items);
   const groups = {
@@ -293,7 +380,8 @@ function applyFilters(list) {
   return list.filter((item) => {
     const typeMatch = selectedType === 'all' || item.type === selectedType;
     const networkText = item.type === 'network' ? `${item.subnet} ${item.gateway}` : '';
-    const text = `${item.name} ${item.description} ${item.notes} ${item.ip} ${networkText}`.toLowerCase();
+    const appText = item.type === 'app' ? `${item.ipPort} ${item.webUrl}` : '';
+    const text = `${item.name} ${item.description} ${item.notes} ${item.ip} ${appText} ${networkText}`.toLowerCase();
     return typeMatch && (!query || text.includes(query));
   });
 }
@@ -309,6 +397,7 @@ function cardNode(item) {
   node.querySelector('.card-desc').textContent = item.description || 'No description';
   node.querySelector('.card-notes').textContent = item.notes ? `Notes: ${item.notes}` : '';
   node.querySelector('.card-ip').textContent = item.ip ? `IP: ${item.ip}` : '';
+  node.querySelector('.card-app').textContent = item.type === 'app' ? appDetails(item) : '';
   node.querySelector('.card-network').textContent = item.type === 'network' ? `Subnet: ${item.subnet} | Gateway: ${item.gateway}` : '';
   node.querySelector('.card-hosting').textContent = hostingLabel(item);
   node.querySelector('.card-id').textContent = `ID: ${item.id}`;
@@ -318,6 +407,13 @@ function cardNode(item) {
   node.querySelector('.edit-btn').addEventListener('click', () => startEditing(item.id));
   node.querySelector('.delete-btn').addEventListener('click', () => removeItem(item.id));
   return node;
+}
+
+function appDetails(item) {
+  const parts = [];
+  if (item.ipPort) parts.push(`IP+Port: ${item.ipPort}`);
+  if (item.webUrl) parts.push(`URL: ${item.webUrl}`);
+  return parts.join(' | ');
 }
 
 function networkBorderColor(item) {
@@ -336,12 +432,17 @@ function networkBorderColor(item) {
 function hostingLabel(item) {
   if (item.type === 'hardware') {
     const guests = items.filter((candidate) => (candidate.type === 'vm' || candidate.type === 'lxc') && candidate.hostedOn === item.id);
-    return guests.length ? `Running: ${guests.map((guest) => guest.name).join(', ')}` : 'Running: none';
+    return guests.length ? `Host VMs/LXCs: ${guests.map((guest) => guest.name).join(', ')}` : 'Host VMs/LXCs: none';
   }
   if (item.type === 'vm' || item.type === 'lxc') {
     if (!item.hostedOn) return 'Hosted on: not set';
     const host = findById(item.hostedOn);
     return `Hosted on: ${host ? host.name : item.hostedOn}`;
+  }
+  if (item.type === 'app') {
+    if (!item.appHostedOn) return 'Host application on: not set';
+    const host = findById(item.appHostedOn);
+    return `Host application on: ${host ? host.name : item.appHostedOn}`;
   }
   return '';
 }
@@ -351,31 +452,6 @@ function connectionLabel(item) {
   const byId = Object.fromEntries(items.map((entry) => [entry.id, entry]));
   const names = item.connections.map((id) => byId[id]?.name || id).join(', ');
   return `Connected to: ${names}`;
-}
-
-function selectedConnections() {
-  return Array.from(connectionsSelect.selectedOptions).map((option) => option.value);
-}
-
-function refreshConnectionOptions() {
-  const selected = new Set(selectedConnections());
-  connectionsSelect.innerHTML = '';
-  items.forEach((item) => {
-    if (editingId && item.id === editingId) return;
-    const option = document.createElement('option');
-    option.value = item.id;
-    option.textContent = `${item.name} (${label(item.type)})`;
-    option.selected = selected.has(item.id);
-    connectionsSelect.appendChild(option);
-  });
-  if (editingId) {
-    const editing = findById(editingId);
-    if (editing) {
-      Array.from(connectionsSelect.options).forEach((option) => {
-        option.selected = editing.connections.includes(option.value);
-      });
-    }
-  }
 }
 
 function refreshHostOptions() {
@@ -389,6 +465,19 @@ function refreshHostOptions() {
     hostedOnSelect.appendChild(option);
   });
   hostedOnSelect.value = selected;
+}
+
+function refreshAppHostOptions() {
+  const selected = appHostedOnSelect.value;
+  appHostedOnSelect.innerHTML = '<option value="">Not set</option>';
+  items.filter((item) => item.type === 'vm' || item.type === 'lxc').forEach((host) => {
+    if (editingId && host.id === editingId) return;
+    const option = document.createElement('option');
+    option.value = host.id;
+    option.textContent = `${host.name} (${label(host.type)})`;
+    appHostedOnSelect.appendChild(option);
+  });
+  appHostedOnSelect.value = selected;
 }
 
 function startEditing(id) {
@@ -405,14 +494,17 @@ function startEditing(id) {
   document.getElementById('description').value = item.description;
   notesInput.value = item.notes || '';
   ipInput.value = item.ip || '';
+  ipPortInput.value = item.ipPort || '';
+  webUrlInput.value = item.webUrl || '';
   subnetInput.value = item.subnet || '';
   gatewayInput.value = item.gateway || '';
   setSelectedColor(item.networkColor || networkPalette[0]);
 
   applyTypeVisibility();
-  refreshConnectionOptions();
   refreshHostOptions();
+  refreshAppHostOptions();
   hostedOnSelect.value = item.hostedOn || '';
+  appHostedOnSelect.value = item.appHostedOn || '';
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -447,6 +539,7 @@ function renderTreeView() {
 
   const root = document.createElement('ul');
   root.className = 'tree-root';
+
   Object.entries(byType).forEach(([type, list]) => {
     const li = document.createElement('li');
     li.innerHTML = `<strong>${label(type)}</strong> (${list.length})`;
@@ -458,8 +551,11 @@ function renderTreeView() {
       const details = [];
       if (item.type === 'network') details.push(`subnet ${item.subnet}, gw ${item.gateway}`);
       if (item.ip) details.push(`ip ${item.ip}`);
+      if (item.type === 'app' && item.ipPort) details.push(`ip+port ${item.ipPort}`);
+      if (item.type === 'app' && item.webUrl) details.push(`url ${item.webUrl}`);
       if (item.hostedOn) details.push(`hosted on ${findById(item.hostedOn)?.name || item.hostedOn}`);
-      if (item.connections.length) details.push(`connected: ${item.connections.map((id) => findById(id)?.name || id).join(', ')}`);
+      if (item.appHostedOn) details.push(`host app on ${findById(item.appHostedOn)?.name || item.appHostedOn}`);
+      if (item.connections.length) details.push(`connected: ${item.connections.map((cid) => findById(cid)?.name || cid).join(', ')}`);
       if (item.notes) details.push(`notes: ${item.notes}`);
       if (details.length) {
         const meta = document.createElement('div');
