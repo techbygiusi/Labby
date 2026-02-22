@@ -123,12 +123,26 @@ treeClose.addEventListener('click', () => treeDialog.close());
 
 seedDemo.addEventListener('click', () => {
   items = [
-    { id: 'network-1', type: 'network', name: 'LAN', description: 'Main VLAN', notes: 'Client and servers', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.10.0.0/24', gateway: '10.10.0.1', networkColor: '#10b981', hostedOn: '', appHostedOn: '' },
-    { id: 'network-2', type: 'network', name: 'DMZ', description: 'Public services', notes: 'Reverse proxy edge', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.20.0.0/24', gateway: '10.20.0.1', networkColor: '#f97316', hostedOn: '', appHostedOn: '' },
-    { id: 'hardware-1', type: 'hardware', name: 'MS-01', description: 'Main Proxmox host', notes: 'Rack shelf A1', connections: [], ip: '10.10.0.10/24', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '' },
-    { id: 'vm-1', type: 'vm', name: 'onebitlabs', description: 'Docker workloads', notes: 'Ubuntu 24.04', connections: [], ip: '10.10.0.30/24', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-1', appHostedOn: '' },
-    { id: 'lxc-1', type: 'lxc', name: 'adguard-lxc', description: 'DNS filtering', notes: 'Port 53 internal only', connections: [], ip: '10.10.0.40/24', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-1', appHostedOn: '' },
-    { id: 'app-1', type: 'app', name: 'Immich', description: 'Photos', notes: '', connections: [], ip: '', ipPort: '10.10.0.30:2283', webUrl: 'https://immich.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-1' },
+    { id: 'network-1', type: 'network', name: 'Core-LAN', description: 'General clients and internal nodes', notes: 'Main management network', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.10.0.0/24', gateway: '10.10.0.1', networkColor: '#10b981', hostedOn: '', appHostedOn: '' },
+    { id: 'network-2', type: 'network', name: 'Services', description: 'Private service VLAN', notes: 'Application backends', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.20.0.0/24', gateway: '10.20.0.1', networkColor: '#3b82f6', hostedOn: '', appHostedOn: '' },
+    { id: 'network-3', type: 'network', name: 'Edge', description: 'Public-facing services', notes: 'Reverse proxy + external endpoints', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.30.0.0/24', gateway: '10.30.0.1', networkColor: '#f97316', hostedOn: '', appHostedOn: '' },
+
+    { id: 'hardware-1', type: 'hardware', name: 'Host-A', description: 'Primary virtualization node', notes: 'Rack U2', connections: [], ip: '10.10.0.10/24', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '' },
+    { id: 'hardware-2', type: 'hardware', name: 'Host-B', description: 'Secondary compute node', notes: 'Rack U3', connections: [], ip: '10.10.0.11/24', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '' },
+    { id: 'hardware-3', type: 'hardware', name: 'Host-C', description: 'Storage-focused node', notes: 'Rack U4', connections: [], ip: '10.10.0.12/24', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '' },
+
+    { id: 'vm-1', type: 'vm', name: 'vm-apps-01', description: 'Container runtime host', notes: 'Ubuntu 24.04 LTS', connections: [], ip: '10.20.0.21/24', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-1', appHostedOn: '' },
+    { id: 'vm-2', type: 'vm', name: 'vm-apps-02', description: 'Media and automation host', notes: 'Debian 12', connections: [], ip: '10.20.0.22/24', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-2', appHostedOn: '' },
+    { id: 'vm-3', type: 'vm', name: 'vm-edge-01', description: 'Edge ingress and auth', notes: 'Hardened profile', connections: [], ip: '10.30.0.30/24', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-2', appHostedOn: '' },
+
+    { id: 'lxc-1', type: 'lxc', name: 'lxc-dns-01', description: 'Recursive DNS resolver', notes: 'Internal only', connections: [], ip: '10.10.0.40/24', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-1', appHostedOn: '' },
+    { id: 'lxc-2', type: 'lxc', name: 'lxc-monitor-01', description: 'Monitoring stack', notes: 'Node exporter + dashboard', connections: [], ip: '10.20.0.41/24', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-3', appHostedOn: '' },
+
+    { id: 'app-1', type: 'app', name: 'PhotoVault', description: 'Photo management', notes: '', connections: [], ip: '', ipPort: '10.20.0.21:2283', webUrl: 'https://photos.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-1' },
+    { id: 'app-2', type: 'app', name: 'StreamBox', description: 'Media server', notes: '', connections: [], ip: '', ipPort: '10.20.0.22:8096', webUrl: 'https://media.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-2' },
+    { id: 'app-3', type: 'app', name: 'DocHub', description: 'Internal wiki', notes: '', connections: [], ip: '', ipPort: '10.20.0.22:3000', webUrl: 'https://docs.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-2' },
+    { id: 'app-4', type: 'app', name: 'ProxyGate', description: 'Reverse proxy dashboard', notes: '', connections: [], ip: '', ipPort: '10.30.0.30:443', webUrl: 'https://edge.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-3' },
+    { id: 'app-5', type: 'app', name: 'MetricsUI', description: 'Monitoring frontend', notes: '', connections: [], ip: '', ipPort: '10.20.0.41:3000', webUrl: 'https://metrics.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'lxc-2' },
   ];
   stopEditing();
   normalizeItems();
@@ -312,6 +326,62 @@ function applyAutoConnections(list) {
     next.connections = [...new Set([...manual, ...auto])].filter((id) => id !== next.id);
     return next;
   });
+
+  return applyAutoConnections(normalized);
+}
+
+function applyAutoConnections(list) {
+  const byId = Object.fromEntries(list.map((item) => [item.id, item]));
+  const networkIdsByItemId = Object.fromEntries(list.map((item) => [item.id, inferNetworks(item, list).map((net) => net.id)]));
+
+  return list.map((item) => {
+    const next = { ...item };
+    const manual = next.connections.filter((id) => byId[id]);
+    const auto = [];
+
+    if (item.type === 'app' && item.appHostedOn && byId[item.appHostedOn]) {
+      auto.push(item.appHostedOn);
+    }
+
+    const networkIds = networkIdsByItemId[item.id] || [];
+    auto.push(...networkIds);
+
+    next.connections = [...new Set([...manual, ...auto])].filter((id) => id !== next.id);
+    return next;
+  });
+}
+
+function inferNetworks(item, list) {
+  if (item.type === 'network') return [];
+  const networks = list.filter((candidate) => candidate.type === 'network');
+
+  const ips = [];
+  if (item.ip) ips.push(item.ip);
+  if (item.type === 'app' && item.ipPort) {
+    const hostIp = item.ipPort.split(':')[0].trim();
+    if (hostIp) ips.push(hostIp);
+  }
+
+  return networks.filter((network) => ips.some((ip) => ipInSubnet(ip, network.subnet)));
+}
+
+function ipInSubnet(ipWithMask, subnetCidr) {
+  const ipPart = String(ipWithMask).split('/')[0].trim();
+  const [subnetIp, prefixRaw] = String(subnetCidr).split('/');
+  const prefix = Number(prefixRaw);
+
+  const ipInt = toIPv4Int(ipPart);
+  const subnetInt = toIPv4Int((subnetIp || '').trim());
+  if (ipInt === null || subnetInt === null || Number.isNaN(prefix) || prefix < 0 || prefix > 32) return false;
+
+  const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0;
+  return (ipInt & mask) === (subnetInt & mask);
+}
+
+function toIPv4Int(ip) {
+  const parts = String(ip).split('.').map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => Number.isNaN(part) || part < 0 || part > 255)) return null;
+  return (((parts[0] << 24) >>> 0) + ((parts[1] << 16) >>> 0) + ((parts[2] << 8) >>> 0) + (parts[3] >>> 0)) >>> 0;
 }
 
 function inferNetworks(item, list) {
