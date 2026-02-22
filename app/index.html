@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Labby - Homelab Mapper</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="brand">⚙️ Labby Creative</p>
+        <h1>Homelab Control Board</h1>
+        <p class="subtitle">Document hardware, VMs, LXCs, apps, and networks with connected topology.</p>
+      </div>
+      <button id="theme-toggle" class="button secondary" aria-label="Toggle theme">🌙 Dark</button>
+    </header>
+
+    <main class="phone-grid">
+      <section class="phone panel-left">
+        <h2 id="form-title">Add Resource</h2>
+        <form id="resource-form" class="stack">
+          <label>
+            Type
+            <select id="type" required>
+              <option value="hardware">Hardware</option>
+              <option value="vm">VM</option>
+              <option value="lxc">LXC</option>
+              <option value="app">App</option>
+              <option value="network">Network</option>
+            </select>
+          </label>
+          <label>
+            Name
+            <input id="name" type="text" placeholder="e.g. Proxmox Node" required />
+          </label>
+          <label>
+            Description
+            <input id="description" type="text" placeholder="Short note" />
+          </label>
+          <label>
+            IP Address (Hardware/VM/LXC)
+            <input id="ip-address" type="text" placeholder="e.g. 192.168.10.20" />
+          </label>
+          <label id="hosted-on-wrap">
+            Hosted on (Hardware)
+            <select id="hosted-on">
+              <option value="">Not set</option>
+            </select>
+          </label>
+          <fieldset id="network-fields" class="network-fields">
+            <legend>Network details</legend>
+            <label>
+              Subnet (CIDR)
+              <input id="subnet" type="text" placeholder="e.g. 192.168.10.0/24" />
+            </label>
+            <label>
+              Gateway
+              <input id="gateway" type="text" placeholder="e.g. 192.168.10.1" />
+            </label>
+          </fieldset>
+          <label>
+            Connections
+            <select id="connections" multiple size="6"></select>
+          </label>
+          <div class="actions">
+            <button id="save-btn" class="button" type="submit">Add item</button>
+            <button id="cancel-edit" class="button secondary hidden" type="button">Cancel</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="phone panel-center">
+        <div class="panel-head">
+          <h2>Topology</h2>
+          <button id="seed-demo" class="button secondary" type="button">Load Demo</button>
+        </div>
+        <div class="filters">
+          <input id="search" type="search" placeholder="Search..." />
+          <select id="filter-type">
+            <option value="all">All types</option>
+            <option value="hardware">Hardware</option>
+            <option value="vm">VM</option>
+            <option value="lxc">LXC</option>
+            <option value="app">App</option>
+            <option value="network">Network</option>
+          </select>
+        </div>
+        <div id="stats" class="stats"></div>
+        <div id="boards" class="boards"></div>
+      </section>
+
+      <section class="phone panel-right">
+        <h2>Config</h2>
+        <p class="note">Backup or move your full homelab map.</p>
+        <div class="stack">
+          <button id="export-btn" class="button secondary" type="button">Export Config</button>
+          <label class="button secondary file-label">
+            Import Config
+            <input id="import-file" type="file" accept="application/json" />
+          </label>
+          <button id="clear-all" class="button danger" type="button">Clear All</button>
+        </div>
+        <div class="legend">
+          <p><span class="dot hardware"></span> Hardware</p>
+          <p><span class="dot vm"></span> VM</p>
+          <p><span class="dot lxc"></span> LXC</p>
+          <p><span class="dot app"></span> App</p>
+          <p><span class="dot network"></span> Network</p>
+        </div>
+      </section>
+    </main>
+
+    <template id="item-template">
+      <article class="card">
+        <div class="card-head">
+          <h3 class="card-title"></h3>
+          <div class="card-controls">
+            <button class="icon-btn edit-btn" type="button">Edit</button>
+            <button class="icon-btn delete-btn" type="button">Delete</button>
+          </div>
+        </div>
+        <p class="card-desc"></p>
+        <p class="card-ip"></p>
+        <p class="card-network"></p>
+        <p class="card-hosting"></p>
+        <p class="card-id"></p>
+        <p class="card-links"></p>
+      </article>
+    </template>
+
+    <script src="script.js"></script>
+  </body>
+</html>

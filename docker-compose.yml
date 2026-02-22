@@ -1,0 +1,7 @@
+services:
+  labby:
+    build: .
+    container_name: labby
+    ports:
+      - "8080:80"
+    restart: unless-stopped
