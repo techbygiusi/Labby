@@ -46,6 +46,21 @@
             IP Address (Hardware/VM/LXC)
             <input id="ip-address" type="text" placeholder="e.g. 192.168.10.20" />
           </label>
+          <fieldset id="compute-fields" class="network-fields">
+            <legend>Compute details</legend>
+            <label>
+              CPUs
+              <input id="cpu" type="text" placeholder="e.g. 8 vCPU" />
+            </label>
+            <label>
+              RAM
+              <input id="ram" type="text" placeholder="e.g. 32 GB" />
+            </label>
+            <label>
+              Disks
+              <input id="disks" type="text" placeholder="e.g. 2x 1TB NVMe" />
+            </label>
+          </fieldset>
           <label id="ip-port-wrap" class="hidden">
             IP + Port (App)
             <input id="ip-port" type="text" placeholder="e.g. 10.10.0.50:3000" />
@@ -155,6 +170,7 @@
         <p class="card-notes"></p>
         <p class="card-ip"></p>
         <p class="card-app"></p>
+        <p class="card-specs"></p>
         <p class="card-network"></p>
         <p class="card-hosting"></p>
         <p class="card-id"></p>
