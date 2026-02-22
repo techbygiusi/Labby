@@ -289,6 +289,62 @@ function applyAutoConnections(list) {
     next.connections = [...new Set([...manual, ...auto])].filter((id) => id !== next.id);
     return next;
   });
+
+  return applyAutoConnections(normalized);
+}
+
+function applyAutoConnections(list) {
+  const byId = Object.fromEntries(list.map((item) => [item.id, item]));
+  const networkIdsByItemId = Object.fromEntries(list.map((item) => [item.id, inferNetworks(item, list).map((net) => net.id)]));
+
+  return list.map((item) => {
+    const next = { ...item };
+    const manual = next.connections.filter((id) => byId[id]);
+    const auto = [];
+
+    if (item.type === 'app' && item.appHostedOn && byId[item.appHostedOn]) {
+      auto.push(item.appHostedOn);
+    }
+
+    const networkIds = networkIdsByItemId[item.id] || [];
+    auto.push(...networkIds);
+
+    next.connections = [...new Set([...manual, ...auto])].filter((id) => id !== next.id);
+    return next;
+  });
+}
+
+function inferNetworks(item, list) {
+  if (item.type === 'network') return [];
+  const networks = list.filter((candidate) => candidate.type === 'network');
+
+  const ips = [];
+  if (item.ip) ips.push(item.ip);
+  if (item.type === 'app' && item.ipPort) {
+    const hostIp = item.ipPort.split(':')[0].trim();
+    if (hostIp) ips.push(hostIp);
+  }
+
+  return networks.filter((network) => ips.some((ip) => ipInSubnet(ip, network.subnet)));
+}
+
+function ipInSubnet(ipWithMask, subnetCidr) {
+  const ipPart = String(ipWithMask).split('/')[0].trim();
+  const [subnetIp, prefixRaw] = String(subnetCidr).split('/');
+  const prefix = Number(prefixRaw);
+
+  const ipInt = toIPv4Int(ipPart);
+  const subnetInt = toIPv4Int((subnetIp || '').trim());
+  if (ipInt === null || subnetInt === null || Number.isNaN(prefix) || prefix < 0 || prefix > 32) return false;
+
+  const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0;
+  return (ipInt & mask) === (subnetInt & mask);
+}
+
+function toIPv4Int(ip) {
+  const parts = String(ip).split('.').map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => Number.isNaN(part) || part < 0 || part > 255)) return null;
+  return (((parts[0] << 24) >>> 0) + ((parts[1] << 16) >>> 0) + ((parts[2] << 8) >>> 0) + (parts[3] >>> 0)) >>> 0;
 }
 
 function inferNetworks(item, list) {
@@ -529,55 +585,210 @@ function removeItem(id) {
 }
 
 function renderTreeView() {
-  const byType = {
-    hardware: items.filter((item) => item.type === 'hardware'),
-    vm: items.filter((item) => item.type === 'vm'),
-    lxc: items.filter((item) => item.type === 'lxc'),
-    app: items.filter((item) => item.type === 'app'),
-    network: items.filter((item) => item.type === 'network'),
-  };
+  const treeShell = document.createElement('div');
+  treeShell.className = 'tree-shell';
 
-  const root = document.createElement('ul');
-  root.className = 'tree-root';
-
-  Object.entries(byType).forEach(([type, list]) => {
-    const li = document.createElement('li');
-    li.innerHTML = `<strong>${label(type)}</strong> (${list.length})`;
-    const child = document.createElement('ul');
-
-    list.forEach((item) => {
-      const itemLi = document.createElement('li');
-      itemLi.textContent = `${shape(type)} ${item.name}`;
-      const details = [];
-      if (item.type === 'network') details.push(`subnet ${item.subnet}, gw ${item.gateway}`);
-      if (item.ip) details.push(`ip ${item.ip}`);
-      if (item.type === 'app' && item.ipPort) details.push(`ip+port ${item.ipPort}`);
-      if (item.type === 'app' && item.webUrl) details.push(`url ${item.webUrl}`);
-      if (item.hostedOn) details.push(`hosted on ${findById(item.hostedOn)?.name || item.hostedOn}`);
-      if (item.appHostedOn) details.push(`host app on ${findById(item.appHostedOn)?.name || item.appHostedOn}`);
-      if (item.connections.length) details.push(`connected: ${item.connections.map((cid) => findById(cid)?.name || cid).join(', ')}`);
-      if (item.notes) details.push(`notes: ${item.notes}`);
-      if (details.length) {
-        const meta = document.createElement('div');
-        meta.className = 'tree-meta';
-        meta.textContent = details.join(' • ');
-        itemLi.appendChild(meta);
-      }
-      child.appendChild(itemLi);
-    });
-
-    li.appendChild(child);
-    root.appendChild(li);
-  });
+  treeShell.appendChild(buildInfrastructureTree());
+  treeShell.appendChild(buildNetworksTree());
 
   treeContent.innerHTML = '';
-  treeContent.appendChild(root);
+  treeContent.appendChild(treeShell);
 }
 
-function shape(type) {
+function buildInfrastructureTree() {
+  const section = document.createElement('section');
+  section.className = 'tree-section';
+  section.innerHTML = '<h4>Infrastructure</h4>';
+
+  const body = document.createElement('div');
+  body.className = 'tree-body';
+
+  const hardware = items.filter((item) => item.type === 'hardware');
+  const vms = items.filter((item) => item.type === 'vm');
+  const lxcs = items.filter((item) => item.type === 'lxc');
+  const apps = items.filter((item) => item.type === 'app');
+
+  hardware.forEach((host) => {
+    const lane = document.createElement('div');
+    lane.className = 'tree-lane';
+
+    lane.appendChild(treeChip(host));
+
+    const guestsWrap = document.createElement('div');
+    guestsWrap.className = 'tree-children';
+    const guests = [...vms, ...lxcs].filter((guest) => guest.hostedOn === host.id);
+
+    if (!guests.length) {
+      const none = document.createElement('p');
+      none.className = 'tree-empty';
+      none.textContent = 'No VMs/LXCs on this hardware';
+      guestsWrap.appendChild(none);
+    }
+
+    guests.forEach((guest) => {
+      const guestLane = document.createElement('div');
+      guestLane.className = 'tree-lane nested';
+      guestLane.appendChild(treeChip(guest));
+
+      const guestApps = apps.filter((app) => app.appHostedOn === guest.id);
+      const appWrap = document.createElement('div');
+      appWrap.className = 'tree-children';
+      if (!guestApps.length) {
+        const emptyApp = document.createElement('p');
+        emptyApp.className = 'tree-empty';
+        emptyApp.textContent = 'No app assigned';
+        appWrap.appendChild(emptyApp);
+      } else {
+        guestApps.forEach((app) => {
+          const appLane = document.createElement('div');
+          appLane.className = 'tree-lane nested';
+          appLane.appendChild(treeChip(app));
+          const meta = appMeta(app);
+          if (meta) appLane.appendChild(meta);
+          appWrap.appendChild(appLane);
+        });
+      }
+      guestLane.appendChild(appWrap);
+      guestsWrap.appendChild(guestLane);
+    });
+
+    lane.appendChild(guestsWrap);
+    body.appendChild(lane);
+  });
+
+  const orphanGuests = [...vms, ...lxcs].filter((guest) => !guest.hostedOn);
+  if (orphanGuests.length) {
+    const orphan = document.createElement('div');
+    orphan.className = 'tree-subgroup';
+    orphan.innerHTML = '<p class="tree-subtitle">Unassigned VMs/LXCs</p>';
+    orphanGuests.forEach((guest) => orphan.appendChild(treeChip(guest)));
+    body.appendChild(orphan);
+  }
+
+  const orphanApps = apps.filter((app) => !app.appHostedOn);
+  if (orphanApps.length) {
+    const orphan = document.createElement('div');
+    orphan.className = 'tree-subgroup';
+    orphan.innerHTML = '<p class="tree-subtitle">Unassigned Apps</p>';
+    orphanApps.forEach((app) => {
+      const row = document.createElement('div');
+      row.className = 'tree-lane';
+      row.appendChild(treeChip(app));
+      const meta = appMeta(app);
+      if (meta) row.appendChild(meta);
+      orphan.appendChild(row);
+    });
+    body.appendChild(orphan);
+  }
+
+  if (!hardware.length && !vms.length && !lxcs.length && !apps.length) {
+    const empty = document.createElement('p');
+    empty.className = 'tree-empty';
+    empty.textContent = 'No infrastructure resources yet.';
+    body.appendChild(empty);
+  }
+
+  section.appendChild(body);
+  return section;
+}
+
+function buildNetworksTree() {
+  const section = document.createElement('section');
+  section.className = 'tree-section';
+  section.innerHTML = '<h4>Networks (auto-matched by IP/CIDR)</h4>';
+
+  const body = document.createElement('div');
+  body.className = 'tree-body';
+
+  const networks = items.filter((item) => item.type === 'network');
+  networks.forEach((network) => {
+    const lane = document.createElement('div');
+    lane.className = 'tree-lane';
+    lane.appendChild(treeChip(network));
+
+    const meta = document.createElement('div');
+    meta.className = 'tree-meta';
+    meta.textContent = `Subnet ${network.subnet} • Gateway ${network.gateway}`;
+    lane.appendChild(meta);
+
+    const membersWrap = document.createElement('div');
+    membersWrap.className = 'tree-children';
+    const members = items.filter((item) => item.type !== 'network' && item.connections.includes(network.id));
+
+    if (!members.length) {
+      const empty = document.createElement('p');
+      empty.className = 'tree-empty';
+      empty.textContent = 'No matched resources';
+      membersWrap.appendChild(empty);
+    } else {
+      members.forEach((member) => {
+        const memberLane = document.createElement('div');
+        memberLane.className = 'tree-lane nested';
+        memberLane.appendChild(treeChip(member));
+        if (member.type === 'app') {
+          const metaApp = appMeta(member);
+          if (metaApp) memberLane.appendChild(metaApp);
+        }
+        membersWrap.appendChild(memberLane);
+      });
+    }
+
+    lane.appendChild(membersWrap);
+    body.appendChild(lane);
+  });
+
+  if (!networks.length) {
+    const empty = document.createElement('p');
+    empty.className = 'tree-empty';
+    empty.textContent = 'No network resources yet.';
+    body.appendChild(empty);
+  }
+
+  section.appendChild(body);
+  return section;
+}
+
+function treeChip(item) {
+  const chip = document.createElement('span');
+  chip.className = `tree-chip ${item.type}`;
+  chip.textContent = `${icon(item.type)} ${item.name}`;
+  return chip;
+}
+
+function appMeta(app) {
+  if (!app.ipPort && !app.webUrl) return null;
+  const meta = document.createElement('div');
+  meta.className = 'tree-meta';
+
+  if (app.ipPort) {
+    const ip = document.createElement('span');
+    ip.textContent = `IP+Port: ${app.ipPort}`;
+    meta.appendChild(ip);
+  }
+
+  if (app.webUrl) {
+    if (meta.childNodes.length) {
+      const dot = document.createElement('span');
+      dot.className = 'tree-dot';
+      dot.textContent = '•';
+      meta.appendChild(dot);
+    }
+    const link = document.createElement('a');
+    link.href = app.webUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.className = 'tree-link';
+    link.textContent = app.webUrl;
+    meta.appendChild(link);
+  }
+
+  return meta;
+}
+
+function icon(type) {
   if (type === 'hardware') return '■';
-  if (type === 'vm' || type === 'lxc' || type === 'app') return '●';
-  return '◆';
+  if (type === 'network') return '◆';
+  return '●';
 }
 
 function findById(id) {
