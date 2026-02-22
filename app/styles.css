@@ -16,16 +16,16 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: #0a1110;
-  --phone: #101c1a;
-  --panel: #132321;
-  --text: #ecfff7;
-  --muted: #b1d2c8;
-  --line: #72f0bf;
-  --yellow: #b9ff5e;
-  --mint: #0f3a2f;
-  --blue: #163836;
-  --danger: #ff8686;
+  --bg: #08100f;
+  --phone: #0f1b19;
+  --panel: #142623;
+  --text: #e9fff6;
+  --muted: #bdd8cf;
+  --line: #5fd8ae;
+  --yellow: #c7e769;
+  --mint: #16473b;
+  --blue: #1d3f4f;
+  --danger: #ff8f9d;
 }
 
 * { box-sizing: border-box; }
@@ -179,3 +179,8 @@ select[multiple] { min-height: 150px; }
   .phone-grid { grid-template-columns: 1fr; }
   .phone { min-height: auto; }
 }
+
+:root[data-theme='dark'] .column { background: rgba(7, 26, 22, 0.78); }
+:root[data-theme='dark'] .stats { background: #154238; color: #e9fff6; }
+:root[data-theme='dark'] .tree-dialog { box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45); }
+:root[data-theme='dark'] .tree-shell { background: rgba(7, 26, 22, 0.72); }
