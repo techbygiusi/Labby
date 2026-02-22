@@ -11,7 +11,7 @@
       <div>
         <p class="brand">⚙️ Labby Creative</p>
         <h1>Homelab Control Board</h1>
-        <p class="subtitle">Document hardware, VMs, LXCs, apps, and networks with connected topology.</p>
+        <p class="subtitle">Document hardware, VMs, apps, and networks with connected topology.</p>
       </div>
       <button id="theme-toggle" class="button secondary" aria-label="Toggle theme">🌙 Dark</button>
     </header>
@@ -25,7 +25,6 @@
             <select id="type" required>
               <option value="hardware">Hardware</option>
               <option value="vm">VM</option>
-              <option value="lxc">LXC</option>
               <option value="app">App</option>
               <option value="network">Network</option>
             </select>
@@ -38,27 +37,6 @@
             Description
             <input id="description" type="text" placeholder="Short note" />
           </label>
-          <label>
-            IP Address (Hardware/VM/LXC)
-            <input id="ip-address" type="text" placeholder="e.g. 192.168.10.20" />
-          </label>
-          <label id="hosted-on-wrap">
-            Hosted on (Hardware)
-            <select id="hosted-on">
-              <option value="">Not set</option>
-            </select>
-          </label>
-          <fieldset id="network-fields" class="network-fields">
-            <legend>Network details</legend>
-            <label>
-              Subnet (CIDR)
-              <input id="subnet" type="text" placeholder="e.g. 192.168.10.0/24" />
-            </label>
-            <label>
-              Gateway
-              <input id="gateway" type="text" placeholder="e.g. 192.168.10.1" />
-            </label>
-          </fieldset>
           <label>
             Connections
             <select id="connections" multiple size="6"></select>
@@ -81,7 +59,6 @@
             <option value="all">All types</option>
             <option value="hardware">Hardware</option>
             <option value="vm">VM</option>
-            <option value="lxc">LXC</option>
             <option value="app">App</option>
             <option value="network">Network</option>
           </select>
@@ -104,7 +81,6 @@
         <div class="legend">
           <p><span class="dot hardware"></span> Hardware</p>
           <p><span class="dot vm"></span> VM</p>
-          <p><span class="dot lxc"></span> LXC</p>
           <p><span class="dot app"></span> App</p>
           <p><span class="dot network"></span> Network</p>
         </div>
@@ -121,9 +97,6 @@
           </div>
         </div>
         <p class="card-desc"></p>
-        <p class="card-ip"></p>
-        <p class="card-network"></p>
-        <p class="card-hosting"></p>
         <p class="card-id"></p>
         <p class="card-links"></p>
       </article>
