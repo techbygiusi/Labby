@@ -43,6 +43,7 @@ h1 { margin: 0.4rem 0 0.3rem; font-family: 'Space Mono', monospace; font-size: 1
 
 h2, h3, legend { font-family: 'Space Mono', monospace; margin: 0 0 0.7rem; }
 .stack { display: grid; gap: 0.65rem; }
+.share-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.4rem; align-items: end; }
 label { font-size: 0.88rem; color: var(--muted); display: grid; gap: 0.28rem; }
 
 input, select, textarea {

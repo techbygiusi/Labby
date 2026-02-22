@@ -37,6 +37,22 @@
             Name
             <input id="name" type="text" placeholder="e.g. Proxmox Node" required />
           </label>
+          <label id="hardware-kind-wrap">
+            Hardware Type
+            <select id="hardware-kind">
+              <option value="server">Server</option>
+              <option value="hypervisor">Hypervisor</option>
+              <option value="nas">NAS</option>
+              <option value="backup">Backup</option>
+              <option value="pc">PC</option>
+              <option value="router-gateway">Router / Gateway</option>
+              <option value="switch">Switch</option>
+            </select>
+          </label>
+          <label id="manufacturer-wrap">
+            Manufacturer
+            <input id="manufacturer" type="text" placeholder="e.g. Dell, Ubiquiti, Synology" />
+          </label>
           <label>
             Description
             <input id="description" type="text" placeholder="Short note" />
@@ -63,6 +79,27 @@
               Disks
               <input id="disks" type="text" placeholder="e.g. 2x 1TB NVMe" />
             </label>
+          </fieldset>
+          <label id="switch-ports-wrap" class="hidden">
+            Number of ports (Switch)
+            <input id="switch-ports" type="number" min="1" placeholder="e.g. 24" />
+          </label>
+          <label id="router-switches-wrap" class="hidden">
+            Connected switches (Router / Gateway)
+            <select id="router-switches" multiple></select>
+          </label>
+          <label id="switch-links-wrap" class="hidden">
+            Connected switches (Switch)
+            <select id="switch-links" multiple></select>
+          </label>
+          <label id="switch-device-links-wrap" class="hidden">
+            Connected hardware devices (Switch)
+            <select id="switch-device-links" multiple></select>
+          </label>
+          <fieldset id="nas-shares-wrap" class="network-fields hidden">
+            <legend>NAS shares</legend>
+            <div id="nas-shares" class="stack"></div>
+            <button id="add-share" class="button secondary" type="button">+ Add Share</button>
           </fieldset>
           <label id="ip-port-wrap" class="hidden">
             IP + Port (App)
