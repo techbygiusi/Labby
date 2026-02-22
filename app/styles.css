@@ -95,7 +95,7 @@ select[multiple] { min-height: 150px; }
 .card-head { display: flex; justify-content: space-between; gap: 0.4rem; }
 .title-wrap { display: flex; align-items: center; gap: 0.4rem; }
 .type-badge { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--line); }
-.type-badge.hardware { border-radius: 2px; }
+.type-badge.hardware { border-radius: 999px; }
 .type-badge.vm, .type-badge.lxc, .type-badge.app { border-radius: 999px; }
 .type-badge.network { transform: rotate(45deg); }
 
@@ -126,7 +126,7 @@ select[multiple] { min-height: 150px; }
 .legend { margin-top: 1rem; border: 3px solid var(--line); border-radius: 14px; padding: 0.6rem; background: var(--panel); font: 700 0.85rem/1.4 'Space Mono', monospace; }
 .legend p { margin: 0.2rem 0; display: flex; align-items: center; gap: 0.45rem; }
 .dot { width: 12px; height: 12px; border-radius: 999px; display: inline-block; border: 2px solid var(--line); }
-.dot.hardware { background: var(--blue); border-radius: 2px; }
+.dot.hardware { background: var(--blue); border-radius: 999px; }
 .dot.vm { background: #d6f0ff; }
 .dot.lxc { background: #d0f7ef; }
 .dot.app { background: #fce7d9; }

@@ -426,6 +426,39 @@ function toIPv4Int(ip) {
   return (((parts[0] << 24) >>> 0) + ((parts[1] << 16) >>> 0) + ((parts[2] << 8) >>> 0) + (parts[3] >>> 0)) >>> 0;
 }
 
+function inferNetworks(item, list) {
+  if (item.type === 'network') return [];
+  const networks = list.filter((candidate) => candidate.type === 'network');
+
+  const ips = [];
+  if (item.ip) ips.push(item.ip);
+  if (item.type === 'app' && item.ipPort) {
+    const hostIp = item.ipPort.split(':')[0].trim();
+    if (hostIp) ips.push(hostIp);
+  }
+
+  return networks.filter((network) => ips.some((ip) => ipInSubnet(ip, network.subnet)));
+}
+
+function ipInSubnet(ipWithMask, subnetCidr) {
+  const ipPart = String(ipWithMask).split('/')[0].trim();
+  const [subnetIp, prefixRaw] = String(subnetCidr).split('/');
+  const prefix = Number(prefixRaw);
+
+  const ipInt = toIPv4Int(ipPart);
+  const subnetInt = toIPv4Int((subnetIp || '').trim());
+  if (ipInt === null || subnetInt === null || Number.isNaN(prefix) || prefix < 0 || prefix > 32) return false;
+
+  const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0;
+  return (ipInt & mask) === (subnetInt & mask);
+}
+
+function toIPv4Int(ip) {
+  const parts = String(ip).split('.').map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => Number.isNaN(part) || part < 0 || part > 255)) return null;
+  return (((parts[0] << 24) >>> 0) + ((parts[1] << 16) >>> 0) + ((parts[2] << 8) >>> 0) + (parts[3] >>> 0)) >>> 0;
+}
+
 function applyTypeVisibility() {
   const type = typeSelect.value;
   const isNetwork = type === 'network';
@@ -879,7 +912,6 @@ function appMeta(app) {
 }
 
 function icon(type) {
-  if (type === 'hardware') return '■';
   if (type === 'network') return '◆';
   return '●';
 }
