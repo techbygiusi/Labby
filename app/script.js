@@ -41,6 +41,9 @@ const treeToggle = document.getElementById('tree-toggle');
 const treeClose = document.getElementById('tree-close');
 const treeDialog = document.getElementById('tree-dialog');
 const treeContent = document.getElementById('tree-content');
+const configToggle = document.getElementById('config-toggle');
+const configClose = document.getElementById('config-close');
+const configDialog = document.getElementById('config-dialog');
 
 let editingId = null;
 let selectedNetworkColor = networkPalette[0];
@@ -130,6 +133,9 @@ treeToggle.addEventListener('click', () => {
 });
 
 treeClose.addEventListener('click', () => treeDialog.close());
+
+configToggle.addEventListener('click', () => configDialog.showModal());
+configClose.addEventListener('click', () => configDialog.close());
 
 seedDemo.addEventListener('click', () => {
   items = [
