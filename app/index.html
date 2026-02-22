@@ -38,7 +38,7 @@
             Description
             <input id="description" type="text" placeholder="Short note" />
           </label>
-          <label>
+          <label id="notes-wrap">
             Notes
             <textarea id="notes" rows="3" placeholder="Any details, credentials location, maintenance info..."></textarea>
           </label>
@@ -46,9 +46,23 @@
             IP Address (Hardware/VM/LXC)
             <input id="ip-address" type="text" placeholder="e.g. 192.168.10.20" />
           </label>
+          <label id="ip-port-wrap" class="hidden">
+            IP + Port (App)
+            <input id="ip-port" type="text" placeholder="e.g. 10.10.0.50:3000" />
+          </label>
+          <label id="web-url-wrap" class="hidden">
+            Web URL (App)
+            <input id="web-url" type="url" placeholder="https://app.example.local" />
+          </label>
           <label id="hosted-on-wrap">
             Hosted on (Hardware)
             <select id="hosted-on">
+              <option value="">Not set</option>
+            </select>
+          </label>
+          <label id="app-hosted-on-wrap" class="hidden">
+            Hosted on (VM/LXC)
+            <select id="app-hosted-on">
               <option value="">Not set</option>
             </select>
           </label>
@@ -67,10 +81,6 @@
               <div id="network-color-picker" class="color-picker"></div>
             </div>
           </fieldset>
-          <label>
-            Connections
-            <select id="connections" multiple size="6"></select>
-          </label>
           <div class="actions">
             <button id="save-btn" class="button" type="submit">Add item</button>
             <button id="cancel-edit" class="button secondary hidden" type="button">Cancel</button>
@@ -144,6 +154,7 @@
         <p class="card-desc"></p>
         <p class="card-notes"></p>
         <p class="card-ip"></p>
+        <p class="card-app"></p>
         <p class="card-network"></p>
         <p class="card-hosting"></p>
         <p class="card-id"></p>
