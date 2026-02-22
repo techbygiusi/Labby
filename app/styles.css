@@ -53,6 +53,8 @@ input, select, textarea {
   width: 100%;
 }
 textarea { resize: vertical; min-height: 74px; }
+::placeholder { color: #5e6270; opacity: 1; }
+:root[data-theme='dark'] ::placeholder { color: #9ec2b6; }
 
 select option { color: #111; background: #fff; }
 :root[data-theme='dark'] select option { color: #001c11; background: #d4ffe9; }
@@ -101,7 +103,7 @@ select[multiple] { min-height: 150px; }
 .icon-btn { border: 2px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text); font: 700 0.75rem/1 'Space Mono', monospace; padding: 0.25rem 0.36rem; cursor: pointer; }
 .icon-btn.delete-btn { color: var(--danger); border-color: var(--danger); }
 
-.card-title { margin: 0; font-size: 0.92rem; }
+.card-title { margin: 0; font-size: 0.92rem; color: #1f2330; }
 .card-desc, .card-id, .card-links, .card-ip, .card-app, .card-specs, .card-network, .card-hosting, .card-notes {
   margin: 0.2rem 0;
   font: 600 0.76rem/1.3 'Space Mono', monospace;
@@ -159,7 +161,7 @@ select[multiple] { min-height: 150px; }
 .tree-lane { border-left: 2px dashed var(--line); padding-left: 0.8rem; display: grid; gap: 0.25rem; }
 .tree-lane.nested { margin-top: 0.15rem; }
 .tree-children { display: grid; gap: 0.35rem; margin-left: 0.2rem; }
-.tree-chip { display: inline-flex; width: fit-content; align-items: center; border: 2px solid var(--line); border-radius: 999px; padding: 0.15rem 0.55rem; font: 700 0.8rem/1.2 'Space Mono', monospace; background: var(--panel); }
+.tree-chip { display: inline-flex; width: fit-content; align-items: center; border: 2px solid var(--line); border-radius: 999px; padding: 0.15rem 0.55rem; font: 700 0.8rem/1.2 'Space Mono', monospace; background: var(--panel); color: #1f2330; }
 .tree-chip.hardware { background: var(--blue); }
 .tree-chip.vm { background: #d6f0ff; }
 .tree-chip.lxc { background: #d0f7ef; }
@@ -181,7 +183,26 @@ select[multiple] { min-height: 150px; }
   .phone { min-height: auto; }
 }
 
-:root[data-theme='dark'] .column { background: rgba(7, 26, 22, 0.78); }
-:root[data-theme='dark'] .stats { background: #154238; color: #e9fff6; }
+:root[data-theme='dark'] .column { background: rgba(9, 32, 27, 0.82); }
+:root[data-theme='dark'] .stats { background: #1b4f42; color: #e9fff6; }
 :root[data-theme='dark'] .tree-dialog { box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45); }
-:root[data-theme='dark'] .tree-shell { background: rgba(7, 26, 22, 0.72); }
+:root[data-theme='dark'] .tree-shell { background: rgba(9, 32, 27, 0.78); }
+
+:root[data-theme='dark'] .card { background: #16312b; }
+:root[data-theme='dark'] .card[data-type='hardware'] { background: #23495b; }
+:root[data-theme='dark'] .card[data-type='vm'] { background: #1f3f52; }
+:root[data-theme='dark'] .card[data-type='lxc'] { background: #1f4a43; }
+:root[data-theme='dark'] .card[data-type='app'] { background: #5a3f2d; }
+:root[data-theme='dark'] .card[data-type='network'] { background: #1b4b3f; }
+:root[data-theme='dark'] .card-title { color: #effff8; }
+
+:root[data-theme='dark'] .tree-chip { color: #eafff6; background: #1a312c; }
+:root[data-theme='dark'] .tree-chip.hardware { background: #2a5a71; }
+:root[data-theme='dark'] .tree-chip.vm { background: #2a4f66; }
+:root[data-theme='dark'] .tree-chip.lxc { background: #286157; }
+:root[data-theme='dark'] .tree-chip.app { background: #6a4a35; }
+:root[data-theme='dark'] .tree-chip.network { background: #1f614f; }
+:root[data-theme='dark'] .tree-meta,
+:root[data-theme='dark'] .tree-empty,
+:root[data-theme='dark'] .tree-subtitle { color: #c7e6db; }
+:root[data-theme='dark'] .tree-link { color: #ccffef; }
