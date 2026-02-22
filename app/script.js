@@ -59,10 +59,12 @@ const treeContent = document.getElementById('tree-content');
 const configToggle = document.getElementById('config-toggle');
 const configClose = document.getElementById('config-close');
 const configDialog = document.getElementById('config-dialog');
+const toast = document.getElementById('toast');
 
 let editingId = null;
 let selectedNetworkColor = networkPalette[0];
 let items = sanitizeItems(loadItems());
+let toastTimer = null;
 
 initColorPicker();
 appendShareRow();
@@ -101,7 +103,7 @@ form.addEventListener('submit', (event) => {
 
   if (!name) return;
   if (type === 'network' && (!subnet || !gateway)) {
-    alert('Network entries require subnet and gateway.');
+    showToast('Network entries require subnet and gateway.', 'error');
     return;
   }
 
@@ -132,6 +134,8 @@ form.addEventListener('submit', (event) => {
         : [],
   };
 
+  const wasEditing = Boolean(editingId);
+
   if (editingId) {
     const existing = findById(editingId);
     if (!existing) return;
@@ -143,6 +147,7 @@ form.addEventListener('submit', (event) => {
 
   normalizeItems();
   saveItems();
+  showToast(wasEditing ? 'Resource updated.' : 'Resource added.');
   form.reset();
   hardwareKindSelect.value = 'server';
   nasShares.innerHTML = '';
@@ -208,6 +213,7 @@ seedDemo.addEventListener('click', () => {
   stopEditing();
   normalizeItems();
   saveItems();
+  showToast('Demo topology loaded.');
   render();
 });
 
@@ -216,6 +222,7 @@ clearAll.addEventListener('click', () => {
   items = [];
   stopEditing();
   saveItems();
+  showToast('All resources cleared.');
   render();
 });
 
@@ -232,6 +239,7 @@ exportBtn.addEventListener('click', () => {
   link.download = 'labby-config.json';
   link.click();
   URL.revokeObjectURL(url);
+  showToast('Config exported.');
 });
 
 importFile.addEventListener('change', async (event) => {
@@ -242,9 +250,10 @@ importFile.addEventListener('change', async (event) => {
     items = sanitizeItems(JSON.parse(text));
     stopEditing();
     saveItems();
+    showToast('Config imported successfully.');
     render();
   } catch {
-    alert('Invalid config file. Please upload a Labby JSON export.');
+    showToast('Invalid config file. Please upload a Labby JSON export.', 'error');
   } finally {
     importFile.value = '';
   }
@@ -777,7 +786,17 @@ function removeItem(id) {
   normalizeItems();
   if (editingId === id) stopEditing();
   saveItems();
+  showToast('Resource removed.');
   render();
+}
+
+function showToast(message, kind = 'success') {
+  if (!toast) return;
+  toast.textContent = message;
+  toast.style.borderColor = kind === 'error' ? 'var(--danger)' : 'var(--line)';
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
 }
 
 function renderTreeView() {

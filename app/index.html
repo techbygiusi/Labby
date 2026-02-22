@@ -3,15 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Labby - Map Your Homalab</title>
+    <title>Labby - Map Your Homelab</title>
+    <link rel="icon" type="image/svg+xml" href="logo.svg" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <header class="topbar">
-      <div>
-        <p class="brand">Labby - Map Your Homalab</p>
+      <div class="brand-wrap">
+        <img src="logo.svg" alt="Labby logo" class="logo" />
+        <div>
+          <p class="brand">Labby - Map Your Homelab</p>
         <h1>Homelab Control Board</h1>
         <p class="subtitle">Document hardware, VMs, LXCs, apps, and networks with connected topology.</p>
+        </div>
       </div>
       <div class="topbar-actions">
         <button id="config-toggle" class="button secondary" type="button">⚙️ Config</button>
@@ -164,6 +168,8 @@
       </section>
 
     </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <button id="tree-toggle" class="tree-toggle" type="button">🌳 Tree View</button>
 
