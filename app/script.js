@@ -1,14 +1,25 @@
-const storageKey = 'labby-data-v3';
+const storageKey = 'labby-data-v5';
 const themeKey = 'labby-theme';
+const types = ['hardware', 'vm', 'lxc', 'app', 'network'];
+const networkPalette = ['#3b82f6', '#10b981', '#22c55e', '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#a855f7', '#14b8a6', '#84cc16', '#06b6d4', '#8b5cf6'];
 
 const boards = document.getElementById('boards');
 const stats = document.getElementById('stats');
 const form = document.getElementById('resource-form');
+const typeSelect = document.getElementById('type');
 const seedDemo = document.getElementById('seed-demo');
 const clearAll = document.getElementById('clear-all');
 const themeToggle = document.getElementById('theme-toggle');
 const template = document.getElementById('item-template');
 const connectionsSelect = document.getElementById('connections');
+const hostedOnSelect = document.getElementById('hosted-on');
+const hostedOnWrap = document.getElementById('hosted-on-wrap');
+const networkFields = document.getElementById('network-fields');
+const ipInput = document.getElementById('ip-address');
+const subnetInput = document.getElementById('subnet');
+const gatewayInput = document.getElementById('gateway');
+const networkColorSelect = document.getElementById('network-color');
+const notesInput = document.getElementById('notes');
 const cancelEditBtn = document.getElementById('cancel-edit');
 const saveBtn = document.getElementById('save-btn');
 const formTitle = document.getElementById('form-title');
@@ -16,22 +27,41 @@ const searchInput = document.getElementById('search');
 const filterType = document.getElementById('filter-type');
 const exportBtn = document.getElementById('export-btn');
 const importFile = document.getElementById('import-file');
+const treeToggle = document.getElementById('tree-toggle');
+const treeClose = document.getElementById('tree-close');
+const treeDialog = document.getElementById('tree-dialog');
+const treeContent = document.getElementById('tree-content');
 
 let items = sanitizeItems(loadItems());
 let editingId = null;
 
+initNetworkColorOptions();
 initTheme();
+applyTypeVisibility();
 render();
+
+typeSelect.addEventListener('change', applyTypeVisibility);
 
 form.addEventListener('submit', (event) => {
   event.preventDefault();
 
-  const type = document.getElementById('type').value;
+  const type = typeSelect.value;
   const name = document.getElementById('name').value.trim();
   const description = document.getElementById('description').value.trim();
+  const notes = notesInput.value.trim();
   const connections = selectedConnections();
+  const ip = ipInput.value.trim();
+  const hostedOn = hostedOnSelect.value || '';
+  const subnet = subnetInput.value.trim();
+  const gateway = gatewayInput.value.trim();
+  const networkColor = networkColorSelect.value;
 
   if (!name) return;
+
+  if (type === 'network' && (!subnet || !gateway)) {
+    alert('Network entries require subnet and gateway.');
+    return;
+  }
 
   if (editingId) {
     const existing = findById(editingId);
@@ -39,7 +69,13 @@ form.addEventListener('submit', (event) => {
     existing.type = type;
     existing.name = name;
     existing.description = description;
+    existing.notes = notes;
     existing.connections = connections.filter((id) => id !== existing.id);
+    existing.ip = ['hardware', 'vm', 'lxc'].includes(type) ? ip : '';
+    existing.subnet = type === 'network' ? subnet : '';
+    existing.gateway = type === 'network' ? gateway : '';
+    existing.networkColor = type === 'network' ? networkColor : '';
+    existing.hostedOn = ['vm', 'lxc'].includes(type) ? hostedOn : '';
     stopEditing();
   } else {
     items.push({
@@ -47,38 +83,53 @@ form.addEventListener('submit', (event) => {
       type,
       name,
       description,
+      notes,
       connections,
+      ip: ['hardware', 'vm', 'lxc'].includes(type) ? ip : '',
+      subnet: type === 'network' ? subnet : '',
+      gateway: type === 'network' ? gateway : '',
+      networkColor: type === 'network' ? networkColor : '',
+      hostedOn: ['vm', 'lxc'].includes(type) ? hostedOn : '',
     });
   }
 
-  normalizeConnections();
+  normalizeItems();
   saveItems();
   form.reset();
+  applyTypeVisibility();
   render();
 });
 
 cancelEditBtn.addEventListener('click', () => {
   stopEditing();
   form.reset();
+  applyTypeVisibility();
   render();
 });
 
 searchInput.addEventListener('input', render);
 filterType.addEventListener('change', render);
 
+treeToggle.addEventListener('click', () => {
+  renderTreeView();
+  treeDialog.showModal();
+});
+
+treeClose.addEventListener('click', () => treeDialog.close());
+
 seedDemo.addEventListener('click', () => {
   items = [
-    { id: 'hardware-1', type: 'hardware', name: 'Mini PC i5', description: 'Main Proxmox host', connections: ['network-1'] },
-    { id: 'hardware-2', type: 'hardware', name: 'Synology NAS', description: 'Backups + media', connections: ['network-1'] },
-    { id: 'network-1', type: 'network', name: 'LAN 192.168.10.0/24', description: 'Core VLAN', connections: [] },
-    { id: 'network-2', type: 'network', name: 'DMZ 192.168.20.0/24', description: 'Public services VLAN', connections: [] },
-    { id: 'vm-1', type: 'vm', name: 'Docker VM', description: 'Container workloads', connections: ['hardware-1', 'network-1'] },
-    { id: 'vm-2', type: 'vm', name: 'Firewall VM', description: 'Routing + ACL', connections: ['hardware-1', 'network-1', 'network-2'] },
-    { id: 'app-1', type: 'app', name: 'Home Assistant', description: 'Automation', connections: ['vm-1', 'network-1'] },
-    { id: 'app-2', type: 'app', name: 'Immich', description: 'Photos', connections: ['vm-1', 'network-1'] },
-    { id: 'app-3', type: 'app', name: 'Traefik', description: 'Reverse proxy', connections: ['vm-1', 'network-2'] },
+    { id: 'network-1', type: 'network', name: 'LAN', description: 'Main VLAN', notes: 'Client and servers', connections: [], ip: '', subnet: '192.168.10.0/24', gateway: '192.168.10.1', networkColor: '#10b981', hostedOn: '' },
+    { id: 'network-2', type: 'network', name: 'DMZ', description: 'Public services', notes: 'Reverse proxy edge', connections: [], ip: '', subnet: '192.168.20.0/24', gateway: '192.168.20.1', networkColor: '#f97316', hostedOn: '' },
+    { id: 'hardware-1', type: 'hardware', name: 'MS-01', description: 'Main Proxmox host', notes: 'Rack shelf A1', connections: ['network-1'], ip: '192.168.10.10', subnet: '', gateway: '', networkColor: '', hostedOn: '' },
+    { id: 'hardware-2', type: 'hardware', name: 'NUC-11', description: 'Second node', notes: '', connections: ['network-1'], ip: '192.168.10.11', subnet: '', gateway: '', networkColor: '', hostedOn: '' },
+    { id: 'vm-1', type: 'vm', name: 'onebitlabs', description: 'Docker workloads', notes: 'Ubuntu 24.04', connections: ['network-1'], ip: '192.168.10.30', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-1' },
+    { id: 'lxc-1', type: 'lxc', name: 'adguard-lxc', description: 'DNS filtering', notes: 'Port 53 internal only', connections: ['network-1'], ip: '192.168.10.40', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-1' },
+    { id: 'app-1', type: 'app', name: 'Immich', description: 'Photos', notes: 'External backup nightly', connections: ['vm-1', 'network-1'], ip: '', subnet: '', gateway: '', networkColor: '', hostedOn: '' },
+    { id: 'app-2', type: 'app', name: 'Traefik', description: 'Ingress', notes: '', connections: ['vm-1', 'network-2'], ip: '', subnet: '', gateway: '', networkColor: '', hostedOn: '' },
   ];
   stopEditing();
+  normalizeItems();
   saveItems();
   render();
 });
@@ -123,6 +174,18 @@ importFile.addEventListener('change', async (event) => {
   }
 });
 
+function initNetworkColorOptions() {
+  networkColorSelect.innerHTML = '';
+  networkPalette.forEach((color, idx) => {
+    const option = document.createElement('option');
+    option.value = color;
+    option.textContent = `Color ${idx + 1} (${color})`;
+    option.style.background = color;
+    option.style.color = '#111';
+    networkColorSelect.appendChild(option);
+  });
+}
+
 function loadItems() {
   try {
     const raw = localStorage.getItem(storageKey);
@@ -138,33 +201,69 @@ function saveItems() {
 
 function sanitizeItems(raw) {
   if (!Array.isArray(raw)) return [];
-  const allowed = ['hardware', 'vm', 'app', 'network'];
 
   const normalized = raw
     .filter((item) => item?.id && item?.name && item?.type)
     .map((item) => ({
       id: String(item.id),
-      type: allowed.includes(item.type) ? item.type : 'app',
+      type: types.includes(item.type) ? item.type : 'app',
       name: String(item.name),
       description: item.description ? String(item.description) : '',
+      notes: item.notes ? String(item.notes) : '',
       connections: Array.isArray(item.connections) ? [...new Set(item.connections.map(String))] : [],
+      ip: item.ip ? String(item.ip) : '',
+      subnet: item.subnet ? String(item.subnet) : '',
+      gateway: item.gateway ? String(item.gateway) : '',
+      networkColor: networkPalette.includes(item.networkColor) ? item.networkColor : networkPalette[0],
+      hostedOn: item.hostedOn ? String(item.hostedOn) : '',
     }));
 
-  const known = new Set(normalized.map((item) => item.id));
-  normalized.forEach((item) => {
-    item.connections = item.connections.filter((id) => known.has(id) && id !== item.id);
-  });
+  items = normalized;
+  normalizeItems();
+  return items;
+}
 
-  return normalized;
+function normalizeItems() {
+  const known = new Set(items.map((item) => item.id));
+  const hardwareIds = new Set(items.filter((item) => item.type === 'hardware').map((item) => item.id));
+
+  items.forEach((item) => {
+    item.connections = item.connections.filter((id) => known.has(id) && id !== item.id);
+    if (!['hardware', 'vm', 'lxc'].includes(item.type)) item.ip = '';
+    if (item.type !== 'network') {
+      item.subnet = '';
+      item.gateway = '';
+      item.networkColor = '';
+    } else if (!networkPalette.includes(item.networkColor)) {
+      item.networkColor = networkPalette[0];
+    }
+    if (!['vm', 'lxc'].includes(item.type) || !hardwareIds.has(item.hostedOn)) item.hostedOn = '';
+  });
+}
+
+function applyTypeVisibility() {
+  const type = typeSelect.value;
+  const isNetwork = type === 'network';
+  const isHosted = type === 'vm' || type === 'lxc';
+  const supportsIp = type === 'hardware' || type === 'vm' || type === 'lxc';
+
+  networkFields.classList.toggle('hidden', !isNetwork);
+  hostedOnWrap.classList.toggle('hidden', !isHosted);
+  ipInput.closest('label').classList.toggle('hidden', !supportsIp);
+
+  subnetInput.required = isNetwork;
+  gatewayInput.required = isNetwork;
 }
 
 function render() {
   refreshConnectionOptions();
+  refreshHostOptions();
 
   const filtered = applyFilters(items);
   const groups = {
     hardware: filtered.filter((item) => item.type === 'hardware'),
     vm: filtered.filter((item) => item.type === 'vm'),
+    lxc: filtered.filter((item) => item.type === 'lxc'),
     app: filtered.filter((item) => item.type === 'app'),
     network: filtered.filter((item) => item.type === 'network'),
   };
@@ -195,7 +294,8 @@ function applyFilters(list) {
 
   return list.filter((item) => {
     const typeMatch = selectedType === 'all' || item.type === selectedType;
-    const text = `${item.name} ${item.description}`.toLowerCase();
+    const networkText = item.type === 'network' ? `${item.subnet} ${item.gateway}` : '';
+    const text = `${item.name} ${item.description} ${item.notes} ${item.ip} ${networkText}`.toLowerCase();
     const searchMatch = !query || text.includes(query);
     return typeMatch && searchMatch;
   });
@@ -205,15 +305,59 @@ function cardNode(item) {
   const node = template.content.firstElementChild.cloneNode(true);
   node.dataset.type = item.type;
 
+  const networkColor = networkBorderColor(item);
+  if (networkColor) node.style.borderColor = networkColor;
+
   node.querySelector('.card-title').textContent = item.name;
   node.querySelector('.card-desc').textContent = item.description || 'No description';
+  node.querySelector('.card-notes').textContent = item.notes ? `Notes: ${item.notes}` : '';
   node.querySelector('.card-id').textContent = `ID: ${item.id}`;
   node.querySelector('.card-links').textContent = connectionLabel(item);
+  node.querySelector('.card-ip').textContent = item.ip ? `IP: ${item.ip}` : '';
+  node.querySelector('.card-network').textContent = item.type === 'network' ? `Subnet: ${item.subnet} | Gateway: ${item.gateway}` : '';
+  node.querySelector('.card-hosting').textContent = hostingLabel(item);
+
+  const badge = node.querySelector('.type-badge');
+  badge.className = `type-badge ${item.type}`;
 
   node.querySelector('.edit-btn').addEventListener('click', () => startEditing(item.id));
   node.querySelector('.delete-btn').addEventListener('click', () => removeItem(item.id));
 
   return node;
+}
+
+function networkBorderColor(item) {
+  if (item.type === 'network') return item.networkColor;
+
+  const byId = Object.fromEntries(items.map((entry) => [entry.id, entry]));
+  const connectedNetworks = item.connections
+    .map((id) => byId[id])
+    .filter((entry) => entry?.type === 'network');
+
+  if (connectedNetworks.length) return connectedNetworks[0].networkColor;
+
+  if ((item.type === 'vm' || item.type === 'lxc') && item.hostedOn) {
+    const host = byId[item.hostedOn];
+    const hostNetwork = host?.connections.map((id) => byId[id]).find((entry) => entry?.type === 'network');
+    return hostNetwork?.networkColor || '';
+  }
+
+  return '';
+}
+
+function hostingLabel(item) {
+  if (item.type === 'hardware') {
+    const guests = items.filter((candidate) => (candidate.type === 'vm' || candidate.type === 'lxc') && candidate.hostedOn === item.id);
+    return guests.length ? `Running: ${guests.map((guest) => guest.name).join(', ')}` : 'Running: none';
+  }
+
+  if (item.type === 'vm' || item.type === 'lxc') {
+    if (!item.hostedOn) return 'Hosted on: not set';
+    const host = findById(item.hostedOn);
+    return `Hosted on: ${host ? host.name : item.hostedOn}`;
+  }
+
+  return '';
 }
 
 function connectionLabel(item) {
@@ -251,6 +395,22 @@ function refreshConnectionOptions() {
   }
 }
 
+function refreshHostOptions() {
+  const selected = hostedOnSelect.value;
+  const hardware = items.filter((item) => item.type === 'hardware');
+
+  hostedOnSelect.innerHTML = '<option value="">Not set</option>';
+  hardware.forEach((host) => {
+    if (editingId && host.id === editingId) return;
+    const option = document.createElement('option');
+    option.value = host.id;
+    option.textContent = host.name;
+    hostedOnSelect.appendChild(option);
+  });
+
+  hostedOnSelect.value = selected;
+}
+
 function startEditing(id) {
   const item = findById(id);
   if (!item) return;
@@ -260,11 +420,20 @@ function startEditing(id) {
   saveBtn.textContent = 'Save changes';
   cancelEditBtn.classList.remove('hidden');
 
-  document.getElementById('type').value = item.type;
+  typeSelect.value = item.type;
   document.getElementById('name').value = item.name;
   document.getElementById('description').value = item.description;
+  notesInput.value = item.notes || '';
+  ipInput.value = item.ip || '';
+  subnetInput.value = item.subnet || '';
+  gatewayInput.value = item.gateway || '';
+  networkColorSelect.value = item.networkColor || networkPalette[0];
 
+  applyTypeVisibility();
   refreshConnectionOptions();
+  refreshHostOptions();
+  hostedOnSelect.value = item.hostedOn || '';
+
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -281,7 +450,7 @@ function removeItem(id) {
   if (!confirm(`Delete "${target.name}"?`)) return;
 
   items = items.filter((item) => item.id !== id);
-  normalizeConnections();
+  normalizeItems();
 
   if (editingId === id) stopEditing();
 
@@ -289,11 +458,62 @@ function removeItem(id) {
   render();
 }
 
-function normalizeConnections() {
-  const known = new Set(items.map((item) => item.id));
-  items.forEach((item) => {
-    item.connections = item.connections.filter((id) => known.has(id) && id !== item.id);
+function renderTreeView() {
+  const byType = {
+    hardware: items.filter((item) => item.type === 'hardware'),
+    vm: items.filter((item) => item.type === 'vm'),
+    lxc: items.filter((item) => item.type === 'lxc'),
+    app: items.filter((item) => item.type === 'app'),
+    network: items.filter((item) => item.type === 'network'),
+  };
+
+  const root = document.createElement('ul');
+  root.className = 'tree-root';
+
+  Object.entries(byType).forEach(([type, list]) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<strong>${label(type)}</strong> (${list.length})`;
+
+    const child = document.createElement('ul');
+    list.forEach((item) => {
+      const itemLi = document.createElement('li');
+      itemLi.textContent = `${shape(type)} ${item.name}`;
+
+      const details = [];
+      if (item.type === 'network') details.push(`subnet ${item.subnet}, gw ${item.gateway}`);
+      if (item.ip) details.push(`ip ${item.ip}`);
+      if (item.hostedOn) {
+        const host = findById(item.hostedOn);
+        details.push(`hosted on ${host ? host.name : item.hostedOn}`);
+      }
+      if (item.connections.length) {
+        const names = item.connections.map((id) => findById(id)?.name || id).join(', ');
+        details.push(`connected: ${names}`);
+      }
+      if (item.notes) details.push(`notes: ${item.notes}`);
+
+      if (details.length) {
+        const meta = document.createElement('div');
+        meta.className = 'tree-meta';
+        meta.textContent = details.join(' • ');
+        itemLi.appendChild(meta);
+      }
+
+      child.appendChild(itemLi);
+    });
+
+    li.appendChild(child);
+    root.appendChild(li);
   });
+
+  treeContent.innerHTML = '';
+  treeContent.appendChild(root);
+}
+
+function shape(type) {
+  if (type === 'hardware') return '■';
+  if (type === 'vm' || type === 'lxc' || type === 'app') return '●';
+  return '◆';
 }
 
 function findById(id) {
@@ -305,7 +525,7 @@ function totalConnections(list) {
 }
 
 function label(type) {
-  return ({ hardware: 'Hardware', vm: 'VMs', app: 'Apps', network: 'Networks' })[type] || type;
+  return ({ hardware: 'Hardware', vm: 'VMs', lxc: 'LXCs', app: 'Apps', network: 'Networks' })[type] || type;
 }
 
 function initTheme() {
