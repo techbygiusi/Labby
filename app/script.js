@@ -1,4 +1,4 @@
-const storageKey = 'labby-data-v5';
+const storageKey = 'labby-data-v6';
 const themeKey = 'labby-theme';
 const types = ['hardware', 'vm', 'lxc', 'app', 'network'];
 const networkPalette = ['#3b82f6', '#10b981', '#22c55e', '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#a855f7', '#14b8a6', '#84cc16', '#06b6d4', '#8b5cf6'];
@@ -18,7 +18,7 @@ const networkFields = document.getElementById('network-fields');
 const ipInput = document.getElementById('ip-address');
 const subnetInput = document.getElementById('subnet');
 const gatewayInput = document.getElementById('gateway');
-const networkColorSelect = document.getElementById('network-color');
+const colorPicker = document.getElementById('network-color-picker');
 const notesInput = document.getElementById('notes');
 const cancelEditBtn = document.getElementById('cancel-edit');
 const saveBtn = document.getElementById('save-btn');
@@ -32,10 +32,11 @@ const treeClose = document.getElementById('tree-close');
 const treeDialog = document.getElementById('tree-dialog');
 const treeContent = document.getElementById('tree-content');
 
-let items = sanitizeItems(loadItems());
 let editingId = null;
+let selectedNetworkColor = networkPalette[0];
+let items = sanitizeItems(loadItems());
 
-initNetworkColorOptions();
+initColorPicker();
 initTheme();
 applyTypeVisibility();
 render();
@@ -54,48 +55,40 @@ form.addEventListener('submit', (event) => {
   const hostedOn = hostedOnSelect.value || '';
   const subnet = subnetInput.value.trim();
   const gateway = gatewayInput.value.trim();
-  const networkColor = networkColorSelect.value;
 
   if (!name) return;
-
   if (type === 'network' && (!subnet || !gateway)) {
     alert('Network entries require subnet and gateway.');
     return;
   }
 
+  const payload = {
+    type,
+    name,
+    description,
+    notes,
+    connections,
+    ip: ['hardware', 'vm', 'lxc'].includes(type) ? ip : '',
+    subnet: type === 'network' ? subnet : '',
+    gateway: type === 'network' ? gateway : '',
+    networkColor: type === 'network' ? selectedNetworkColor : '',
+    hostedOn: ['vm', 'lxc'].includes(type) ? hostedOn : '',
+  };
+
   if (editingId) {
     const existing = findById(editingId);
     if (!existing) return;
-    existing.type = type;
-    existing.name = name;
-    existing.description = description;
-    existing.notes = notes;
-    existing.connections = connections.filter((id) => id !== existing.id);
-    existing.ip = ['hardware', 'vm', 'lxc'].includes(type) ? ip : '';
-    existing.subnet = type === 'network' ? subnet : '';
-    existing.gateway = type === 'network' ? gateway : '';
-    existing.networkColor = type === 'network' ? networkColor : '';
-    existing.hostedOn = ['vm', 'lxc'].includes(type) ? hostedOn : '';
+    Object.assign(existing, payload);
+    existing.connections = payload.connections.filter((id) => id !== existing.id);
     stopEditing();
   } else {
-    items.push({
-      id: `${type}-${Date.now()}`,
-      type,
-      name,
-      description,
-      notes,
-      connections,
-      ip: ['hardware', 'vm', 'lxc'].includes(type) ? ip : '',
-      subnet: type === 'network' ? subnet : '',
-      gateway: type === 'network' ? gateway : '',
-      networkColor: type === 'network' ? networkColor : '',
-      hostedOn: ['vm', 'lxc'].includes(type) ? hostedOn : '',
-    });
+    items.push({ id: `${type}-${Date.now()}`, ...payload });
   }
 
   normalizeItems();
   saveItems();
   form.reset();
+  setSelectedColor(networkPalette[0]);
   applyTypeVisibility();
   render();
 });
@@ -103,6 +96,7 @@ form.addEventListener('submit', (event) => {
 cancelEditBtn.addEventListener('click', () => {
   stopEditing();
   form.reset();
+  setSelectedColor(networkPalette[0]);
   applyTypeVisibility();
   render();
 });
@@ -122,11 +116,9 @@ seedDemo.addEventListener('click', () => {
     { id: 'network-1', type: 'network', name: 'LAN', description: 'Main VLAN', notes: 'Client and servers', connections: [], ip: '', subnet: '192.168.10.0/24', gateway: '192.168.10.1', networkColor: '#10b981', hostedOn: '' },
     { id: 'network-2', type: 'network', name: 'DMZ', description: 'Public services', notes: 'Reverse proxy edge', connections: [], ip: '', subnet: '192.168.20.0/24', gateway: '192.168.20.1', networkColor: '#f97316', hostedOn: '' },
     { id: 'hardware-1', type: 'hardware', name: 'MS-01', description: 'Main Proxmox host', notes: 'Rack shelf A1', connections: ['network-1'], ip: '192.168.10.10', subnet: '', gateway: '', networkColor: '', hostedOn: '' },
-    { id: 'hardware-2', type: 'hardware', name: 'NUC-11', description: 'Second node', notes: '', connections: ['network-1'], ip: '192.168.10.11', subnet: '', gateway: '', networkColor: '', hostedOn: '' },
     { id: 'vm-1', type: 'vm', name: 'onebitlabs', description: 'Docker workloads', notes: 'Ubuntu 24.04', connections: ['network-1'], ip: '192.168.10.30', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-1' },
     { id: 'lxc-1', type: 'lxc', name: 'adguard-lxc', description: 'DNS filtering', notes: 'Port 53 internal only', connections: ['network-1'], ip: '192.168.10.40', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-1' },
     { id: 'app-1', type: 'app', name: 'Immich', description: 'Photos', notes: 'External backup nightly', connections: ['vm-1', 'network-1'], ip: '', subnet: '', gateway: '', networkColor: '', hostedOn: '' },
-    { id: 'app-2', type: 'app', name: 'Traefik', description: 'Ingress', notes: '', connections: ['vm-1', 'network-2'], ip: '', subnet: '', gateway: '', networkColor: '', hostedOn: '' },
   ];
   stopEditing();
   normalizeItems();
@@ -160,7 +152,6 @@ exportBtn.addEventListener('click', () => {
 importFile.addEventListener('change', async (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
-
   try {
     const text = await file.text();
     items = sanitizeItems(JSON.parse(text));
@@ -174,15 +165,24 @@ importFile.addEventListener('change', async (event) => {
   }
 });
 
-function initNetworkColorOptions() {
-  networkColorSelect.innerHTML = '';
-  networkPalette.forEach((color, idx) => {
-    const option = document.createElement('option');
-    option.value = color;
-    option.textContent = `Color ${idx + 1} (${color})`;
-    option.style.background = color;
-    option.style.color = '#111';
-    networkColorSelect.appendChild(option);
+function initColorPicker() {
+  colorPicker.innerHTML = '';
+  networkPalette.forEach((color) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'color-dot';
+    btn.style.background = color;
+    btn.dataset.color = color;
+    btn.addEventListener('click', () => setSelectedColor(color));
+    colorPicker.appendChild(btn);
+  });
+  setSelectedColor(selectedNetworkColor);
+}
+
+function setSelectedColor(color) {
+  selectedNetworkColor = color;
+  colorPicker.querySelectorAll('.color-dot').forEach((dot) => {
+    dot.classList.toggle('active', dot.dataset.color === color);
   });
 }
 
@@ -201,7 +201,6 @@ function saveItems() {
 
 function sanitizeItems(raw) {
   if (!Array.isArray(raw)) return [];
-
   const normalized = raw
     .filter((item) => item?.id && item?.name && item?.type)
     .map((item) => ({
@@ -217,27 +216,29 @@ function sanitizeItems(raw) {
       networkColor: networkPalette.includes(item.networkColor) ? item.networkColor : networkPalette[0],
       hostedOn: item.hostedOn ? String(item.hostedOn) : '',
     }));
-
-  items = normalized;
-  normalizeItems();
-  return items;
+  return normalizeList(normalized);
 }
 
 function normalizeItems() {
-  const known = new Set(items.map((item) => item.id));
-  const hardwareIds = new Set(items.filter((item) => item.type === 'hardware').map((item) => item.id));
+  items = normalizeList(items);
+}
 
-  items.forEach((item) => {
-    item.connections = item.connections.filter((id) => known.has(id) && id !== item.id);
-    if (!['hardware', 'vm', 'lxc'].includes(item.type)) item.ip = '';
-    if (item.type !== 'network') {
-      item.subnet = '';
-      item.gateway = '';
-      item.networkColor = '';
-    } else if (!networkPalette.includes(item.networkColor)) {
-      item.networkColor = networkPalette[0];
+function normalizeList(list) {
+  const known = new Set(list.map((item) => item.id));
+  const hardwareIds = new Set(list.filter((item) => item.type === 'hardware').map((item) => item.id));
+  return list.map((item) => {
+    const next = { ...item };
+    next.connections = next.connections.filter((id) => known.has(id) && id !== next.id);
+    if (!['hardware', 'vm', 'lxc'].includes(next.type)) next.ip = '';
+    if (next.type !== 'network') {
+      next.subnet = '';
+      next.gateway = '';
+      next.networkColor = '';
+    } else if (!networkPalette.includes(next.networkColor)) {
+      next.networkColor = networkPalette[0];
     }
-    if (!['vm', 'lxc'].includes(item.type) || !hardwareIds.has(item.hostedOn)) item.hostedOn = '';
+    if (!['vm', 'lxc'].includes(next.type) || !hardwareIds.has(next.hostedOn)) next.hostedOn = '';
+    return next;
   });
 }
 
@@ -275,14 +276,12 @@ function render() {
     const col = document.createElement('section');
     col.className = 'column';
     col.innerHTML = `<h3>${label(type)} (${list.length})</h3>`;
-
     if (!list.length) {
       const empty = document.createElement('p');
       empty.className = 'card-desc';
       empty.textContent = 'No resources found.';
       col.appendChild(empty);
     }
-
     list.forEach((item) => col.appendChild(cardNode(item)));
     boards.appendChild(col);
   });
@@ -291,13 +290,11 @@ function render() {
 function applyFilters(list) {
   const query = searchInput.value.trim().toLowerCase();
   const selectedType = filterType.value;
-
   return list.filter((item) => {
     const typeMatch = selectedType === 'all' || item.type === selectedType;
     const networkText = item.type === 'network' ? `${item.subnet} ${item.gateway}` : '';
     const text = `${item.name} ${item.description} ${item.notes} ${item.ip} ${networkText}`.toLowerCase();
-    const searchMatch = !query || text.includes(query);
-    return typeMatch && searchMatch;
+    return typeMatch && (!query || text.includes(query));
   });
 }
 
@@ -305,43 +302,34 @@ function cardNode(item) {
   const node = template.content.firstElementChild.cloneNode(true);
   node.dataset.type = item.type;
 
-  const networkColor = networkBorderColor(item);
-  if (networkColor) node.style.borderColor = networkColor;
+  const border = networkBorderColor(item);
+  if (border) node.style.borderColor = border;
 
   node.querySelector('.card-title').textContent = item.name;
   node.querySelector('.card-desc').textContent = item.description || 'No description';
   node.querySelector('.card-notes').textContent = item.notes ? `Notes: ${item.notes}` : '';
-  node.querySelector('.card-id').textContent = `ID: ${item.id}`;
-  node.querySelector('.card-links').textContent = connectionLabel(item);
   node.querySelector('.card-ip').textContent = item.ip ? `IP: ${item.ip}` : '';
   node.querySelector('.card-network').textContent = item.type === 'network' ? `Subnet: ${item.subnet} | Gateway: ${item.gateway}` : '';
   node.querySelector('.card-hosting').textContent = hostingLabel(item);
+  node.querySelector('.card-id').textContent = `ID: ${item.id}`;
+  node.querySelector('.card-links').textContent = connectionLabel(item);
 
-  const badge = node.querySelector('.type-badge');
-  badge.className = `type-badge ${item.type}`;
-
+  node.querySelector('.type-badge').className = `type-badge ${item.type}`;
   node.querySelector('.edit-btn').addEventListener('click', () => startEditing(item.id));
   node.querySelector('.delete-btn').addEventListener('click', () => removeItem(item.id));
-
   return node;
 }
 
 function networkBorderColor(item) {
   if (item.type === 'network') return item.networkColor;
-
   const byId = Object.fromEntries(items.map((entry) => [entry.id, entry]));
-  const connectedNetworks = item.connections
-    .map((id) => byId[id])
-    .filter((entry) => entry?.type === 'network');
-
-  if (connectedNetworks.length) return connectedNetworks[0].networkColor;
-
+  const connectedNetwork = item.connections.map((id) => byId[id]).find((entry) => entry?.type === 'network');
+  if (connectedNetwork) return connectedNetwork.networkColor;
   if ((item.type === 'vm' || item.type === 'lxc') && item.hostedOn) {
     const host = byId[item.hostedOn];
-    const hostNetwork = host?.connections.map((id) => byId[id]).find((entry) => entry?.type === 'network');
-    return hostNetwork?.networkColor || '';
+    const hostNet = host?.connections.map((id) => byId[id]).find((entry) => entry?.type === 'network');
+    return hostNet?.networkColor || '';
   }
-
   return '';
 }
 
@@ -350,21 +338,19 @@ function hostingLabel(item) {
     const guests = items.filter((candidate) => (candidate.type === 'vm' || candidate.type === 'lxc') && candidate.hostedOn === item.id);
     return guests.length ? `Running: ${guests.map((guest) => guest.name).join(', ')}` : 'Running: none';
   }
-
   if (item.type === 'vm' || item.type === 'lxc') {
     if (!item.hostedOn) return 'Hosted on: not set';
     const host = findById(item.hostedOn);
     return `Hosted on: ${host ? host.name : item.hostedOn}`;
   }
-
   return '';
 }
 
 function connectionLabel(item) {
   if (!item.connections.length) return 'Connected to: none';
   const byId = Object.fromEntries(items.map((entry) => [entry.id, entry]));
-  const text = item.connections.map((id) => byId[id]?.name || id).join(', ');
-  return `Connected to: ${text}`;
+  const names = item.connections.map((id) => byId[id]?.name || id).join(', ');
+  return `Connected to: ${names}`;
 }
 
 function selectedConnections() {
@@ -373,18 +359,15 @@ function selectedConnections() {
 
 function refreshConnectionOptions() {
   const selected = new Set(selectedConnections());
-
   connectionsSelect.innerHTML = '';
   items.forEach((item) => {
     if (editingId && item.id === editingId) return;
-
     const option = document.createElement('option');
     option.value = item.id;
     option.textContent = `${item.name} (${label(item.type)})`;
     option.selected = selected.has(item.id);
     connectionsSelect.appendChild(option);
   });
-
   if (editingId) {
     const editing = findById(editingId);
     if (editing) {
@@ -397,17 +380,14 @@ function refreshConnectionOptions() {
 
 function refreshHostOptions() {
   const selected = hostedOnSelect.value;
-  const hardware = items.filter((item) => item.type === 'hardware');
-
   hostedOnSelect.innerHTML = '<option value="">Not set</option>';
-  hardware.forEach((host) => {
+  items.filter((item) => item.type === 'hardware').forEach((host) => {
     if (editingId && host.id === editingId) return;
     const option = document.createElement('option');
     option.value = host.id;
     option.textContent = host.name;
     hostedOnSelect.appendChild(option);
   });
-
   hostedOnSelect.value = selected;
 }
 
@@ -427,7 +407,7 @@ function startEditing(id) {
   ipInput.value = item.ip || '';
   subnetInput.value = item.subnet || '';
   gatewayInput.value = item.gateway || '';
-  networkColorSelect.value = item.networkColor || networkPalette[0];
+  setSelectedColor(item.networkColor || networkPalette[0]);
 
   applyTypeVisibility();
   refreshConnectionOptions();
@@ -451,9 +431,7 @@ function removeItem(id) {
 
   items = items.filter((item) => item.id !== id);
   normalizeItems();
-
   if (editingId === id) stopEditing();
-
   saveItems();
   render();
 }
@@ -469,36 +447,26 @@ function renderTreeView() {
 
   const root = document.createElement('ul');
   root.className = 'tree-root';
-
   Object.entries(byType).forEach(([type, list]) => {
     const li = document.createElement('li');
     li.innerHTML = `<strong>${label(type)}</strong> (${list.length})`;
-
     const child = document.createElement('ul');
+
     list.forEach((item) => {
       const itemLi = document.createElement('li');
       itemLi.textContent = `${shape(type)} ${item.name}`;
-
       const details = [];
       if (item.type === 'network') details.push(`subnet ${item.subnet}, gw ${item.gateway}`);
       if (item.ip) details.push(`ip ${item.ip}`);
-      if (item.hostedOn) {
-        const host = findById(item.hostedOn);
-        details.push(`hosted on ${host ? host.name : item.hostedOn}`);
-      }
-      if (item.connections.length) {
-        const names = item.connections.map((id) => findById(id)?.name || id).join(', ');
-        details.push(`connected: ${names}`);
-      }
+      if (item.hostedOn) details.push(`hosted on ${findById(item.hostedOn)?.name || item.hostedOn}`);
+      if (item.connections.length) details.push(`connected: ${item.connections.map((id) => findById(id)?.name || id).join(', ')}`);
       if (item.notes) details.push(`notes: ${item.notes}`);
-
       if (details.length) {
         const meta = document.createElement('div');
         meta.className = 'tree-meta';
         meta.textContent = details.join(' • ');
         itemLi.appendChild(meta);
       }
-
       child.appendChild(itemLi);
     });
 

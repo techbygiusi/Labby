@@ -17,7 +17,7 @@ Track and connect:
 - Notes field for every resource
 - Multi-select connection mapping
 - Network fields: subnet + gateway (required for network entries)
-- Network color selector (12 colors) to color-code a subnet
+- Clickable subnet color circles (12 colors) to color-code a subnet
 - IP fields for Hardware/VM/LXC
 - Hosting mapping: VM/LXC can be assigned to hardware hosts
 - Hardware cards show which VM/LXC is running on them

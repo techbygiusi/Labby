@@ -58,6 +58,17 @@ select option { color: #111; background: #fff; }
 :root[data-theme='dark'] select option { color: #001c11; background: #d4ffe9; }
 select[multiple] { min-height: 150px; }
 
+.mini-title { margin: 0 0 0.35rem; font: 700 0.82rem/1.2 "Space Mono", monospace; color: var(--muted); }
+.color-picker { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.color-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 2px solid var(--line);
+  cursor: pointer;
+}
+.color-dot.active { outline: 2px solid var(--text); outline-offset: 1px; }
+
 .network-fields { border: 3px solid var(--line); border-radius: 14px; padding: 0.6rem; margin: 0; }
 
 .button { border: 3px solid var(--line); border-radius: 14px; padding: 0.55rem 0.8rem; font: 700 0.9rem/1.2 'Space Mono', monospace; cursor: pointer; background: var(--yellow); color: #222; }
