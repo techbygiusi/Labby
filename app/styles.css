@@ -32,12 +32,14 @@
 body { margin: 0; font-family: Inter, system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
 .topbar { max-width: 1380px; margin: 0 auto; padding: 1rem 1.2rem; display: flex; justify-content: space-between; align-items: flex-start; }
+.topbar-actions { display: flex; gap: 0.5rem; }
 .brand { margin: 0; font: 700 0.95rem/1 'Space Mono', monospace; }
 h1 { margin: 0.4rem 0 0.3rem; font-family: 'Space Mono', monospace; font-size: 1.7rem; }
 .subtitle { margin: 0; color: var(--muted); }
 
-.phone-grid { max-width: 1380px; margin: 0 auto; padding: 0.6rem 1rem 2rem; display: grid; grid-template-columns: repeat(3, minmax(260px, 1fr)); gap: 1.2rem; }
+.phone-grid { max-width: 1380px; margin: 0 auto; padding: 0.6rem 1rem 2rem; display: grid; grid-template-columns: minmax(270px, 340px) minmax(320px, 1fr) minmax(320px, 1fr); gap: 1.2rem; }
 .phone { background: var(--phone); border: 4px solid var(--line); border-radius: 32px; padding: 1rem; box-shadow: 0 16px 0 rgba(0, 0, 0, 0.15); min-height: 640px; }
+.panel-center { grid-column: 2 / 4; }
 
 h2, h3, legend { font-family: 'Space Mono', monospace; margin: 0 0 0.7rem; }
 .stack { display: grid; gap: 0.65rem; }
@@ -152,6 +154,7 @@ select[multiple] { min-height: 150px; }
   background: var(--phone);
   color: var(--text);
 }
+.tree-dialog .legend { margin-bottom: 0; }
 .tree-dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
 .tree-head { display: flex; justify-content: space-between; align-items: center; }
 .tree-content { max-height: 60vh; overflow: auto; font: 600 0.85rem/1.4 'Space Mono', monospace; }

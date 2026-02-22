@@ -13,7 +13,10 @@
         <h1>Homelab Control Board</h1>
         <p class="subtitle">Document hardware, VMs, LXCs, apps, and networks with connected topology.</p>
       </div>
-      <button id="theme-toggle" class="button secondary" aria-label="Toggle theme">🌙 Dark</button>
+      <div class="topbar-actions">
+        <button id="config-toggle" class="button secondary" type="button">⚙️ Config</button>
+        <button id="theme-toggle" class="button secondary" aria-label="Toggle theme">🌙 Dark</button>
+      </div>
     </header>
 
     <main class="phone-grid">
@@ -123,25 +126,6 @@
         <div id="boards" class="boards"></div>
       </section>
 
-      <section class="phone panel-right">
-        <h2>Config</h2>
-        <p class="note">Backup or move your full homelab map.</p>
-        <div class="stack">
-          <button id="export-btn" class="button secondary" type="button">Export Config</button>
-          <label class="button secondary file-label">
-            Import Config
-            <input id="import-file" type="file" accept="application/json" />
-          </label>
-          <button id="clear-all" class="button danger" type="button">Clear All</button>
-        </div>
-        <div class="legend">
-          <p><span class="dot hardware"></span> Hardware</p>
-          <p><span class="dot vm"></span> VM</p>
-          <p><span class="dot lxc"></span> LXC</p>
-          <p><span class="dot app"></span> App</p>
-          <p><span class="dot network"></span> Network</p>
-        </div>
-      </section>
     </main>
 
     <button id="tree-toggle" class="tree-toggle" type="button">🌳 Tree View</button>
@@ -152,6 +136,29 @@
         <button id="tree-close" class="icon-btn" type="button">Close</button>
       </div>
       <div id="tree-content" class="tree-content"></div>
+    </dialog>
+
+    <dialog id="config-dialog" class="tree-dialog">
+      <div class="tree-head">
+        <h3>Config</h3>
+        <button id="config-close" class="icon-btn" type="button">Close</button>
+      </div>
+      <p class="note">Backup or move your full homelab map.</p>
+      <div class="stack">
+        <button id="export-btn" class="button secondary" type="button">Export Config</button>
+        <label class="button secondary file-label">
+          Import Config
+          <input id="import-file" type="file" accept="application/json" />
+        </label>
+        <button id="clear-all" class="button danger" type="button">Clear All</button>
+      </div>
+      <div class="legend">
+        <p><span class="dot hardware"></span> Hardware</p>
+        <p><span class="dot vm"></span> VM</p>
+        <p><span class="dot lxc"></span> LXC</p>
+        <p><span class="dot app"></span> App</p>
+        <p><span class="dot network"></span> Network</p>
+      </div>
     </dialog>
 
     <template id="item-template">
