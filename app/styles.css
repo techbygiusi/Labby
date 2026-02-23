@@ -292,23 +292,21 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   cursor: pointer;
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
 }
-.graph-info-panel {
-  width: 100%;
-  height: auto;
-  min-height: 0;
-  max-height: none;
-  align-self: start;
-  overflow: auto;
+.graph-tooltip {
+  position: absolute;
+  z-index: 7;
+  pointer-events: none;
   border: 2px solid var(--line);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--phone);
-  padding: 0.4rem 0.55rem;
-  font: 600 0.74rem/1.32 'Space Mono', monospace;
+  padding: 0.22rem 0.5rem;
+  font: 700 0.74rem/1.2 'Space Mono', monospace;
   box-shadow: var(--shadow);
-  box-sizing: border-box;
+  white-space: nowrap;
+  max-width: min(260px, 70vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.graph-info-panel p { margin: 0.15rem 0; word-break: break-word; overflow-wrap: anywhere; }
-.graph-info-empty { color: var(--muted); font-style: italic; }
 
 .toast {
   position: fixed;

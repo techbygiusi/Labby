@@ -1209,8 +1209,10 @@ function buildGraphView() {
     node.style.top = `${pos.y}px`;
     node.style.borderColor = networkBorderColor(item) || 'var(--line)';
 
-    node.addEventListener('mouseenter', () => {
-      tip.innerHTML = graphTooltipHtml(item);
+    node.addEventListener('mouseenter', (event) => {
+      tip.textContent = item.name;
+      tip.classList.remove('hidden');
+      positionGraphTooltip(event, tip, wrap);
     });
     node.addEventListener('click', () => {
       startEditing(item.id);
@@ -1226,22 +1228,25 @@ function buildGraphView() {
 
 
 
-function graphTooltipHtml(item) {
-  const connections = item.connections.map((id) => findById(id)?.name || id).join(', ') || 'none';
-  const primaryIp = item.ip || item.ipPort || '-';
-  const bits = [
-    `<strong>${item.name}</strong>`,
-    `Type: ${labelSingle(item.type)}`,
-    item.type === 'hardware' ? `Hardware: ${hardwareTypeLabel(item.hardwareKind)}` : '',
-    item.manufacturer ? `Manufacturer: ${item.manufacturer}` : '',
-    ['hardware', 'vm', 'lxc'].includes(item.type) && item.os ? `OS: ${item.os}` : '',
-    `IP: ${primaryIp}`,
-    item.type === 'app' && item.webUrl ? `URL: ${item.webUrl}` : '',
-    item.description ? `Description: ${item.description}` : '',
-    item.notes ? `Notes: ${item.notes}` : '',
-    `Connected: ${connections}`,
-  ].filter(Boolean);
-  return bits.map((line) => `<p>${line}</p>`).join('');
+function positionGraphTooltip(event, tip, wrap) {
+  const wrapRect = wrap.getBoundingClientRect();
+  const x = event.clientX - wrapRect.left;
+  const y = event.clientY - wrapRect.top;
+  const gap = 14;
+  const edge = 8;
+  const tipRect = tip.getBoundingClientRect();
+  const tipWidth = Math.max(90, Math.round(tipRect.width || tip.offsetWidth || 120));
+  const tipHeight = Math.max(28, Math.round(tipRect.height || tip.offsetHeight || 32));
+
+  const canRight = x + gap + tipWidth <= wrapRect.width - edge;
+  const preferredLeft = canRight ? x + gap : x - gap - tipWidth;
+  const preferredTop = y - tipHeight / 2;
+
+  const left = Math.max(edge, Math.min(preferredLeft, wrapRect.width - tipWidth - edge));
+  const top = Math.max(edge, Math.min(preferredTop, wrapRect.height - tipHeight - edge));
+
+  tip.style.left = `${left}px`;
+  tip.style.top = `${top}px`;
 }
 
 function buildInfrastructureTree() {
