@@ -429,7 +429,8 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   .tree-head-actions > .icon-btn { order: -1; }
   .view-switch { margin-left: auto; }
   .view-switch .icon-btn { min-height: 34px; }
-  .graph-wrap { overflow: auto; }
+  .graph-wrap { grid-template-columns: 1fr; overflow: auto; }
+  .graph-info-panel { width: 100%; min-height: 0; max-height: none; height: auto; }
   .graph-node { width: 40px; height: 40px; font-size: 1.05rem; }
   .toast { width: calc(100vw - 20px); }
 }
