@@ -2,7 +2,7 @@
 
 :root {
   color-scheme: light;
-  --bg: linear-gradient(160deg, #d4d8e8 0%, #d9e8de 100%);
+  --bg: #ece9df;
   --phone: #f5f1e7;
   --panel: #ffffff;
   --text: #202126;
@@ -22,17 +22,17 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: linear-gradient(160deg, #08100f 0%, #101f31 100%);
-  --phone: #0f1b19;
-  --panel: #142623;
-  --text: #e9fff6;
-  --muted: #bdd8cf;
-  --line: #5fd8ae;
-  --yellow: #c7e769;
-  --mint: #16473b;
-  --blue: #1d3f4f;
-  --danger: #ff8f9d;
-  --shadow: 0 16px 34px rgba(0, 0, 0, 0.42);
+  --bg: #050706;
+  --phone: #0b110d;
+  --panel: #101a13;
+  --text: #9dffb8;
+  --muted: #5db978;
+  --line: #00ff41;
+  --yellow: #c6ff4d;
+  --mint: #0f2a18;
+  --blue: #123423;
+  --danger: #ff6a6a;
+  --shadow: 0 16px 34px rgba(0, 0, 0, 0.52);
 }
 
 * { box-sizing: border-box; }
@@ -150,7 +150,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .filters { margin: 0 0 var(--space-2); display: grid; grid-template-columns: 1fr 140px; gap: var(--space-2); }
 .stats { border: 2px solid var(--line); background: var(--mint); border-radius: 12px; padding: 0.4rem 0.58rem; font: 700 0.76rem/1.24 'Space Mono', monospace; margin-bottom: var(--space-2); }
 .boards { display: grid; gap: 0.5rem; flex: 1; min-height: 0; overflow: auto; padding-right: 0.18rem; }
-.column { border: 2px solid var(--line); border-radius: 12px; padding: var(--space-2); background: rgba(255, 255, 255, 0.4); }
+.column { border: 2px solid var(--line); border-radius: 12px; padding: var(--space-2); background: var(--panel); }
 
 .card { border: 2px solid var(--line); border-radius: 10px; padding: 0.42rem; background: var(--panel); margin-bottom: 0.32rem; }
 .card[data-type='hardware'] { background: var(--blue); }
@@ -240,7 +240,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .view-switch .icon-btn.active { background: var(--yellow); color: #111; }
 .tree-content { max-height: 60vh; overflow: auto; font: 600 0.85rem/1.4 'Space Mono', monospace; padding-right: var(--space-1); }
 .tree-content.graph-mode { padding-right: 0; }
-.tree-shell { border: 3px solid var(--line); border-radius: 14px; padding: 0.75rem; background: rgba(255, 255, 255, 0.45); display: grid; gap: 0.8rem; }
+.tree-shell { border: 3px solid var(--line); border-radius: 14px; padding: 0.75rem; background: var(--panel); display: grid; gap: 0.8rem; }
 .tree-section h4 { margin: 0 0 0.55rem; font-size: 1rem; }
 .tree-body { display: grid; gap: 0.45rem; }
 .tree-lane { border-left: 2px dashed var(--line); padding-left: 0.8rem; display: grid; gap: 0.25rem; }
@@ -254,7 +254,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .tree-empty { color: var(--muted); margin: 0.1rem 0; font-style: italic; }
 .tree-subgroup { border: 2px solid var(--line); border-radius: 10px; padding: 0.45rem; display: grid; gap: 0.35rem; }
 .tree-subtitle { margin: 0; font-size: 0.78rem; color: var(--muted); }
-:root[data-theme='dark'] .tree-shell { background: rgba(0, 0, 0, 0.2); }
+:root[data-theme='dark'] .tree-shell { background: var(--panel); }
 :root[data-theme='dark'] .tree-link { color: #bfffe8; }
 
 .graph-wrap { position: relative; display: grid; overflow: auto; justify-content: center; }
@@ -439,21 +439,21 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   .card-controls .icon-btn { flex: 1; }
 }
 
-:root[data-theme='dark'] .column { background: rgba(9, 32, 27, 0.82); }
-:root[data-theme='dark'] .stats { background: #1b4f42; color: #e9fff6; }
+:root[data-theme='dark'] .column { background: var(--panel); }
+:root[data-theme='dark'] .stats { background: #0f2a18; color: #9dffb8; }
 :root[data-theme='dark'] .tree-dialog { box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45); }
-:root[data-theme='dark'] .tree-shell { background: rgba(9, 32, 27, 0.78); }
+:root[data-theme='dark'] .tree-shell { background: var(--panel); }
 
-:root[data-theme='dark'] .card { background: #16312b; }
-:root[data-theme='dark'] .card[data-type='hardware'] { background: #23495b; }
-:root[data-theme='dark'] .card[data-type='vm'] { background: #1f3f52; }
-:root[data-theme='dark'] .card[data-type='lxc'] { background: #1f4a43; }
-:root[data-theme='dark'] .card[data-type='app'] { background: #5a3f2d; }
-:root[data-theme='dark'] .card[data-type='network'] { background: #1b4b3f; }
-:root[data-theme='dark'] .card-title { color: #effff8; }
+:root[data-theme='dark'] .card { background: #0f2218; }
+:root[data-theme='dark'] .card[data-type='hardware'] { background: #113126; }
+:root[data-theme='dark'] .card[data-type='vm'] { background: #102a1f; }
+:root[data-theme='dark'] .card[data-type='lxc'] { background: #103121; }
+:root[data-theme='dark'] .card[data-type='app'] { background: #1a2d1c; }
+:root[data-theme='dark'] .card[data-type='network'] { background: #133826; }
+:root[data-theme='dark'] .card-title { color: #b6ffca; }
 
-:root[data-theme='dark'] .tree-chip { color: #eafff6; background: #1a312c; }
+:root[data-theme='dark'] .tree-chip { color: #baffcf; background: #0f2218; }
 :root[data-theme='dark'] .tree-meta,
 :root[data-theme='dark'] .tree-empty,
-:root[data-theme='dark'] .tree-subtitle { color: #c7e6db; }
-:root[data-theme='dark'] .tree-link { color: #ccffef; }
+:root[data-theme='dark'] .tree-subtitle { color: #79cf93; }
+:root[data-theme='dark'] .tree-link { color: #8affad; }
