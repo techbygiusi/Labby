@@ -1281,8 +1281,9 @@ function buildGraphView() {
     canvas.appendChild(node);
   });
 
+  const graphBounds = getGraphBounds(positions, graphItems);
   requestAnimationFrame(() => {
-    enableGraphPanZoom(wrap, canvas, width, height);
+    enableGraphPanZoom(wrap, canvas, width, height, graphBounds);
   });
 
   return wrap;
@@ -1291,7 +1292,27 @@ function buildGraphView() {
 
 
 
-function enableGraphPanZoom(wrap, canvas, width, height) {
+function getGraphBounds(positions, graphItems) {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  graphItems.forEach((item) => {
+    const pos = positions.get(item.id);
+    if (!pos) return;
+    minX = Math.min(minX, pos.x);
+    minY = Math.min(minY, pos.y);
+    maxX = Math.max(maxX, pos.x);
+    maxY = Math.max(maxY, pos.y);
+  });
+
+  if (!Number.isFinite(minX)) return null;
+
+  return { minX, minY, maxX, maxY };
+}
+
+function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
   let scale = 1;
   let panX = 0;
   let panY = 0;
@@ -1304,8 +1325,23 @@ function enableGraphPanZoom(wrap, canvas, width, height) {
   }
 
   function centerView() {
-    panX = (wrap.clientWidth - width * scale) / 2;
-    panY = (wrap.clientHeight - height * scale) / 2;
+    const defaultPanX = (wrap.clientWidth - width * scale) / 2;
+    const defaultPanY = (wrap.clientHeight - height * scale) / 2;
+    if (!bounds) {
+      panX = defaultPanX;
+      panY = defaultPanY;
+      applyTransform();
+      return;
+    }
+
+    const focusCenterX = (bounds.minX + bounds.maxX) / 2;
+    const focusCenterY = (bounds.minY + bounds.maxY) / 2;
+
+    panX = wrap.clientWidth / 2 - focusCenterX * scale;
+    panY = wrap.clientHeight / 2 - focusCenterY * scale;
+
+    if (!Number.isFinite(panX)) panX = defaultPanX;
+    if (!Number.isFinite(panY)) panY = defaultPanY;
     applyTransform();
   }
 
@@ -1543,76 +1579,6 @@ function buildInfrastructureTree() {
     body.appendChild(standalone);
   }
 
-
-
-  const byHardwareId = Object.fromEntries(hardware.map((item) => [item.id, item]));
-  const switches = hardware.filter((item) => item.hardwareKind === 'switch');
-  const routers = hardware.filter((item) => item.hardwareKind === 'router-gateway');
-
-  if (switches.length || routers.length) {
-    const fabric = document.createElement('div');
-    fabric.className = 'tree-subgroup';
-    fabric.innerHTML = '<p class="tree-subtitle">Switch / Router topology</p>';
-
-    switches.forEach((sw) => {
-      const switchLane = document.createElement('div');
-      switchLane.className = 'tree-lane';
-      switchLane.appendChild(treeChip(sw));
-      const switchMeta = infraMeta(sw);
-      if (switchMeta) switchLane.appendChild(switchMeta);
-
-      const children = document.createElement('div');
-      children.className = 'tree-children';
-
-      const connectedRouters = routers.filter((router) => (router.connections || []).includes(sw.id));
-      connectedRouters.forEach((router) => {
-        const lane = document.createElement('div');
-        lane.className = 'tree-lane nested';
-        lane.appendChild(treeChip(router));
-        const meta = document.createElement('p');
-        meta.className = 'tree-subtitle';
-        meta.textContent = 'Router uplink';
-        lane.appendChild(meta);
-        children.appendChild(lane);
-      });
-
-      const connectedHardware = (sw.connections || [])
-        .map((id) => byHardwareId[id])
-        .filter((item) => item && item.id !== sw.id);
-
-      connectedHardware.forEach((device) => {
-        const lane = document.createElement('div');
-        lane.className = 'tree-lane nested';
-        lane.appendChild(treeChip(device));
-        const meta = infraMeta(device);
-        if (meta) lane.appendChild(meta);
-        children.appendChild(lane);
-      });
-
-      if (!children.childNodes.length) {
-        const none = document.createElement('p');
-        none.className = 'tree-empty';
-        none.textContent = 'No connected hardware';
-        children.appendChild(none);
-      }
-
-      switchLane.appendChild(children);
-      fabric.appendChild(switchLane);
-    });
-
-    if (!switches.length) {
-      routers.forEach((router) => {
-        const routerLane = document.createElement('div');
-        routerLane.className = 'tree-lane';
-        routerLane.appendChild(treeChip(router));
-        const routerMeta = infraMeta(router);
-        if (routerMeta) routerLane.appendChild(routerMeta);
-        fabric.appendChild(routerLane);
-      });
-    }
-
-    body.appendChild(fabric);
-  }
 
   const orphanGuests = [...vms, ...lxcs].filter((guest) => !guest.hostedOn);
   if (orphanGuests.length) {
