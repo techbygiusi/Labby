@@ -904,8 +904,8 @@ function buildGraphView() {
     return wrap;
   }
 
-  const width = Math.max(760, treeContent.clientWidth - 24);
-  const height = Math.max(460, treeContent.clientHeight - 24);
+  const width = Math.max(760, treeContent.clientWidth - 40);
+  const height = Math.max(460, treeContent.clientHeight - 28);
   canvas.style.setProperty('--graph-width', `${width}px`);
   canvas.style.setProperty('--graph-height', `${height}px`);
 
