@@ -872,6 +872,7 @@ function setTreeMode(mode) {
 
 function renderTreeView() {
   treeContent.innerHTML = '';
+  treeContent.classList.toggle('graph-mode', treeViewMode === 'graph');
   const treeShell = document.createElement('div');
   treeShell.className = 'tree-shell';
 
@@ -906,8 +907,8 @@ function buildGraphView() {
     return wrap;
   }
 
-  const width = Math.max(760, treeContent.clientWidth - 34);
-  const height = Math.max(460, treeContent.clientHeight - 40);
+  const width = Math.max(760, treeContent.clientWidth - 30);
+  const height = Math.max(460, treeContent.clientHeight - 34);
   canvas.style.setProperty('--graph-width', `${width}px`);
   canvas.style.setProperty('--graph-height', `${height}px`);
 
@@ -964,6 +965,7 @@ function buildGraphView() {
   const links = document.createElementNS(svgNS, 'svg');
   links.setAttribute('class', 'graph-links');
   links.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  links.setAttribute('preserveAspectRatio', 'none');
   const seen = new Set();
   graphItems.forEach((item) => {
     const from = positions.get(item.id);
@@ -1031,10 +1033,26 @@ function positionGraphTooltip(event, tip, wrap) {
   const cursorGap = 34;
   const tipWidth = Math.max(160, Math.round(tip.getBoundingClientRect().width || tip.offsetWidth || 240));
   const tipHeight = Math.max(110, Math.round(tip.getBoundingClientRect().height || tip.offsetHeight || 180));
+
   const canShowOnRight = x + cursorGap + tipWidth <= wrapRect.width - edgePadding;
+  const canShowBelow = y + cursorGap + tipHeight <= wrapRect.height - edgePadding;
+
   const preferredX = canShowOnRight ? x + cursorGap : x - tipWidth - cursorGap;
-  tip.style.left = `${Math.max(edgePadding, Math.min(preferredX, wrapRect.width - tipWidth - edgePadding))}px`;
-  tip.style.top = `${Math.max(edgePadding, Math.min(y + cursorGap, wrapRect.height - tipHeight - edgePadding))}px`;
+  const preferredY = canShowBelow ? y + cursorGap : y - tipHeight - cursorGap;
+
+  let left = Math.max(edgePadding, Math.min(preferredX, wrapRect.width - tipWidth - edgePadding));
+  let top = Math.max(edgePadding, Math.min(preferredY, wrapRect.height - tipHeight - edgePadding));
+
+  const cursorOverlapsTip = x >= left && x <= left + tipWidth && y >= top && y <= top + tipHeight;
+  if (cursorOverlapsTip) {
+    const moveLeft = Math.max(edgePadding, x - tipWidth - cursorGap);
+    const moveAbove = Math.max(edgePadding, y - tipHeight - cursorGap);
+    if (moveLeft + tipWidth <= wrapRect.width - edgePadding) left = moveLeft;
+    else top = moveAbove;
+  }
+
+  tip.style.left = `${left}px`;
+  tip.style.top = `${top}px`;
 }
 
 function graphTooltipHtml(item) {
