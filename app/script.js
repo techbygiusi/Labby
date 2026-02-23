@@ -1189,12 +1189,11 @@ function buildGraphView() {
   const parentById = new Map();
   const childrenById = new Map(graphItems.map((item) => [item.id, []]));
   graphItems.forEach((item) => {
-    const parentId = parentIdFor(item);
+    const candidateParentId = parentIdFor(item);
+    const parentId = candidateParentId && candidateParentId !== item.id ? candidateParentId : '';
     parentById.set(item.id, parentId);
     if (parentId && childrenById.has(parentId)) childrenById.get(parentId).push(item.id);
   });
-  placeLayer(sortedApps, appY, 0.08, 0.92);
-
 
   childrenById.forEach((childIds, parentId) => {
     childIds.sort((aId, bId) => nodeOrder(graphById[aId], graphById[bId]));
@@ -1210,15 +1209,26 @@ function buildGraphView() {
   let cursor = 0;
   const horizontalStep = 130;
 
-  function assignX(nodeId) {
-    const children = childrenById.get(nodeId) || [];
-    if (!children.length) {
+  function assignX(nodeId, trail = new Set()) {
+    if (rawX.has(nodeId)) return rawX.get(nodeId);
+    if (trail.has(nodeId)) {
       rawX.set(nodeId, cursor);
       cursor += horizontalStep;
       return rawX.get(nodeId);
     }
 
-    const childCoords = children.map((childId) => assignX(childId));
+    trail.add(nodeId);
+    const children = childrenById.get(nodeId) || [];
+    const childCoords = children
+      .map((childId) => assignX(childId, new Set(trail)))
+      .filter((value) => Number.isFinite(value));
+
+    if (!childCoords.length) {
+      rawX.set(nodeId, cursor);
+      cursor += horizontalStep;
+      return rawX.get(nodeId);
+    }
+
     const center = childCoords.reduce((sum, value) => sum + value, 0) / childCoords.length;
     rawX.set(nodeId, center);
     return center;
@@ -1226,12 +1236,14 @@ function buildGraphView() {
 
   if (roots.length) {
     roots.forEach((rootId) => assignX(rootId));
-  } else {
-    graphItems.sort(nodeOrder).forEach((item) => {
+  }
+
+  graphItems.sort(nodeOrder).forEach((item) => {
+    if (!rawX.has(item.id)) {
       rawX.set(item.id, cursor);
       cursor += horizontalStep;
-    });
-  }
+    }
+  });
 
   const depthCache = new Map();
   const visiting = new Set();
@@ -1248,27 +1260,45 @@ function buildGraphView() {
 
   graphItems.forEach((item) => depthFor(item.id));
 
-  const allRawX = [...rawX.values()];
-  const minRawX = Math.min(...allRawX);
-  const maxRawX = Math.max(...allRawX);
-  const rawSpan = Math.max(1, maxRawX - minRawX);
-  const horizontalPadding = 70;
-  const usableWidth = Math.max(240, width - horizontalPadding * 2);
-  const compress = rawSpan > usableWidth ? usableWidth / rawSpan : 1;
-  const finalSpan = rawSpan * compress;
-  const startX = (width - finalSpan) / 2;
+  const allRawX = [...rawX.values()].filter((value) => Number.isFinite(value));
+  const depthValues = [...depthCache.values()].filter((value) => Number.isFinite(value));
+  const canUseHierarchy = allRawX.length && depthValues.length;
 
-  const topPadding = 72;
-  const layerGap = Math.max(90, Math.round((height - topPadding - 70) / Math.max(1, Math.max(...depthCache.values()))));
+  if (canUseHierarchy) {
+    const minRawX = Math.min(...allRawX);
+    const maxRawX = Math.max(...allRawX);
+    const rawSpan = Math.max(1, maxRawX - minRawX);
+    const horizontalPadding = 70;
+    const usableWidth = Math.max(240, width - horizontalPadding * 2);
+    const compress = rawSpan > usableWidth ? usableWidth / rawSpan : 1;
+    const finalSpan = rawSpan * compress;
+    const startX = (width - finalSpan) / 2;
 
-  graphItems.forEach((item) => {
-    const x = startX + (rawX.get(item.id) - minRawX) * compress;
-    const y = topPadding + depthFor(item.id) * layerGap;
-    positions.set(item.id, {
-      x: Math.max(36, Math.min(width - 36, Math.round(x))),
-      y: Math.max(36, Math.min(height - 36, Math.round(y))),
+    const topPadding = 72;
+    const maxDepth = Math.max(1, Math.max(...depthValues));
+    const layerGap = Math.max(90, Math.round((height - topPadding - 70) / maxDepth));
+
+    graphItems.forEach((item) => {
+      const x = startX + (rawX.get(item.id) - minRawX) * compress;
+      const y = topPadding + depthFor(item.id) * layerGap;
+      positions.set(item.id, {
+        x: Math.max(36, Math.min(width - 36, Math.round(x))),
+        y: Math.max(36, Math.min(height - 36, Math.round(y))),
+      });
     });
-  });
+  }
+
+  if (positions.size !== graphItems.length) {
+    const fallbackStep = width / (graphItems.length + 1);
+    const fallbackTop = Math.round(height * 0.22);
+    graphItems.sort(nodeOrder).forEach((item, idx) => {
+      if (positions.has(item.id)) return;
+      positions.set(item.id, {
+        x: Math.round((idx + 1) * fallbackStep),
+        y: fallbackTop + (idx % 3) * 96,
+      });
+    });
+  }
 
   const svgNS = 'http://www.w3.org/2000/svg';
   const links = document.createElementNS(svgNS, 'svg');
