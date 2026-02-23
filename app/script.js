@@ -906,8 +906,8 @@ function buildGraphView() {
     return wrap;
   }
 
-  const width = Math.max(760, treeContent.clientWidth - 66);
-  const height = Math.max(460, treeContent.clientHeight - 62);
+  const width = Math.max(760, treeContent.clientWidth - 34);
+  const height = Math.max(460, treeContent.clientHeight - 40);
   canvas.style.setProperty('--graph-width', `${width}px`);
   canvas.style.setProperty('--graph-height', `${height}px`);
 
@@ -1031,7 +1031,9 @@ function positionGraphTooltip(event, tip, wrap) {
   const cursorGap = 34;
   const tipWidth = Math.max(160, Math.round(tip.getBoundingClientRect().width || tip.offsetWidth || 240));
   const tipHeight = Math.max(110, Math.round(tip.getBoundingClientRect().height || tip.offsetHeight || 180));
-  tip.style.left = `${Math.max(edgePadding, Math.min(x + cursorGap, wrapRect.width - tipWidth - edgePadding))}px`;
+  const canShowOnRight = x + cursorGap + tipWidth <= wrapRect.width - edgePadding;
+  const preferredX = canShowOnRight ? x + cursorGap : x - tipWidth - cursorGap;
+  tip.style.left = `${Math.max(edgePadding, Math.min(preferredX, wrapRect.width - tipWidth - edgePadding))}px`;
   tip.style.top = `${Math.max(edgePadding, Math.min(y + cursorGap, wrapRect.height - tipHeight - edgePadding))}px`;
 }
 
