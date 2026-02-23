@@ -1138,9 +1138,12 @@ function buildGraphView() {
     return wrap;
   }
 
-  const infoPanelWidth = 300;
-  const width = Math.max(760, treeContent.clientWidth - infoPanelWidth - 42);
-  const height = Math.max(460, treeContent.clientHeight - 34);
+  const viewportWidth = Math.max(760, treeContent.clientWidth - 30);
+  const viewportHeight = Math.max(460, treeContent.clientHeight - 34);
+  const minWidthForItems = Math.max(1100, graphItems.length * 170);
+  const minHeightForItems = Math.max(620, Math.ceil(graphItems.length / 8) * 220);
+  const width = Math.max(viewportWidth, minWidthForItems);
+  const height = Math.max(viewportHeight, minHeightForItems);
   canvas.style.setProperty('--graph-width', `${width}px`);
   canvas.style.setProperty('--graph-height', `${height}px`);
   canvas.style.width = `${width}px`;
@@ -1256,6 +1259,11 @@ function buildGraphView() {
     });
 
     canvas.appendChild(node);
+  });
+
+  requestAnimationFrame(() => {
+    wrap.scrollLeft = Math.max(0, (wrap.scrollWidth - wrap.clientWidth) / 2);
+    wrap.scrollTop = Math.max(0, (wrap.scrollHeight - wrap.clientHeight) / 2);
   });
 
   return wrap;

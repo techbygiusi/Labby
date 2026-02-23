@@ -257,7 +257,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 :root[data-theme='dark'] .tree-shell { background: var(--panel); }
 :root[data-theme='dark'] .tree-link { color: #bfffe8; }
 
-.graph-wrap { position: relative; display: grid; overflow: auto; justify-content: center; }
+.graph-wrap { position: relative; display: grid; overflow: auto; justify-content: center; align-items: start; overscroll-behavior: contain; }
 .graph-canvas {
   position: relative;
   width: var(--graph-width, 1100px);
