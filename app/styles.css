@@ -260,7 +260,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .graph-wrap {
   display: grid;
   grid-template-columns: minmax(760px, 1fr) 280px;
-  align-items: stretch;
+  align-items: start;
   gap: 0.65rem;
   overflow: auto;
   justify-content: center;
@@ -293,9 +293,10 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
 }
 .graph-info-panel {
-  height: var(--graph-height, 620px);
-  min-height: var(--graph-height, 620px);
-  max-height: var(--graph-height, 620px);
+  height: auto;
+  min-height: 0;
+  max-height: min(var(--graph-height, 620px), 65vh);
+  align-self: start;
   overflow: auto;
   border: 2px solid var(--line);
   border-radius: 12px;
