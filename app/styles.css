@@ -241,11 +241,6 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .tree-lane.nested { margin-top: 0.15rem; }
 .tree-children { display: grid; gap: 0.35rem; margin-left: 0.2rem; }
 .tree-chip { display: inline-flex; width: fit-content; align-items: center; border: 2px solid var(--line); border-radius: 999px; padding: 0.15rem 0.55rem; font: 700 0.8rem/1.2 'Space Mono', monospace; background: var(--panel); color: #1f2330; }
-.tree-chip.hardware { background: var(--blue); }
-.tree-chip.vm { background: #d6f0ff; }
-.tree-chip.lxc { background: #d0f7ef; }
-.tree-chip.app { background: #fce7d9; }
-.tree-chip.network { background: var(--mint); }
 .tree-meta { color: var(--muted); margin: 0; display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
 .tree-link { color: var(--text); text-decoration: underline; text-underline-offset: 2px; word-break: break-all; }
 .tree-link:hover { opacity: 0.8; }
@@ -446,11 +441,6 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 :root[data-theme='dark'] .card-title { color: #effff8; }
 
 :root[data-theme='dark'] .tree-chip { color: #eafff6; background: #1a312c; }
-:root[data-theme='dark'] .tree-chip.hardware { background: #2a5a71; }
-:root[data-theme='dark'] .tree-chip.vm { background: #2a4f66; }
-:root[data-theme='dark'] .tree-chip.lxc { background: #286157; }
-:root[data-theme='dark'] .tree-chip.app { background: #6a4a35; }
-:root[data-theme='dark'] .tree-chip.network { background: #1f614f; }
 :root[data-theme='dark'] .tree-meta,
 :root[data-theme='dark'] .tree-empty,
 :root[data-theme='dark'] .tree-subtitle { color: #c7e6db; }

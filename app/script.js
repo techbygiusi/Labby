@@ -879,7 +879,6 @@ function renderTreeView() {
   const treeShell = document.createElement('div');
   treeShell.className = 'tree-shell';
   treeShell.appendChild(buildInfrastructureTree());
-  treeShell.appendChild(buildNetworksTree());
   treeContent.appendChild(treeShell);
 }
 
@@ -1067,9 +1066,6 @@ function buildInfrastructureTree() {
     lane.className = 'tree-lane';
 
     lane.appendChild(treeChip(host));
-    const hostMeta = infraMeta(host);
-    if (hostMeta) lane.appendChild(hostMeta);
-    lane.appendChild(treeConnectionsMeta(host));
 
     const guestsWrap = document.createElement('div');
     guestsWrap.className = 'tree-children';
@@ -1086,9 +1082,6 @@ function buildInfrastructureTree() {
       const guestLane = document.createElement('div');
       guestLane.className = 'tree-lane nested';
       guestLane.appendChild(treeChip(guest));
-      const guestMeta = infraMeta(guest);
-      if (guestMeta) guestLane.appendChild(guestMeta);
-      guestLane.appendChild(treeConnectionsMeta(guest));
 
       const guestApps = apps.filter((app) => app.appHostedOn === guest.id);
       const appWrap = document.createElement('div');
@@ -1103,9 +1096,8 @@ function buildInfrastructureTree() {
           const appLane = document.createElement('div');
           appLane.className = 'tree-lane nested';
           appLane.appendChild(treeChip(app));
-          const meta = appMeta(app);
-          if (meta) appLane.appendChild(meta);
-          appLane.appendChild(treeConnectionsMeta(app));
+          const appLink = appTreeLink(app);
+          if (appLink) appLane.appendChild(appLink);
           appWrap.appendChild(appLane);
         });
       }
@@ -1126,9 +1118,6 @@ function buildInfrastructureTree() {
       const row = document.createElement('div');
       row.className = 'tree-lane';
       row.appendChild(treeChip(guest));
-      const meta = infraMeta(guest);
-      if (meta) row.appendChild(meta);
-      row.appendChild(treeConnectionsMeta(guest));
       orphan.appendChild(row);
     });
     body.appendChild(orphan);
@@ -1143,9 +1132,8 @@ function buildInfrastructureTree() {
       const row = document.createElement('div');
       row.className = 'tree-lane';
       row.appendChild(treeChip(app));
-      const meta = appMeta(app);
-      if (meta) row.appendChild(meta);
-      row.appendChild(treeConnectionsMeta(app));
+      const appLink = appTreeLink(app);
+      if (appLink) row.appendChild(appLink);
       orphan.appendChild(row);
     });
     body.appendChild(orphan);
@@ -1217,9 +1205,22 @@ function buildNetworksTree() {
 function treeChip(item) {
   const chip = document.createElement('span');
   chip.className = `tree-chip ${item.type}`;
-  const suffix = item.type === 'hardware' ? ` (${hardwareTypeLabel(item.hardwareKind)})` : '';
-  chip.textContent = `${icon(item.type)} ${item.name}${suffix}`;
+  const netColor = networkBorderColor(item);
+  if (netColor) chip.style.borderColor = netColor;
+  chip.textContent = item.name;
   return chip;
+}
+
+function appTreeLink(app) {
+  const url = app.webUrl || app.url;
+  if (!url) return null;
+  const link = document.createElement('a');
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.className = 'tree-link';
+  link.textContent = url;
+  return link;
 }
 
 function infraMeta(item) {
