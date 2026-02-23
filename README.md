@@ -8,8 +8,7 @@ Track your infrastructure, visualize relationships, and keep everything in one p
 ## 📸 Screenshots
 
 ### Dashboard + Resource Management
-<img width="3421" height="1888" alt="image" src="https://github.com/user-attachments/assets/286c4dcc-f628-402e-be3e-985c6b3445b7" />
-
+<img width="1901" height="939" alt="image" src="https://github.com/user-attachments/assets/423081f8-939e-4de3-b4dd-6f54d1215d26" />
 
 ### Tree / Graph Relationship View
 <img width="1562" height="1331" alt="image" src="https://github.com/user-attachments/assets/58caccb7-63f2-4591-ada6-4ad295f31777" />
