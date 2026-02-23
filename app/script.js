@@ -22,6 +22,8 @@ const hardwareKindSelect = document.getElementById('hardware-kind');
 const hardwareKindWrap = document.getElementById('hardware-kind-wrap');
 const manufacturerInput = document.getElementById('manufacturer');
 const manufacturerWrap = document.getElementById('manufacturer-wrap');
+const osInput = document.getElementById('os');
+const osWrap = document.getElementById('os-wrap');
 const computeFields = document.getElementById('compute-fields');
 const cpuCountSelect = document.getElementById('cpu-count');
 const ramModulesWrap = document.getElementById('ram-modules-wrap');
@@ -44,6 +46,8 @@ const addShareBtn = document.getElementById('add-share');
 const nasRaidsWrap = document.getElementById('nas-raids-wrap');
 const nasRaids = document.getElementById('nas-raids');
 const addRaidBtn = document.getElementById('add-raid');
+const nasSharesLegend = nasSharesWrap?.querySelector('legend');
+const nasRaidsLegend = nasRaidsWrap?.querySelector('legend');
 const ipPortInput = document.getElementById('ip-port');
 const ipPortWrap = document.getElementById('ip-port-wrap');
 const webUrlInput = document.getElementById('web-url');
@@ -77,7 +81,7 @@ let items = sanitizeItems(loadItems());
 let toastTimer = null;
 let treeViewMode = 'tree';
 
-cleanupDuplicateIds(['symbol-wrap', 'hardware-kind-wrap', 'manufacturer-wrap', 'symbol', 'hardware-kind', 'manufacturer']);
+cleanupDuplicateIds(['symbol-wrap', 'hardware-kind-wrap', 'manufacturer-wrap', 'os-wrap', 'symbol', 'hardware-kind', 'manufacturer', 'os']);
 cleanupDuplicateFieldLabels();
 
 initColorPicker();
@@ -103,6 +107,7 @@ function cleanupDuplicateFieldLabels() {
   removeDuplicateLabels((labelNode) => labelNode.querySelector('#symbol'));
   removeDuplicateLabels((labelNode) => labelNode.querySelector('#hardware-kind'));
   removeDuplicateLabels((labelNode) => labelNode.querySelector('#manufacturer'));
+  removeDuplicateLabels((labelNode) => labelNode.querySelector('#os'));
 }
 
 function removeDuplicateLabels(matchFn) {
@@ -129,6 +134,7 @@ form.addEventListener('submit', (event) => {
   const type = typeSelect.value;
   const hardwareKind = hardwareKindSelect.value;
   const manufacturer = manufacturerInput.value.trim();
+  const os = osInput.value.trim();
   const symbol = symbolInput.value.trim();
   const name = document.getElementById('name').value.trim();
   const description = document.getElementById('description').value.trim();
@@ -160,6 +166,7 @@ form.addEventListener('submit', (event) => {
     type,
     hardwareKind: type === 'hardware' ? hardwareKind : '',
     manufacturer: type === 'hardware' ? manufacturer : '',
+    os: ['hardware', 'vm', 'lxc'].includes(type) ? os : '',
     symbol: symbol || defaultSymbol(type, hardwareKind),
     name,
     description,
@@ -179,8 +186,8 @@ form.addEventListener('submit', (event) => {
     hostedOn: ['vm', 'lxc'].includes(type) ? hostedOn : '',
     appHostedOn: type === 'app' ? appHostedOn : '',
     switchPorts: type === 'hardware' && hardwareKind === 'switch' ? switchPorts : '',
-    nasShares: type === 'hardware' && hardwareKind === 'nas' ? shareList : [],
-    nasRaids: type === 'hardware' && hardwareKind === 'nas' ? raidList : [],
+    nasShares: supportsStorageGroups(type, hardwareKind) ? shareList : [],
+    nasRaids: supportsStorageGroups(type, hardwareKind) ? raidList : [],
     connections: type === 'hardware' && hardwareKind === 'router-gateway'
       ? selectedRouterSwitches
       : type === 'hardware' && hardwareKind === 'switch'
@@ -243,26 +250,33 @@ configClose.addEventListener('click', () => configDialog.close());
 
 seedDemo.addEventListener('click', () => {
   items = [
-    { id: 'network-1', type: 'network', name: 'Core-LAN', description: 'General clients and internal nodes', notes: 'Main management network', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.10.0.0/24', gateway: '10.10.0.1', networkColor: '#10b981', hostedOn: '', appHostedOn: '' },
-    { id: 'network-2', type: 'network', name: 'Services', description: 'Private service VLAN', notes: 'Application backends', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.20.0.0/24', gateway: '10.20.0.1', networkColor: '#3b82f6', hostedOn: '', appHostedOn: '' },
-    { id: 'network-3', type: 'network', name: 'Edge', description: 'Public-facing services', notes: 'Reverse proxy + external endpoints', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.30.0.0/24', gateway: '10.30.0.1', networkColor: '#f97316', hostedOn: '', appHostedOn: '' },
+    { id: 'network-core', type: 'network', name: 'Core-LAN', description: 'Management and infra backbone', notes: 'Main rack and admin devices', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.10.0.0/24', gateway: '10.10.0.1', networkColor: '#10b981', hostedOn: '', appHostedOn: '' },
+    { id: 'network-services', type: 'network', name: 'Services', description: 'Private service VLAN', notes: 'Apps and internal APIs', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.20.0.0/24', gateway: '10.20.0.1', networkColor: '#3b82f6', hostedOn: '', appHostedOn: '' },
+    { id: 'network-edge', type: 'network', name: 'Edge', description: 'Ingress / DMZ zone', notes: 'Public endpoints and proxy', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.30.0.0/24', gateway: '10.30.0.1', networkColor: '#f97316', hostedOn: '', appHostedOn: '' },
+    { id: 'network-storage', type: 'network', name: 'Storage', description: 'Storage replication network', notes: 'NAS and backup traffic', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.40.0.0/24', gateway: '10.40.0.1', networkColor: '#8b5cf6', hostedOn: '', appHostedOn: '' },
 
-    { id: 'hardware-1', type: 'hardware', name: 'Host-A', description: 'Primary virtualization node', notes: 'Rack U2', connections: [], ip: '10.10.0.10/24', cpu: '16 cores', ram: '64 GB', disks: '2x 2TB NVMe', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '' },
-    { id: 'hardware-2', type: 'hardware', name: 'Host-B', description: 'Secondary compute node', notes: 'Rack U3', connections: [], ip: '10.10.0.11/24', cpu: '12 cores', ram: '48 GB', disks: '1x 2TB SSD', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '' },
-    { id: 'hardware-3', type: 'hardware', name: 'Host-C', description: 'Storage-focused node', notes: 'Rack U4', connections: [], ip: '10.10.0.12/24', cpu: '8 cores', ram: '32 GB', disks: '4x 4TB HDD', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '' },
+    { id: 'hardware-router-1', type: 'hardware', hardwareKind: 'router-gateway', manufacturer: 'MikroTik', os: 'RouterOS 7', symbol: '📡', name: 'EdgeRouter-1', description: 'Main internet gateway', notes: 'Fiber uplink', connections: ['hardware-switch-1'], ip: '10.10.0.1/24', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: [], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [], nasRaids: [] },
+    { id: 'hardware-switch-1', type: 'hardware', hardwareKind: 'switch', manufacturer: 'Ubiquiti', os: 'UniFi Network 8', symbol: '🔀', name: 'Switch-Core-24', description: 'Core 24-port switch', notes: 'Rack U1', connections: ['hardware-router-1', 'hardware-host-1', 'hardware-host-2', 'hardware-nas-1', 'hardware-backup-1'], ip: '10.10.0.2/24', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: [], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '24', nasShares: [], nasRaids: [] },
 
-    { id: 'vm-1', type: 'vm', name: 'vm-apps-01', description: 'Container runtime host', notes: 'Ubuntu 24.04 LTS', connections: [], ip: '10.20.0.21/24', cpu: '6 vCPU', ram: '12 GB', disks: '120 GB', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-1', appHostedOn: '' },
-    { id: 'vm-2', type: 'vm', name: 'vm-apps-02', description: 'Media and automation host', notes: 'Debian 12', connections: [], ip: '10.20.0.22/24', cpu: '8 vCPU', ram: '16 GB', disks: '240 GB', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-2', appHostedOn: '' },
-    { id: 'vm-3', type: 'vm', name: 'vm-edge-01', description: 'Edge ingress and auth', notes: 'Hardened profile', connections: [], ip: '10.30.0.30/24', cpu: '4 vCPU', ram: '8 GB', disks: '100 GB', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-2', appHostedOn: '' },
+    { id: 'hardware-host-1', type: 'hardware', hardwareKind: 'hypervisor', manufacturer: 'Dell', os: 'Proxmox VE 8.2', symbol: '📦', name: 'Hypervisor-A', description: 'Primary virtualization host', notes: 'Rack U2', connections: [], ip: '10.10.0.10/24', cpu: '16 cores', ram: '2 x 32 DDR5', disks: '2 x 2 TB NVMe', cpuCount: '16', ramModules: [{ size: '32', type: 'DDR5' }, { size: '32', type: 'DDR5' }], diskRows: [{ size: '2 TB', type: 'NVMe' }, { size: '2 TB', type: 'NVMe' }], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [], nasRaids: [] },
+    { id: 'hardware-host-2', type: 'hardware', hardwareKind: 'server', manufacturer: 'Lenovo', os: 'Debian 12', symbol: '🖥️', name: 'Compute-B', description: 'General compute server', notes: 'Rack U3', connections: [], ip: '10.10.0.11/24', cpu: '12 cores', ram: '4 x 16 DDR4', disks: '2 x 1 TB SSD, 2 x 4 TB HDD', cpuCount: '12', ramModules: [{ size: '16', type: 'DDR4' }, { size: '16', type: 'DDR4' }, { size: '16', type: 'DDR4' }, { size: '16', type: 'DDR4' }], diskRows: [{ size: '1 TB', type: 'SSD' }, { size: '1 TB', type: 'SSD' }, { size: '4 TB', type: 'HDD' }, { size: '4 TB', type: 'HDD' }], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [], nasRaids: [] },
+    { id: 'hardware-nas-1', type: 'hardware', hardwareKind: 'nas', manufacturer: 'Synology', os: 'DSM 7', symbol: '🗄️', name: 'NAS-Main', description: 'Primary shared storage', notes: 'Rack U4', connections: [], ip: '10.40.0.20/24', cpu: '8 cores', ram: '2 x 16 DDR4 ECC', disks: '4 x 12 TB HDD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }], diskRows: [{ size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [{ name: 'media', link: '/volume1/media' }, { name: 'vm-backups', link: '/volume1/vm-backups' }], nasRaids: [{ name: 'Array-A', level: 'RAID5', size: '36 TB' }] },
+    { id: 'hardware-backup-1', type: 'hardware', hardwareKind: 'backup', manufacturer: 'Supermicro', os: 'TrueNAS SCALE', symbol: '💾', name: 'Backup-Vault', description: 'Backup and archive node', notes: 'Immutable snapshots enabled', connections: [], ip: '10.40.0.30/24', cpu: '8 cores', ram: '4 x 16 DDR4 ECC', disks: '6 x 8 TB HDD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }], diskRows: [{ size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [{ name: 'offsite-sync', link: '/mnt/backup/offsite-sync' }, { name: 'monthly-archive', link: '/mnt/backup/monthly-archive' }], nasRaids: [{ name: 'Backup-Array', level: 'RAIDZ2', size: '32 TB' }] },
 
-    { id: 'lxc-1', type: 'lxc', name: 'lxc-dns-01', description: 'Recursive DNS resolver', notes: 'Internal only', connections: [], ip: '10.10.0.40/24', cpu: '2 vCPU', ram: '2 GB', disks: '20 GB', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-1', appHostedOn: '' },
-    { id: 'lxc-2', type: 'lxc', name: 'lxc-monitor-01', description: 'Monitoring stack', notes: 'Node exporter + dashboard', connections: [], ip: '10.20.0.41/24', cpu: '2 vCPU', ram: '4 GB', disks: '40 GB', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-3', appHostedOn: '' },
+    { id: 'vm-1', type: 'vm', name: 'vm-docker-01', description: 'Container stack host', notes: 'Compose workloads', connections: [], ip: '10.20.0.21/24', cpu: '6 vCPU', ram: '2 x 8 DDR5', disks: '2 x 120 GB SSD', cpuCount: '6', ramModules: [{ size: '8', type: 'DDR5' }, { size: '8', type: 'DDR5' }], diskRows: [{ size: '120 GB', type: 'SSD' }, { size: '120 GB', type: 'SSD' }], os: 'Ubuntu 24.04 LTS', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-host-1', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [] },
+    { id: 'vm-2', type: 'vm', name: 'vm-media-01', description: 'Media processing VM', notes: 'GPU passthrough', connections: [], ip: '10.20.0.22/24', cpu: '8 vCPU', ram: '2 x 16 DDR5', disks: '1 x 500 GB SSD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR5' }, { size: '16', type: 'DDR5' }], diskRows: [{ size: '500 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-host-2', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [] },
+    { id: 'vm-3', type: 'vm', name: 'vm-edge-01', description: 'Public ingress and auth', notes: 'Hardened profile', connections: [], ip: '10.30.0.30/24', cpu: '4 vCPU', ram: '2 x 4 DDR4', disks: '2 x 60 GB SSD', cpuCount: '4', ramModules: [{ size: '4', type: 'DDR4' }, { size: '4', type: 'DDR4' }], diskRows: [{ size: '60 GB', type: 'SSD' }, { size: '60 GB', type: 'SSD' }], os: 'AlmaLinux 9', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-host-1', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [] },
 
-    { id: 'app-1', type: 'app', name: 'PhotoVault', description: 'Photo management', notes: '', connections: [], ip: '', ipPort: '10.20.0.21:2283', webUrl: 'https://photos.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-1' },
-    { id: 'app-2', type: 'app', name: 'StreamBox', description: 'Media server', notes: '', connections: [], ip: '', ipPort: '10.20.0.22:8096', webUrl: 'https://media.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-2' },
-    { id: 'app-3', type: 'app', name: 'DocHub', description: 'Internal wiki', notes: '', connections: [], ip: '', ipPort: '10.20.0.22:3000', webUrl: 'https://docs.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-2' },
+    { id: 'lxc-1', type: 'lxc', name: 'lxc-dns-01', description: 'Recursive DNS resolver', notes: 'AdGuard + Unbound', connections: [], ip: '10.10.0.40/24', cpu: '2 vCPU', ram: '2 x 2 DDR4', disks: '1 x 20 GB SSD', cpuCount: '2', ramModules: [{ size: '2', type: 'DDR4' }, { size: '2', type: 'DDR4' }], diskRows: [{ size: '20 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-host-1', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [] },
+    { id: 'lxc-2', type: 'lxc', name: 'lxc-monitor-01', description: 'Metrics + alerting', notes: 'Prometheus stack', connections: [], ip: '10.20.0.41/24', cpu: '2 vCPU', ram: '2 x 4 DDR4', disks: '2 x 40 GB SSD', cpuCount: '2', ramModules: [{ size: '4', type: 'DDR4' }, { size: '4', type: 'DDR4' }], diskRows: [{ size: '40 GB', type: 'SSD' }, { size: '40 GB', type: 'SSD' }], os: 'Ubuntu 22.04 LTS', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-host-2', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [] },
+    { id: 'lxc-3', type: 'lxc', name: 'lxc-backup-agent-01', description: 'Backup transport agent', notes: 'Restic + rclone', connections: [], ip: '10.40.0.42/24', cpu: '2 vCPU', ram: '2 x 2 DDR4', disks: '1 x 30 GB SSD', cpuCount: '2', ramModules: [{ size: '2', type: 'DDR4' }, { size: '2', type: 'DDR4' }], diskRows: [{ size: '30 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-host-2', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [] },
+
+    { id: 'app-1', type: 'app', name: 'PhotoVault', description: 'Photo management', notes: 'Daily sync job', connections: [], ip: '', ipPort: '10.20.0.21:2283', webUrl: 'https://photos.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-1' },
+    { id: 'app-2', type: 'app', name: 'StreamBox', description: 'Media server', notes: 'HW transcoding', connections: [], ip: '', ipPort: '10.20.0.22:8096', webUrl: 'https://media.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-2' },
+    { id: 'app-3', type: 'app', name: 'DocHub', description: 'Internal wiki', notes: 'Docs as code', connections: [], ip: '', ipPort: '10.20.0.22:3000', webUrl: 'https://docs.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-2' },
     { id: 'app-4', type: 'app', name: 'ProxyGate', description: 'Reverse proxy dashboard', notes: '', connections: [], ip: '', ipPort: '10.30.0.30:443', webUrl: 'https://edge.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-3' },
     { id: 'app-5', type: 'app', name: 'MetricsUI', description: 'Monitoring frontend', notes: '', connections: [], ip: '', ipPort: '10.20.0.41:3000', webUrl: 'https://metrics.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'lxc-2' },
+    { id: 'app-6', type: 'app', name: 'BackupPortal', description: 'Backup reports', notes: '', connections: [], ip: '', ipPort: '10.40.0.42:8080', webUrl: 'https://backup.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'lxc-3' },
   ];
   stopEditing();
   normalizeItems();
@@ -429,14 +443,32 @@ function formatCpuLabel(type, cpuCount) {
   return type === 'hardware' ? `${cpuCount} cores` : `${cpuCount} vCPU`;
 }
 
+function formatGroupedLabel(rows, sizeKey, typeKey) {
+  if (!rows.length) return '';
+  const grouped = new Map();
+  rows.forEach((row) => {
+    const size = String(row?.[sizeKey] || '?').trim() || '?';
+    const type = String(row?.[typeKey] || '').trim();
+    const key = `${size.toLowerCase()}::${type.toLowerCase()}`;
+    const existing = grouped.get(key);
+    if (existing) existing.count += 1;
+    else grouped.set(key, { count: 1, size, type });
+  });
+
+  return [...grouped.values()]
+    .map((entry) => {
+      const label = `${entry.size}${entry.type ? ` ${entry.type}` : ''}`.trim();
+      return entry.count > 1 ? `${entry.count} x ${label}` : label;
+    })
+    .join(', ');
+}
+
 function formatRamLabel(ramModuleList) {
-  if (!ramModuleList.length) return '';
-  return ramModuleList.map((module) => `${module.size || '?'} ${module.type || ''}`.trim()).join(', ');
+  return formatGroupedLabel(ramModuleList, 'size', 'type');
 }
 
 function formatDiskLabel(diskRows) {
-  if (!diskRows.length) return '';
-  return diskRows.map((disk) => `${disk.size || '?'} ${disk.type || ''}`.trim()).join(', ');
+  return formatGroupedLabel(diskRows, 'size', 'type');
 }
 
 function inferCpuCount(cpuLabel) {
@@ -538,6 +570,7 @@ function sanitizeItems(raw) {
       type: types.includes(item.type) ? item.type : 'app',
       hardwareKind: item.hardwareKind ? String(item.hardwareKind) : 'server',
       manufacturer: item.manufacturer ? String(item.manufacturer) : '',
+      os: item.os ? String(item.os) : '',
       symbol: item.symbol ? String(item.symbol) : defaultSymbol(item.type, item.hardwareKind),
       name: String(item.name),
       description: item.description ? String(item.description) : '',
@@ -586,7 +619,10 @@ function normalizeList(list) {
     const next = { ...item };
     next.connections = next.connections.filter((id) => known.has(id) && id !== next.id);
     if (!supportsNotes(next.type)) next.notes = '';
-    if (!['hardware', 'vm', 'lxc'].includes(next.type)) next.ip = '';
+    if (!['hardware', 'vm', 'lxc'].includes(next.type)) {
+      next.ip = '';
+      next.os = '';
+    }
     if (next.type !== 'hardware') {
       next.hardwareKind = '';
       next.manufacturer = '';
@@ -613,7 +649,7 @@ function normalizeList(list) {
       next.diskRows = [];
     }
     if (!(next.type === 'hardware' && next.hardwareKind === 'switch')) next.switchPorts = '';
-    if (!(next.type === 'hardware' && next.hardwareKind === 'nas')) {
+    if (!supportsStorageGroups(next.type, next.hardwareKind)) {
       next.nasShares = [];
       next.nasRaids = [];
     }
@@ -700,6 +736,19 @@ function toIPv4Int(ip) {
   return (((parts[0] << 24) >>> 0) + ((parts[1] << 16) >>> 0) + ((parts[2] << 8) >>> 0) + (parts[3] >>> 0)) >>> 0;
 }
 
+
+function supportsStorageGroups(type, hardwareKind) {
+  return type === 'hardware' && ['nas', 'backup'].includes(hardwareKind);
+}
+
+function updateStorageFieldLabels(hardwareKind) {
+  const backupMode = hardwareKind === 'backup';
+  if (nasSharesLegend) nasSharesLegend.textContent = backupMode ? 'Backup shares' : 'NAS shares';
+  if (nasRaidsLegend) nasRaidsLegend.textContent = backupMode ? 'Backup RAID groups' : 'NAS RAID groups';
+  if (addShareBtn) addShareBtn.textContent = backupMode ? '+ Add Backup Share' : '+ Add Share';
+  if (addRaidBtn) addRaidBtn.textContent = backupMode ? '+ Add Backup RAID group' : '+ Add RAID';
+}
+
 function applyTypeVisibility() {
   const type = typeSelect.value;
   const hardwareKind = hardwareKindSelect.value;
@@ -711,7 +760,7 @@ function applyTypeVisibility() {
   const supportsCompute = supportsComputeDetails(type, hardwareKind);
   const isRouter = isHardware && hardwareKind === 'router-gateway';
   const isSwitch = isHardware && hardwareKind === 'switch';
-  const isNas = isHardware && hardwareKind === 'nas';
+  const supportsStorage = supportsStorageGroups(type, hardwareKind);
 
   networkFields.classList.toggle('hidden', !isNetwork);
   computeFields.classList.toggle('hidden', !supportsCompute);
@@ -719,6 +768,7 @@ function applyTypeVisibility() {
   diskListWrap.classList.toggle('hidden', !supportsCompute);
   hardwareKindWrap.classList.toggle('hidden', !isHardware);
   manufacturerWrap.classList.toggle('hidden', !isHardware);
+  osWrap.classList.toggle('hidden', !supportsIp);
   hostedOnWrap.classList.toggle('hidden', !isVmOrLxc);
   appHostedOnWrap.classList.toggle('hidden', !isApp);
   ipInput.closest('label').classList.toggle('hidden', !supportsIp);
@@ -726,8 +776,8 @@ function applyTypeVisibility() {
   routerSwitchesWrap.classList.toggle('hidden', !isRouter);
   switchLinksWrap.classList.toggle('hidden', !isSwitch);
   switchDeviceLinksWrap.classList.toggle('hidden', !isSwitch);
-  nasSharesWrap.classList.toggle('hidden', !isNas);
-  nasRaidsWrap.classList.toggle('hidden', !isNas);
+  nasSharesWrap.classList.toggle('hidden', !supportsStorage);
+  nasRaidsWrap.classList.toggle('hidden', !supportsStorage);
   ipPortWrap.classList.toggle('hidden', !isApp);
   webUrlWrap.classList.toggle('hidden', !isApp);
   notesWrap.classList.toggle('hidden', !supportsNotes(type));
@@ -737,6 +787,7 @@ function applyTypeVisibility() {
   switchPortsInput.required = isSwitch;
 
   symbolInput.placeholder = `e.g. ${defaultSymbol(type, hardwareKind)}`;
+  updateStorageFieldLabels(hardwareKind);
   if (!editingId && !symbolInput.value.trim()) {
     symbolInput.value = defaultSymbol(type, hardwareKind);
   }
@@ -786,7 +837,7 @@ function applyFilters(list) {
     const hardwareText = item.type === 'hardware'
       ? `${item.manufacturer || ''} ${hardwareTypeLabel(item.hardwareKind)} ${item.switchPorts || ''} ${(item.nasShares || []).map((share) => `${share.name} ${share.link}`).join(' ')}`
       : '';
-    const specsText = `${item.cpu || ''} ${item.ram || ''} ${item.disks || ''}`;
+    const specsText = `${item.os || ''} ${item.cpu || ''} ${item.ram || ''} ${item.disks || ''}`;
     const text = `${item.name} ${item.description} ${item.notes} ${item.ip} ${specsText} ${appText} ${networkText} ${hardwareText}`.toLowerCase();
     return typeMatch && (!query || text.includes(query));
   });
@@ -824,8 +875,9 @@ function appDetails(item) {
 }
 
 function specsLabel(item) {
-  if (!supportsComputeDetails(item.type, item.hardwareKind)) return '';
   const bits = [];
+  if (['hardware', 'vm', 'lxc'].includes(item.type) && item.os) bits.push(`OS: ${item.os}`);
+  if (!supportsComputeDetails(item.type, item.hardwareKind)) return bits.join(' | ');
   if (item.cpu) bits.push(`CPU: ${item.cpu}`);
   if (item.ram) bits.push(`RAM: ${item.ram}`);
   if (item.disks) bits.push(`Disks: ${item.disks}`);
@@ -838,11 +890,11 @@ function hardwareDetailsLabel(item) {
   bits.push(`Hardware type: ${hardwareTypeLabel(item.hardwareKind || 'server')}`);
   if (item.manufacturer) bits.push(`Manufacturer: ${item.manufacturer}`);
   if (item.hardwareKind === 'switch' && item.switchPorts) bits.push(`Ports: ${item.switchPorts}`);
-  if (item.hardwareKind === 'nas' && item.nasShares?.length) {
-    bits.push(`Shares: ${item.nasShares.map((share) => `${share.name} (${share.link || 'no link'})`).join(', ')}`);
+  if (supportsStorageGroups(item.type, item.hardwareKind) && item.nasShares?.length) {
+    bits.push(`${item.hardwareKind === 'backup' ? 'Backup shares' : 'Shares'}: ${item.nasShares.map((share) => `${share.name} (${share.link || 'no link'})`).join(', ')}`);
   }
-  if (item.hardwareKind === 'nas' && item.nasRaids?.length) {
-    bits.push(`RAIDs: ${item.nasRaids.map((raid) => `${raid.name || 'raid'} ${raid.level}${raid.size ? ` (${raid.size})` : ''}`).join(', ')}`);
+  if (supportsStorageGroups(item.type, item.hardwareKind) && item.nasRaids?.length) {
+    bits.push(`${item.hardwareKind === 'backup' ? 'Backup RAID groups' : 'RAIDs'}: ${item.nasRaids.map((raid) => `${raid.name || 'raid'} ${raid.level}${raid.size ? ` (${raid.size})` : ''}`).join(', ')}`);
   }
   const compute = specsLabel(item);
   if (compute) bits.push(compute);
@@ -956,6 +1008,7 @@ function startEditing(id) {
   typeSelect.value = item.type;
   hardwareKindSelect.value = item.hardwareKind || 'server';
   manufacturerInput.value = item.manufacturer || '';
+  osInput.value = item.os || '';
   symbolInput.value = item.symbol || defaultSymbol(item.type, item.hardwareKind);
   document.getElementById('name').value = item.name;
   document.getElementById('description').value = item.description;
@@ -994,10 +1047,10 @@ function startEditing(id) {
   if (item.diskRows?.length) item.diskRows.forEach((disk) => appendDiskRow(disk));
   else appendDiskRow();
 
-  if (item.type === 'hardware' && item.hardwareKind === 'nas' && item.nasShares?.length) item.nasShares.forEach((share) => appendShareRow(share));
+  if (supportsStorageGroups(item.type, item.hardwareKind) && item.nasShares?.length) item.nasShares.forEach((share) => appendShareRow(share));
   else appendShareRow();
 
-  if (item.type === 'hardware' && item.hardwareKind === 'nas' && item.nasRaids?.length) item.nasRaids.forEach((raid) => appendRaidRow(raid));
+  if (supportsStorageGroups(item.type, item.hardwareKind) && item.nasRaids?.length) item.nasRaids.forEach((raid) => appendRaidRow(raid));
   else appendRaidRow();
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1061,9 +1114,10 @@ function buildGraphView() {
   const wrap = document.createElement('div');
   wrap.className = 'graph-wrap';
 
-  const tip = document.createElement('div');
-  tip.className = 'graph-tooltip hidden';
-  wrap.appendChild(tip);
+  const hoverTip = document.createElement('div');
+  hoverTip.className = 'graph-tooltip hidden';
+  hoverTip.textContent = '';
+  wrap.appendChild(hoverTip);
 
   const canvas = document.createElement('div');
   canvas.className = 'graph-canvas';
@@ -1079,8 +1133,12 @@ function buildGraphView() {
     return wrap;
   }
 
-  const width = Math.max(760, treeContent.clientWidth - 30);
-  const height = Math.max(460, treeContent.clientHeight - 34);
+  const viewportWidth = Math.max(760, treeContent.clientWidth - 30);
+  const viewportHeight = Math.max(460, treeContent.clientHeight - 34);
+  const minWidthForItems = Math.max(860, graphItems.length * 120);
+  const minHeightForItems = Math.max(720, graphItems.length * 120);
+  const width = Math.max(viewportWidth, minWidthForItems);
+  const height = Math.max(viewportHeight, minHeightForItems);
   canvas.style.setProperty('--graph-width', `${width}px`);
   canvas.style.setProperty('--graph-height', `${height}px`);
   canvas.style.width = `${width}px`;
@@ -1090,50 +1148,152 @@ function buildGraphView() {
   const byId = Object.fromEntries(items.map((item) => [item.id, item]));
 
   const hardware = graphItems.filter((item) => item.type === 'hardware');
-  const unhostedHardware = hardware.filter((item) => !item.hostedOn || !byId[item.hostedOn]);
-  const rootHardware = unhostedHardware.length ? unhostedHardware : hardware;
+  const graphById = Object.fromEntries(graphItems.map((item) => [item.id, item]));
 
-  const rootY = Math.round(height * 0.16);
-  const midY = Math.round(height * 0.52);
-  const appY = Math.round(height * 0.84);
-  const rootStep = width / (rootHardware.length + 1);
-  rootHardware.forEach((host, idx) => {
-    const rootX = Math.round(rootStep * (idx + 1));
-    positions.set(host.id, { x: rootX, y: rootY });
+  function linkedHardware(from, filterFn) {
+    const peers = hardware.filter((candidate) => candidate.id !== from.id && filterFn(candidate));
+    return peers.find((candidate) => (from.connections || []).includes(candidate.id) || (candidate.connections || []).includes(from.id));
+  }
 
-    const hostFamily = [
-      ...graphItems.filter((item) => item.type === 'vm' || item.type === 'lxc').filter((item) => item.hostedOn === host.id),
-      ...graphItems.filter((item) => item.type === 'app').filter((app) => {
-        if (!app.appHostedOn) return false;
-        const appHost = byId[app.appHostedOn];
-        return appHost?.id === host.id;
-      }),
-    ];
+  function parentIdFor(item) {
+    if (item.type === 'vm' || item.type === 'lxc') return graphById[item.hostedOn]?.id || '';
+    if (item.type === 'app') return graphById[item.appHostedOn]?.id || '';
+    if (item.type === 'hardware' && item.hardwareKind === 'switch') return linkedHardware(item, (hw) => hw.hardwareKind === 'router-gateway')?.id || '';
+    if (item.type === 'hardware' && item.hardwareKind !== 'router-gateway') {
+      const switchParent = linkedHardware(item, (hw) => hw.hardwareKind === 'switch')?.id;
+      if (switchParent) return switchParent;
+      return linkedHardware(item, (hw) => hw.hardwareKind === 'router-gateway')?.id || '';
+    }
+    return '';
+  }
 
-    const familyStep = hostFamily.length > 0 ? 110 : 0;
-    const familyStart = rootX - ((hostFamily.length - 1) * familyStep) / 2;
+  function nodeOrder(a, b) {
+    const typeRank = { hardware: 0, vm: 1, lxc: 2, app: 3 };
+    const hardwareRank = { 'router-gateway': 0, switch: 1 };
+    const aType = typeRank[a.type] ?? 9;
+    const bType = typeRank[b.type] ?? 9;
+    if (aType !== bType) return aType - bType;
+    if (a.type === 'hardware' && b.type === 'hardware') {
+      const aHw = hardwareRank[a.hardwareKind] ?? 2;
+      const bHw = hardwareRank[b.hardwareKind] ?? 2;
+      if (aHw !== bHw) return aHw - bHw;
+    }
+    return (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' });
+  }
 
-    hostFamily.forEach((child, childIndex) => {
-      const childX = Math.round(familyStart + childIndex * familyStep);
-      const childY = midY;
-      if (!positions.has(child.id)) {
-        positions.set(child.id, { x: childX, y: childY });
-      }
+  const parentById = new Map();
+  const childrenById = new Map(graphItems.map((item) => [item.id, []]));
+  graphItems.forEach((item) => {
+    const candidateParentId = parentIdFor(item);
+    const parentId = candidateParentId && candidateParentId !== item.id ? candidateParentId : '';
+    parentById.set(item.id, parentId);
+    if (parentId && childrenById.has(parentId)) childrenById.get(parentId).push(item.id);
+  });
 
-      const appChildren = graphItems.filter((item) => item.type === 'app' && item.appHostedOn === child.id);
-      const appStep = appChildren.length > 0 ? 100 : 0;
-      const appStart = childX - ((appChildren.length - 1) * appStep) / 2;
-      appChildren.forEach((app, appIndex) => {
-        positions.set(app.id, { x: Math.round(appStart + appIndex * appStep), y: appY });
+  childrenById.forEach((childIds, parentId) => {
+    childIds.sort((aId, bId) => nodeOrder(graphById[aId], graphById[bId]));
+    childrenById.set(parentId, childIds);
+  });
+
+  const roots = graphItems
+    .filter((item) => !parentById.get(item.id))
+    .sort(nodeOrder)
+    .map((item) => item.id);
+
+  const rawX = new Map();
+  let cursor = 0;
+  const horizontalStep = 130;
+
+  function assignX(nodeId, trail = new Set()) {
+    if (rawX.has(nodeId)) return rawX.get(nodeId);
+    if (trail.has(nodeId)) {
+      rawX.set(nodeId, cursor);
+      cursor += horizontalStep;
+      return rawX.get(nodeId);
+    }
+
+    trail.add(nodeId);
+    const children = childrenById.get(nodeId) || [];
+    const childCoords = children
+      .map((childId) => assignX(childId, new Set(trail)))
+      .filter((value) => Number.isFinite(value));
+
+    if (!childCoords.length) {
+      rawX.set(nodeId, cursor);
+      cursor += horizontalStep;
+      return rawX.get(nodeId);
+    }
+
+    const center = childCoords.reduce((sum, value) => sum + value, 0) / childCoords.length;
+    rawX.set(nodeId, center);
+    return center;
+  }
+
+  if (roots.length) {
+    roots.forEach((rootId) => assignX(rootId));
+  }
+
+  graphItems.sort(nodeOrder).forEach((item) => {
+    if (!rawX.has(item.id)) {
+      rawX.set(item.id, cursor);
+      cursor += horizontalStep;
+    }
+  });
+
+  const depthCache = new Map();
+  const visiting = new Set();
+  function depthFor(nodeId) {
+    if (depthCache.has(nodeId)) return depthCache.get(nodeId);
+    if (visiting.has(nodeId)) return 0;
+    visiting.add(nodeId);
+    const parentId = parentById.get(nodeId);
+    const depth = parentId ? depthFor(parentId) + 1 : 0;
+    visiting.delete(nodeId);
+    depthCache.set(nodeId, depth);
+    return depth;
+  }
+
+  graphItems.forEach((item) => depthFor(item.id));
+
+  const allRawX = [...rawX.values()].filter((value) => Number.isFinite(value));
+  const depthValues = [...depthCache.values()].filter((value) => Number.isFinite(value));
+  const canUseHierarchy = allRawX.length && depthValues.length;
+
+  if (canUseHierarchy) {
+    const minRawX = Math.min(...allRawX);
+    const maxRawX = Math.max(...allRawX);
+    const rawSpan = Math.max(1, maxRawX - minRawX);
+    const horizontalPadding = 70;
+    const usableWidth = Math.max(240, width - horizontalPadding * 2);
+    const compress = rawSpan > usableWidth ? usableWidth / rawSpan : 1;
+    const finalSpan = rawSpan * compress;
+    const startX = (width - finalSpan) / 2;
+
+    const topPadding = 72;
+    const maxDepth = Math.max(1, Math.max(...depthValues));
+    const layerGap = Math.max(90, Math.round((height - topPadding - 70) / maxDepth));
+
+    graphItems.forEach((item) => {
+      const x = startX + (rawX.get(item.id) - minRawX) * compress;
+      const y = topPadding + depthFor(item.id) * layerGap;
+      positions.set(item.id, {
+        x: Math.max(36, Math.min(width - 36, Math.round(x))),
+        y: Math.max(36, Math.min(height - 36, Math.round(y))),
       });
     });
-  });
+  }
 
-  graphItems.forEach((item, idx) => {
-    if (positions.has(item.id)) return;
+  if (positions.size !== graphItems.length) {
     const fallbackStep = width / (graphItems.length + 1);
-    positions.set(item.id, { x: Math.round((idx + 1) * fallbackStep), y: item.type === 'app' ? appY : midY });
-  });
+    const fallbackTop = Math.round(height * 0.22);
+    graphItems.sort(nodeOrder).forEach((item, idx) => {
+      if (positions.has(item.id)) return;
+      positions.set(item.id, {
+        x: Math.round((idx + 1) * fallbackStep),
+        y: fallbackTop + (idx % 3) * 96,
+      });
+    });
+  }
 
   const svgNS = 'http://www.w3.org/2000/svg';
   const links = document.createElementNS(svgNS, 'svg');
@@ -1147,6 +1307,12 @@ function buildGraphView() {
 
     if ((item.type === 'vm' || item.type === 'lxc') && item.hostedOn) graphConnections.add(item.hostedOn);
     if (item.type === 'app' && item.appHostedOn) graphConnections.add(item.appHostedOn);
+    if (item.type === 'hardware' && Array.isArray(item.connections)) {
+      item.connections.forEach((targetId) => {
+        const target = byId[targetId];
+        if (target?.type === 'hardware') graphConnections.add(targetId);
+      });
+    }
 
     [...graphConnections].forEach((targetId) => {
       const to = positions.get(targetId);
@@ -1180,12 +1346,15 @@ function buildGraphView() {
     node.style.borderColor = networkBorderColor(item) || 'var(--line)';
 
     node.addEventListener('mouseenter', (event) => {
-      tip.classList.remove('hidden');
-      tip.innerHTML = graphTooltipHtml(item);
-      positionGraphTooltip(event, tip, wrap);
+      hoverTip.textContent = item.name;
+      hoverTip.classList.remove('hidden');
+      positionGraphTooltip(event, hoverTip, wrap);
     });
-    node.addEventListener('mousemove', (event) => positionGraphTooltip(event, tip, wrap));
-    node.addEventListener('mouseleave', () => tip.classList.add('hidden'));
+    node.addEventListener('mousemove', (event) => positionGraphTooltip(event, hoverTip, wrap));
+    node.addEventListener('mouseleave', () => {
+      hoverTip.classList.add('hidden');
+      hoverTip.textContent = '';
+    });
     node.addEventListener('click', () => {
       startEditing(item.id);
       treeDialog.close();
@@ -1195,54 +1364,144 @@ function buildGraphView() {
     canvas.appendChild(node);
   });
 
+  const graphBounds = getGraphBounds(positions, graphItems);
+  requestAnimationFrame(() => {
+    enableGraphPanZoom(wrap, canvas, width, height, graphBounds);
+  });
+
   return wrap;
+}
+
+
+
+
+function getGraphBounds(positions, graphItems) {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  graphItems.forEach((item) => {
+    const pos = positions.get(item.id);
+    if (!pos) return;
+    minX = Math.min(minX, pos.x);
+    minY = Math.min(minY, pos.y);
+    maxX = Math.max(maxX, pos.x);
+    maxY = Math.max(maxY, pos.y);
+  });
+
+  if (!Number.isFinite(minX)) return null;
+
+  return { minX, minY, maxX, maxY };
+}
+
+function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
+  let scale = 1;
+  let panX = 0;
+  let panY = 0;
+  let dragging = false;
+  let dragStartX = 0;
+  let dragStartY = 0;
+
+  function applyTransform() {
+    canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+  }
+
+  function centerView() {
+    const defaultPanX = (wrap.clientWidth - width * scale) / 2;
+    const defaultPanY = (wrap.clientHeight - height * scale) / 2;
+    if (!bounds) {
+      panX = defaultPanX;
+      panY = defaultPanY;
+      applyTransform();
+      return;
+    }
+
+    const focusCenterX = (bounds.minX + bounds.maxX) / 2;
+    const focusCenterY = (bounds.minY + bounds.maxY) / 2;
+
+    panX = wrap.clientWidth / 2 - focusCenterX * scale;
+    panY = wrap.clientHeight / 2 - focusCenterY * scale;
+
+    if (!Number.isFinite(panX)) panX = defaultPanX;
+    if (!Number.isFinite(panY)) panY = defaultPanY;
+    applyTransform();
+  }
+
+  centerView();
+
+  wrap.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    const rect = wrap.getBoundingClientRect();
+    const pointerX = event.clientX - rect.left;
+    const pointerY = event.clientY - rect.top;
+
+    const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;
+    const nextScale = Math.max(0.5, Math.min(2.4, scale * zoomFactor));
+    if (nextScale === scale) return;
+
+    const graphX = (pointerX - panX) / scale;
+    const graphY = (pointerY - panY) / scale;
+
+    scale = nextScale;
+    panX = pointerX - graphX * scale;
+    panY = pointerY - graphY * scale;
+    applyTransform();
+  }, { passive: false });
+
+  wrap.addEventListener('pointerdown', (event) => {
+    const target = event.target;
+    if (target.closest('.graph-node')) return;
+    dragging = true;
+    dragStartX = event.clientX - panX;
+    dragStartY = event.clientY - panY;
+    wrap.setPointerCapture(event.pointerId);
+    wrap.style.cursor = 'grabbing';
+  });
+
+  wrap.addEventListener('pointermove', (event) => {
+    if (!dragging) return;
+    panX = event.clientX - dragStartX;
+    panY = event.clientY - dragStartY;
+    applyTransform();
+  });
+
+  const stopDrag = (event) => {
+    if (!dragging) return;
+    dragging = false;
+    if (event && wrap.hasPointerCapture?.(event.pointerId)) wrap.releasePointerCapture(event.pointerId);
+    wrap.style.cursor = 'grab';
+  };
+
+  wrap.addEventListener('pointerup', stopDrag);
+  wrap.addEventListener('pointercancel', stopDrag);
+  wrap.style.cursor = 'grab';
 }
 
 function positionGraphTooltip(event, tip, wrap) {
   const wrapRect = wrap.getBoundingClientRect();
   const x = event.clientX - wrapRect.left;
   const y = event.clientY - wrapRect.top;
-  const edgePadding = 8;
-  const cursorGap = 34;
-  const tipWidth = Math.max(160, Math.round(tip.getBoundingClientRect().width || tip.offsetWidth || 240));
-  const tipHeight = Math.max(110, Math.round(tip.getBoundingClientRect().height || tip.offsetHeight || 180));
+  const gap = 14;
+  const edge = 8;
+  const tipRect = tip.getBoundingClientRect();
+  const tipWidth = Math.max(90, Math.round(tipRect.width || tip.offsetWidth || 120));
+  const tipHeight = Math.max(28, Math.round(tipRect.height || tip.offsetHeight || 32));
 
-  const canShowOnRight = x + cursorGap + tipWidth <= wrapRect.width - edgePadding;
-  const canShowAbove = y - cursorGap - tipHeight >= edgePadding;
+  const minX = edge;
+  const maxX = wrap.clientWidth - tipWidth - edge;
+  const minY = edge;
+  const maxY = wrap.clientHeight - tipHeight - edge;
 
-  const preferredX = canShowOnRight ? x + cursorGap : x - tipWidth - cursorGap;
-  const preferredY = canShowAbove ? y - tipHeight - cursorGap : y + cursorGap;
+  const canRight = x + gap + tipWidth <= wrap.clientWidth - edge;
+  const preferredLeft = canRight ? x + gap : x - gap - tipWidth;
+  const preferredTop = y - tipHeight / 2;
 
-  let left = Math.max(edgePadding, Math.min(preferredX, wrapRect.width - tipWidth - edgePadding));
-  let top = Math.max(edgePadding, Math.min(preferredY, wrapRect.height - tipHeight - edgePadding));
-
-  const cursorOverlapsTip = x >= left && x <= left + tipWidth && y >= top && y <= top + tipHeight;
-  if (cursorOverlapsTip) {
-    const moveLeft = Math.max(edgePadding, x - tipWidth - cursorGap);
-    const moveAbove = Math.max(edgePadding, y - tipHeight - cursorGap);
-    if (moveLeft + tipWidth <= wrapRect.width - edgePadding) left = moveLeft;
-    else top = moveAbove;
-  }
+  const left = Math.max(minX, Math.min(preferredLeft, maxX));
+  const top = Math.max(minY, Math.min(preferredTop, maxY));
 
   tip.style.left = `${left}px`;
   tip.style.top = `${top}px`;
-}
-
-function graphTooltipHtml(item) {
-  const connections = item.connections.map((id) => findById(id)?.name || id).join(', ') || 'none';
-  const primaryIp = item.ip || item.ipPort || '-';
-  const bits = [
-    `<strong>${item.name}</strong>`,
-    `Type: ${labelSingle(item.type)}`,
-    item.type === 'hardware' ? `Hardware: ${hardwareTypeLabel(item.hardwareKind)}` : '',
-    item.manufacturer ? `Manufacturer: ${item.manufacturer}` : '',
-    `IP: ${primaryIp}`,
-    item.type === 'app' && item.webUrl ? `URL: ${item.webUrl}` : '',
-    item.description ? `Description: ${item.description}` : '',
-    item.notes ? `Notes: ${item.notes}` : '',
-    `Connected: ${connections}`,
-  ].filter(Boolean);
-  return bits.map((line) => `<p>${line}</p>`).join('');
 }
 
 function buildInfrastructureTree() {
@@ -1258,17 +1517,10 @@ function buildInfrastructureTree() {
   const lxcs = items.filter((item) => item.type === 'lxc');
   const apps = items.filter((item) => item.type === 'app');
 
-  hardware.forEach((host) => {
-    const lane = document.createElement('div');
-    lane.className = 'tree-lane';
-
-    lane.appendChild(treeChip(host));
-    const hostIp = treeIpMeta(host);
-    if (hostIp) lane.appendChild(hostIp);
-
+  function appendGuestTree(targetWrap, hostId) {
     const guestsWrap = document.createElement('div');
     guestsWrap.className = 'tree-children';
-    const guests = [...vms, ...lxcs].filter((guest) => guest.hostedOn === host.id);
+    const guests = [...vms, ...lxcs].filter((guest) => guest.hostedOn === hostId);
 
     if (!guests.length) {
       const none = document.createElement('p');
@@ -1308,9 +1560,36 @@ function buildInfrastructureTree() {
       guestsWrap.appendChild(guestLane);
     });
 
-    lane.appendChild(guestsWrap);
-    body.appendChild(lane);
-  });
+    targetWrap.appendChild(guestsWrap);
+  }
+
+
+  if (hardware.length) {
+    const allHardware = document.createElement('div');
+    allHardware.className = 'tree-subgroup';
+    allHardware.innerHTML = '<p class="tree-subtitle">All Hardware</p>';
+
+    const kindOrder = { 'router-gateway': 0, switch: 1 };
+    const sortedHardware = [...hardware].sort((a, b) => {
+      const aRank = kindOrder[a.hardwareKind] ?? 2;
+      const bRank = kindOrder[b.hardwareKind] ?? 2;
+      if (aRank !== bRank) return aRank - bRank;
+      return (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' });
+    });
+
+    sortedHardware.forEach((host) => {
+      const lane = document.createElement('div');
+      lane.className = 'tree-lane';
+      lane.appendChild(treeChip(host));
+      const hostMeta = infraMeta(host);
+      if (hostMeta) lane.appendChild(hostMeta);
+      appendGuestTree(lane, host.id);
+      allHardware.appendChild(lane);
+    });
+
+    body.appendChild(allHardware);
+  }
+
 
   const orphanGuests = [...vms, ...lxcs].filter((guest) => !guest.hostedOn);
   if (orphanGuests.length) {
@@ -1441,7 +1720,7 @@ function appTreeLink(app) {
 
 function infraMeta(item) {
   const details = item.type === 'hardware' ? hardwareDetailsLabel(item) : specsLabel(item);
-  if (!details && !item.ip && !item.manufacturer) return null;
+  if (!details && !item.ip && !item.manufacturer && !item.os) return null;
   const meta = document.createElement('div');
   meta.className = 'tree-meta';
   if (item.ip) {
