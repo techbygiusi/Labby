@@ -150,4 +150,4 @@ docker-compose.yml
 ## 📝 License
 
 MIT License  
-© [OneBitLabs](https://onebitlabs.net) / TechByGiusi
+© [TechByGiusi]([https://onebitlabs.net](https://techbygiusi.com/))
