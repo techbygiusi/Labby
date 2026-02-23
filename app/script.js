@@ -1066,6 +1066,8 @@ function buildInfrastructureTree() {
     lane.className = 'tree-lane';
 
     lane.appendChild(treeChip(host));
+    const hostIp = treeIpMeta(host);
+    if (hostIp) lane.appendChild(hostIp);
 
     const guestsWrap = document.createElement('div');
     guestsWrap.className = 'tree-children';
@@ -1082,6 +1084,8 @@ function buildInfrastructureTree() {
       const guestLane = document.createElement('div');
       guestLane.className = 'tree-lane nested';
       guestLane.appendChild(treeChip(guest));
+      const guestIp = treeIpMeta(guest);
+      if (guestIp) guestLane.appendChild(guestIp);
 
       const guestApps = apps.filter((app) => app.appHostedOn === guest.id);
       const appWrap = document.createElement('div');
@@ -1096,6 +1100,8 @@ function buildInfrastructureTree() {
           const appLane = document.createElement('div');
           appLane.className = 'tree-lane nested';
           appLane.appendChild(treeChip(app));
+          const appIp = treeIpMeta(app);
+          if (appIp) appLane.appendChild(appIp);
           const appLink = appTreeLink(app);
           if (appLink) appLane.appendChild(appLink);
           appWrap.appendChild(appLane);
@@ -1118,6 +1124,8 @@ function buildInfrastructureTree() {
       const row = document.createElement('div');
       row.className = 'tree-lane';
       row.appendChild(treeChip(guest));
+      const guestIp = treeIpMeta(guest);
+      if (guestIp) row.appendChild(guestIp);
       orphan.appendChild(row);
     });
     body.appendChild(orphan);
@@ -1132,6 +1140,8 @@ function buildInfrastructureTree() {
       const row = document.createElement('div');
       row.className = 'tree-lane';
       row.appendChild(treeChip(app));
+      const appIp = treeIpMeta(app);
+      if (appIp) row.appendChild(appIp);
       const appLink = appTreeLink(app);
       if (appLink) row.appendChild(appLink);
       orphan.appendChild(row);
@@ -1209,6 +1219,15 @@ function treeChip(item) {
   if (netColor) chip.style.borderColor = netColor;
   chip.textContent = item.name;
   return chip;
+}
+
+function treeIpMeta(item) {
+  const value = item.type === 'app' ? (item.ipPort || item.ip || '') : (item.ip || '');
+  if (!value) return null;
+  const meta = document.createElement('div');
+  meta.className = 'tree-meta';
+  meta.textContent = `IP: ${value}`;
+  return meta;
 }
 
 function appTreeLink(app) {
