@@ -252,12 +252,12 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 :root[data-theme='dark'] .tree-shell { background: rgba(0, 0, 0, 0.2); }
 :root[data-theme='dark'] .tree-link { color: #bfffe8; }
 
-.graph-wrap { display: grid; overflow: hidden; min-height: var(--graph-height, 620px); }
+.graph-wrap { display: grid; overflow: auto; justify-content: center; }
 .graph-canvas {
   position: relative;
-  width: 100%;
-  margin: 0;
-  min-width: 0;
+  width: var(--graph-width, 1100px);
+  height: var(--graph-height, 620px);
+  min-width: var(--graph-width, 1100px);
   min-height: var(--graph-height, 620px);
   border: 0;
   border-radius: 10px;
@@ -417,7 +417,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   .tree-head-actions > .icon-btn { order: -1; }
   .view-switch { margin-left: auto; }
   .view-switch .icon-btn { min-height: 34px; }
-  .graph-wrap { overflow: hidden; }
+  .graph-wrap { overflow: auto; }
   .graph-node { width: 40px; height: 40px; font-size: 1.05rem; }
   .toast { width: calc(100vw - 20px); }
 }

@@ -911,6 +911,8 @@ function buildGraphView() {
   const height = Math.max(460, treeContent.clientHeight - 34);
   canvas.style.setProperty('--graph-width', `${width}px`);
   canvas.style.setProperty('--graph-height', `${height}px`);
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
 
   const positions = new Map();
   const byId = Object.fromEntries(items.map((item) => [item.id, item]));
@@ -965,7 +967,6 @@ function buildGraphView() {
   const links = document.createElementNS(svgNS, 'svg');
   links.setAttribute('class', 'graph-links');
   links.setAttribute('viewBox', `0 0 ${width} ${height}`);
-  links.setAttribute('preserveAspectRatio', 'none');
   const seen = new Set();
   graphItems.forEach((item) => {
     const from = positions.get(item.id);
