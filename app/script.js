@@ -1061,8 +1061,9 @@ function buildGraphView() {
   const wrap = document.createElement('div');
   wrap.className = 'graph-wrap';
 
-  const tip = document.createElement('div');
-  tip.className = 'graph-tooltip hidden';
+  const tip = document.createElement('aside');
+  tip.className = 'graph-info-panel';
+  tip.innerHTML = '<p class="graph-info-empty">Hover a node to see details.</p>';
   wrap.appendChild(tip);
 
   const canvas = document.createElement('div');
@@ -1079,7 +1080,7 @@ function buildGraphView() {
     return wrap;
   }
 
-  const width = Math.max(760, treeContent.clientWidth - 30);
+  const width = Math.max(760, treeContent.clientWidth - 36);
   const height = Math.max(460, treeContent.clientHeight - 34);
   canvas.style.setProperty('--graph-width', `${width}px`);
   canvas.style.setProperty('--graph-height', `${height}px`);
@@ -1179,13 +1180,9 @@ function buildGraphView() {
     node.style.top = `${pos.y}px`;
     node.style.borderColor = networkBorderColor(item) || 'var(--line)';
 
-    node.addEventListener('mouseenter', (event) => {
-      tip.classList.remove('hidden');
+    node.addEventListener('mouseenter', () => {
       tip.innerHTML = graphTooltipHtml(item);
-      positionGraphTooltip(event, tip, wrap);
     });
-    node.addEventListener('mousemove', (event) => positionGraphTooltip(event, tip, wrap));
-    node.addEventListener('mouseleave', () => tip.classList.add('hidden'));
     node.addEventListener('click', () => {
       startEditing(item.id);
       treeDialog.close();
@@ -1198,35 +1195,7 @@ function buildGraphView() {
   return wrap;
 }
 
-function positionGraphTooltip(event, tip, wrap) {
-  const wrapRect = wrap.getBoundingClientRect();
-  const x = event.clientX - wrapRect.left;
-  const y = event.clientY - wrapRect.top;
-  const edgePadding = 8;
-  const cursorGap = 34;
-  const tipWidth = Math.max(160, Math.round(tip.getBoundingClientRect().width || tip.offsetWidth || 240));
-  const tipHeight = Math.max(110, Math.round(tip.getBoundingClientRect().height || tip.offsetHeight || 180));
 
-  const canShowOnRight = x + cursorGap + tipWidth <= wrapRect.width - edgePadding;
-  const canShowAbove = y - cursorGap - tipHeight >= edgePadding;
-
-  const preferredX = canShowOnRight ? x + cursorGap : x - tipWidth - cursorGap;
-  const preferredY = canShowAbove ? y - tipHeight - cursorGap : y + cursorGap;
-
-  let left = Math.max(edgePadding, Math.min(preferredX, wrapRect.width - tipWidth - edgePadding));
-  let top = Math.max(edgePadding, Math.min(preferredY, wrapRect.height - tipHeight - edgePadding));
-
-  const cursorOverlapsTip = x >= left && x <= left + tipWidth && y >= top && y <= top + tipHeight;
-  if (cursorOverlapsTip) {
-    const moveLeft = Math.max(edgePadding, x - tipWidth - cursorGap);
-    const moveAbove = Math.max(edgePadding, y - tipHeight - cursorGap);
-    if (moveLeft + tipWidth <= wrapRect.width - edgePadding) left = moveLeft;
-    else top = moveAbove;
-  }
-
-  tip.style.left = `${left}px`;
-  tip.style.top = `${top}px`;
-}
 
 function graphTooltipHtml(item) {
   const connections = item.connections.map((id) => findById(id)?.name || id).join(', ') || 'none';
