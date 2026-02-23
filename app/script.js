@@ -81,7 +81,6 @@ cleanupDuplicateIds(['symbol-wrap', 'hardware-kind-wrap', 'manufacturer-wrap', '
 cleanupDuplicateFieldLabels();
 
 initColorPicker();
-initCpuCountOptions();
 appendShareRow();
 appendRamModuleRow();
 appendDiskRow();
@@ -336,17 +335,6 @@ function setSelectedColor(color) {
 }
 
 
-function initCpuCountOptions() {
-  cpuCountSelect.innerHTML = '<option value="">Select count</option>';
-  for (let count = 1; count <= 64; count += 1) {
-    const option = document.createElement('option');
-    option.value = String(count);
-    option.textContent = `${count}`;
-    cpuCountSelect.appendChild(option);
-  }
-  cpuCountSelect.value = '4';
-}
-
 function appendRamModuleRow(module = { size: '', type: 'DDR4' }) {
   const row = document.createElement('div');
   row.className = 'share-row';
@@ -453,7 +441,7 @@ function formatDiskLabel(diskRows) {
 
 function inferCpuCount(cpuLabel) {
   const match = String(cpuLabel || '').match(/(\d+)/);
-  return match ? match[1] : '4';
+  return match ? match[1] : '';
 }
 
 function resetDynamicHardwareFields() {
@@ -465,7 +453,7 @@ function resetDynamicHardwareFields() {
   appendRaidRow();
   appendRamModuleRow();
   appendDiskRow();
-  cpuCountSelect.value = '4';
+  cpuCountSelect.value = '';
 }
 
 function appendShareRow(share = { name: '', link: '' }) {

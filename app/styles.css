@@ -67,6 +67,9 @@ h1 { margin: 0.18rem 0 0.1rem; font-family: 'Space Mono', monospace; font-size: 
 h2, h3, legend { font-family: 'Space Mono', monospace; margin: 0 0 var(--space-2); }
 .stack { display: grid; gap: var(--space-3); }
 .share-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.4rem; align-items: end; }
+.share-row input,
+.share-row select,
+.share-row .icon-btn { min-height: 42px; }
 label { font-size: 0.82rem; color: var(--muted); display: grid; gap: var(--space-1); }
 
 #resource-form { overflow: auto; min-height: 0; padding-right: var(--space-1); display: grid; gap: var(--space-2); align-content: start; }
