@@ -287,17 +287,19 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 }
 .graph-tooltip {
   position: absolute;
-  z-index: 5;
+  z-index: 7;
   pointer-events: none;
-  width: min(240px, 70vw);
   border: 2px solid var(--line);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--phone);
-  padding: 0.4rem 0.55rem;
-  font: 600 0.74rem/1.32 'Space Mono', monospace;
+  padding: 0.22rem 0.5rem;
+  font: 700 0.74rem/1.2 'Space Mono', monospace;
   box-shadow: var(--shadow);
+  white-space: nowrap;
+  max-width: min(260px, 70vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.graph-tooltip p { margin: 0.15rem 0; }
 
 .toast {
   position: fixed;
