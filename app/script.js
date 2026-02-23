@@ -1125,7 +1125,6 @@ function buildGraphView() {
 
   const tip = document.createElement('aside');
   tip.className = 'graph-info-panel';
-  tip.innerHTML = '<p class="graph-info-empty">Hover a node to see details.</p>';
   wrap.appendChild(tip);
 
   const graphItems = items.filter((item) => item.type !== 'network');
