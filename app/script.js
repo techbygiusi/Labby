@@ -1089,10 +1089,10 @@ function buildGraphView() {
   const wrap = document.createElement('div');
   wrap.className = 'graph-wrap';
 
-  const tip = document.createElement('div');
-  tip.className = 'graph-tooltip hidden';
-  tip.textContent = '';
-  wrap.appendChild(tip);
+  const hoverTip = document.createElement('div');
+  hoverTip.className = 'graph-tooltip hidden';
+  hoverTip.textContent = '';
+  wrap.appendChild(hoverTip);
 
   const canvas = document.createElement('div');
   canvas.className = 'graph-canvas';
@@ -1215,14 +1215,14 @@ function buildGraphView() {
     node.style.borderColor = networkBorderColor(item) || 'var(--line)';
 
     node.addEventListener('mouseenter', (event) => {
-      tip.textContent = item.name;
-      tip.classList.remove('hidden');
-      positionGraphTooltip(event, tip, wrap);
+      hoverTip.textContent = item.name;
+      hoverTip.classList.remove('hidden');
+      positionGraphTooltip(event, hoverTip, wrap);
     });
-    node.addEventListener('mousemove', (event) => positionGraphTooltip(event, tip, wrap));
+    node.addEventListener('mousemove', (event) => positionGraphTooltip(event, hoverTip, wrap));
     node.addEventListener('mouseleave', () => {
-      tip.classList.add('hidden');
-      tip.textContent = '';
+      hoverTip.classList.add('hidden');
+      hoverTip.textContent = '';
     });
     node.addEventListener('click', () => {
       startEditing(item.id);
