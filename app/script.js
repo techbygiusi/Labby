@@ -1028,8 +1028,10 @@ function positionGraphTooltip(event, tip, wrap) {
   const y = event.clientY - wrapRect.top;
   const tipWidth = 240;
   const tipHeight = 180;
-  tip.style.left = `${Math.max(8, Math.min(x + 14, wrapRect.width - tipWidth - 8))}px`;
-  tip.style.top = `${Math.max(8, Math.min(y + 14, wrapRect.height - tipHeight - 8))}px`;
+  const edgePadding = 8;
+  const cursorGap = 34;
+  tip.style.left = `${Math.max(edgePadding, Math.min(x + cursorGap, wrapRect.width - tipWidth - edgePadding))}px`;
+  tip.style.top = `${Math.max(edgePadding, Math.min(y + cursorGap, wrapRect.height - tipHeight - edgePadding))}px`;
 }
 
 function graphTooltipHtml(item) {
