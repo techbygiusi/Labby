@@ -22,6 +22,8 @@ const hardwareKindSelect = document.getElementById('hardware-kind');
 const hardwareKindWrap = document.getElementById('hardware-kind-wrap');
 const manufacturerInput = document.getElementById('manufacturer');
 const manufacturerWrap = document.getElementById('manufacturer-wrap');
+const osInput = document.getElementById('os');
+const osWrap = document.getElementById('os-wrap');
 const computeFields = document.getElementById('compute-fields');
 const cpuCountSelect = document.getElementById('cpu-count');
 const ramModulesWrap = document.getElementById('ram-modules-wrap');
@@ -44,6 +46,8 @@ const addShareBtn = document.getElementById('add-share');
 const nasRaidsWrap = document.getElementById('nas-raids-wrap');
 const nasRaids = document.getElementById('nas-raids');
 const addRaidBtn = document.getElementById('add-raid');
+const nasSharesLegend = nasSharesWrap?.querySelector('legend');
+const nasRaidsLegend = nasRaidsWrap?.querySelector('legend');
 const ipPortInput = document.getElementById('ip-port');
 const ipPortWrap = document.getElementById('ip-port-wrap');
 const webUrlInput = document.getElementById('web-url');
@@ -77,7 +81,7 @@ let items = sanitizeItems(loadItems());
 let toastTimer = null;
 let treeViewMode = 'tree';
 
-cleanupDuplicateIds(['symbol-wrap', 'hardware-kind-wrap', 'manufacturer-wrap', 'symbol', 'hardware-kind', 'manufacturer']);
+cleanupDuplicateIds(['symbol-wrap', 'hardware-kind-wrap', 'manufacturer-wrap', 'os-wrap', 'symbol', 'hardware-kind', 'manufacturer', 'os']);
 cleanupDuplicateFieldLabels();
 
 initColorPicker();
@@ -103,6 +107,7 @@ function cleanupDuplicateFieldLabels() {
   removeDuplicateLabels((labelNode) => labelNode.querySelector('#symbol'));
   removeDuplicateLabels((labelNode) => labelNode.querySelector('#hardware-kind'));
   removeDuplicateLabels((labelNode) => labelNode.querySelector('#manufacturer'));
+  removeDuplicateLabels((labelNode) => labelNode.querySelector('#os'));
 }
 
 function removeDuplicateLabels(matchFn) {
@@ -129,6 +134,7 @@ form.addEventListener('submit', (event) => {
   const type = typeSelect.value;
   const hardwareKind = hardwareKindSelect.value;
   const manufacturer = manufacturerInput.value.trim();
+  const os = osInput.value.trim();
   const symbol = symbolInput.value.trim();
   const name = document.getElementById('name').value.trim();
   const description = document.getElementById('description').value.trim();
@@ -160,6 +166,7 @@ form.addEventListener('submit', (event) => {
     type,
     hardwareKind: type === 'hardware' ? hardwareKind : '',
     manufacturer: type === 'hardware' ? manufacturer : '',
+    os: ['hardware', 'vm', 'lxc'].includes(type) ? os : '',
     symbol: symbol || defaultSymbol(type, hardwareKind),
     name,
     description,
@@ -179,8 +186,8 @@ form.addEventListener('submit', (event) => {
     hostedOn: ['vm', 'lxc'].includes(type) ? hostedOn : '',
     appHostedOn: type === 'app' ? appHostedOn : '',
     switchPorts: type === 'hardware' && hardwareKind === 'switch' ? switchPorts : '',
-    nasShares: type === 'hardware' && hardwareKind === 'nas' ? shareList : [],
-    nasRaids: type === 'hardware' && hardwareKind === 'nas' ? raidList : [],
+    nasShares: supportsStorageGroups(type, hardwareKind) ? shareList : [],
+    nasRaids: supportsStorageGroups(type, hardwareKind) ? raidList : [],
     connections: type === 'hardware' && hardwareKind === 'router-gateway'
       ? selectedRouterSwitches
       : type === 'hardware' && hardwareKind === 'switch'
@@ -538,6 +545,7 @@ function sanitizeItems(raw) {
       type: types.includes(item.type) ? item.type : 'app',
       hardwareKind: item.hardwareKind ? String(item.hardwareKind) : 'server',
       manufacturer: item.manufacturer ? String(item.manufacturer) : '',
+      os: item.os ? String(item.os) : '',
       symbol: item.symbol ? String(item.symbol) : defaultSymbol(item.type, item.hardwareKind),
       name: String(item.name),
       description: item.description ? String(item.description) : '',
@@ -586,7 +594,10 @@ function normalizeList(list) {
     const next = { ...item };
     next.connections = next.connections.filter((id) => known.has(id) && id !== next.id);
     if (!supportsNotes(next.type)) next.notes = '';
-    if (!['hardware', 'vm', 'lxc'].includes(next.type)) next.ip = '';
+    if (!['hardware', 'vm', 'lxc'].includes(next.type)) {
+      next.ip = '';
+      next.os = '';
+    }
     if (next.type !== 'hardware') {
       next.hardwareKind = '';
       next.manufacturer = '';
@@ -613,7 +624,7 @@ function normalizeList(list) {
       next.diskRows = [];
     }
     if (!(next.type === 'hardware' && next.hardwareKind === 'switch')) next.switchPorts = '';
-    if (!(next.type === 'hardware' && next.hardwareKind === 'nas')) {
+    if (!supportsStorageGroups(next.type, next.hardwareKind)) {
       next.nasShares = [];
       next.nasRaids = [];
     }
@@ -700,6 +711,19 @@ function toIPv4Int(ip) {
   return (((parts[0] << 24) >>> 0) + ((parts[1] << 16) >>> 0) + ((parts[2] << 8) >>> 0) + (parts[3] >>> 0)) >>> 0;
 }
 
+
+function supportsStorageGroups(type, hardwareKind) {
+  return type === 'hardware' && ['nas', 'backup'].includes(hardwareKind);
+}
+
+function updateStorageFieldLabels(hardwareKind) {
+  const backupMode = hardwareKind === 'backup';
+  if (nasSharesLegend) nasSharesLegend.textContent = backupMode ? 'Backup shares' : 'NAS shares';
+  if (nasRaidsLegend) nasRaidsLegend.textContent = backupMode ? 'Backup RAID groups' : 'NAS RAID groups';
+  if (addShareBtn) addShareBtn.textContent = backupMode ? '+ Add Backup Share' : '+ Add Share';
+  if (addRaidBtn) addRaidBtn.textContent = backupMode ? '+ Add Backup RAID group' : '+ Add RAID';
+}
+
 function applyTypeVisibility() {
   const type = typeSelect.value;
   const hardwareKind = hardwareKindSelect.value;
@@ -711,7 +735,7 @@ function applyTypeVisibility() {
   const supportsCompute = supportsComputeDetails(type, hardwareKind);
   const isRouter = isHardware && hardwareKind === 'router-gateway';
   const isSwitch = isHardware && hardwareKind === 'switch';
-  const isNas = isHardware && hardwareKind === 'nas';
+  const supportsStorage = supportsStorageGroups(type, hardwareKind);
 
   networkFields.classList.toggle('hidden', !isNetwork);
   computeFields.classList.toggle('hidden', !supportsCompute);
@@ -719,6 +743,7 @@ function applyTypeVisibility() {
   diskListWrap.classList.toggle('hidden', !supportsCompute);
   hardwareKindWrap.classList.toggle('hidden', !isHardware);
   manufacturerWrap.classList.toggle('hidden', !isHardware);
+  osWrap.classList.toggle('hidden', !supportsIp);
   hostedOnWrap.classList.toggle('hidden', !isVmOrLxc);
   appHostedOnWrap.classList.toggle('hidden', !isApp);
   ipInput.closest('label').classList.toggle('hidden', !supportsIp);
@@ -726,8 +751,8 @@ function applyTypeVisibility() {
   routerSwitchesWrap.classList.toggle('hidden', !isRouter);
   switchLinksWrap.classList.toggle('hidden', !isSwitch);
   switchDeviceLinksWrap.classList.toggle('hidden', !isSwitch);
-  nasSharesWrap.classList.toggle('hidden', !isNas);
-  nasRaidsWrap.classList.toggle('hidden', !isNas);
+  nasSharesWrap.classList.toggle('hidden', !supportsStorage);
+  nasRaidsWrap.classList.toggle('hidden', !supportsStorage);
   ipPortWrap.classList.toggle('hidden', !isApp);
   webUrlWrap.classList.toggle('hidden', !isApp);
   notesWrap.classList.toggle('hidden', !supportsNotes(type));
@@ -737,6 +762,7 @@ function applyTypeVisibility() {
   switchPortsInput.required = isSwitch;
 
   symbolInput.placeholder = `e.g. ${defaultSymbol(type, hardwareKind)}`;
+  updateStorageFieldLabels(hardwareKind);
   if (!editingId && !symbolInput.value.trim()) {
     symbolInput.value = defaultSymbol(type, hardwareKind);
   }
@@ -786,7 +812,7 @@ function applyFilters(list) {
     const hardwareText = item.type === 'hardware'
       ? `${item.manufacturer || ''} ${hardwareTypeLabel(item.hardwareKind)} ${item.switchPorts || ''} ${(item.nasShares || []).map((share) => `${share.name} ${share.link}`).join(' ')}`
       : '';
-    const specsText = `${item.cpu || ''} ${item.ram || ''} ${item.disks || ''}`;
+    const specsText = `${item.os || ''} ${item.cpu || ''} ${item.ram || ''} ${item.disks || ''}`;
     const text = `${item.name} ${item.description} ${item.notes} ${item.ip} ${specsText} ${appText} ${networkText} ${hardwareText}`.toLowerCase();
     return typeMatch && (!query || text.includes(query));
   });
@@ -824,8 +850,9 @@ function appDetails(item) {
 }
 
 function specsLabel(item) {
-  if (!supportsComputeDetails(item.type, item.hardwareKind)) return '';
   const bits = [];
+  if (['hardware', 'vm', 'lxc'].includes(item.type) && item.os) bits.push(`OS: ${item.os}`);
+  if (!supportsComputeDetails(item.type, item.hardwareKind)) return bits.join(' | ');
   if (item.cpu) bits.push(`CPU: ${item.cpu}`);
   if (item.ram) bits.push(`RAM: ${item.ram}`);
   if (item.disks) bits.push(`Disks: ${item.disks}`);
@@ -838,11 +865,11 @@ function hardwareDetailsLabel(item) {
   bits.push(`Hardware type: ${hardwareTypeLabel(item.hardwareKind || 'server')}`);
   if (item.manufacturer) bits.push(`Manufacturer: ${item.manufacturer}`);
   if (item.hardwareKind === 'switch' && item.switchPorts) bits.push(`Ports: ${item.switchPorts}`);
-  if (item.hardwareKind === 'nas' && item.nasShares?.length) {
-    bits.push(`Shares: ${item.nasShares.map((share) => `${share.name} (${share.link || 'no link'})`).join(', ')}`);
+  if (supportsStorageGroups(item.type, item.hardwareKind) && item.nasShares?.length) {
+    bits.push(`${item.hardwareKind === 'backup' ? 'Backup shares' : 'Shares'}: ${item.nasShares.map((share) => `${share.name} (${share.link || 'no link'})`).join(', ')}`);
   }
-  if (item.hardwareKind === 'nas' && item.nasRaids?.length) {
-    bits.push(`RAIDs: ${item.nasRaids.map((raid) => `${raid.name || 'raid'} ${raid.level}${raid.size ? ` (${raid.size})` : ''}`).join(', ')}`);
+  if (supportsStorageGroups(item.type, item.hardwareKind) && item.nasRaids?.length) {
+    bits.push(`${item.hardwareKind === 'backup' ? 'Backup RAID groups' : 'RAIDs'}: ${item.nasRaids.map((raid) => `${raid.name || 'raid'} ${raid.level}${raid.size ? ` (${raid.size})` : ''}`).join(', ')}`);
   }
   const compute = specsLabel(item);
   if (compute) bits.push(compute);
@@ -956,6 +983,7 @@ function startEditing(id) {
   typeSelect.value = item.type;
   hardwareKindSelect.value = item.hardwareKind || 'server';
   manufacturerInput.value = item.manufacturer || '';
+  osInput.value = item.os || '';
   symbolInput.value = item.symbol || defaultSymbol(item.type, item.hardwareKind);
   document.getElementById('name').value = item.name;
   document.getElementById('description').value = item.description;
@@ -994,10 +1022,10 @@ function startEditing(id) {
   if (item.diskRows?.length) item.diskRows.forEach((disk) => appendDiskRow(disk));
   else appendDiskRow();
 
-  if (item.type === 'hardware' && item.hardwareKind === 'nas' && item.nasShares?.length) item.nasShares.forEach((share) => appendShareRow(share));
+  if (supportsStorageGroups(item.type, item.hardwareKind) && item.nasShares?.length) item.nasShares.forEach((share) => appendShareRow(share));
   else appendShareRow();
 
-  if (item.type === 'hardware' && item.hardwareKind === 'nas' && item.nasRaids?.length) item.nasRaids.forEach((raid) => appendRaidRow(raid));
+  if (supportsStorageGroups(item.type, item.hardwareKind) && item.nasRaids?.length) item.nasRaids.forEach((raid) => appendRaidRow(raid));
   else appendRaidRow();
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1061,13 +1089,14 @@ function buildGraphView() {
   const wrap = document.createElement('div');
   wrap.className = 'graph-wrap';
 
-  const tip = document.createElement('div');
-  tip.className = 'graph-tooltip hidden';
-  wrap.appendChild(tip);
-
   const canvas = document.createElement('div');
   canvas.className = 'graph-canvas';
   wrap.appendChild(canvas);
+
+  const tip = document.createElement('aside');
+  tip.className = 'graph-info-panel';
+  tip.innerHTML = '<p class="graph-info-empty">Hover a node to see details.</p>';
+  wrap.appendChild(tip);
 
   const graphItems = items.filter((item) => item.type !== 'network');
 
@@ -1079,7 +1108,8 @@ function buildGraphView() {
     return wrap;
   }
 
-  const width = Math.max(760, treeContent.clientWidth - 30);
+  const infoPanelWidth = 300;
+  const width = Math.max(760, treeContent.clientWidth - infoPanelWidth - 42);
   const height = Math.max(460, treeContent.clientHeight - 34);
   canvas.style.setProperty('--graph-width', `${width}px`);
   canvas.style.setProperty('--graph-height', `${height}px`);
@@ -1179,13 +1209,9 @@ function buildGraphView() {
     node.style.top = `${pos.y}px`;
     node.style.borderColor = networkBorderColor(item) || 'var(--line)';
 
-    node.addEventListener('mouseenter', (event) => {
-      tip.classList.remove('hidden');
+    node.addEventListener('mouseenter', () => {
       tip.innerHTML = graphTooltipHtml(item);
-      positionGraphTooltip(event, tip, wrap);
     });
-    node.addEventListener('mousemove', (event) => positionGraphTooltip(event, tip, wrap));
-    node.addEventListener('mouseleave', () => tip.classList.add('hidden'));
     node.addEventListener('click', () => {
       startEditing(item.id);
       treeDialog.close();
@@ -1198,35 +1224,7 @@ function buildGraphView() {
   return wrap;
 }
 
-function positionGraphTooltip(event, tip, wrap) {
-  const wrapRect = wrap.getBoundingClientRect();
-  const x = event.clientX - wrapRect.left;
-  const y = event.clientY - wrapRect.top;
-  const edgePadding = 8;
-  const cursorGap = 34;
-  const tipWidth = Math.max(160, Math.round(tip.getBoundingClientRect().width || tip.offsetWidth || 240));
-  const tipHeight = Math.max(110, Math.round(tip.getBoundingClientRect().height || tip.offsetHeight || 180));
 
-  const canShowOnRight = x + cursorGap + tipWidth <= wrapRect.width - edgePadding;
-  const canShowAbove = y - cursorGap - tipHeight >= edgePadding;
-
-  const preferredX = canShowOnRight ? x + cursorGap : x - tipWidth - cursorGap;
-  const preferredY = canShowAbove ? y - tipHeight - cursorGap : y + cursorGap;
-
-  let left = Math.max(edgePadding, Math.min(preferredX, wrapRect.width - tipWidth - edgePadding));
-  let top = Math.max(edgePadding, Math.min(preferredY, wrapRect.height - tipHeight - edgePadding));
-
-  const cursorOverlapsTip = x >= left && x <= left + tipWidth && y >= top && y <= top + tipHeight;
-  if (cursorOverlapsTip) {
-    const moveLeft = Math.max(edgePadding, x - tipWidth - cursorGap);
-    const moveAbove = Math.max(edgePadding, y - tipHeight - cursorGap);
-    if (moveLeft + tipWidth <= wrapRect.width - edgePadding) left = moveLeft;
-    else top = moveAbove;
-  }
-
-  tip.style.left = `${left}px`;
-  tip.style.top = `${top}px`;
-}
 
 function graphTooltipHtml(item) {
   const connections = item.connections.map((id) => findById(id)?.name || id).join(', ') || 'none';
@@ -1236,6 +1234,7 @@ function graphTooltipHtml(item) {
     `Type: ${labelSingle(item.type)}`,
     item.type === 'hardware' ? `Hardware: ${hardwareTypeLabel(item.hardwareKind)}` : '',
     item.manufacturer ? `Manufacturer: ${item.manufacturer}` : '',
+    ['hardware', 'vm', 'lxc'].includes(item.type) && item.os ? `OS: ${item.os}` : '',
     `IP: ${primaryIp}`,
     item.type === 'app' && item.webUrl ? `URL: ${item.webUrl}` : '',
     item.description ? `Description: ${item.description}` : '',
@@ -1441,7 +1440,7 @@ function appTreeLink(app) {
 
 function infraMeta(item) {
   const details = item.type === 'hardware' ? hardwareDetailsLabel(item) : specsLabel(item);
-  if (!details && !item.ip && !item.manufacturer) return null;
+  if (!details && !item.ip && !item.manufacturer && !item.os) return null;
   const meta = document.createElement('div');
   meta.className = 'tree-meta';
   if (item.ip) {
