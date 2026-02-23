@@ -1061,6 +1061,11 @@ function buildGraphView() {
   const wrap = document.createElement('div');
   wrap.className = 'graph-wrap';
 
+  const tip = document.createElement('aside');
+  tip.className = 'graph-info-panel';
+  tip.innerHTML = '<p class="graph-info-empty">Hover a node to see details.</p>';
+  wrap.appendChild(tip);
+
   const canvas = document.createElement('div');
   canvas.className = 'graph-canvas';
   wrap.appendChild(canvas);
@@ -1080,8 +1085,7 @@ function buildGraphView() {
     return wrap;
   }
 
-  const tooltipColumnWidth = 280;
-  const width = Math.max(760, treeContent.clientWidth - tooltipColumnWidth - 40);
+  const width = Math.max(760, treeContent.clientWidth - 36);
   const height = Math.max(460, treeContent.clientHeight - 34);
   canvas.style.setProperty('--graph-width', `${width}px`);
   canvas.style.setProperty('--graph-height', `${height}px`);

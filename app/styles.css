@@ -259,7 +259,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 
 .graph-wrap {
   display: grid;
-  grid-template-columns: minmax(760px, 1fr) 280px;
+  grid-template-columns: 300px minmax(760px, 1fr);
   align-items: start;
   gap: 0.65rem;
   overflow: auto;
@@ -293,9 +293,10 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
 }
 .graph-info-panel {
+  width: 100%;
   height: auto;
   min-height: 0;
-  max-height: min(var(--graph-height, 620px), 65vh);
+  max-height: none;
   align-self: start;
   overflow: auto;
   border: 2px solid var(--line);
@@ -306,7 +307,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   box-shadow: var(--shadow);
   box-sizing: border-box;
 }
-.graph-info-panel p { margin: 0.15rem 0; }
+.graph-info-panel p { margin: 0.15rem 0; word-break: break-word; overflow-wrap: anywhere; }
 .graph-info-empty { color: var(--muted); font-style: italic; }
 
 .toast {
@@ -433,7 +434,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   .view-switch { margin-left: auto; }
   .view-switch .icon-btn { min-height: 34px; }
   .graph-wrap { grid-template-columns: 1fr; overflow: auto; }
-  .graph-info-panel { width: 100%; min-height: 160px; max-height: 260px; height: auto; }
+  .graph-info-panel { width: 100%; min-height: 0; max-height: none; height: auto; }
   .graph-node { width: 40px; height: 40px; font-size: 1.05rem; }
   .toast { width: calc(100vw - 20px); }
 }
