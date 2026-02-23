@@ -1153,49 +1153,63 @@ function buildGraphView() {
   const byId = Object.fromEntries(items.map((item) => [item.id, item]));
 
   const hardware = graphItems.filter((item) => item.type === 'hardware');
-  const unhostedHardware = hardware.filter((item) => !item.hostedOn || !byId[item.hostedOn]);
-  const rootHardware = unhostedHardware.length ? unhostedHardware : hardware;
+  const routers = hardware.filter((item) => item.hardwareKind === 'router-gateway');
+  const switches = hardware.filter((item) => item.hardwareKind === 'switch');
+  const endpointHardware = hardware.filter((item) => !['router-gateway', 'switch'].includes(item.hardwareKind || ''));
 
-  const rootY = Math.round(height * 0.16);
-  const midY = Math.round(height * 0.52);
-  const appY = Math.round(height * 0.84);
-  const rootStep = width / (rootHardware.length + 1);
-  rootHardware.forEach((host, idx) => {
-    const rootX = Math.round(rootStep * (idx + 1));
-    positions.set(host.id, { x: rootX, y: rootY });
+  const guests = graphItems.filter((item) => item.type === 'vm' || item.type === 'lxc');
+  const apps = graphItems.filter((item) => item.type === 'app');
 
-    const hostFamily = [
-      ...graphItems.filter((item) => item.type === 'vm' || item.type === 'lxc').filter((item) => item.hostedOn === host.id),
-      ...graphItems.filter((item) => item.type === 'app').filter((app) => {
-        if (!app.appHostedOn) return false;
-        const appHost = byId[app.appHostedOn];
-        return appHost?.id === host.id;
-      }),
-    ];
-
-    const familyStep = hostFamily.length > 0 ? 110 : 0;
-    const familyStart = rootX - ((hostFamily.length - 1) * familyStep) / 2;
-
-    hostFamily.forEach((child, childIndex) => {
-      const childX = Math.round(familyStart + childIndex * familyStep);
-      const childY = midY;
-      if (!positions.has(child.id)) {
-        positions.set(child.id, { x: childX, y: childY });
-      }
-
-      const appChildren = graphItems.filter((item) => item.type === 'app' && item.appHostedOn === child.id);
-      const appStep = appChildren.length > 0 ? 100 : 0;
-      const appStart = childX - ((appChildren.length - 1) * appStep) / 2;
-      appChildren.forEach((app, appIndex) => {
-        positions.set(app.id, { x: Math.round(appStart + appIndex * appStep), y: appY });
-      });
+  function placeLayer(layerItems, y, minRatio = 0.12, maxRatio = 0.88) {
+    if (!layerItems.length) return;
+    const minX = Math.round(width * minRatio);
+    const maxX = Math.round(width * maxRatio);
+    if (layerItems.length === 1) {
+      positions.set(layerItems[0].id, { x: Math.round((minX + maxX) / 2), y });
+      return;
+    }
+    const step = (maxX - minX) / (layerItems.length - 1);
+    layerItems.forEach((item, idx) => {
+      positions.set(item.id, { x: Math.round(minX + step * idx), y });
     });
+  }
+
+  const routerY = Math.round(height * 0.12);
+  const switchY = Math.round(height * 0.34);
+  const hardwareY = Math.round(height * 0.58);
+  const guestY = Math.round(height * 0.78);
+  const appY = Math.round(height * 0.92);
+
+  placeLayer(routers, routerY, 0.2, 0.8);
+  placeLayer(switches, switchY);
+  const sortedEndpointHardware = [...endpointHardware].sort((a, b) => {
+    const switchXFor = (device) => {
+      const linkedSwitch = switches.find((sw) => (sw.connections || []).includes(device.id) || (device.connections || []).includes(sw.id));
+      return positions.get(linkedSwitch?.id || '')?.x || 0;
+    };
+    return switchXFor(a) - switchXFor(b);
   });
+  placeLayer(sortedEndpointHardware, hardwareY);
+
+  const sortedGuests = [...guests].sort((a, b) => {
+    const hostA = positions.get(a.hostedOn || '')?.x || 0;
+    const hostB = positions.get(b.hostedOn || '')?.x || 0;
+    return hostA - hostB;
+  });
+  placeLayer(sortedGuests, guestY, 0.08, 0.92);
+
+  const sortedApps = [...apps].sort((a, b) => {
+    const hostA = positions.get(a.appHostedOn || '')?.x || 0;
+    const hostB = positions.get(b.appHostedOn || '')?.x || 0;
+    return hostA - hostB;
+  });
+  placeLayer(sortedApps, appY, 0.08, 0.92);
+
 
   graphItems.forEach((item, idx) => {
     if (positions.has(item.id)) return;
     const fallbackStep = width / (graphItems.length + 1);
-    positions.set(item.id, { x: Math.round((idx + 1) * fallbackStep), y: item.type === 'app' ? appY : midY });
+    positions.set(item.id, { x: Math.round((idx + 1) * fallbackStep), y: item.type === 'app' ? appY : guestY });
   });
 
   const svgNS = 'http://www.w3.org/2000/svg';
@@ -1384,17 +1398,10 @@ function buildInfrastructureTree() {
   const lxcs = items.filter((item) => item.type === 'lxc');
   const apps = items.filter((item) => item.type === 'app');
 
-  hardware.forEach((host) => {
-    const lane = document.createElement('div');
-    lane.className = 'tree-lane';
-
-    lane.appendChild(treeChip(host));
-    const hostIp = treeIpMeta(host);
-    if (hostIp) lane.appendChild(hostIp);
-
+  function appendGuestTree(targetWrap, hostId) {
     const guestsWrap = document.createElement('div');
     guestsWrap.className = 'tree-children';
-    const guests = [...vms, ...lxcs].filter((guest) => guest.hostedOn === host.id);
+    const guests = [...vms, ...lxcs].filter((guest) => guest.hostedOn === hostId);
 
     if (!guests.length) {
       const none = document.createElement('p');
@@ -1434,9 +1441,108 @@ function buildInfrastructureTree() {
       guestsWrap.appendChild(guestLane);
     });
 
-    lane.appendChild(guestsWrap);
-    body.appendChild(lane);
+    targetWrap.appendChild(guestsWrap);
+  }
+
+
+  const byHardwareId = Object.fromEntries(hardware.map((item) => [item.id, item]));
+  const switches = hardware.filter((item) => item.hardwareKind === 'switch');
+  const routers = hardware.filter((item) => item.hardwareKind === 'router-gateway');
+
+  if (switches.length || routers.length) {
+    const fabric = document.createElement('div');
+    fabric.className = 'tree-subgroup';
+    fabric.innerHTML = '<p class="tree-subtitle">Router → Switch → Hardware</p>';
+
+    const rootRouters = routers.length ? routers : [{ id: '__no-router__', name: 'No router configured', hardwareKind: 'router-gateway', type: 'hardware', connections: switches.map((sw) => sw.id) }];
+
+    rootRouters.forEach((router) => {
+      const routerLane = document.createElement('div');
+      routerLane.className = 'tree-lane';
+      if (router.id === '__no-router__') {
+        const t = document.createElement('p');
+        t.className = 'tree-subtitle';
+        t.textContent = router.name;
+        routerLane.appendChild(t);
+      } else {
+        routerLane.appendChild(treeChip(router));
+        const routerMeta = infraMeta(router);
+        if (routerMeta) routerLane.appendChild(routerMeta);
+      }
+
+      const switchWrap = document.createElement('div');
+      switchWrap.className = 'tree-children';
+      const connectedSwitches = switches.filter((sw) => (router.connections || []).includes(sw.id) || (sw.connections || []).includes(router.id));
+
+      connectedSwitches.forEach((sw) => {
+        const switchLane = document.createElement('div');
+        switchLane.className = 'tree-lane nested';
+        switchLane.appendChild(treeChip(sw));
+        const switchMeta = infraMeta(sw);
+        if (switchMeta) switchLane.appendChild(switchMeta);
+
+        const deviceWrap = document.createElement('div');
+        deviceWrap.className = 'tree-children';
+        const connectedDevices = (sw.connections || [])
+          .map((id) => byHardwareId[id])
+          .filter((device) => device && device.id !== sw.id && device.hardwareKind !== 'router-gateway' && device.hardwareKind !== 'switch');
+
+        connectedDevices.forEach((device) => {
+          const deviceLane = document.createElement('div');
+          deviceLane.className = 'tree-lane nested';
+          deviceLane.appendChild(treeChip(device));
+          const deviceMeta = infraMeta(device);
+          if (deviceMeta) deviceLane.appendChild(deviceMeta);
+          appendGuestTree(deviceLane, device.id);
+          deviceWrap.appendChild(deviceLane);
+        });
+
+        if (!deviceWrap.childNodes.length) {
+          const none = document.createElement('p');
+          none.className = 'tree-empty';
+          none.textContent = 'No connected hardware';
+          deviceWrap.appendChild(none);
+        }
+
+        switchLane.appendChild(deviceWrap);
+        switchWrap.appendChild(switchLane);
+      });
+
+      if (!switchWrap.childNodes.length) {
+        const none = document.createElement('p');
+        none.className = 'tree-empty';
+        none.textContent = 'No connected switches';
+        switchWrap.appendChild(none);
+      }
+
+      routerLane.appendChild(switchWrap);
+      fabric.appendChild(routerLane);
+    });
+
+    body.appendChild(fabric);
+  }
+
+  const standaloneHardware = hardware.filter((host) => {
+    if (host.hardwareKind === 'router-gateway' || host.hardwareKind === 'switch') return false;
+    const connectedToSwitch = switches.some((sw) => (sw.connections || []).includes(host.id) || (host.connections || []).includes(sw.id));
+    return !connectedToSwitch;
   });
+  if (standaloneHardware.length) {
+    const standalone = document.createElement('div');
+    standalone.className = 'tree-subgroup';
+    standalone.innerHTML = '<p class="tree-subtitle">Hardware (not linked to a switch)</p>';
+    standaloneHardware.forEach((host) => {
+      const lane = document.createElement('div');
+      lane.className = 'tree-lane';
+      lane.appendChild(treeChip(host));
+      const hostMeta = infraMeta(host);
+      if (hostMeta) lane.appendChild(hostMeta);
+      appendGuestTree(lane, host.id);
+      standalone.appendChild(lane);
+    });
+    body.appendChild(standalone);
+  }
+
 
 
   const byHardwareId = Object.fromEntries(hardware.map((item) => [item.id, item]));
