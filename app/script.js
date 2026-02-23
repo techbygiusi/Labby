@@ -1089,6 +1089,11 @@ function buildGraphView() {
   const wrap = document.createElement('div');
   wrap.className = 'graph-wrap';
 
+  const tip = document.createElement('div');
+  tip.className = 'graph-tooltip hidden';
+  tip.textContent = '';
+  wrap.appendChild(tip);
+
   const canvas = document.createElement('div');
   canvas.className = 'graph-canvas';
   wrap.appendChild(canvas);
@@ -1213,6 +1218,11 @@ function buildGraphView() {
       tip.textContent = item.name;
       tip.classList.remove('hidden');
       positionGraphTooltip(event, tip, wrap);
+    });
+    node.addEventListener('mousemove', (event) => positionGraphTooltip(event, tip, wrap));
+    node.addEventListener('mouseleave', () => {
+      tip.classList.add('hidden');
+      tip.textContent = '';
     });
     node.addEventListener('click', () => {
       startEditing(item.id);

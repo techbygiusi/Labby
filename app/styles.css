@@ -299,6 +299,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   max-width: min(260px, 70vw);
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: center;
 }
 
 .toast {
