@@ -872,13 +872,15 @@ function setTreeMode(mode) {
 
 function renderTreeView() {
   treeContent.innerHTML = '';
-  if (treeViewMode === 'graph') {
-    treeContent.appendChild(buildGraphView());
-    return;
-  }
   const treeShell = document.createElement('div');
   treeShell.className = 'tree-shell';
-  treeShell.appendChild(buildInfrastructureTree());
+
+  if (treeViewMode === 'graph') {
+    treeShell.appendChild(buildGraphView());
+  } else {
+    treeShell.appendChild(buildInfrastructureTree());
+  }
+
   treeContent.appendChild(treeShell);
 }
 
@@ -904,8 +906,8 @@ function buildGraphView() {
     return wrap;
   }
 
-  const width = Math.max(760, treeContent.clientWidth - 40);
-  const height = Math.max(460, treeContent.clientHeight - 28);
+  const width = Math.max(760, treeContent.clientWidth - 66);
+  const height = Math.max(460, treeContent.clientHeight - 62);
   canvas.style.setProperty('--graph-width', `${width}px`);
   canvas.style.setProperty('--graph-height', `${height}px`);
 
