@@ -1230,20 +1230,25 @@ function buildGraphView() {
 
 function positionGraphTooltip(event, tip, wrap) {
   const wrapRect = wrap.getBoundingClientRect();
-  const x = event.clientX - wrapRect.left;
-  const y = event.clientY - wrapRect.top;
+  const x = event.clientX - wrapRect.left + wrap.scrollLeft;
+  const y = event.clientY - wrapRect.top + wrap.scrollTop;
   const gap = 14;
   const edge = 8;
   const tipRect = tip.getBoundingClientRect();
   const tipWidth = Math.max(90, Math.round(tipRect.width || tip.offsetWidth || 120));
   const tipHeight = Math.max(28, Math.round(tipRect.height || tip.offsetHeight || 32));
 
-  const canRight = x + gap + tipWidth <= wrapRect.width - edge;
+  const minX = wrap.scrollLeft + edge;
+  const maxX = wrap.scrollLeft + wrap.clientWidth - tipWidth - edge;
+  const minY = wrap.scrollTop + edge;
+  const maxY = wrap.scrollTop + wrap.clientHeight - tipHeight - edge;
+
+  const canRight = x + gap + tipWidth <= wrap.scrollLeft + wrap.clientWidth - edge;
   const preferredLeft = canRight ? x + gap : x - gap - tipWidth;
   const preferredTop = y - tipHeight / 2;
 
-  const left = Math.max(edge, Math.min(preferredLeft, wrapRect.width - tipWidth - edge));
-  const top = Math.max(edge, Math.min(preferredTop, wrapRect.height - tipHeight - edge));
+  const left = Math.max(minX, Math.min(preferredLeft, maxX));
+  const top = Math.max(minY, Math.min(preferredTop, maxY));
 
   tip.style.left = `${left}px`;
   tip.style.top = `${top}px`;
