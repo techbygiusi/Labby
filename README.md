@@ -8,10 +8,12 @@ Track your infrastructure, visualize relationships, and keep everything in one p
 ## 📸 Screenshots
 
 ### Dashboard + Resource Management
-![Labby Dashboard](https://github.com/user-attachments/assets/ed37c777-6d77-4f71-95d7-a8990cbb6295)
+<img width="3421" height="1888" alt="image" src="https://github.com/user-attachments/assets/286c4dcc-f628-402e-be3e-985c6b3445b7" />
+
 
 ### Tree / Graph Relationship View
-![Labby Relationship Tree](https://github.com/user-attachments/assets/c15476b8-5653-4f5e-adcb-8811c0bc7247)
+<img width="1562" height="1331" alt="image" src="https://github.com/user-attachments/assets/58caccb7-63f2-4591-ada6-4ad295f31777" />
+<img width="1552" height="1321" alt="image" src="https://github.com/user-attachments/assets/4f52bb4e-839e-4ec2-a4a5-f508c910f1f0" />
 
 ---
 
