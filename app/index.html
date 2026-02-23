@@ -3,17 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Labby - Map Your Homalab</title>
+    <title>Labby - Map Your Homelab</title>
+    <link rel="icon" type="image/svg+xml" href="logo.svg" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <header class="topbar">
-      <div>
-        <p class="brand">Labby - Map Your Homalab</p>
+      <div class="brand-wrap">
+        <img src="logo.svg" alt="Labby logo" class="logo" />
+        <div>
+          <p class="brand">Labby - Map Your Homelab</p>
         <h1>Homelab Control Board</h1>
         <p class="subtitle">Document hardware, VMs, LXCs, apps, and networks with connected topology.</p>
+        </div>
       </div>
-      <button id="theme-toggle" class="button secondary" aria-label="Toggle theme">🌙 Dark</button>
+      <div class="topbar-actions">
+        <button id="config-toggle" class="button secondary" type="button">⚙️ Config</button>
+        <button id="theme-toggle" class="button secondary" aria-label="Toggle theme">🌙 Dark</button>
+      </div>
     </header>
 
     <main class="phone-grid">
@@ -33,6 +40,26 @@
           <label>
             Name
             <input id="name" type="text" placeholder="e.g. Proxmox Node" required />
+          </label>
+          <label>
+            Symbol / Icon (emoji or short text)
+            <input id="symbol" type="text" maxlength="3" placeholder="e.g. 🖥️" />
+          </label>
+          <label id="hardware-kind-wrap">
+            Hardware Type
+            <select id="hardware-kind">
+              <option value="server">Server</option>
+              <option value="hypervisor">Hypervisor</option>
+              <option value="nas">NAS</option>
+              <option value="backup">Backup</option>
+              <option value="pc">PC</option>
+              <option value="router-gateway">Router / Gateway</option>
+              <option value="switch">Switch</option>
+            </select>
+          </label>
+          <label id="manufacturer-wrap">
+            Manufacturer
+            <input id="manufacturer" type="text" placeholder="e.g. Dell, Ubiquiti, Synology" />
           </label>
           <label>
             Description
@@ -60,6 +87,27 @@
               Disks
               <input id="disks" type="text" placeholder="e.g. 2x 1TB NVMe" />
             </label>
+          </fieldset>
+          <label id="switch-ports-wrap" class="hidden">
+            Number of ports (Switch)
+            <input id="switch-ports" type="number" min="1" placeholder="e.g. 24" />
+          </label>
+          <label id="router-switches-wrap" class="hidden">
+            Connected switches (Router / Gateway)
+            <select id="router-switches" multiple></select>
+          </label>
+          <label id="switch-links-wrap" class="hidden">
+            Connected switches (Switch)
+            <select id="switch-links" multiple></select>
+          </label>
+          <label id="switch-device-links-wrap" class="hidden">
+            Connected hardware devices (Switch)
+            <select id="switch-device-links" multiple></select>
+          </label>
+          <fieldset id="nas-shares-wrap" class="network-fields hidden">
+            <legend>NAS shares</legend>
+            <div id="nas-shares" class="stack"></div>
+            <button id="add-share" class="button secondary" type="button">+ Add Share</button>
           </fieldset>
           <label id="ip-port-wrap" class="hidden">
             IP + Port (App)
@@ -123,35 +171,47 @@
         <div id="boards" class="boards"></div>
       </section>
 
-      <section class="phone panel-right">
-        <h2>Config</h2>
-        <p class="note">Backup or move your full homelab map.</p>
-        <div class="stack">
-          <button id="export-btn" class="button secondary" type="button">Export Config</button>
-          <label class="button secondary file-label">
-            Import Config
-            <input id="import-file" type="file" accept="application/json" />
-          </label>
-          <button id="clear-all" class="button danger" type="button">Clear All</button>
-        </div>
-        <div class="legend">
-          <p><span class="dot hardware"></span> Hardware</p>
-          <p><span class="dot vm"></span> VM</p>
-          <p><span class="dot lxc"></span> LXC</p>
-          <p><span class="dot app"></span> App</p>
-          <p><span class="dot network"></span> Network</p>
-        </div>
-      </section>
     </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <button id="tree-toggle" class="tree-toggle" type="button">🌳 Tree View</button>
 
     <dialog id="tree-dialog" class="tree-dialog">
       <div class="tree-head">
         <h3>Relationship Tree</h3>
-        <button id="tree-close" class="icon-btn" type="button">Close</button>
+        <div class="tree-head-actions">
+          <div class="view-switch" role="tablist" aria-label="Tree view mode">
+            <button id="tree-mode-tree" class="icon-btn active" type="button">Tree</button>
+            <button id="tree-mode-graph" class="icon-btn" type="button">Graph</button>
+          </div>
+          <button id="tree-close" class="icon-btn" type="button">Close</button>
+        </div>
       </div>
       <div id="tree-content" class="tree-content"></div>
+    </dialog>
+
+    <dialog id="config-dialog" class="tree-dialog">
+      <div class="tree-head">
+        <h3>Config</h3>
+        <button id="config-close" class="icon-btn" type="button">Close</button>
+      </div>
+      <p class="note">Backup or move your full homelab map.</p>
+      <div class="stack">
+        <button id="export-btn" class="button secondary" type="button">Export Config</button>
+        <label class="button secondary file-label">
+          Import Config
+          <input id="import-file" type="file" accept="application/json" />
+        </label>
+        <button id="clear-all" class="button danger" type="button">Clear All</button>
+      </div>
+      <div class="legend">
+        <p><span class="dot hardware"></span> Hardware</p>
+        <p><span class="dot vm"></span> VM</p>
+        <p><span class="dot lxc"></span> LXC</p>
+        <p><span class="dot app"></span> App</p>
+        <p><span class="dot network"></span> Network</p>
+      </div>
     </dialog>
 
     <template id="item-template">

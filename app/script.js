@@ -7,6 +7,7 @@ const boards = document.getElementById('boards');
 const stats = document.getElementById('stats');
 const form = document.getElementById('resource-form');
 const typeSelect = document.getElementById('type');
+const symbolInput = document.getElementById('symbol');
 const seedDemo = document.getElementById('seed-demo');
 const clearAll = document.getElementById('clear-all');
 const themeToggle = document.getElementById('theme-toggle');
@@ -17,10 +18,25 @@ const appHostedOnSelect = document.getElementById('app-hosted-on');
 const appHostedOnWrap = document.getElementById('app-hosted-on-wrap');
 const networkFields = document.getElementById('network-fields');
 const ipInput = document.getElementById('ip-address');
+const hardwareKindSelect = document.getElementById('hardware-kind');
+const hardwareKindWrap = document.getElementById('hardware-kind-wrap');
+const manufacturerInput = document.getElementById('manufacturer');
+const manufacturerWrap = document.getElementById('manufacturer-wrap');
 const computeFields = document.getElementById('compute-fields');
 const cpuInput = document.getElementById('cpu');
 const ramInput = document.getElementById('ram');
 const disksInput = document.getElementById('disks');
+const switchPortsWrap = document.getElementById('switch-ports-wrap');
+const switchPortsInput = document.getElementById('switch-ports');
+const routerSwitchesWrap = document.getElementById('router-switches-wrap');
+const routerSwitches = document.getElementById('router-switches');
+const switchLinksWrap = document.getElementById('switch-links-wrap');
+const switchLinks = document.getElementById('switch-links');
+const switchDeviceLinksWrap = document.getElementById('switch-device-links-wrap');
+const switchDeviceLinks = document.getElementById('switch-device-links');
+const nasSharesWrap = document.getElementById('nas-shares-wrap');
+const nasShares = document.getElementById('nas-shares');
+const addShareBtn = document.getElementById('add-share');
 const ipPortInput = document.getElementById('ip-port');
 const ipPortWrap = document.getElementById('ip-port-wrap');
 const webUrlInput = document.getElementById('web-url');
@@ -41,22 +57,41 @@ const treeToggle = document.getElementById('tree-toggle');
 const treeClose = document.getElementById('tree-close');
 const treeDialog = document.getElementById('tree-dialog');
 const treeContent = document.getElementById('tree-content');
+const treeModeTree = document.getElementById('tree-mode-tree');
+const treeModeGraph = document.getElementById('tree-mode-graph');
+const configToggle = document.getElementById('config-toggle');
+const configClose = document.getElementById('config-close');
+const configDialog = document.getElementById('config-dialog');
+const toast = document.getElementById('toast');
 
 let editingId = null;
 let selectedNetworkColor = networkPalette[0];
 let items = sanitizeItems(loadItems());
+let toastTimer = null;
+let treeViewMode = 'tree';
 
 initColorPicker();
+appendShareRow();
+symbolInput.value = defaultSymbol('hardware', 'server');
 initTheme();
 applyTypeVisibility();
 render();
 
 typeSelect.addEventListener('change', applyTypeVisibility);
+hardwareKindSelect.addEventListener('change', applyTypeVisibility);
+addShareBtn.addEventListener('click', () => appendShareRow());
+if (treeModeTree && treeModeGraph) {
+  treeModeTree.addEventListener('click', () => setTreeMode('tree'));
+  treeModeGraph.addEventListener('click', () => setTreeMode('graph'));
+}
 
 form.addEventListener('submit', (event) => {
   event.preventDefault();
 
   const type = typeSelect.value;
+  const hardwareKind = hardwareKindSelect.value;
+  const manufacturer = manufacturerInput.value.trim();
+  const symbol = symbolInput.value.trim();
   const name = document.getElementById('name').value.trim();
   const description = document.getElementById('description').value.trim();
   const notes = notesInput.value.trim();
@@ -70,15 +105,23 @@ form.addEventListener('submit', (event) => {
   const appHostedOn = appHostedOnSelect.value || '';
   const subnet = subnetInput.value.trim();
   const gateway = gatewayInput.value.trim();
+  const switchPorts = switchPortsInput.value.trim();
+  const selectedRouterSwitches = getMultiValues(routerSwitches);
+  const selectedSwitchLinks = getMultiValues(switchLinks);
+  const selectedSwitchDeviceLinks = getMultiValues(switchDeviceLinks);
+  const shareList = getShares();
 
   if (!name) return;
   if (type === 'network' && (!subnet || !gateway)) {
-    alert('Network entries require subnet and gateway.');
+    showToast('Network entries require subnet and gateway.', 'error');
     return;
   }
 
   const payload = {
     type,
+    hardwareKind: type === 'hardware' ? hardwareKind : '',
+    manufacturer: type === 'hardware' ? manufacturer : '',
+    symbol: symbol || defaultSymbol(type, hardwareKind),
     name,
     description,
     notes: supportsNotes(type) ? notes : '',
@@ -93,8 +136,16 @@ form.addEventListener('submit', (event) => {
     networkColor: type === 'network' ? selectedNetworkColor : '',
     hostedOn: ['vm', 'lxc'].includes(type) ? hostedOn : '',
     appHostedOn: type === 'app' ? appHostedOn : '',
-    connections: [],
+    switchPorts: type === 'hardware' && hardwareKind === 'switch' ? switchPorts : '',
+    nasShares: type === 'hardware' && hardwareKind === 'nas' ? shareList : [],
+    connections: type === 'hardware' && hardwareKind === 'router-gateway'
+      ? selectedRouterSwitches
+      : type === 'hardware' && hardwareKind === 'switch'
+        ? [...selectedSwitchLinks, ...selectedSwitchDeviceLinks]
+        : [],
   };
+
+  const wasEditing = Boolean(editingId);
 
   if (editingId) {
     const existing = findById(editingId);
@@ -107,7 +158,15 @@ form.addEventListener('submit', (event) => {
 
   normalizeItems();
   saveItems();
+  showToast(wasEditing ? 'Resource updated.' : 'Resource added.');
   form.reset();
+  symbolInput.value = defaultSymbol('hardware', 'server');
+  hardwareKindSelect.value = 'server';
+  nasShares.innerHTML = '';
+  appendShareRow();
+  setMultiValues(routerSwitches, []);
+  setMultiValues(switchLinks, []);
+  setMultiValues(switchDeviceLinks, []);
   setSelectedColor(networkPalette[0]);
   applyTypeVisibility();
   render();
@@ -116,6 +175,13 @@ form.addEventListener('submit', (event) => {
 cancelEditBtn.addEventListener('click', () => {
   stopEditing();
   form.reset();
+  symbolInput.value = defaultSymbol('hardware', 'server');
+  hardwareKindSelect.value = 'server';
+  nasShares.innerHTML = '';
+  appendShareRow();
+  setMultiValues(routerSwitches, []);
+  setMultiValues(switchLinks, []);
+  setMultiValues(switchDeviceLinks, []);
   setSelectedColor(networkPalette[0]);
   applyTypeVisibility();
   render();
@@ -125,11 +191,14 @@ searchInput.addEventListener('input', render);
 filterType.addEventListener('change', render);
 
 treeToggle.addEventListener('click', () => {
-  renderTreeView();
+  setTreeMode(treeViewMode);
   treeDialog.showModal();
 });
 
 treeClose.addEventListener('click', () => treeDialog.close());
+
+configToggle.addEventListener('click', () => configDialog.showModal());
+configClose.addEventListener('click', () => configDialog.close());
 
 seedDemo.addEventListener('click', () => {
   items = [
@@ -157,6 +226,7 @@ seedDemo.addEventListener('click', () => {
   stopEditing();
   normalizeItems();
   saveItems();
+  showToast('Demo topology loaded.');
   render();
 });
 
@@ -165,6 +235,7 @@ clearAll.addEventListener('click', () => {
   items = [];
   stopEditing();
   saveItems();
+  showToast('All resources cleared.');
   render();
 });
 
@@ -181,6 +252,7 @@ exportBtn.addEventListener('click', () => {
   link.download = 'labby-config.json';
   link.click();
   URL.revokeObjectURL(url);
+  showToast('Config exported.');
 });
 
 importFile.addEventListener('change', async (event) => {
@@ -191,9 +263,10 @@ importFile.addEventListener('change', async (event) => {
     items = sanitizeItems(JSON.parse(text));
     stopEditing();
     saveItems();
+    showToast('Config imported successfully.');
     render();
   } catch {
-    alert('Invalid config file. Please upload a Labby JSON export.');
+    showToast('Invalid config file. Please upload a Labby JSON export.', 'error');
   } finally {
     importFile.value = '';
   }
@@ -220,6 +293,42 @@ function setSelectedColor(color) {
   });
 }
 
+function appendShareRow(share = { name: '', link: '' }) {
+  const row = document.createElement('div');
+  row.className = 'share-row';
+  row.innerHTML = `
+    <input type="text" placeholder="Share name" value="${escapeAttr(share.name)}" data-share-name />
+    <input type="text" placeholder="Path / URL" value="${escapeAttr(share.link)}" data-share-link />
+    <button class="icon-btn" type="button">Remove</button>
+  `;
+  row.querySelector('button').addEventListener('click', () => row.remove());
+  nasShares.appendChild(row);
+}
+
+function getShares() {
+  return [...nasShares.querySelectorAll('.share-row')]
+    .map((row) => ({
+      name: row.querySelector('[data-share-name]').value.trim(),
+      link: row.querySelector('[data-share-link]').value.trim(),
+    }))
+    .filter((share) => share.name || share.link);
+}
+
+function getMultiValues(select) {
+  return [...select.selectedOptions].map((option) => option.value);
+}
+
+function setMultiValues(select, values) {
+  const set = new Set(values || []);
+  [...select.options].forEach((option) => {
+    option.selected = set.has(option.value);
+  });
+}
+
+function escapeAttr(value) {
+  return String(value || '').replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+}
+
 function loadItems() {
   try {
     const raw = localStorage.getItem(storageKey);
@@ -237,8 +346,24 @@ function supportsNotes(type) {
   return ['hardware', 'vm', 'lxc', 'network'].includes(type);
 }
 
-function supportsComputeDetails(type) {
-  return ['hardware', 'vm', 'lxc'].includes(type);
+function supportsComputeDetails(type, hardwareKind = hardwareKindSelect.value) {
+  if (type === 'hardware') return !['router-gateway', 'switch'].includes(hardwareKind);
+  return ['vm', 'lxc'].includes(type);
+}
+
+function defaultSymbol(type, hardwareKind = 'server') {
+  if (type === 'hardware') {
+    return {
+      server: '🖥️',
+      hypervisor: '📦',
+      nas: '🗄️',
+      backup: '💾',
+      pc: '💻',
+      'router-gateway': '📡',
+      switch: '🔀',
+    }[hardwareKind] || '🖥️';
+  }
+  return ({ vm: '🧩', lxc: '📦', app: '⚙️', network: '🌐' })[type] || '●';
 }
 
 function sanitizeItems(raw) {
@@ -248,6 +373,9 @@ function sanitizeItems(raw) {
     .map((item) => ({
       id: String(item.id),
       type: types.includes(item.type) ? item.type : 'app',
+      hardwareKind: item.hardwareKind ? String(item.hardwareKind) : 'server',
+      manufacturer: item.manufacturer ? String(item.manufacturer) : '',
+      symbol: item.symbol ? String(item.symbol) : defaultSymbol(item.type, item.hardwareKind),
       name: String(item.name),
       description: item.description ? String(item.description) : '',
       notes: item.notes ? String(item.notes) : '',
@@ -263,6 +391,10 @@ function sanitizeItems(raw) {
       networkColor: networkPalette.includes(item.networkColor) ? item.networkColor : networkPalette[0],
       hostedOn: item.hostedOn ? String(item.hostedOn) : '',
       appHostedOn: item.appHostedOn ? String(item.appHostedOn) : '',
+      switchPorts: item.switchPorts ? String(item.switchPorts) : '',
+      nasShares: Array.isArray(item.nasShares)
+        ? item.nasShares.map((share) => ({ name: String(share?.name || ''), link: String(share?.link || '') })).filter((share) => share.name || share.link)
+        : [],
     }));
   return normalizeList(normalized);
 }
@@ -274,6 +406,7 @@ function normalizeItems() {
 function normalizeList(list) {
   const known = new Set(list.map((item) => item.id));
   const hardwareIds = new Set(list.filter((item) => item.type === 'hardware').map((item) => item.id));
+  const switchIds = new Set(list.filter((item) => item.type === 'hardware' && item.hardwareKind === 'switch').map((item) => item.id));
   const hostableAppIds = new Set(list.filter((item) => item.type === 'vm' || item.type === 'lxc').map((item) => item.id));
 
   const normalized = list.map((item) => {
@@ -281,10 +414,34 @@ function normalizeList(list) {
     next.connections = next.connections.filter((id) => known.has(id) && id !== next.id);
     if (!supportsNotes(next.type)) next.notes = '';
     if (!['hardware', 'vm', 'lxc'].includes(next.type)) next.ip = '';
+    if (next.type !== 'hardware') {
+      next.hardwareKind = '';
+      next.manufacturer = '';
+      next.switchPorts = '';
+      next.nasShares = [];
+    }
+    if (!next.symbol) next.symbol = defaultSymbol(next.type, next.hardwareKind);
+    if (next.type === 'hardware' && !next.hardwareKind) next.hardwareKind = 'server';
     if (!supportsComputeDetails(next.type)) {
       next.cpu = '';
       next.ram = '';
       next.disks = '';
+    }
+    if (next.type === 'hardware' && ['router-gateway', 'switch'].includes(next.hardwareKind)) {
+      next.cpu = '';
+      next.ram = '';
+      next.disks = '';
+    }
+    if (!(next.type === 'hardware' && next.hardwareKind === 'switch')) next.switchPorts = '';
+    if (!(next.type === 'hardware' && next.hardwareKind === 'nas')) next.nasShares = [];
+    if (next.type === 'hardware' && next.hardwareKind === 'router-gateway') {
+      next.connections = next.connections.filter((id) => switchIds.has(id));
+    }
+    if (next.type === 'hardware' && next.hardwareKind === 'switch') {
+      next.connections = next.connections.filter((id) => {
+        const target = list.find((entry) => entry.id === id);
+        return target && target.type === 'hardware';
+      });
     }
     if (next.type !== 'app') {
       next.ipPort = '';
@@ -360,129 +517,51 @@ function toIPv4Int(ip) {
   return (((parts[0] << 24) >>> 0) + ((parts[1] << 16) >>> 0) + ((parts[2] << 8) >>> 0) + (parts[3] >>> 0)) >>> 0;
 }
 
-function inferNetworks(item, list) {
-  if (item.type === 'network') return [];
-  const networks = list.filter((candidate) => candidate.type === 'network');
-
-  const ips = [];
-  if (item.ip) ips.push(item.ip);
-  if (item.type === 'app' && item.ipPort) {
-    const hostIp = item.ipPort.split(':')[0].trim();
-    if (hostIp) ips.push(hostIp);
-  }
-
-  return networks.filter((network) => ips.some((ip) => ipInSubnet(ip, network.subnet)));
-}
-
-function ipInSubnet(ipWithMask, subnetCidr) {
-  const ipPart = String(ipWithMask).split('/')[0].trim();
-  const [subnetIp, prefixRaw] = String(subnetCidr).split('/');
-  const prefix = Number(prefixRaw);
-
-  const ipInt = toIPv4Int(ipPart);
-  const subnetInt = toIPv4Int((subnetIp || '').trim());
-  if (ipInt === null || subnetInt === null || Number.isNaN(prefix) || prefix < 0 || prefix > 32) return false;
-
-  const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0;
-  return (ipInt & mask) === (subnetInt & mask);
-}
-
-function toIPv4Int(ip) {
-  const parts = String(ip).split('.').map((part) => Number(part));
-  if (parts.length !== 4 || parts.some((part) => Number.isNaN(part) || part < 0 || part > 255)) return null;
-  return (((parts[0] << 24) >>> 0) + ((parts[1] << 16) >>> 0) + ((parts[2] << 8) >>> 0) + (parts[3] >>> 0)) >>> 0;
-}
-
-function inferNetworks(item, list) {
-  if (item.type === 'network') return [];
-  const networks = list.filter((candidate) => candidate.type === 'network');
-
-  const ips = [];
-  if (item.ip) ips.push(item.ip);
-  if (item.type === 'app' && item.ipPort) {
-    const hostIp = item.ipPort.split(':')[0].trim();
-    if (hostIp) ips.push(hostIp);
-  }
-
-  return networks.filter((network) => ips.some((ip) => ipInSubnet(ip, network.subnet)));
-}
-
-function ipInSubnet(ipWithMask, subnetCidr) {
-  const ipPart = String(ipWithMask).split('/')[0].trim();
-  const [subnetIp, prefixRaw] = String(subnetCidr).split('/');
-  const prefix = Number(prefixRaw);
-
-  const ipInt = toIPv4Int(ipPart);
-  const subnetInt = toIPv4Int((subnetIp || '').trim());
-  if (ipInt === null || subnetInt === null || Number.isNaN(prefix) || prefix < 0 || prefix > 32) return false;
-
-  const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0;
-  return (ipInt & mask) === (subnetInt & mask);
-}
-
-function toIPv4Int(ip) {
-  const parts = String(ip).split('.').map((part) => Number(part));
-  if (parts.length !== 4 || parts.some((part) => Number.isNaN(part) || part < 0 || part > 255)) return null;
-  return (((parts[0] << 24) >>> 0) + ((parts[1] << 16) >>> 0) + ((parts[2] << 8) >>> 0) + (parts[3] >>> 0)) >>> 0;
-}
-
-function inferNetworks(item, list) {
-  if (item.type === 'network') return [];
-  const networks = list.filter((candidate) => candidate.type === 'network');
-
-  const ips = [];
-  if (item.ip) ips.push(item.ip);
-  if (item.type === 'app' && item.ipPort) {
-    const hostIp = item.ipPort.split(':')[0].trim();
-    if (hostIp) ips.push(hostIp);
-  }
-
-  return networks.filter((network) => ips.some((ip) => ipInSubnet(ip, network.subnet)));
-}
-
-function ipInSubnet(ipWithMask, subnetCidr) {
-  const ipPart = String(ipWithMask).split('/')[0].trim();
-  const [subnetIp, prefixRaw] = String(subnetCidr).split('/');
-  const prefix = Number(prefixRaw);
-
-  const ipInt = toIPv4Int(ipPart);
-  const subnetInt = toIPv4Int((subnetIp || '').trim());
-  if (ipInt === null || subnetInt === null || Number.isNaN(prefix) || prefix < 0 || prefix > 32) return false;
-
-  const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0;
-  return (ipInt & mask) === (subnetInt & mask);
-}
-
-function toIPv4Int(ip) {
-  const parts = String(ip).split('.').map((part) => Number(part));
-  if (parts.length !== 4 || parts.some((part) => Number.isNaN(part) || part < 0 || part > 255)) return null;
-  return (((parts[0] << 24) >>> 0) + ((parts[1] << 16) >>> 0) + ((parts[2] << 8) >>> 0) + (parts[3] >>> 0)) >>> 0;
-}
-
 function applyTypeVisibility() {
   const type = typeSelect.value;
+  const hardwareKind = hardwareKindSelect.value;
   const isNetwork = type === 'network';
   const isVmOrLxc = type === 'vm' || type === 'lxc';
   const isApp = type === 'app';
   const supportsIp = type === 'hardware' || isVmOrLxc;
-  const supportsCompute = supportsComputeDetails(type);
+  const isHardware = type === 'hardware';
+  const supportsCompute = supportsComputeDetails(type, hardwareKind);
+  const isRouter = isHardware && hardwareKind === 'router-gateway';
+  const isSwitch = isHardware && hardwareKind === 'switch';
+  const isNas = isHardware && hardwareKind === 'nas';
 
   networkFields.classList.toggle('hidden', !isNetwork);
   computeFields.classList.toggle('hidden', !supportsCompute);
+  hardwareKindWrap.classList.toggle('hidden', !isHardware);
+  manufacturerWrap.classList.toggle('hidden', !isHardware);
   hostedOnWrap.classList.toggle('hidden', !isVmOrLxc);
   appHostedOnWrap.classList.toggle('hidden', !isApp);
   ipInput.closest('label').classList.toggle('hidden', !supportsIp);
+  switchPortsWrap.classList.toggle('hidden', !isSwitch);
+  routerSwitchesWrap.classList.toggle('hidden', !isRouter);
+  switchLinksWrap.classList.toggle('hidden', !isSwitch);
+  switchDeviceLinksWrap.classList.toggle('hidden', !isSwitch);
+  nasSharesWrap.classList.toggle('hidden', !isNas);
   ipPortWrap.classList.toggle('hidden', !isApp);
   webUrlWrap.classList.toggle('hidden', !isApp);
   notesWrap.classList.toggle('hidden', !supportsNotes(type));
 
   subnetInput.required = isNetwork;
   gatewayInput.required = isNetwork;
+  switchPortsInput.required = isSwitch;
+
+  symbolInput.placeholder = `e.g. ${defaultSymbol(type, hardwareKind)}`;
+  if (!editingId && !symbolInput.value.trim()) {
+    symbolInput.value = defaultSymbol(type, hardwareKind);
+  }
+
+  refreshHardwareConnectionOptions();
 }
 
 function render() {
   refreshHostOptions();
   refreshAppHostOptions();
+  refreshHardwareConnectionOptions();
 
   const filtered = applyFilters(items);
   const groups = {
@@ -518,8 +597,11 @@ function applyFilters(list) {
     const typeMatch = selectedType === 'all' || item.type === selectedType;
     const networkText = item.type === 'network' ? `${item.subnet} ${item.gateway}` : '';
     const appText = item.type === 'app' ? `${item.ipPort} ${item.webUrl}` : '';
+    const hardwareText = item.type === 'hardware'
+      ? `${item.manufacturer || ''} ${hardwareTypeLabel(item.hardwareKind)} ${item.switchPorts || ''} ${(item.nasShares || []).map((share) => `${share.name} ${share.link}`).join(' ')}`
+      : '';
     const specsText = `${item.cpu || ''} ${item.ram || ''} ${item.disks || ''}`;
-    const text = `${item.name} ${item.description} ${item.notes} ${item.ip} ${specsText} ${appText} ${networkText}`.toLowerCase();
+    const text = `${item.name} ${item.description} ${item.notes} ${item.ip} ${specsText} ${appText} ${networkText} ${hardwareText}`.toLowerCase();
     return typeMatch && (!query || text.includes(query));
   });
 }
@@ -536,7 +618,7 @@ function cardNode(item) {
   node.querySelector('.card-notes').textContent = item.notes ? `Notes: ${item.notes}` : '';
   node.querySelector('.card-ip').textContent = item.ip ? `IP: ${item.ip}` : '';
   node.querySelector('.card-app').textContent = item.type === 'app' ? appDetails(item) : '';
-  node.querySelector('.card-specs').textContent = specsLabel(item);
+  node.querySelector('.card-specs').textContent = hardwareDetailsLabel(item) || specsLabel(item);
   node.querySelector('.card-network').textContent = item.type === 'network' ? `Subnet: ${item.subnet} | Gateway: ${item.gateway}` : '';
   node.querySelector('.card-hosting').textContent = hostingLabel(item);
   node.querySelector('.card-id').textContent = `ID: ${item.id}`;
@@ -556,12 +638,26 @@ function appDetails(item) {
 }
 
 function specsLabel(item) {
-  if (!supportsComputeDetails(item.type)) return '';
+  if (!supportsComputeDetails(item.type, item.hardwareKind)) return '';
   const bits = [];
   if (item.cpu) bits.push(`CPU: ${item.cpu}`);
   if (item.ram) bits.push(`RAM: ${item.ram}`);
   if (item.disks) bits.push(`Disks: ${item.disks}`);
   return bits.length ? bits.join(' | ') : '';
+}
+
+function hardwareDetailsLabel(item) {
+  if (item.type !== 'hardware') return '';
+  const bits = [];
+  bits.push(`Hardware type: ${hardwareTypeLabel(item.hardwareKind || 'server')}`);
+  if (item.manufacturer) bits.push(`Manufacturer: ${item.manufacturer}`);
+  if (item.hardwareKind === 'switch' && item.switchPorts) bits.push(`Ports: ${item.switchPorts}`);
+  if (item.hardwareKind === 'nas' && item.nasShares?.length) {
+    bits.push(`Shares: ${item.nasShares.map((share) => `${share.name} (${share.link || 'no link'})`).join(', ')}`);
+  }
+  const compute = specsLabel(item);
+  if (compute) bits.push(compute);
+  return bits.join(' | ');
 }
 
 function networkBorderColor(item) {
@@ -628,6 +724,37 @@ function refreshAppHostOptions() {
   appHostedOnSelect.value = selected;
 }
 
+function refreshHardwareConnectionOptions() {
+  const selectedRouter = getMultiValues(routerSwitches);
+  const selectedSwitches = getMultiValues(switchLinks);
+  const selectedDevices = getMultiValues(switchDeviceLinks);
+
+  const switches = items.filter((item) => item.type === 'hardware' && item.hardwareKind === 'switch' && item.id !== editingId);
+  routerSwitches.innerHTML = '';
+  switchLinks.innerHTML = '';
+  switches.forEach((sw) => {
+    const option = document.createElement('option');
+    option.value = sw.id;
+    option.textContent = sw.name;
+    routerSwitches.appendChild(option.cloneNode(true));
+    switchLinks.appendChild(option);
+  });
+
+  switchDeviceLinks.innerHTML = '';
+  items
+    .filter((item) => item.type === 'hardware' && item.id !== editingId)
+    .forEach((device) => {
+      const option = document.createElement('option');
+      option.value = device.id;
+      option.textContent = `${device.name} (${hardwareTypeLabel(device.hardwareKind)})`;
+      switchDeviceLinks.appendChild(option);
+    });
+
+  setMultiValues(routerSwitches, selectedRouter);
+  setMultiValues(switchLinks, selectedSwitches);
+  setMultiValues(switchDeviceLinks, selectedDevices);
+}
+
 function startEditing(id) {
   const item = findById(id);
   if (!item) return;
@@ -638,6 +765,9 @@ function startEditing(id) {
   cancelEditBtn.classList.remove('hidden');
 
   typeSelect.value = item.type;
+  hardwareKindSelect.value = item.hardwareKind || 'server';
+  manufacturerInput.value = item.manufacturer || '';
+  symbolInput.value = item.symbol || defaultSymbol(item.type, item.hardwareKind);
   document.getElementById('name').value = item.name;
   document.getElementById('description').value = item.description;
   notesInput.value = item.notes || '';
@@ -645,6 +775,7 @@ function startEditing(id) {
   cpuInput.value = item.cpu || '';
   ramInput.value = item.ram || '';
   disksInput.value = item.disks || '';
+  switchPortsInput.value = item.switchPorts || '';
   ipPortInput.value = item.ipPort || '';
   webUrlInput.value = item.webUrl || '';
   subnetInput.value = item.subnet || '';
@@ -654,8 +785,23 @@ function startEditing(id) {
   applyTypeVisibility();
   refreshHostOptions();
   refreshAppHostOptions();
+  refreshHardwareConnectionOptions();
   hostedOnSelect.value = item.hostedOn || '';
   appHostedOnSelect.value = item.appHostedOn || '';
+  if (item.type === 'hardware' && item.hardwareKind === 'router-gateway') {
+    setMultiValues(routerSwitches, item.connections || []);
+  }
+  if (item.type === 'hardware' && item.hardwareKind === 'switch') {
+    const switchIds = items.filter((entry) => entry.type === 'hardware' && entry.hardwareKind === 'switch').map((entry) => entry.id);
+    setMultiValues(switchLinks, (item.connections || []).filter((id) => switchIds.includes(id)));
+    setMultiValues(switchDeviceLinks, (item.connections || []).filter((id) => !switchIds.includes(id)));
+  }
+  nasShares.innerHTML = '';
+  if (item.type === 'hardware' && item.hardwareKind === 'nas' && item.nasShares?.length) {
+    item.nasShares.forEach((share) => appendShareRow(share));
+  } else {
+    appendShareRow();
+  }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -676,18 +822,155 @@ function removeItem(id) {
   normalizeItems();
   if (editingId === id) stopEditing();
   saveItems();
+  showToast('Resource removed.');
   render();
 }
 
+function showToast(message, kind = 'success') {
+  if (!toast) return;
+  toast.textContent = message;
+  toast.style.borderColor = kind === 'error' ? 'var(--danger)' : 'var(--line)';
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+}
+
+function setTreeMode(mode) {
+  treeViewMode = mode;
+  if (!treeModeTree || !treeModeGraph) return;
+  treeModeTree.classList.toggle('active', mode === 'tree');
+  treeModeGraph.classList.toggle('active', mode === 'graph');
+  treeModeTree.setAttribute('aria-pressed', String(mode === 'tree'));
+  treeModeGraph.setAttribute('aria-pressed', String(mode === 'graph'));
+  renderTreeView();
+}
+
 function renderTreeView() {
+  treeContent.innerHTML = '';
+  if (treeViewMode === 'graph') {
+    treeContent.appendChild(buildGraphView());
+    return;
+  }
   const treeShell = document.createElement('div');
   treeShell.className = 'tree-shell';
-
   treeShell.appendChild(buildInfrastructureTree());
   treeShell.appendChild(buildNetworksTree());
-
-  treeContent.innerHTML = '';
   treeContent.appendChild(treeShell);
+}
+
+function buildGraphView() {
+  const wrap = document.createElement('div');
+  wrap.className = 'graph-wrap';
+
+  const tip = document.createElement('div');
+  tip.className = 'graph-tooltip hidden';
+  wrap.appendChild(tip);
+
+  const canvas = document.createElement('div');
+  canvas.className = 'graph-canvas';
+  wrap.appendChild(canvas);
+
+  if (!items.length) {
+    const empty = document.createElement('p');
+    empty.className = 'tree-empty';
+    empty.textContent = 'No resources to display in graph view.';
+    canvas.appendChild(empty);
+    return wrap;
+  }
+
+  const width = 1100;
+  const height = 620;
+  canvas.style.setProperty('--graph-width', `${width}px`);
+  canvas.style.setProperty('--graph-height', `${height}px`);
+
+  const levels = [
+    items.filter((item) => item.type === 'network'),
+    items.filter((item) => item.type === 'hardware'),
+    items.filter((item) => item.type === 'vm' || item.type === 'lxc'),
+    items.filter((item) => item.type === 'app'),
+  ];
+
+  const positions = new Map();
+  levels.forEach((group, rowIndex) => {
+    const y = 90 + rowIndex * 160;
+    const step = width / (group.length + 1);
+    group.forEach((item, idx) => {
+      positions.set(item.id, { x: Math.round(step * (idx + 1)), y });
+    });
+  });
+
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const links = document.createElementNS(svgNS, 'svg');
+  links.setAttribute('class', 'graph-links');
+  links.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  const seen = new Set();
+
+  items.forEach((item) => {
+    const from = positions.get(item.id);
+    if (!from) return;
+    item.connections.forEach((targetId) => {
+      const to = positions.get(targetId);
+      if (!to) return;
+      const key = [item.id, targetId].sort().join('::');
+      if (seen.has(key)) return;
+      seen.add(key);
+      const line = document.createElementNS(svgNS, 'line');
+      line.setAttribute('x1', from.x);
+      line.setAttribute('y1', from.y);
+      line.setAttribute('x2', to.x);
+      line.setAttribute('y2', to.y);
+      line.setAttribute('stroke', '#5b657c');
+      line.setAttribute('stroke-width', '2');
+      line.setAttribute('stroke-opacity', '0.65');
+      links.appendChild(line);
+    });
+  });
+
+  canvas.appendChild(links);
+
+  items.forEach((item) => {
+    const pos = positions.get(item.id);
+    if (!pos) return;
+    const node = document.createElement('button');
+    node.type = 'button';
+    node.className = `graph-node ${item.type}`;
+    node.textContent = item.symbol || defaultSymbol(item.type, item.hardwareKind);
+    node.style.left = `${pos.x}px`;
+    node.style.top = `${pos.y}px`;
+    node.style.borderColor = networkBorderColor(item) || 'var(--line)';
+
+    node.addEventListener('mouseenter', () => {
+      tip.classList.remove('hidden');
+      tip.innerHTML = graphTooltipHtml(item);
+      tip.style.left = `${Math.min(pos.x + 28, width - 250)}px`;
+      tip.style.top = `${Math.min(pos.y + 28, height - 180)}px`;
+    });
+    node.addEventListener('mouseleave', () => tip.classList.add('hidden'));
+    node.addEventListener('click', () => {
+      startEditing(item.id);
+      treeDialog.close();
+      showToast(`Editing ${item.name}`);
+    });
+
+    canvas.appendChild(node);
+  });
+
+  return wrap;
+}
+
+function graphTooltipHtml(item) {
+  const connections = item.connections.map((id) => findById(id)?.name || id).join(', ') || 'none';
+  const bits = [
+    `<strong>${item.name}</strong>`,
+    `Type: ${label(item.type)}`,
+    item.type === 'hardware' ? `Hardware: ${hardwareTypeLabel(item.hardwareKind)}` : '',
+    item.manufacturer ? `Manufacturer: ${item.manufacturer}` : '',
+    item.ip ? `IP: ${item.ip}` : '',
+    item.description ? `Description: ${item.description}` : '',
+    item.notes ? `Notes: ${item.notes}` : '',
+    `Connected: ${connections}`,
+  ].filter(Boolean);
+  return bits.map((line) => `<p>${line}</p>`).join('');
 }
 
 function buildInfrastructureTree() {
@@ -710,6 +993,7 @@ function buildInfrastructureTree() {
     lane.appendChild(treeChip(host));
     const hostMeta = infraMeta(host);
     if (hostMeta) lane.appendChild(hostMeta);
+    lane.appendChild(treeConnectionsMeta(host));
 
     const guestsWrap = document.createElement('div');
     guestsWrap.className = 'tree-children';
@@ -728,6 +1012,7 @@ function buildInfrastructureTree() {
       guestLane.appendChild(treeChip(guest));
       const guestMeta = infraMeta(guest);
       if (guestMeta) guestLane.appendChild(guestMeta);
+      guestLane.appendChild(treeConnectionsMeta(guest));
 
       const guestApps = apps.filter((app) => app.appHostedOn === guest.id);
       const appWrap = document.createElement('div');
@@ -744,6 +1029,7 @@ function buildInfrastructureTree() {
           appLane.appendChild(treeChip(app));
           const meta = appMeta(app);
           if (meta) appLane.appendChild(meta);
+          appLane.appendChild(treeConnectionsMeta(app));
           appWrap.appendChild(appLane);
         });
       }
@@ -766,6 +1052,7 @@ function buildInfrastructureTree() {
       row.appendChild(treeChip(guest));
       const meta = infraMeta(guest);
       if (meta) row.appendChild(meta);
+      row.appendChild(treeConnectionsMeta(guest));
       orphan.appendChild(row);
     });
     body.appendChild(orphan);
@@ -782,6 +1069,7 @@ function buildInfrastructureTree() {
       row.appendChild(treeChip(app));
       const meta = appMeta(app);
       if (meta) row.appendChild(meta);
+      row.appendChild(treeConnectionsMeta(app));
       orphan.appendChild(row);
     });
     body.appendChild(orphan);
@@ -853,13 +1141,14 @@ function buildNetworksTree() {
 function treeChip(item) {
   const chip = document.createElement('span');
   chip.className = `tree-chip ${item.type}`;
-  chip.textContent = `${icon(item.type)} ${item.name}`;
+  const suffix = item.type === 'hardware' ? ` (${hardwareTypeLabel(item.hardwareKind)})` : '';
+  chip.textContent = `${icon(item.type)} ${item.name}${suffix}`;
   return chip;
 }
 
 function infraMeta(item) {
-  const details = specsLabel(item);
-  if (!details && !item.ip) return null;
+  const details = item.type === 'hardware' ? hardwareDetailsLabel(item) : specsLabel(item);
+  if (!details && !item.ip && !item.manufacturer) return null;
   const meta = document.createElement('div');
   meta.className = 'tree-meta';
   if (item.ip) {
@@ -879,6 +1168,18 @@ function infraMeta(item) {
     meta.appendChild(d);
   }
   return meta;
+}
+
+function hardwareTypeLabel(kind) {
+  return {
+    server: 'Server',
+    hypervisor: 'Hypervisor',
+    nas: 'NAS',
+    backup: 'Backup',
+    pc: 'PC',
+    'router-gateway': 'Router / Gateway',
+    switch: 'Switch',
+  }[kind] || 'Server';
 }
 
 function appMeta(app) {
@@ -908,6 +1209,14 @@ function appMeta(app) {
     meta.appendChild(link);
   }
 
+  return meta;
+}
+
+function treeConnectionsMeta(item) {
+  const text = connectionLabel(item);
+  const meta = document.createElement('div');
+  meta.className = 'tree-meta';
+  meta.textContent = text;
   return meta;
 }
 
