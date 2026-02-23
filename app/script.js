@@ -22,6 +22,8 @@ const hardwareKindSelect = document.getElementById('hardware-kind');
 const hardwareKindWrap = document.getElementById('hardware-kind-wrap');
 const manufacturerInput = document.getElementById('manufacturer');
 const manufacturerWrap = document.getElementById('manufacturer-wrap');
+const osInput = document.getElementById('os');
+const osWrap = document.getElementById('os-wrap');
 const computeFields = document.getElementById('compute-fields');
 const cpuCountSelect = document.getElementById('cpu-count');
 const ramModulesWrap = document.getElementById('ram-modules-wrap');
@@ -77,7 +79,7 @@ let items = sanitizeItems(loadItems());
 let toastTimer = null;
 let treeViewMode = 'tree';
 
-cleanupDuplicateIds(['symbol-wrap', 'hardware-kind-wrap', 'manufacturer-wrap', 'symbol', 'hardware-kind', 'manufacturer']);
+cleanupDuplicateIds(['symbol-wrap', 'hardware-kind-wrap', 'manufacturer-wrap', 'os-wrap', 'symbol', 'hardware-kind', 'manufacturer', 'os']);
 cleanupDuplicateFieldLabels();
 
 initColorPicker();
@@ -103,6 +105,7 @@ function cleanupDuplicateFieldLabels() {
   removeDuplicateLabels((labelNode) => labelNode.querySelector('#symbol'));
   removeDuplicateLabels((labelNode) => labelNode.querySelector('#hardware-kind'));
   removeDuplicateLabels((labelNode) => labelNode.querySelector('#manufacturer'));
+  removeDuplicateLabels((labelNode) => labelNode.querySelector('#os'));
 }
 
 function removeDuplicateLabels(matchFn) {
@@ -129,6 +132,7 @@ form.addEventListener('submit', (event) => {
   const type = typeSelect.value;
   const hardwareKind = hardwareKindSelect.value;
   const manufacturer = manufacturerInput.value.trim();
+  const os = osInput.value.trim();
   const symbol = symbolInput.value.trim();
   const name = document.getElementById('name').value.trim();
   const description = document.getElementById('description').value.trim();
@@ -160,6 +164,7 @@ form.addEventListener('submit', (event) => {
     type,
     hardwareKind: type === 'hardware' ? hardwareKind : '',
     manufacturer: type === 'hardware' ? manufacturer : '',
+    os: ['hardware', 'vm', 'lxc'].includes(type) ? os : '',
     symbol: symbol || defaultSymbol(type, hardwareKind),
     name,
     description,
@@ -538,6 +543,7 @@ function sanitizeItems(raw) {
       type: types.includes(item.type) ? item.type : 'app',
       hardwareKind: item.hardwareKind ? String(item.hardwareKind) : 'server',
       manufacturer: item.manufacturer ? String(item.manufacturer) : '',
+      os: item.os ? String(item.os) : '',
       symbol: item.symbol ? String(item.symbol) : defaultSymbol(item.type, item.hardwareKind),
       name: String(item.name),
       description: item.description ? String(item.description) : '',
@@ -586,7 +592,10 @@ function normalizeList(list) {
     const next = { ...item };
     next.connections = next.connections.filter((id) => known.has(id) && id !== next.id);
     if (!supportsNotes(next.type)) next.notes = '';
-    if (!['hardware', 'vm', 'lxc'].includes(next.type)) next.ip = '';
+    if (!['hardware', 'vm', 'lxc'].includes(next.type)) {
+      next.ip = '';
+      next.os = '';
+    }
     if (next.type !== 'hardware') {
       next.hardwareKind = '';
       next.manufacturer = '';
@@ -719,6 +728,7 @@ function applyTypeVisibility() {
   diskListWrap.classList.toggle('hidden', !supportsCompute);
   hardwareKindWrap.classList.toggle('hidden', !isHardware);
   manufacturerWrap.classList.toggle('hidden', !isHardware);
+  osWrap.classList.toggle('hidden', !supportsIp);
   hostedOnWrap.classList.toggle('hidden', !isVmOrLxc);
   appHostedOnWrap.classList.toggle('hidden', !isApp);
   ipInput.closest('label').classList.toggle('hidden', !supportsIp);
@@ -786,7 +796,7 @@ function applyFilters(list) {
     const hardwareText = item.type === 'hardware'
       ? `${item.manufacturer || ''} ${hardwareTypeLabel(item.hardwareKind)} ${item.switchPorts || ''} ${(item.nasShares || []).map((share) => `${share.name} ${share.link}`).join(' ')}`
       : '';
-    const specsText = `${item.cpu || ''} ${item.ram || ''} ${item.disks || ''}`;
+    const specsText = `${item.os || ''} ${item.cpu || ''} ${item.ram || ''} ${item.disks || ''}`;
     const text = `${item.name} ${item.description} ${item.notes} ${item.ip} ${specsText} ${appText} ${networkText} ${hardwareText}`.toLowerCase();
     return typeMatch && (!query || text.includes(query));
   });
@@ -824,8 +834,9 @@ function appDetails(item) {
 }
 
 function specsLabel(item) {
-  if (!supportsComputeDetails(item.type, item.hardwareKind)) return '';
   const bits = [];
+  if (['hardware', 'vm', 'lxc'].includes(item.type) && item.os) bits.push(`OS: ${item.os}`);
+  if (!supportsComputeDetails(item.type, item.hardwareKind)) return bits.join(' | ');
   if (item.cpu) bits.push(`CPU: ${item.cpu}`);
   if (item.ram) bits.push(`RAM: ${item.ram}`);
   if (item.disks) bits.push(`Disks: ${item.disks}`);
@@ -956,6 +967,7 @@ function startEditing(id) {
   typeSelect.value = item.type;
   hardwareKindSelect.value = item.hardwareKind || 'server';
   manufacturerInput.value = item.manufacturer || '';
+  osInput.value = item.os || '';
   symbolInput.value = item.symbol || defaultSymbol(item.type, item.hardwareKind);
   document.getElementById('name').value = item.name;
   document.getElementById('description').value = item.description;
@@ -1206,6 +1218,7 @@ function graphTooltipHtml(item) {
     `Type: ${labelSingle(item.type)}`,
     item.type === 'hardware' ? `Hardware: ${hardwareTypeLabel(item.hardwareKind)}` : '',
     item.manufacturer ? `Manufacturer: ${item.manufacturer}` : '',
+    ['hardware', 'vm', 'lxc'].includes(item.type) && item.os ? `OS: ${item.os}` : '',
     `IP: ${primaryIp}`,
     item.type === 'app' && item.webUrl ? `URL: ${item.webUrl}` : '',
     item.description ? `Description: ${item.description}` : '',
@@ -1411,7 +1424,7 @@ function appTreeLink(app) {
 
 function infraMeta(item) {
   const details = item.type === 'hardware' ? hardwareDetailsLabel(item) : specsLabel(item);
-  if (!details && !item.ip && !item.manufacturer) return null;
+  if (!details && !item.ip && !item.manufacturer && !item.os) return null;
   const meta = document.createElement('div');
   meta.className = 'tree-meta';
   if (item.ip) {
