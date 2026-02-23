@@ -1025,10 +1025,10 @@ function positionGraphTooltip(event, tip, wrap) {
   const wrapRect = wrap.getBoundingClientRect();
   const x = event.clientX - wrapRect.left;
   const y = event.clientY - wrapRect.top;
-  const tipWidth = 240;
-  const tipHeight = 180;
   const edgePadding = 8;
   const cursorGap = 34;
+  const tipWidth = Math.max(160, Math.round(tip.getBoundingClientRect().width || tip.offsetWidth || 240));
+  const tipHeight = Math.max(110, Math.round(tip.getBoundingClientRect().height || tip.offsetHeight || 180));
   tip.style.left = `${Math.max(edgePadding, Math.min(x + cursorGap, wrapRect.width - tipWidth - edgePadding))}px`;
   tip.style.top = `${Math.max(edgePadding, Math.min(y + cursorGap, wrapRect.height - tipHeight - edgePadding))}px`;
 }

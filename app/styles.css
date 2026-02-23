@@ -281,6 +281,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .graph-tooltip {
   position: absolute;
   z-index: 5;
+  pointer-events: none;
   width: min(240px, 70vw);
   border: 2px solid var(--line);
   border-radius: 12px;
