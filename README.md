@@ -1,81 +1,150 @@
-# Labby
+# 🧪 Labby — Map Your Homelab
 
-Labby is a simple web app to document your homelab.
+Labby is a lightweight, browser-based homelab inventory and topology tool.
+Track your infrastructure, visualize relationships, and keep everything in one place.
 
-<img width="2485" height="1494" alt="image" src="https://github.com/user-attachments/assets/ed37c777-6d77-4f71-95d7-a8990cbb6295" />
+---
 
-You can track:
-- Hardware
-- VMs
-- LXCs
-- Apps
-- Networks
+## 📸 Screenshots
 
-It runs fully in the browser and saves data in `localStorage`.
+### Dashboard + Resource Management
+![Labby Dashboard](https://github.com/user-attachments/assets/ed37c777-6d77-4f71-95d7-a8990cbb6295)
 
-## Why Labby?
+### Tree / Graph Relationship View
+![Labby Relationship Tree](https://github.com/user-attachments/assets/c15476b8-5653-4f5e-adcb-8811c0bc7247)
 
-- Clean 3-panel layout (Add Resource, Topology, Config)
-- Light and dark mode
-- Fast add/edit/delete workflow
-- Automatic network matching by IP/CIDR
-- Tree View for infrastructure + network relationships
-- Export/Import JSON backups
+---
 
-<img width="1728" height="1342" alt="image" src="https://github.com/user-attachments/assets/c15476b8-5653-4f5e-adcb-8811c0bc7247" />
+## ✨ Features
 
-## Installation
+- 🖥️ **Resource tracking** for:
+  - Hardware
+  - VMs
+  - LXCs
+  - Apps
+  - Networks
+- 🌐 **Topology mapping** with relationship Tree and Graph views
+- 🎯 **Quick add/edit/delete workflow**
+- 🎨 **Light & Dark mode**
+- 🧠 **Automatic network matching** by IP/CIDR
+- 🧾 **Rich metadata support**
+  - OS field for Hardware/VM/LXC
+  - Manufacturer, CPU, RAM, disks, notes, links, etc.
+- 💾 **Backup-friendly storage details**
+  - Shares + RAID groups for NAS and Backup hardware types
+- 📦 **Export / Import JSON** for backups and migration
+- 🔒 **Runs fully client-side** (data in browser `localStorage` unless exported)
 
-### Option 1: Docker Compose (recommended)
+---
 
-**Requirements**
+## 🚀 Installation
+
+## Option 1: Docker Compose (recommended)
+
+### Requirements
 - Docker
 - Docker Compose
 
+### Start
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
 Open: [http://localhost:8080](http://localhost:8080)
 
-To stop:
-
+### Stop
 ```bash
 docker compose down
 ```
 
-### Option 2: Docker only
+### Use a different port with Docker Compose
 
-**Requirements**
+Default mapping in `docker-compose.yml` is:
+
+```yaml
+ports:
+  - "8080:80"
+```
+
+If you want another host port (example `9090`), change it to:
+
+```yaml
+ports:
+  - "9090:80"
+```
+
+Then restart:
+
+```bash
+docker compose up --build -d
+```
+
+Open: [http://localhost:9090](http://localhost:9090)
+
+---
+
+## Option 2: Docker only
+
+### Requirements
 - Docker
 
-Build image:
-
+### Build image
 ```bash
 docker build -t labby .
 ```
 
-Run container:
-
+### Run (default port)
 ```bash
-docker run --rm -p 8080:80 --name labby labby
+docker run --rm -d -p 8080:80 --name labby labby
 ```
 
 Open: [http://localhost:8080](http://localhost:8080)
 
-## Quick Start
+### Run on another port
+Example with host port `9090`:
 
-1. Create one or more **Network** entries (`subnet`, `gateway`, color).
-2. Add **Hardware**, **VM**, and **LXC** items with IP addresses.
-3. Add **Apps** with `IP + Port` and optional `Web URL`.
-4. Set hosting:
+```bash
+docker run --rm -d -p 9090:80 --name labby labby
+```
+
+Open: [http://localhost:9090](http://localhost:9090)
+
+---
+
+## 🧭 Quick Start
+
+1. ➕ Add one or more **Networks** (subnet, gateway, color).
+2. 🖥️ Add **Hardware**, **VM**, and **LXC** resources.
+3. ⚙️ Add **Apps** with `IP:Port` and optional Web URL.
+4. 🔗 Define hosting relationships:
    - VM/LXC hosted on Hardware
    - App hosted on VM/LXC
-5. Open **Tree View** to inspect infrastructure and network mapping.
-6. Use **Export Config** to back up and **Import Config** to restore.
+5. 🌳 Open **Tree View** and switch to **Graph** for topology checks.
+6. 💾 Use **Export Config** to back up, **Import Config** to restore.
 
-## Notes
+---
 
-- Network links are inferred automatically from IP and subnet (CIDR).
-- App URLs are clickable in Tree View.
-- Data is browser-local unless exported.
+## 🗂️ Project Structure
+
+```text
+app/
+  index.html      # UI markup
+  styles.css      # Styling and layout
+  script.js       # App logic, state handling, rendering
+Dockerfile
+docker-compose.yml
+```
+
+---
+
+## 📝 Notes
+
+- Data is local to your browser by default.
+- Clearing browser storage removes local data if not exported.
+- For shared/team usage, run behind your own reverse proxy + auth.
+
+---
+
+## 📄 License
+
+This project is licensed under the terms provided in [LICENSE](LICENSE).
