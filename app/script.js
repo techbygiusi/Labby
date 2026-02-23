@@ -1123,6 +1123,11 @@ function buildGraphView() {
   canvas.className = 'graph-canvas';
   wrap.appendChild(canvas);
 
+  const tip = document.createElement('aside');
+  tip.className = 'graph-info-panel';
+  tip.innerHTML = '<p class="graph-info-empty">Hover a node to see details.</p>';
+  wrap.appendChild(tip);
+
   const graphItems = items.filter((item) => item.type !== 'network');
 
   if (!graphItems.length) {
@@ -1188,6 +1193,8 @@ function buildGraphView() {
     parentById.set(item.id, parentId);
     if (parentId && childrenById.has(parentId)) childrenById.get(parentId).push(item.id);
   });
+  placeLayer(sortedApps, appY, 0.08, 0.92);
+
 
   childrenById.forEach((childIds, parentId) => {
     childIds.sort((aId, bId) => nodeOrder(graphById[aId], graphById[bId]));
