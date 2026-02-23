@@ -46,6 +46,8 @@ const addShareBtn = document.getElementById('add-share');
 const nasRaidsWrap = document.getElementById('nas-raids-wrap');
 const nasRaids = document.getElementById('nas-raids');
 const addRaidBtn = document.getElementById('add-raid');
+const nasSharesLegend = nasSharesWrap?.querySelector('legend');
+const nasRaidsLegend = nasRaidsWrap?.querySelector('legend');
 const ipPortInput = document.getElementById('ip-port');
 const ipPortWrap = document.getElementById('ip-port-wrap');
 const webUrlInput = document.getElementById('web-url');
@@ -184,8 +186,8 @@ form.addEventListener('submit', (event) => {
     hostedOn: ['vm', 'lxc'].includes(type) ? hostedOn : '',
     appHostedOn: type === 'app' ? appHostedOn : '',
     switchPorts: type === 'hardware' && hardwareKind === 'switch' ? switchPorts : '',
-    nasShares: type === 'hardware' && hardwareKind === 'nas' ? shareList : [],
-    nasRaids: type === 'hardware' && hardwareKind === 'nas' ? raidList : [],
+    nasShares: supportsStorageGroups(type, hardwareKind) ? shareList : [],
+    nasRaids: supportsStorageGroups(type, hardwareKind) ? raidList : [],
     connections: type === 'hardware' && hardwareKind === 'router-gateway'
       ? selectedRouterSwitches
       : type === 'hardware' && hardwareKind === 'switch'
@@ -622,7 +624,7 @@ function normalizeList(list) {
       next.diskRows = [];
     }
     if (!(next.type === 'hardware' && next.hardwareKind === 'switch')) next.switchPorts = '';
-    if (!(next.type === 'hardware' && next.hardwareKind === 'nas')) {
+    if (!supportsStorageGroups(next.type, next.hardwareKind)) {
       next.nasShares = [];
       next.nasRaids = [];
     }
@@ -709,6 +711,19 @@ function toIPv4Int(ip) {
   return (((parts[0] << 24) >>> 0) + ((parts[1] << 16) >>> 0) + ((parts[2] << 8) >>> 0) + (parts[3] >>> 0)) >>> 0;
 }
 
+
+function supportsStorageGroups(type, hardwareKind) {
+  return type === 'hardware' && ['nas', 'backup'].includes(hardwareKind);
+}
+
+function updateStorageFieldLabels(hardwareKind) {
+  const backupMode = hardwareKind === 'backup';
+  if (nasSharesLegend) nasSharesLegend.textContent = backupMode ? 'Backup shares' : 'NAS shares';
+  if (nasRaidsLegend) nasRaidsLegend.textContent = backupMode ? 'Backup RAID groups' : 'NAS RAID groups';
+  if (addShareBtn) addShareBtn.textContent = backupMode ? '+ Add Backup Share' : '+ Add Share';
+  if (addRaidBtn) addRaidBtn.textContent = backupMode ? '+ Add Backup RAID group' : '+ Add RAID';
+}
+
 function applyTypeVisibility() {
   const type = typeSelect.value;
   const hardwareKind = hardwareKindSelect.value;
@@ -720,7 +735,7 @@ function applyTypeVisibility() {
   const supportsCompute = supportsComputeDetails(type, hardwareKind);
   const isRouter = isHardware && hardwareKind === 'router-gateway';
   const isSwitch = isHardware && hardwareKind === 'switch';
-  const isNas = isHardware && hardwareKind === 'nas';
+  const supportsStorage = supportsStorageGroups(type, hardwareKind);
 
   networkFields.classList.toggle('hidden', !isNetwork);
   computeFields.classList.toggle('hidden', !supportsCompute);
@@ -736,8 +751,8 @@ function applyTypeVisibility() {
   routerSwitchesWrap.classList.toggle('hidden', !isRouter);
   switchLinksWrap.classList.toggle('hidden', !isSwitch);
   switchDeviceLinksWrap.classList.toggle('hidden', !isSwitch);
-  nasSharesWrap.classList.toggle('hidden', !isNas);
-  nasRaidsWrap.classList.toggle('hidden', !isNas);
+  nasSharesWrap.classList.toggle('hidden', !supportsStorage);
+  nasRaidsWrap.classList.toggle('hidden', !supportsStorage);
   ipPortWrap.classList.toggle('hidden', !isApp);
   webUrlWrap.classList.toggle('hidden', !isApp);
   notesWrap.classList.toggle('hidden', !supportsNotes(type));
@@ -747,6 +762,7 @@ function applyTypeVisibility() {
   switchPortsInput.required = isSwitch;
 
   symbolInput.placeholder = `e.g. ${defaultSymbol(type, hardwareKind)}`;
+  updateStorageFieldLabels(hardwareKind);
   if (!editingId && !symbolInput.value.trim()) {
     symbolInput.value = defaultSymbol(type, hardwareKind);
   }
@@ -849,11 +865,11 @@ function hardwareDetailsLabel(item) {
   bits.push(`Hardware type: ${hardwareTypeLabel(item.hardwareKind || 'server')}`);
   if (item.manufacturer) bits.push(`Manufacturer: ${item.manufacturer}`);
   if (item.hardwareKind === 'switch' && item.switchPorts) bits.push(`Ports: ${item.switchPorts}`);
-  if (item.hardwareKind === 'nas' && item.nasShares?.length) {
-    bits.push(`Shares: ${item.nasShares.map((share) => `${share.name} (${share.link || 'no link'})`).join(', ')}`);
+  if (supportsStorageGroups(item.type, item.hardwareKind) && item.nasShares?.length) {
+    bits.push(`${item.hardwareKind === 'backup' ? 'Backup shares' : 'Shares'}: ${item.nasShares.map((share) => `${share.name} (${share.link || 'no link'})`).join(', ')}`);
   }
-  if (item.hardwareKind === 'nas' && item.nasRaids?.length) {
-    bits.push(`RAIDs: ${item.nasRaids.map((raid) => `${raid.name || 'raid'} ${raid.level}${raid.size ? ` (${raid.size})` : ''}`).join(', ')}`);
+  if (supportsStorageGroups(item.type, item.hardwareKind) && item.nasRaids?.length) {
+    bits.push(`${item.hardwareKind === 'backup' ? 'Backup RAID groups' : 'RAIDs'}: ${item.nasRaids.map((raid) => `${raid.name || 'raid'} ${raid.level}${raid.size ? ` (${raid.size})` : ''}`).join(', ')}`);
   }
   const compute = specsLabel(item);
   if (compute) bits.push(compute);
@@ -1006,10 +1022,10 @@ function startEditing(id) {
   if (item.diskRows?.length) item.diskRows.forEach((disk) => appendDiskRow(disk));
   else appendDiskRow();
 
-  if (item.type === 'hardware' && item.hardwareKind === 'nas' && item.nasShares?.length) item.nasShares.forEach((share) => appendShareRow(share));
+  if (supportsStorageGroups(item.type, item.hardwareKind) && item.nasShares?.length) item.nasShares.forEach((share) => appendShareRow(share));
   else appendShareRow();
 
-  if (item.type === 'hardware' && item.hardwareKind === 'nas' && item.nasRaids?.length) item.nasRaids.forEach((raid) => appendRaidRow(raid));
+  if (supportsStorageGroups(item.type, item.hardwareKind) && item.nasRaids?.length) item.nasRaids.forEach((raid) => appendRaidRow(raid));
   else appendRaidRow();
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
