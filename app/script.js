@@ -250,26 +250,33 @@ configClose.addEventListener('click', () => configDialog.close());
 
 seedDemo.addEventListener('click', () => {
   items = [
-    { id: 'network-1', type: 'network', name: 'Core-LAN', description: 'General clients and internal nodes', notes: 'Main management network', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.10.0.0/24', gateway: '10.10.0.1', networkColor: '#10b981', hostedOn: '', appHostedOn: '' },
-    { id: 'network-2', type: 'network', name: 'Services', description: 'Private service VLAN', notes: 'Application backends', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.20.0.0/24', gateway: '10.20.0.1', networkColor: '#3b82f6', hostedOn: '', appHostedOn: '' },
-    { id: 'network-3', type: 'network', name: 'Edge', description: 'Public-facing services', notes: 'Reverse proxy + external endpoints', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.30.0.0/24', gateway: '10.30.0.1', networkColor: '#f97316', hostedOn: '', appHostedOn: '' },
+    { id: 'network-core', type: 'network', name: 'Core-LAN', description: 'Management and infra backbone', notes: 'Main rack and admin devices', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.10.0.0/24', gateway: '10.10.0.1', networkColor: '#10b981', hostedOn: '', appHostedOn: '' },
+    { id: 'network-services', type: 'network', name: 'Services', description: 'Private service VLAN', notes: 'Apps and internal APIs', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.20.0.0/24', gateway: '10.20.0.1', networkColor: '#3b82f6', hostedOn: '', appHostedOn: '' },
+    { id: 'network-edge', type: 'network', name: 'Edge', description: 'Ingress / DMZ zone', notes: 'Public endpoints and proxy', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.30.0.0/24', gateway: '10.30.0.1', networkColor: '#f97316', hostedOn: '', appHostedOn: '' },
+    { id: 'network-storage', type: 'network', name: 'Storage', description: 'Storage replication network', notes: 'NAS and backup traffic', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.40.0.0/24', gateway: '10.40.0.1', networkColor: '#8b5cf6', hostedOn: '', appHostedOn: '' },
 
-    { id: 'hardware-1', type: 'hardware', name: 'Host-A', description: 'Primary virtualization node', notes: 'Rack U2', connections: [], ip: '10.10.0.10/24', cpu: '16 cores', ram: '64 GB', disks: '2x 2TB NVMe', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '' },
-    { id: 'hardware-2', type: 'hardware', name: 'Host-B', description: 'Secondary compute node', notes: 'Rack U3', connections: [], ip: '10.10.0.11/24', cpu: '12 cores', ram: '48 GB', disks: '1x 2TB SSD', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '' },
-    { id: 'hardware-3', type: 'hardware', name: 'Host-C', description: 'Storage-focused node', notes: 'Rack U4', connections: [], ip: '10.10.0.12/24', cpu: '8 cores', ram: '32 GB', disks: '4x 4TB HDD', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '' },
+    { id: 'hardware-router-1', type: 'hardware', hardwareKind: 'router-gateway', manufacturer: 'MikroTik', os: 'RouterOS 7', symbol: '📡', name: 'EdgeRouter-1', description: 'Main internet gateway', notes: 'Fiber uplink', connections: ['hardware-switch-1'], ip: '10.10.0.1/24', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: [], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [], nasRaids: [] },
+    { id: 'hardware-switch-1', type: 'hardware', hardwareKind: 'switch', manufacturer: 'Ubiquiti', os: 'UniFi Network 8', symbol: '🔀', name: 'Switch-Core-24', description: 'Core 24-port switch', notes: 'Rack U1', connections: ['hardware-router-1', 'hardware-host-1', 'hardware-host-2', 'hardware-nas-1', 'hardware-backup-1'], ip: '10.10.0.2/24', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: [], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '24', nasShares: [], nasRaids: [] },
 
-    { id: 'vm-1', type: 'vm', name: 'vm-apps-01', description: 'Container runtime host', notes: 'Ubuntu 24.04 LTS', connections: [], ip: '10.20.0.21/24', cpu: '6 vCPU', ram: '12 GB', disks: '120 GB', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-1', appHostedOn: '' },
-    { id: 'vm-2', type: 'vm', name: 'vm-apps-02', description: 'Media and automation host', notes: 'Debian 12', connections: [], ip: '10.20.0.22/24', cpu: '8 vCPU', ram: '16 GB', disks: '240 GB', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-2', appHostedOn: '' },
-    { id: 'vm-3', type: 'vm', name: 'vm-edge-01', description: 'Edge ingress and auth', notes: 'Hardened profile', connections: [], ip: '10.30.0.30/24', cpu: '4 vCPU', ram: '8 GB', disks: '100 GB', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-2', appHostedOn: '' },
+    { id: 'hardware-host-1', type: 'hardware', hardwareKind: 'hypervisor', manufacturer: 'Dell', os: 'Proxmox VE 8.2', symbol: '📦', name: 'Hypervisor-A', description: 'Primary virtualization host', notes: 'Rack U2', connections: [], ip: '10.10.0.10/24', cpu: '16 cores', ram: '2 x 32 DDR5', disks: '2 x 2 TB NVMe', cpuCount: '16', ramModules: [{ size: '32', type: 'DDR5' }, { size: '32', type: 'DDR5' }], diskRows: [{ size: '2 TB', type: 'NVMe' }, { size: '2 TB', type: 'NVMe' }], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [], nasRaids: [] },
+    { id: 'hardware-host-2', type: 'hardware', hardwareKind: 'server', manufacturer: 'Lenovo', os: 'Debian 12', symbol: '🖥️', name: 'Compute-B', description: 'General compute server', notes: 'Rack U3', connections: [], ip: '10.10.0.11/24', cpu: '12 cores', ram: '4 x 16 DDR4', disks: '2 x 1 TB SSD, 2 x 4 TB HDD', cpuCount: '12', ramModules: [{ size: '16', type: 'DDR4' }, { size: '16', type: 'DDR4' }, { size: '16', type: 'DDR4' }, { size: '16', type: 'DDR4' }], diskRows: [{ size: '1 TB', type: 'SSD' }, { size: '1 TB', type: 'SSD' }, { size: '4 TB', type: 'HDD' }, { size: '4 TB', type: 'HDD' }], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [], nasRaids: [] },
+    { id: 'hardware-nas-1', type: 'hardware', hardwareKind: 'nas', manufacturer: 'Synology', os: 'DSM 7', symbol: '🗄️', name: 'NAS-Main', description: 'Primary shared storage', notes: 'Rack U4', connections: [], ip: '10.40.0.20/24', cpu: '8 cores', ram: '2 x 16 DDR4 ECC', disks: '4 x 12 TB HDD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }], diskRows: [{ size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [{ name: 'media', link: '/volume1/media' }, { name: 'vm-backups', link: '/volume1/vm-backups' }], nasRaids: [{ name: 'Array-A', level: 'RAID5', size: '36 TB' }] },
+    { id: 'hardware-backup-1', type: 'hardware', hardwareKind: 'backup', manufacturer: 'Supermicro', os: 'TrueNAS SCALE', symbol: '💾', name: 'Backup-Vault', description: 'Backup and archive node', notes: 'Immutable snapshots enabled', connections: [], ip: '10.40.0.30/24', cpu: '8 cores', ram: '4 x 16 DDR4 ECC', disks: '6 x 8 TB HDD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }], diskRows: [{ size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [{ name: 'offsite-sync', link: '/mnt/backup/offsite-sync' }, { name: 'monthly-archive', link: '/mnt/backup/monthly-archive' }], nasRaids: [{ name: 'Backup-Array', level: 'RAIDZ2', size: '32 TB' }] },
 
-    { id: 'lxc-1', type: 'lxc', name: 'lxc-dns-01', description: 'Recursive DNS resolver', notes: 'Internal only', connections: [], ip: '10.10.0.40/24', cpu: '2 vCPU', ram: '2 GB', disks: '20 GB', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-1', appHostedOn: '' },
-    { id: 'lxc-2', type: 'lxc', name: 'lxc-monitor-01', description: 'Monitoring stack', notes: 'Node exporter + dashboard', connections: [], ip: '10.20.0.41/24', cpu: '2 vCPU', ram: '4 GB', disks: '40 GB', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-3', appHostedOn: '' },
+    { id: 'vm-1', type: 'vm', name: 'vm-docker-01', description: 'Container stack host', notes: 'Compose workloads', connections: [], ip: '10.20.0.21/24', cpu: '6 vCPU', ram: '2 x 8 DDR5', disks: '2 x 120 GB SSD', cpuCount: '6', ramModules: [{ size: '8', type: 'DDR5' }, { size: '8', type: 'DDR5' }], diskRows: [{ size: '120 GB', type: 'SSD' }, { size: '120 GB', type: 'SSD' }], os: 'Ubuntu 24.04 LTS', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-host-1', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [] },
+    { id: 'vm-2', type: 'vm', name: 'vm-media-01', description: 'Media processing VM', notes: 'GPU passthrough', connections: [], ip: '10.20.0.22/24', cpu: '8 vCPU', ram: '2 x 16 DDR5', disks: '1 x 500 GB SSD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR5' }, { size: '16', type: 'DDR5' }], diskRows: [{ size: '500 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-host-2', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [] },
+    { id: 'vm-3', type: 'vm', name: 'vm-edge-01', description: 'Public ingress and auth', notes: 'Hardened profile', connections: [], ip: '10.30.0.30/24', cpu: '4 vCPU', ram: '2 x 4 DDR4', disks: '2 x 60 GB SSD', cpuCount: '4', ramModules: [{ size: '4', type: 'DDR4' }, { size: '4', type: 'DDR4' }], diskRows: [{ size: '60 GB', type: 'SSD' }, { size: '60 GB', type: 'SSD' }], os: 'AlmaLinux 9', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-host-1', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [] },
 
-    { id: 'app-1', type: 'app', name: 'PhotoVault', description: 'Photo management', notes: '', connections: [], ip: '', ipPort: '10.20.0.21:2283', webUrl: 'https://photos.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-1' },
-    { id: 'app-2', type: 'app', name: 'StreamBox', description: 'Media server', notes: '', connections: [], ip: '', ipPort: '10.20.0.22:8096', webUrl: 'https://media.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-2' },
-    { id: 'app-3', type: 'app', name: 'DocHub', description: 'Internal wiki', notes: '', connections: [], ip: '', ipPort: '10.20.0.22:3000', webUrl: 'https://docs.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-2' },
+    { id: 'lxc-1', type: 'lxc', name: 'lxc-dns-01', description: 'Recursive DNS resolver', notes: 'AdGuard + Unbound', connections: [], ip: '10.10.0.40/24', cpu: '2 vCPU', ram: '2 x 2 DDR4', disks: '1 x 20 GB SSD', cpuCount: '2', ramModules: [{ size: '2', type: 'DDR4' }, { size: '2', type: 'DDR4' }], diskRows: [{ size: '20 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-host-1', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [] },
+    { id: 'lxc-2', type: 'lxc', name: 'lxc-monitor-01', description: 'Metrics + alerting', notes: 'Prometheus stack', connections: [], ip: '10.20.0.41/24', cpu: '2 vCPU', ram: '2 x 4 DDR4', disks: '2 x 40 GB SSD', cpuCount: '2', ramModules: [{ size: '4', type: 'DDR4' }, { size: '4', type: 'DDR4' }], diskRows: [{ size: '40 GB', type: 'SSD' }, { size: '40 GB', type: 'SSD' }], os: 'Ubuntu 22.04 LTS', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-host-2', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [] },
+    { id: 'lxc-3', type: 'lxc', name: 'lxc-backup-agent-01', description: 'Backup transport agent', notes: 'Restic + rclone', connections: [], ip: '10.40.0.42/24', cpu: '2 vCPU', ram: '2 x 2 DDR4', disks: '1 x 30 GB SSD', cpuCount: '2', ramModules: [{ size: '2', type: 'DDR4' }, { size: '2', type: 'DDR4' }], diskRows: [{ size: '30 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-host-2', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [] },
+
+    { id: 'app-1', type: 'app', name: 'PhotoVault', description: 'Photo management', notes: 'Daily sync job', connections: [], ip: '', ipPort: '10.20.0.21:2283', webUrl: 'https://photos.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-1' },
+    { id: 'app-2', type: 'app', name: 'StreamBox', description: 'Media server', notes: 'HW transcoding', connections: [], ip: '', ipPort: '10.20.0.22:8096', webUrl: 'https://media.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-2' },
+    { id: 'app-3', type: 'app', name: 'DocHub', description: 'Internal wiki', notes: 'Docs as code', connections: [], ip: '', ipPort: '10.20.0.22:3000', webUrl: 'https://docs.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-2' },
     { id: 'app-4', type: 'app', name: 'ProxyGate', description: 'Reverse proxy dashboard', notes: '', connections: [], ip: '', ipPort: '10.30.0.30:443', webUrl: 'https://edge.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-3' },
     { id: 'app-5', type: 'app', name: 'MetricsUI', description: 'Monitoring frontend', notes: '', connections: [], ip: '', ipPort: '10.20.0.41:3000', webUrl: 'https://metrics.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'lxc-2' },
+    { id: 'app-6', type: 'app', name: 'BackupPortal', description: 'Backup reports', notes: '', connections: [], ip: '', ipPort: '10.40.0.42:8080', webUrl: 'https://backup.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'lxc-3' },
   ];
   stopEditing();
   normalizeItems();
@@ -436,14 +443,32 @@ function formatCpuLabel(type, cpuCount) {
   return type === 'hardware' ? `${cpuCount} cores` : `${cpuCount} vCPU`;
 }
 
+function formatGroupedLabel(rows, sizeKey, typeKey) {
+  if (!rows.length) return '';
+  const grouped = new Map();
+  rows.forEach((row) => {
+    const size = String(row?.[sizeKey] || '?').trim() || '?';
+    const type = String(row?.[typeKey] || '').trim();
+    const key = `${size.toLowerCase()}::${type.toLowerCase()}`;
+    const existing = grouped.get(key);
+    if (existing) existing.count += 1;
+    else grouped.set(key, { count: 1, size, type });
+  });
+
+  return [...grouped.values()]
+    .map((entry) => {
+      const label = `${entry.size}${entry.type ? ` ${entry.type}` : ''}`.trim();
+      return entry.count > 1 ? `${entry.count} x ${label}` : label;
+    })
+    .join(', ');
+}
+
 function formatRamLabel(ramModuleList) {
-  if (!ramModuleList.length) return '';
-  return ramModuleList.map((module) => `${module.size || '?'} ${module.type || ''}`.trim()).join(', ');
+  return formatGroupedLabel(ramModuleList, 'size', 'type');
 }
 
 function formatDiskLabel(diskRows) {
-  if (!diskRows.length) return '';
-  return diskRows.map((disk) => `${disk.size || '?'} ${disk.type || ''}`.trim()).join(', ');
+  return formatGroupedLabel(diskRows, 'size', 'type');
 }
 
 function inferCpuCount(cpuLabel) {
