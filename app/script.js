@@ -1140,8 +1140,8 @@ function buildGraphView() {
 
   const viewportWidth = Math.max(760, treeContent.clientWidth - 30);
   const viewportHeight = Math.max(460, treeContent.clientHeight - 34);
-  const minWidthForItems = Math.max(860, graphItems.length * 120);
-  const minHeightForItems = Math.max(720, graphItems.length * 120);
+  const minWidthForItems = Math.max(860, graphItems.length * 110);
+  const minHeightForItems = Math.max(620, Math.ceil(graphItems.length / 6) * 260);
   const width = Math.max(viewportWidth, minWidthForItems);
   const height = Math.max(viewportHeight, minHeightForItems);
   canvas.style.setProperty('--graph-width', `${width}px`);
@@ -1207,7 +1207,7 @@ function buildGraphView() {
 
   const rawX = new Map();
   let cursor = 0;
-  const horizontalStep = 130;
+  const horizontalStep = 145;
 
   function assignX(nodeId, trail = new Set()) {
     if (rawX.has(nodeId)) return rawX.get(nodeId);
@@ -1274,9 +1274,9 @@ function buildGraphView() {
     const finalSpan = rawSpan * compress;
     const startX = (width - finalSpan) / 2;
 
-    const topPadding = 72;
+    const topPadding = 52;
     const maxDepth = Math.max(1, Math.max(...depthValues));
-    const layerGap = Math.max(90, Math.round((height - topPadding - 70) / maxDepth));
+    const layerGap = Math.max(64, Math.round((height - topPadding - 44) / maxDepth));
 
     graphItems.forEach((item) => {
       const x = startX + (rawX.get(item.id) - minRawX) * compress;
@@ -1397,7 +1397,21 @@ function getGraphBounds(positions, graphItems) {
 
   if (!Number.isFinite(minX)) return null;
 
-  return { minX, minY, maxX, maxY };
+  const xs = [];
+  const ys = [];
+  graphItems.forEach((item) => {
+    const pos = positions.get(item.id);
+    if (!pos) return;
+    xs.push(pos.x);
+    ys.push(pos.y);
+  });
+  xs.sort((a, b) => a - b);
+  ys.sort((a, b) => a - b);
+  const mid = Math.floor(xs.length / 2);
+  const medianX = xs.length % 2 ? xs[mid] : (xs[mid - 1] + xs[mid]) / 2;
+  const medianY = ys.length % 2 ? ys[mid] : (ys[mid - 1] + ys[mid]) / 2;
+
+  return { minX, minY, maxX, maxY, medianX, medianY };
 }
 
 function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
@@ -1422,8 +1436,8 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
       return;
     }
 
-    const focusCenterX = (bounds.minX + bounds.maxX) / 2;
-    const focusCenterY = (bounds.minY + bounds.maxY) / 2;
+    const focusCenterX = Number.isFinite(bounds.medianX) ? bounds.medianX : (bounds.minX + bounds.maxX) / 2;
+    const focusCenterY = Number.isFinite(bounds.medianY) ? bounds.medianY : (bounds.minY + bounds.maxY) / 2;
 
     panX = wrap.clientWidth / 2 - focusCenterX * scale;
     panY = wrap.clientHeight / 2 - focusCenterY * scale;
