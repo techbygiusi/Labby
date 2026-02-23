@@ -147,6 +147,7 @@ docker-compose.yml
 
 ---
 
-## 📄 License
+## 📝 License
 
-This project is licensed under the terms provided in [LICENSE](LICENSE).
+MIT License  
+© [OneBitLabs](https://onebitlabs.net) / TechByGiusi
