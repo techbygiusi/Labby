@@ -1262,8 +1262,7 @@ function buildGraphView() {
   });
 
   requestAnimationFrame(() => {
-    wrap.scrollLeft = Math.max(0, (wrap.scrollWidth - wrap.clientWidth) / 2);
-    wrap.scrollTop = Math.max(0, (wrap.scrollHeight - wrap.clientHeight) / 2);
+    enableGraphPanZoom(wrap, canvas, width, height);
   });
 
   return wrap;
@@ -1271,22 +1270,91 @@ function buildGraphView() {
 
 
 
+
+function enableGraphPanZoom(wrap, canvas, width, height) {
+  let scale = 1;
+  let panX = 0;
+  let panY = 0;
+  let dragging = false;
+  let dragStartX = 0;
+  let dragStartY = 0;
+
+  function applyTransform() {
+    canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+  }
+
+  function centerView() {
+    panX = (wrap.clientWidth - width * scale) / 2;
+    panY = (wrap.clientHeight - height * scale) / 2;
+    applyTransform();
+  }
+
+  centerView();
+
+  wrap.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    const rect = wrap.getBoundingClientRect();
+    const pointerX = event.clientX - rect.left;
+    const pointerY = event.clientY - rect.top;
+
+    const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;
+    const nextScale = Math.max(0.5, Math.min(2.4, scale * zoomFactor));
+    if (nextScale === scale) return;
+
+    const graphX = (pointerX - panX) / scale;
+    const graphY = (pointerY - panY) / scale;
+
+    scale = nextScale;
+    panX = pointerX - graphX * scale;
+    panY = pointerY - graphY * scale;
+    applyTransform();
+  }, { passive: false });
+
+  wrap.addEventListener('pointerdown', (event) => {
+    const target = event.target;
+    if (target.closest('.graph-node')) return;
+    dragging = true;
+    dragStartX = event.clientX - panX;
+    dragStartY = event.clientY - panY;
+    wrap.setPointerCapture(event.pointerId);
+    wrap.style.cursor = 'grabbing';
+  });
+
+  wrap.addEventListener('pointermove', (event) => {
+    if (!dragging) return;
+    panX = event.clientX - dragStartX;
+    panY = event.clientY - dragStartY;
+    applyTransform();
+  });
+
+  const stopDrag = (event) => {
+    if (!dragging) return;
+    dragging = false;
+    if (event && wrap.hasPointerCapture?.(event.pointerId)) wrap.releasePointerCapture(event.pointerId);
+    wrap.style.cursor = 'grab';
+  };
+
+  wrap.addEventListener('pointerup', stopDrag);
+  wrap.addEventListener('pointercancel', stopDrag);
+  wrap.style.cursor = 'grab';
+}
+
 function positionGraphTooltip(event, tip, wrap) {
   const wrapRect = wrap.getBoundingClientRect();
-  const x = event.clientX - wrapRect.left + wrap.scrollLeft;
-  const y = event.clientY - wrapRect.top + wrap.scrollTop;
+  const x = event.clientX - wrapRect.left;
+  const y = event.clientY - wrapRect.top;
   const gap = 14;
   const edge = 8;
   const tipRect = tip.getBoundingClientRect();
   const tipWidth = Math.max(90, Math.round(tipRect.width || tip.offsetWidth || 120));
   const tipHeight = Math.max(28, Math.round(tipRect.height || tip.offsetHeight || 32));
 
-  const minX = wrap.scrollLeft + edge;
-  const maxX = wrap.scrollLeft + wrap.clientWidth - tipWidth - edge;
-  const minY = wrap.scrollTop + edge;
-  const maxY = wrap.scrollTop + wrap.clientHeight - tipHeight - edge;
+  const minX = edge;
+  const maxX = wrap.clientWidth - tipWidth - edge;
+  const minY = edge;
+  const maxY = wrap.clientHeight - tipHeight - edge;
 
-  const canRight = x + gap + tipWidth <= wrap.scrollLeft + wrap.clientWidth - edge;
+  const canRight = x + gap + tipWidth <= wrap.clientWidth - edge;
   const preferredLeft = canRight ? x + gap : x - gap - tipWidth;
   const preferredTop = y - tipHeight / 2;
 
