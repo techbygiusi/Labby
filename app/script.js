@@ -638,22 +638,6 @@ function normalizeList(list) {
         return target && target.type === 'hardware';
       });
     }
-    if (next.type === 'hardware' && ['router-gateway', 'switch'].includes(next.hardwareKind)) {
-      next.cpu = '';
-      next.ram = '';
-      next.disks = '';
-    }
-    if (!(next.type === 'hardware' && next.hardwareKind === 'switch')) next.switchPorts = '';
-    if (!(next.type === 'hardware' && next.hardwareKind === 'nas')) next.nasShares = [];
-    if (next.type === 'hardware' && next.hardwareKind === 'router-gateway') {
-      next.connections = next.connections.filter((id) => switchIds.has(id));
-    }
-    if (next.type === 'hardware' && next.hardwareKind === 'switch') {
-      next.connections = next.connections.filter((id) => {
-        const target = list.find((entry) => entry.id === id);
-        return target && target.type === 'hardware';
-      });
-    }
     if (next.type !== 'app') {
       next.ipPort = '';
       next.webUrl = '';
@@ -1236,10 +1220,10 @@ function positionGraphTooltip(event, tip, wrap) {
   const tipHeight = Math.max(110, Math.round(tip.getBoundingClientRect().height || tip.offsetHeight || 180));
 
   const canShowOnRight = x + cursorGap + tipWidth <= wrapRect.width - edgePadding;
-  const canShowBelow = y + cursorGap + tipHeight <= wrapRect.height - edgePadding;
+  const canShowAbove = y - cursorGap - tipHeight >= edgePadding;
 
   const preferredX = canShowOnRight ? x + cursorGap : x - tipWidth - cursorGap;
-  const preferredY = canShowBelow ? y + cursorGap : y - tipHeight - cursorGap;
+  const preferredY = canShowAbove ? y - tipHeight - cursorGap : y + cursorGap;
 
   let left = Math.max(edgePadding, Math.min(preferredX, wrapRect.width - tipWidth - edgePadding));
   let top = Math.max(edgePadding, Math.min(preferredY, wrapRect.height - tipHeight - edgePadding));
@@ -1258,12 +1242,14 @@ function positionGraphTooltip(event, tip, wrap) {
 
 function graphTooltipHtml(item) {
   const connections = item.connections.map((id) => findById(id)?.name || id).join(', ') || 'none';
+  const primaryIp = item.ip || item.ipPort || '-';
   const bits = [
     `<strong>${item.name}</strong>`,
-    `Type: ${label(item.type)}`,
+    `Type: ${labelSingle(item.type)}`,
     item.type === 'hardware' ? `Hardware: ${hardwareTypeLabel(item.hardwareKind)}` : '',
     item.manufacturer ? `Manufacturer: ${item.manufacturer}` : '',
-    item.ip ? `IP: ${item.ip}` : '',
+    `IP: ${primaryIp}`,
+    item.type === 'app' && item.webUrl ? `URL: ${item.webUrl}` : '',
     item.description ? `Description: ${item.description}` : '',
     item.notes ? `Notes: ${item.notes}` : '',
     `Connected: ${connections}`,
@@ -1550,6 +1536,10 @@ function findById(id) {
 
 function totalConnections(list) {
   return list.reduce((sum, item) => sum + item.connections.length, 0);
+}
+
+function labelSingle(type) {
+  return ({ hardware: 'Hardware', vm: 'VM', lxc: 'LXC', app: 'App', network: 'Network' })[type] || type;
 }
 
 function label(type) {
