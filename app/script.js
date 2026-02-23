@@ -70,7 +70,8 @@ let items = sanitizeItems(loadItems());
 let toastTimer = null;
 let treeViewMode = 'tree';
 
-cleanupDuplicateIds(['hardware-kind-wrap', 'manufacturer-wrap', 'symbol', 'hardware-kind', 'manufacturer']);
+cleanupDuplicateIds(['symbol-wrap', 'hardware-kind-wrap', 'manufacturer-wrap', 'symbol', 'hardware-kind', 'manufacturer']);
+cleanupDuplicateFieldLabels();
 
 initColorPicker();
 appendShareRow();
@@ -85,6 +86,19 @@ function cleanupDuplicateIds(ids) {
     matches.forEach((node, index) => {
       if (index > 0) node.remove();
     });
+  });
+}
+
+function cleanupDuplicateFieldLabels() {
+  removeDuplicateLabels((labelNode) => labelNode.querySelector('#symbol'));
+  removeDuplicateLabels((labelNode) => labelNode.querySelector('#hardware-kind'));
+  removeDuplicateLabels((labelNode) => labelNode.querySelector('#manufacturer'));
+}
+
+function removeDuplicateLabels(matchFn) {
+  const labels = [...form.querySelectorAll('label')].filter((node) => matchFn(node));
+  labels.forEach((node, index) => {
+    if (index > 0) node.remove();
   });
 }
 
