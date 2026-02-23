@@ -638,6 +638,22 @@ function normalizeList(list) {
         return target && target.type === 'hardware';
       });
     }
+    if (next.type === 'hardware' && ['router-gateway', 'switch'].includes(next.hardwareKind)) {
+      next.cpu = '';
+      next.ram = '';
+      next.disks = '';
+    }
+    if (!(next.type === 'hardware' && next.hardwareKind === 'switch')) next.switchPorts = '';
+    if (!(next.type === 'hardware' && next.hardwareKind === 'nas')) next.nasShares = [];
+    if (next.type === 'hardware' && next.hardwareKind === 'router-gateway') {
+      next.connections = next.connections.filter((id) => switchIds.has(id));
+    }
+    if (next.type === 'hardware' && next.hardwareKind === 'switch') {
+      next.connections = next.connections.filter((id) => {
+        const target = list.find((entry) => entry.id === id);
+        return target && target.type === 'hardware';
+      });
+    }
     if (next.type !== 'app') {
       next.ipPort = '';
       next.webUrl = '';
