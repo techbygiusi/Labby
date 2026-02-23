@@ -222,6 +222,10 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .tree-dialog .legend { margin-bottom: 0; }
 .tree-dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
 .tree-head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+.tree-head-actions { display: flex; align-items: center; gap: var(--space-2); }
+.view-switch { display: inline-flex; border: 2px solid var(--line); border-radius: 10px; padding: 2px; background: var(--panel); gap: 2px; }
+.view-switch .icon-btn { min-height: 30px; padding: 0.2rem 0.55rem; }
+.view-switch .icon-btn.active { background: var(--yellow); color: #111; }
 .tree-content { max-height: 60vh; overflow: auto; font: 600 0.85rem/1.4 'Space Mono', monospace; padding-right: var(--space-1); }
 .tree-shell { border: 3px solid var(--line); border-radius: 14px; padding: 0.75rem; background: rgba(255, 255, 255, 0.45); display: grid; gap: 0.8rem; }
 .tree-section h4 { margin: 0 0 0.55rem; font-size: 1rem; }
@@ -244,6 +248,45 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .tree-subtitle { margin: 0; font-size: 0.78rem; color: var(--muted); }
 :root[data-theme='dark'] .tree-shell { background: rgba(0, 0, 0, 0.2); }
 :root[data-theme='dark'] .tree-link { color: #bfffe8; }
+
+.graph-wrap { display: grid; }
+.graph-canvas {
+  position: relative;
+  width: max-content;
+  min-width: min(100%, var(--graph-width, 1100px));
+  min-height: var(--graph-height, 620px);
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel) 85%, transparent);
+  overflow: auto;
+}
+.graph-links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.graph-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  border: 3px solid var(--line);
+  display: grid;
+  place-items: center;
+  font-size: 1.25rem;
+  background: var(--panel);
+  cursor: pointer;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+.graph-tooltip {
+  position: absolute;
+  z-index: 5;
+  width: min(240px, 70vw);
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--phone);
+  padding: 0.4rem 0.55rem;
+  font: 600 0.74rem/1.32 'Space Mono', monospace;
+  box-shadow: var(--shadow);
+}
+.graph-tooltip p { margin: 0.15rem 0; }
 
 .toast {
   position: fixed;
@@ -363,6 +406,8 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   }
   .tree-content { max-height: 68vh; font-size: 0.8rem; }
   .tree-head { position: sticky; top: 0; background: var(--phone); padding-bottom: 0.4rem; z-index: 2; }
+  .tree-head-actions { width: 100%; justify-content: space-between; }
+  .graph-node { width: 40px; height: 40px; font-size: 1.05rem; }
   .toast { width: calc(100vw - 20px); }
 }
 

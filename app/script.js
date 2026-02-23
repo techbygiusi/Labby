@@ -7,6 +7,7 @@ const boards = document.getElementById('boards');
 const stats = document.getElementById('stats');
 const form = document.getElementById('resource-form');
 const typeSelect = document.getElementById('type');
+const symbolInput = document.getElementById('symbol');
 const seedDemo = document.getElementById('seed-demo');
 const clearAll = document.getElementById('clear-all');
 const themeToggle = document.getElementById('theme-toggle');
@@ -56,6 +57,8 @@ const treeToggle = document.getElementById('tree-toggle');
 const treeClose = document.getElementById('tree-close');
 const treeDialog = document.getElementById('tree-dialog');
 const treeContent = document.getElementById('tree-content');
+const treeModeTree = document.getElementById('tree-mode-tree');
+const treeModeGraph = document.getElementById('tree-mode-graph');
 const configToggle = document.getElementById('config-toggle');
 const configClose = document.getElementById('config-close');
 const configDialog = document.getElementById('config-dialog');
@@ -65,9 +68,11 @@ let editingId = null;
 let selectedNetworkColor = networkPalette[0];
 let items = sanitizeItems(loadItems());
 let toastTimer = null;
+let treeViewMode = 'tree';
 
 initColorPicker();
 appendShareRow();
+symbolInput.value = defaultSymbol('hardware', 'server');
 initTheme();
 applyTypeVisibility();
 render();
@@ -75,6 +80,8 @@ render();
 typeSelect.addEventListener('change', applyTypeVisibility);
 hardwareKindSelect.addEventListener('change', applyTypeVisibility);
 addShareBtn.addEventListener('click', () => appendShareRow());
+treeModeTree.addEventListener('click', () => setTreeMode('tree'));
+treeModeGraph.addEventListener('click', () => setTreeMode('graph'));
 
 form.addEventListener('submit', (event) => {
   event.preventDefault();
@@ -82,6 +89,7 @@ form.addEventListener('submit', (event) => {
   const type = typeSelect.value;
   const hardwareKind = hardwareKindSelect.value;
   const manufacturer = manufacturerInput.value.trim();
+  const symbol = symbolInput.value.trim();
   const name = document.getElementById('name').value.trim();
   const description = document.getElementById('description').value.trim();
   const notes = notesInput.value.trim();
@@ -111,6 +119,7 @@ form.addEventListener('submit', (event) => {
     type,
     hardwareKind: type === 'hardware' ? hardwareKind : '',
     manufacturer: type === 'hardware' ? manufacturer : '',
+    symbol: symbol || defaultSymbol(type, hardwareKind),
     name,
     description,
     notes: supportsNotes(type) ? notes : '',
@@ -149,6 +158,7 @@ form.addEventListener('submit', (event) => {
   saveItems();
   showToast(wasEditing ? 'Resource updated.' : 'Resource added.');
   form.reset();
+  symbolInput.value = defaultSymbol('hardware', 'server');
   hardwareKindSelect.value = 'server';
   nasShares.innerHTML = '';
   appendShareRow();
@@ -163,6 +173,7 @@ form.addEventListener('submit', (event) => {
 cancelEditBtn.addEventListener('click', () => {
   stopEditing();
   form.reset();
+  symbolInput.value = defaultSymbol('hardware', 'server');
   hardwareKindSelect.value = 'server';
   nasShares.innerHTML = '';
   appendShareRow();
@@ -338,6 +349,21 @@ function supportsComputeDetails(type, hardwareKind = hardwareKindSelect.value) {
   return ['vm', 'lxc'].includes(type);
 }
 
+function defaultSymbol(type, hardwareKind = 'server') {
+  if (type === 'hardware') {
+    return {
+      server: '🖥️',
+      hypervisor: '📦',
+      nas: '🗄️',
+      backup: '💾',
+      pc: '💻',
+      'router-gateway': '📡',
+      switch: '🔀',
+    }[hardwareKind] || '🖥️';
+  }
+  return ({ vm: '🧩', lxc: '📦', app: '⚙️', network: '🌐' })[type] || '●';
+}
+
 function sanitizeItems(raw) {
   if (!Array.isArray(raw)) return [];
   const normalized = raw
@@ -347,6 +373,7 @@ function sanitizeItems(raw) {
       type: types.includes(item.type) ? item.type : 'app',
       hardwareKind: item.hardwareKind ? String(item.hardwareKind) : 'server',
       manufacturer: item.manufacturer ? String(item.manufacturer) : '',
+      symbol: item.symbol ? String(item.symbol) : defaultSymbol(item.type, item.hardwareKind),
       name: String(item.name),
       description: item.description ? String(item.description) : '',
       notes: item.notes ? String(item.notes) : '',
@@ -391,6 +418,7 @@ function normalizeList(list) {
       next.switchPorts = '';
       next.nasShares = [];
     }
+    if (!next.symbol) next.symbol = defaultSymbol(next.type, next.hardwareKind);
     if (next.type === 'hardware' && !next.hardwareKind) next.hardwareKind = 'server';
     if (!supportsComputeDetails(next.type)) {
       next.cpu = '';
@@ -519,6 +547,11 @@ function applyTypeVisibility() {
   subnetInput.required = isNetwork;
   gatewayInput.required = isNetwork;
   switchPortsInput.required = isSwitch;
+
+  symbolInput.placeholder = `e.g. ${defaultSymbol(type, hardwareKind)}`;
+  if (!editingId && !symbolInput.value.trim()) {
+    symbolInput.value = defaultSymbol(type, hardwareKind);
+  }
 
   refreshHardwareConnectionOptions();
 }
@@ -732,6 +765,7 @@ function startEditing(id) {
   typeSelect.value = item.type;
   hardwareKindSelect.value = item.hardwareKind || 'server';
   manufacturerInput.value = item.manufacturer || '';
+  symbolInput.value = item.symbol || defaultSymbol(item.type, item.hardwareKind);
   document.getElementById('name').value = item.name;
   document.getElementById('description').value = item.description;
   notesInput.value = item.notes || '';
@@ -799,15 +833,139 @@ function showToast(message, kind = 'success') {
   toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
 }
 
+function setTreeMode(mode) {
+  treeViewMode = mode;
+  treeModeTree.classList.toggle('active', mode === 'tree');
+  treeModeGraph.classList.toggle('active', mode === 'graph');
+  renderTreeView();
+}
+
 function renderTreeView() {
+  treeContent.innerHTML = '';
+  if (treeViewMode === 'graph') {
+    treeContent.appendChild(buildGraphView());
+    return;
+  }
   const treeShell = document.createElement('div');
   treeShell.className = 'tree-shell';
-
   treeShell.appendChild(buildInfrastructureTree());
   treeShell.appendChild(buildNetworksTree());
-
-  treeContent.innerHTML = '';
   treeContent.appendChild(treeShell);
+}
+
+function buildGraphView() {
+  const wrap = document.createElement('div');
+  wrap.className = 'graph-wrap';
+
+  const tip = document.createElement('div');
+  tip.className = 'graph-tooltip hidden';
+  wrap.appendChild(tip);
+
+  const canvas = document.createElement('div');
+  canvas.className = 'graph-canvas';
+  wrap.appendChild(canvas);
+
+  if (!items.length) {
+    const empty = document.createElement('p');
+    empty.className = 'tree-empty';
+    empty.textContent = 'No resources to display in graph view.';
+    canvas.appendChild(empty);
+    return wrap;
+  }
+
+  const width = 1100;
+  const height = 620;
+  canvas.style.setProperty('--graph-width', `${width}px`);
+  canvas.style.setProperty('--graph-height', `${height}px`);
+
+  const levels = [
+    items.filter((item) => item.type === 'network'),
+    items.filter((item) => item.type === 'hardware'),
+    items.filter((item) => item.type === 'vm' || item.type === 'lxc'),
+    items.filter((item) => item.type === 'app'),
+  ];
+
+  const positions = new Map();
+  levels.forEach((group, rowIndex) => {
+    const y = 90 + rowIndex * 160;
+    const step = width / (group.length + 1);
+    group.forEach((item, idx) => {
+      positions.set(item.id, { x: Math.round(step * (idx + 1)), y });
+    });
+  });
+
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const links = document.createElementNS(svgNS, 'svg');
+  links.setAttribute('class', 'graph-links');
+  links.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  const seen = new Set();
+
+  items.forEach((item) => {
+    const from = positions.get(item.id);
+    if (!from) return;
+    item.connections.forEach((targetId) => {
+      const to = positions.get(targetId);
+      if (!to) return;
+      const key = [item.id, targetId].sort().join('::');
+      if (seen.has(key)) return;
+      seen.add(key);
+      const line = document.createElementNS(svgNS, 'line');
+      line.setAttribute('x1', from.x);
+      line.setAttribute('y1', from.y);
+      line.setAttribute('x2', to.x);
+      line.setAttribute('y2', to.y);
+      line.setAttribute('stroke', '#5b657c');
+      line.setAttribute('stroke-width', '2');
+      line.setAttribute('stroke-opacity', '0.65');
+      links.appendChild(line);
+    });
+  });
+
+  canvas.appendChild(links);
+
+  items.forEach((item) => {
+    const pos = positions.get(item.id);
+    if (!pos) return;
+    const node = document.createElement('button');
+    node.type = 'button';
+    node.className = `graph-node ${item.type}`;
+    node.textContent = item.symbol || defaultSymbol(item.type, item.hardwareKind);
+    node.style.left = `${pos.x}px`;
+    node.style.top = `${pos.y}px`;
+    node.style.borderColor = networkBorderColor(item) || 'var(--line)';
+
+    node.addEventListener('mouseenter', () => {
+      tip.classList.remove('hidden');
+      tip.innerHTML = graphTooltipHtml(item);
+      tip.style.left = `${Math.min(pos.x + 28, width - 250)}px`;
+      tip.style.top = `${Math.min(pos.y + 28, height - 180)}px`;
+    });
+    node.addEventListener('mouseleave', () => tip.classList.add('hidden'));
+    node.addEventListener('click', () => {
+      startEditing(item.id);
+      treeDialog.close();
+      showToast(`Editing ${item.name}`);
+    });
+
+    canvas.appendChild(node);
+  });
+
+  return wrap;
+}
+
+function graphTooltipHtml(item) {
+  const connections = item.connections.map((id) => findById(id)?.name || id).join(', ') || 'none';
+  const bits = [
+    `<strong>${item.name}</strong>`,
+    `Type: ${label(item.type)}`,
+    item.type === 'hardware' ? `Hardware: ${hardwareTypeLabel(item.hardwareKind)}` : '',
+    item.manufacturer ? `Manufacturer: ${item.manufacturer}` : '',
+    item.ip ? `IP: ${item.ip}` : '',
+    item.description ? `Description: ${item.description}` : '',
+    item.notes ? `Notes: ${item.notes}` : '',
+    `Connected: ${connections}`,
+  ].filter(Boolean);
+  return bits.map((line) => `<p>${line}</p>`).join('');
 }
 
 function buildInfrastructureTree() {
