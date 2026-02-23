@@ -930,11 +930,29 @@ function buildGraphView() {
   links.setAttribute('class', 'graph-links');
   links.setAttribute('viewBox', `0 0 ${width} ${height}`);
   const seen = new Set();
+  const byId = Object.fromEntries(items.map((item) => [item.id, item]));
 
   graphItems.forEach((item) => {
     const from = positions.get(item.id);
     if (!from) return;
-    item.connections.forEach((targetId) => {
+    const graphConnections = new Set(item.connections);
+
+    if ((item.type === 'vm' || item.type === 'lxc') && item.hostedOn) {
+      graphConnections.add(item.hostedOn);
+    }
+
+    if (item.type === 'app' && item.appHostedOn) {
+      graphConnections.add(item.appHostedOn);
+      const appHost = byId[item.appHostedOn];
+      if ((appHost?.type === 'vm' || appHost?.type === 'lxc') && appHost.hostedOn) {
+        graphConnections.add(appHost.hostedOn);
+      }
+      if (appHost?.type === 'hardware') {
+        graphConnections.add(appHost.id);
+      }
+    }
+
+    [...graphConnections].forEach((targetId) => {
       const to = positions.get(targetId);
       if (!to) return;
       const key = [item.id, targetId].sort().join('::');
