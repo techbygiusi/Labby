@@ -23,9 +23,13 @@ const hardwareKindWrap = document.getElementById('hardware-kind-wrap');
 const manufacturerInput = document.getElementById('manufacturer');
 const manufacturerWrap = document.getElementById('manufacturer-wrap');
 const computeFields = document.getElementById('compute-fields');
-const cpuInput = document.getElementById('cpu');
-const ramInput = document.getElementById('ram');
-const disksInput = document.getElementById('disks');
+const cpuCountSelect = document.getElementById('cpu-count');
+const ramModulesWrap = document.getElementById('ram-modules-wrap');
+const ramModules = document.getElementById('ram-modules');
+const addRamModuleBtn = document.getElementById('add-ram-module');
+const diskListWrap = document.getElementById('disk-list-wrap');
+const diskList = document.getElementById('disk-list');
+const addDiskBtn = document.getElementById('add-disk');
 const switchPortsWrap = document.getElementById('switch-ports-wrap');
 const switchPortsInput = document.getElementById('switch-ports');
 const routerSwitchesWrap = document.getElementById('router-switches-wrap');
@@ -37,6 +41,9 @@ const switchDeviceLinks = document.getElementById('switch-device-links');
 const nasSharesWrap = document.getElementById('nas-shares-wrap');
 const nasShares = document.getElementById('nas-shares');
 const addShareBtn = document.getElementById('add-share');
+const nasRaidsWrap = document.getElementById('nas-raids-wrap');
+const nasRaids = document.getElementById('nas-raids');
+const addRaidBtn = document.getElementById('add-raid');
 const ipPortInput = document.getElementById('ip-port');
 const ipPortWrap = document.getElementById('ip-port-wrap');
 const webUrlInput = document.getElementById('web-url');
@@ -74,7 +81,11 @@ cleanupDuplicateIds(['symbol-wrap', 'hardware-kind-wrap', 'manufacturer-wrap', '
 cleanupDuplicateFieldLabels();
 
 initColorPicker();
+initCpuCountOptions();
 appendShareRow();
+appendRamModuleRow();
+appendDiskRow();
+appendRaidRow();
 symbolInput.value = defaultSymbol('hardware', 'server');
 initTheme();
 applyTypeVisibility();
@@ -105,6 +116,9 @@ function removeDuplicateLabels(matchFn) {
 typeSelect.addEventListener('change', applyTypeVisibility);
 hardwareKindSelect.addEventListener('change', applyTypeVisibility);
 addShareBtn.addEventListener('click', () => appendShareRow());
+addRamModuleBtn.addEventListener('click', () => appendRamModuleRow());
+addDiskBtn.addEventListener('click', () => appendDiskRow());
+addRaidBtn.addEventListener('click', () => appendRaidRow());
 if (treeModeTree && treeModeGraph) {
   treeModeTree.addEventListener('click', () => setTreeMode('tree'));
   treeModeGraph.addEventListener('click', () => setTreeMode('graph'));
@@ -121,9 +135,9 @@ form.addEventListener('submit', (event) => {
   const description = document.getElementById('description').value.trim();
   const notes = notesInput.value.trim();
   const ip = ipInput.value.trim();
-  const cpu = cpuInput.value.trim();
-  const ram = ramInput.value.trim();
-  const disks = disksInput.value.trim();
+  const cpuCount = cpuCountSelect.value.trim();
+  const ramModuleList = getRamModules();
+  const diskRows = getDiskRows();
   const ipPort = ipPortInput.value.trim();
   const webUrl = webUrlInput.value.trim();
   const hostedOn = hostedOnSelect.value || '';
@@ -135,6 +149,7 @@ form.addEventListener('submit', (event) => {
   const selectedSwitchLinks = getMultiValues(switchLinks);
   const selectedSwitchDeviceLinks = getMultiValues(switchDeviceLinks);
   const shareList = getShares();
+  const raidList = getRaids();
 
   if (!name) return;
   if (type === 'network' && (!subnet || !gateway)) {
@@ -151,9 +166,12 @@ form.addEventListener('submit', (event) => {
     description,
     notes: supportsNotes(type) ? notes : '',
     ip: ['hardware', 'vm', 'lxc'].includes(type) ? ip : '',
-    cpu: supportsComputeDetails(type) ? cpu : '',
-    ram: supportsComputeDetails(type) ? ram : '',
-    disks: supportsComputeDetails(type) ? disks : '',
+    cpu: supportsComputeDetails(type) ? formatCpuLabel(type, cpuCount) : '',
+    ram: supportsComputeDetails(type) ? formatRamLabel(ramModuleList) : '',
+    disks: supportsComputeDetails(type) ? formatDiskLabel(diskRows) : '',
+    cpuCount: supportsComputeDetails(type) ? cpuCount : '',
+    ramModules: supportsComputeDetails(type) ? ramModuleList : [],
+    diskRows: supportsComputeDetails(type) ? diskRows : [],
     ipPort: type === 'app' ? ipPort : '',
     webUrl: type === 'app' ? webUrl : '',
     subnet: type === 'network' ? subnet : '',
@@ -163,6 +181,7 @@ form.addEventListener('submit', (event) => {
     appHostedOn: type === 'app' ? appHostedOn : '',
     switchPorts: type === 'hardware' && hardwareKind === 'switch' ? switchPorts : '',
     nasShares: type === 'hardware' && hardwareKind === 'nas' ? shareList : [],
+    nasRaids: type === 'hardware' && hardwareKind === 'nas' ? raidList : [],
     connections: type === 'hardware' && hardwareKind === 'router-gateway'
       ? selectedRouterSwitches
       : type === 'hardware' && hardwareKind === 'switch'
@@ -187,8 +206,7 @@ form.addEventListener('submit', (event) => {
   form.reset();
   symbolInput.value = defaultSymbol('hardware', 'server');
   hardwareKindSelect.value = 'server';
-  nasShares.innerHTML = '';
-  appendShareRow();
+  resetDynamicHardwareFields();
   setMultiValues(routerSwitches, []);
   setMultiValues(switchLinks, []);
   setMultiValues(switchDeviceLinks, []);
@@ -202,8 +220,7 @@ cancelEditBtn.addEventListener('click', () => {
   form.reset();
   symbolInput.value = defaultSymbol('hardware', 'server');
   hardwareKindSelect.value = 'server';
-  nasShares.innerHTML = '';
-  appendShareRow();
+  resetDynamicHardwareFields();
   setMultiValues(routerSwitches, []);
   setMultiValues(switchLinks, []);
   setMultiValues(switchDeviceLinks, []);
@@ -318,6 +335,139 @@ function setSelectedColor(color) {
   });
 }
 
+
+function initCpuCountOptions() {
+  cpuCountSelect.innerHTML = '<option value="">Select count</option>';
+  for (let count = 1; count <= 64; count += 1) {
+    const option = document.createElement('option');
+    option.value = String(count);
+    option.textContent = `${count}`;
+    cpuCountSelect.appendChild(option);
+  }
+  cpuCountSelect.value = '4';
+}
+
+function appendRamModuleRow(module = { size: '', type: 'DDR4' }) {
+  const row = document.createElement('div');
+  row.className = 'share-row';
+  row.innerHTML = `
+    <input type="text" placeholder="Size (e.g. 16 GB)" value="${escapeAttr(module.size)}" data-ram-size />
+    <select data-ram-type>
+      <option value="DDR3">DDR3</option>
+      <option value="DDR4">DDR4</option>
+      <option value="DDR5">DDR5</option>
+      <option value="LPDDR4">LPDDR4</option>
+      <option value="LPDDR5">LPDDR5</option>
+      <option value="ECC DDR4">ECC DDR4</option>
+      <option value="ECC DDR5">ECC DDR5</option>
+    </select>
+    <button class="icon-btn" type="button">Remove</button>
+  `;
+  row.querySelector('[data-ram-type]').value = module.type || 'DDR4';
+  row.querySelector('button').addEventListener('click', () => row.remove());
+  ramModules.appendChild(row);
+}
+
+function getRamModules() {
+  return [...ramModules.querySelectorAll('.share-row')]
+    .map((row) => ({
+      size: row.querySelector('[data-ram-size]').value.trim(),
+      type: row.querySelector('[data-ram-type]').value.trim(),
+    }))
+    .filter((module) => module.size);
+}
+
+function appendDiskRow(disk = { size: '', type: 'SSD' }) {
+  const row = document.createElement('div');
+  row.className = 'share-row';
+  row.innerHTML = `
+    <input type="text" placeholder="Size (e.g. 2 TB)" value="${escapeAttr(disk.size)}" data-disk-size />
+    <select data-disk-type>
+      <option value="HDD">HDD</option>
+      <option value="SSD">SSD</option>
+      <option value="NVMe">NVMe</option>
+      <option value="SATA SSD">SATA SSD</option>
+      <option value="SAS">SAS</option>
+    </select>
+    <button class="icon-btn" type="button">Remove</button>
+  `;
+  row.querySelector('[data-disk-type]').value = disk.type || 'SSD';
+  row.querySelector('button').addEventListener('click', () => row.remove());
+  diskList.appendChild(row);
+}
+
+function getDiskRows() {
+  return [...diskList.querySelectorAll('.share-row')]
+    .map((row) => ({
+      size: row.querySelector('[data-disk-size]').value.trim(),
+      type: row.querySelector('[data-disk-type]').value.trim(),
+    }))
+    .filter((disk) => disk.size);
+}
+
+function appendRaidRow(raid = { name: '', level: 'RAID1', size: '' }) {
+  const row = document.createElement('div');
+  row.className = 'share-row raid-row';
+  row.innerHTML = `
+    <input type="text" placeholder="RAID name" value="${escapeAttr(raid.name)}" data-raid-name />
+    <select data-raid-level>
+      <option value="RAID0">RAID0</option>
+      <option value="RAID1">RAID1</option>
+      <option value="RAID5">RAID5</option>
+      <option value="RAID6">RAID6</option>
+      <option value="RAID10">RAID10</option>
+      <option value="JBOD">JBOD</option>
+    </select>
+    <input type="text" placeholder="Size (e.g. 12 TB)" value="${escapeAttr(raid.size)}" data-raid-size />
+    <button class="icon-btn" type="button">Remove</button>
+  `;
+  row.querySelector('[data-raid-level]').value = raid.level || 'RAID1';
+  row.querySelector('button').addEventListener('click', () => row.remove());
+  nasRaids.appendChild(row);
+}
+
+function getRaids() {
+  return [...nasRaids.querySelectorAll('.share-row')]
+    .map((row) => ({
+      name: row.querySelector('[data-raid-name]').value.trim(),
+      level: row.querySelector('[data-raid-level]').value.trim(),
+      size: row.querySelector('[data-raid-size]').value.trim(),
+    }))
+    .filter((raid) => raid.name || raid.size);
+}
+
+function formatCpuLabel(type, cpuCount) {
+  if (!cpuCount) return '';
+  return type === 'hardware' ? `${cpuCount} cores` : `${cpuCount} vCPU`;
+}
+
+function formatRamLabel(ramModuleList) {
+  if (!ramModuleList.length) return '';
+  return ramModuleList.map((module) => `${module.size || '?'} ${module.type || ''}`.trim()).join(', ');
+}
+
+function formatDiskLabel(diskRows) {
+  if (!diskRows.length) return '';
+  return diskRows.map((disk) => `${disk.size || '?'} ${disk.type || ''}`.trim()).join(', ');
+}
+
+function inferCpuCount(cpuLabel) {
+  const match = String(cpuLabel || '').match(/(\d+)/);
+  return match ? match[1] : '4';
+}
+
+function resetDynamicHardwareFields() {
+  nasShares.innerHTML = '';
+  nasRaids.innerHTML = '';
+  ramModules.innerHTML = '';
+  diskList.innerHTML = '';
+  appendShareRow();
+  appendRaidRow();
+  appendRamModuleRow();
+  appendDiskRow();
+  cpuCountSelect.value = '4';
+}
+
 function appendShareRow(share = { name: '', link: '' }) {
   const row = document.createElement('div');
   row.className = 'share-row';
@@ -409,6 +559,13 @@ function sanitizeItems(raw) {
       cpu: item.cpu ? String(item.cpu) : '',
       ram: item.ram ? String(item.ram) : '',
       disks: item.disks ? String(item.disks) : '',
+      cpuCount: item.cpuCount ? String(item.cpuCount) : inferCpuCount(item.cpu),
+      ramModules: Array.isArray(item.ramModules)
+        ? item.ramModules.map((module) => ({ size: String(module?.size || ''), type: String(module?.type || 'DDR4') })).filter((module) => module.size)
+        : [],
+      diskRows: Array.isArray(item.diskRows)
+        ? item.diskRows.map((disk) => ({ size: String(disk?.size || ''), type: String(disk?.type || 'SSD') })).filter((disk) => disk.size)
+        : [],
       ipPort: item.ipPort ? String(item.ipPort) : '',
       webUrl: item.webUrl ? String(item.webUrl) : '',
       subnet: item.subnet ? String(item.subnet) : '',
@@ -419,6 +576,9 @@ function sanitizeItems(raw) {
       switchPorts: item.switchPorts ? String(item.switchPorts) : '',
       nasShares: Array.isArray(item.nasShares)
         ? item.nasShares.map((share) => ({ name: String(share?.name || ''), link: String(share?.link || '') })).filter((share) => share.name || share.link)
+        : [],
+      nasRaids: Array.isArray(item.nasRaids)
+        ? item.nasRaids.map((raid) => ({ name: String(raid?.name || ''), level: String(raid?.level || 'RAID1'), size: String(raid?.size || '') })).filter((raid) => raid.name || raid.size)
         : [],
     }));
   return normalizeList(normalized);
@@ -444,6 +604,7 @@ function normalizeList(list) {
       next.manufacturer = '';
       next.switchPorts = '';
       next.nasShares = [];
+      next.nasRaids = [];
     }
     if (!next.symbol) next.symbol = defaultSymbol(next.type, next.hardwareKind);
     if (next.type === 'hardware' && !next.hardwareKind) next.hardwareKind = 'server';
@@ -451,6 +612,31 @@ function normalizeList(list) {
       next.cpu = '';
       next.ram = '';
       next.disks = '';
+      next.cpuCount = '';
+      next.ramModules = [];
+      next.diskRows = [];
+    }
+    if (next.type === 'hardware' && ['router-gateway', 'switch'].includes(next.hardwareKind)) {
+      next.cpu = '';
+      next.ram = '';
+      next.disks = '';
+      next.cpuCount = '';
+      next.ramModules = [];
+      next.diskRows = [];
+    }
+    if (!(next.type === 'hardware' && next.hardwareKind === 'switch')) next.switchPorts = '';
+    if (!(next.type === 'hardware' && next.hardwareKind === 'nas')) {
+      next.nasShares = [];
+      next.nasRaids = [];
+    }
+    if (next.type === 'hardware' && next.hardwareKind === 'router-gateway') {
+      next.connections = next.connections.filter((id) => switchIds.has(id));
+    }
+    if (next.type === 'hardware' && next.hardwareKind === 'switch') {
+      next.connections = next.connections.filter((id) => {
+        const target = list.find((entry) => entry.id === id);
+        return target && target.type === 'hardware';
+      });
     }
     if (next.type === 'hardware' && ['router-gateway', 'switch'].includes(next.hardwareKind)) {
       next.cpu = '';
@@ -557,6 +743,8 @@ function applyTypeVisibility() {
 
   networkFields.classList.toggle('hidden', !isNetwork);
   computeFields.classList.toggle('hidden', !supportsCompute);
+  ramModulesWrap.classList.toggle('hidden', !supportsCompute);
+  diskListWrap.classList.toggle('hidden', !supportsCompute);
   hardwareKindWrap.classList.toggle('hidden', !isHardware);
   manufacturerWrap.classList.toggle('hidden', !isHardware);
   hostedOnWrap.classList.toggle('hidden', !isVmOrLxc);
@@ -567,6 +755,7 @@ function applyTypeVisibility() {
   switchLinksWrap.classList.toggle('hidden', !isSwitch);
   switchDeviceLinksWrap.classList.toggle('hidden', !isSwitch);
   nasSharesWrap.classList.toggle('hidden', !isNas);
+  nasRaidsWrap.classList.toggle('hidden', !isNas);
   ipPortWrap.classList.toggle('hidden', !isApp);
   webUrlWrap.classList.toggle('hidden', !isApp);
   notesWrap.classList.toggle('hidden', !supportsNotes(type));
@@ -679,6 +868,9 @@ function hardwareDetailsLabel(item) {
   if (item.hardwareKind === 'switch' && item.switchPorts) bits.push(`Ports: ${item.switchPorts}`);
   if (item.hardwareKind === 'nas' && item.nasShares?.length) {
     bits.push(`Shares: ${item.nasShares.map((share) => `${share.name} (${share.link || 'no link'})`).join(', ')}`);
+  }
+  if (item.hardwareKind === 'nas' && item.nasRaids?.length) {
+    bits.push(`RAIDs: ${item.nasRaids.map((raid) => `${raid.name || 'raid'} ${raid.level}${raid.size ? ` (${raid.size})` : ''}`).join(', ')}`);
   }
   const compute = specsLabel(item);
   if (compute) bits.push(compute);
@@ -797,9 +989,7 @@ function startEditing(id) {
   document.getElementById('description').value = item.description;
   notesInput.value = item.notes || '';
   ipInput.value = item.ip || '';
-  cpuInput.value = item.cpu || '';
-  ramInput.value = item.ram || '';
-  disksInput.value = item.disks || '';
+  cpuCountSelect.value = String(item.cpuCount || inferCpuCount(item.cpu));
   switchPortsInput.value = item.switchPorts || '';
   ipPortInput.value = item.ipPort || '';
   webUrlInput.value = item.webUrl || '';
@@ -822,11 +1012,21 @@ function startEditing(id) {
     setMultiValues(switchDeviceLinks, (item.connections || []).filter((id) => !switchIds.includes(id)));
   }
   nasShares.innerHTML = '';
-  if (item.type === 'hardware' && item.hardwareKind === 'nas' && item.nasShares?.length) {
-    item.nasShares.forEach((share) => appendShareRow(share));
-  } else {
-    appendShareRow();
-  }
+  nasRaids.innerHTML = '';
+  ramModules.innerHTML = '';
+  diskList.innerHTML = '';
+
+  if (item.ramModules?.length) item.ramModules.forEach((module) => appendRamModuleRow(module));
+  else appendRamModuleRow();
+
+  if (item.diskRows?.length) item.diskRows.forEach((disk) => appendDiskRow(disk));
+  else appendDiskRow();
+
+  if (item.type === 'hardware' && item.hardwareKind === 'nas' && item.nasShares?.length) item.nasShares.forEach((share) => appendShareRow(share));
+  else appendShareRow();
+
+  if (item.type === 'hardware' && item.hardwareKind === 'nas' && item.nasRaids?.length) item.nasRaids.forEach((raid) => appendRaidRow(raid));
+  else appendRaidRow();
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }

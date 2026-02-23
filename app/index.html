@@ -76,17 +76,45 @@
           <fieldset id="compute-fields" class="network-fields">
             <legend>Compute details</legend>
             <label>
-              CPUs
-              <input id="cpu" type="text" placeholder="e.g. 8 vCPU" />
+              CPU count
+              <select id="cpu-count"></select>
             </label>
-            <label>
-              RAM
-              <input id="ram" type="text" placeholder="e.g. 32 GB" />
-            </label>
-            <label>
-              Disks
-              <input id="disks" type="text" placeholder="e.g. 2x 1TB NVMe" />
-            </label>
+            <fieldset id="ram-modules-wrap" class="network-fields nested-fields">
+              <legend>RAM modules</legend>
+              <div id="ram-modules" class="stack"></div>
+              <button id="add-ram-module" class="button secondary" type="button">+ Add RAM module</button>
+            </fieldset>
+            <fieldset id="disk-list-wrap" class="network-fields nested-fields">
+              <legend>Disks</legend>
+              <div id="disk-list" class="stack"></div>
+              <button id="add-disk" class="button secondary" type="button">+ Add Disk</button>
+            </fieldset>
+          </fieldset>
+          <label id="switch-ports-wrap" class="hidden">
+            Number of ports (Switch)
+            <input id="switch-ports" type="number" min="1" placeholder="e.g. 24" />
+          </label>
+          <label id="router-switches-wrap" class="hidden">
+            Connected switches (Router / Gateway)
+            <select id="router-switches" multiple></select>
+          </label>
+          <label id="switch-links-wrap" class="hidden">
+            Connected switches (Switch)
+            <select id="switch-links" multiple></select>
+          </label>
+          <label id="switch-device-links-wrap" class="hidden">
+            Connected hardware devices (Switch)
+            <select id="switch-device-links" multiple></select>
+          </label>
+          <fieldset id="nas-shares-wrap" class="network-fields hidden">
+            <legend>NAS shares</legend>
+            <div id="nas-shares" class="stack"></div>
+            <button id="add-share" class="button secondary" type="button">+ Add Share</button>
+          </fieldset>
+          <fieldset id="nas-raids-wrap" class="network-fields hidden">
+            <legend>NAS RAID groups</legend>
+            <div id="nas-raids" class="stack"></div>
+            <button id="add-raid" class="button secondary" type="button">+ Add RAID</button>
           </fieldset>
           <label id="switch-ports-wrap" class="hidden">
             Number of ports (Switch)

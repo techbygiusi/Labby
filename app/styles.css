@@ -101,6 +101,8 @@ select[multiple] { min-height: 90px; }
 .color-dot.active { outline: 2px solid var(--text); outline-offset: 1px; }
 
 .network-fields { border: 2px solid var(--line); border-radius: 12px; padding: var(--space-2); margin: 0; display: grid; gap: var(--space-2); }
+.nested-fields { margin-top: 0.2rem; }
+.share-row.raid-row { grid-template-columns: 1fr 0.9fr 1fr auto; }
 
 .button { border: 2px solid var(--line); border-radius: 12px; min-height: 36px; padding: 0.42rem 0.65rem; font: 700 0.8rem/1.2 'Space Mono', monospace; cursor: pointer; background: var(--yellow); color: #222; }
 .button.secondary { background: var(--panel); color: var(--text); }
