@@ -70,12 +70,23 @@ let items = sanitizeItems(loadItems());
 let toastTimer = null;
 let treeViewMode = 'tree';
 
+cleanupDuplicateIds(['hardware-kind-wrap', 'manufacturer-wrap', 'symbol', 'hardware-kind', 'manufacturer']);
+
 initColorPicker();
 appendShareRow();
 symbolInput.value = defaultSymbol('hardware', 'server');
 initTheme();
 applyTypeVisibility();
 render();
+
+function cleanupDuplicateIds(ids) {
+  ids.forEach((id) => {
+    const matches = document.querySelectorAll(`[id="${id}"]`);
+    matches.forEach((node, index) => {
+      if (index > 0) node.remove();
+    });
+  });
+}
 
 typeSelect.addEventListener('change', applyTypeVisibility);
 hardwareKindSelect.addEventListener('change', applyTypeVisibility);

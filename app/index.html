@@ -98,6 +98,26 @@
             <input id="manufacturer" type="text" placeholder="e.g. Dell, Ubiquiti, Synology" />
           </label>
           <label>
+            Symbol / Icon (emoji or short text)
+            <input id="symbol" type="text" maxlength="3" placeholder="e.g. 🖥️" />
+          </label>
+          <label id="hardware-kind-wrap">
+            Hardware Type
+            <select id="hardware-kind">
+              <option value="server">Server</option>
+              <option value="hypervisor">Hypervisor</option>
+              <option value="nas">NAS</option>
+              <option value="backup">Backup</option>
+              <option value="pc">PC</option>
+              <option value="router-gateway">Router / Gateway</option>
+              <option value="switch">Switch</option>
+            </select>
+          </label>
+          <label id="manufacturer-wrap">
+            Manufacturer
+            <input id="manufacturer" type="text" placeholder="e.g. Dell, Ubiquiti, Synology" />
+          </label>
+          <label>
             Description
             <input id="description" type="text" placeholder="Short note" />
           </label>
@@ -217,11 +237,11 @@
       <div class="tree-head">
         <h3>Relationship Tree</h3>
         <div class="tree-head-actions">
+          <button id="tree-close" class="icon-btn" type="button">Close</button>
           <div class="view-switch" role="tablist" aria-label="Tree view mode">
             <button id="tree-mode-tree" class="icon-btn active" type="button">Tree</button>
             <button id="tree-mode-graph" class="icon-btn" type="button">Graph</button>
           </div>
-          <button id="tree-close" class="icon-btn" type="button">Close</button>
         </div>
       </div>
       <div id="tree-content" class="tree-content"></div>
