@@ -895,10 +895,12 @@ function buildGraphView() {
   canvas.className = 'graph-canvas';
   wrap.appendChild(canvas);
 
-  if (!items.length) {
+  const graphItems = items.filter((item) => item.type !== 'network');
+
+  if (!graphItems.length) {
     const empty = document.createElement('p');
     empty.className = 'tree-empty';
-    empty.textContent = 'No resources to display in graph view.';
+    empty.textContent = 'No non-network resources to display in graph view.';
     canvas.appendChild(empty);
     return wrap;
   }
@@ -909,15 +911,14 @@ function buildGraphView() {
   canvas.style.setProperty('--graph-height', `${height}px`);
 
   const levels = [
-    items.filter((item) => item.type === 'network'),
-    items.filter((item) => item.type === 'hardware'),
-    items.filter((item) => item.type === 'vm' || item.type === 'lxc'),
-    items.filter((item) => item.type === 'app'),
+    graphItems.filter((item) => item.type === 'hardware'),
+    graphItems.filter((item) => item.type === 'vm' || item.type === 'lxc'),
+    graphItems.filter((item) => item.type === 'app'),
   ];
 
   const positions = new Map();
   levels.forEach((group, rowIndex) => {
-    const y = 90 + rowIndex * 160;
+    const y = 110 + rowIndex * 190;
     const step = width / (group.length + 1);
     group.forEach((item, idx) => {
       positions.set(item.id, { x: Math.round(step * (idx + 1)), y });
@@ -930,7 +931,7 @@ function buildGraphView() {
   links.setAttribute('viewBox', `0 0 ${width} ${height}`);
   const seen = new Set();
 
-  items.forEach((item) => {
+  graphItems.forEach((item) => {
     const from = positions.get(item.id);
     if (!from) return;
     item.connections.forEach((targetId) => {
@@ -953,7 +954,7 @@ function buildGraphView() {
 
   canvas.appendChild(links);
 
-  items.forEach((item) => {
+  graphItems.forEach((item) => {
     const pos = positions.get(item.id);
     if (!pos) return;
     const node = document.createElement('button');
