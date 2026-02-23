@@ -221,8 +221,15 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 }
 .tree-dialog .legend { margin-bottom: 0; }
 .tree-dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
-.tree-head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
-.tree-head-actions { display: flex; align-items: center; gap: var(--space-2); }
+.tree-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.tree-head h3 { margin: 0; }
+.tree-head-actions { display: inline-flex; align-items: center; gap: var(--space-2); justify-self: end; }
 .view-switch { display: inline-flex; border: 2px solid var(--line); border-radius: 10px; padding: 2px; background: var(--panel); gap: 2px; }
 .view-switch .icon-btn { min-height: 30px; padding: 0.2rem 0.55rem; }
 .view-switch .icon-btn.active { background: var(--yellow); color: #111; }
@@ -252,8 +259,8 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .graph-wrap { display: grid; }
 .graph-canvas {
   position: relative;
-  width: max-content;
-  min-width: min(100%, var(--graph-width, 1100px));
+  width: min(100%, var(--graph-width, 1100px));
+  margin: 0 auto;
   min-height: var(--graph-height, 620px);
   border: 2px solid var(--line);
   border-radius: 14px;
@@ -406,7 +413,9 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   }
   .tree-content { max-height: 68vh; font-size: 0.8rem; }
   .tree-head { position: sticky; top: 0; background: var(--phone); padding-bottom: 0.4rem; z-index: 2; }
-  .tree-head-actions { width: 100%; justify-content: space-between; }
+  .tree-head { grid-template-columns: 1fr; }
+  .tree-head-actions { width: 100%; justify-content: space-between; justify-self: stretch; }
+  .view-switch .icon-btn { min-height: 34px; }
   .graph-node { width: 40px; height: 40px; font-size: 1.05rem; }
   .toast { width: calc(100vw - 20px); }
 }

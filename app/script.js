@@ -80,8 +80,10 @@ render();
 typeSelect.addEventListener('change', applyTypeVisibility);
 hardwareKindSelect.addEventListener('change', applyTypeVisibility);
 addShareBtn.addEventListener('click', () => appendShareRow());
-treeModeTree.addEventListener('click', () => setTreeMode('tree'));
-treeModeGraph.addEventListener('click', () => setTreeMode('graph'));
+if (treeModeTree && treeModeGraph) {
+  treeModeTree.addEventListener('click', () => setTreeMode('tree'));
+  treeModeGraph.addEventListener('click', () => setTreeMode('graph'));
+}
 
 form.addEventListener('submit', (event) => {
   event.preventDefault();
@@ -189,7 +191,7 @@ searchInput.addEventListener('input', render);
 filterType.addEventListener('change', render);
 
 treeToggle.addEventListener('click', () => {
-  renderTreeView();
+  setTreeMode(treeViewMode);
   treeDialog.showModal();
 });
 
@@ -835,8 +837,11 @@ function showToast(message, kind = 'success') {
 
 function setTreeMode(mode) {
   treeViewMode = mode;
+  if (!treeModeTree || !treeModeGraph) return;
   treeModeTree.classList.toggle('active', mode === 'tree');
   treeModeGraph.classList.toggle('active', mode === 'graph');
+  treeModeTree.setAttribute('aria-pressed', String(mode === 'tree'));
+  treeModeGraph.setAttribute('aria-pressed', String(mode === 'graph'));
   renderTreeView();
 }
 
