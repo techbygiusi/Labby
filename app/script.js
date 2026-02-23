@@ -1210,6 +1210,12 @@ function buildGraphView() {
 
     if ((item.type === 'vm' || item.type === 'lxc') && item.hostedOn) graphConnections.add(item.hostedOn);
     if (item.type === 'app' && item.appHostedOn) graphConnections.add(item.appHostedOn);
+    if (item.type === 'hardware' && Array.isArray(item.connections)) {
+      item.connections.forEach((targetId) => {
+        const target = byId[targetId];
+        if (target?.type === 'hardware') graphConnections.add(targetId);
+      });
+    }
 
     [...graphConnections].forEach((targetId) => {
       const to = positions.get(targetId);
@@ -1431,6 +1437,76 @@ function buildInfrastructureTree() {
     lane.appendChild(guestsWrap);
     body.appendChild(lane);
   });
+
+
+  const byHardwareId = Object.fromEntries(hardware.map((item) => [item.id, item]));
+  const switches = hardware.filter((item) => item.hardwareKind === 'switch');
+  const routers = hardware.filter((item) => item.hardwareKind === 'router-gateway');
+
+  if (switches.length || routers.length) {
+    const fabric = document.createElement('div');
+    fabric.className = 'tree-subgroup';
+    fabric.innerHTML = '<p class="tree-subtitle">Switch / Router topology</p>';
+
+    switches.forEach((sw) => {
+      const switchLane = document.createElement('div');
+      switchLane.className = 'tree-lane';
+      switchLane.appendChild(treeChip(sw));
+      const switchMeta = infraMeta(sw);
+      if (switchMeta) switchLane.appendChild(switchMeta);
+
+      const children = document.createElement('div');
+      children.className = 'tree-children';
+
+      const connectedRouters = routers.filter((router) => (router.connections || []).includes(sw.id));
+      connectedRouters.forEach((router) => {
+        const lane = document.createElement('div');
+        lane.className = 'tree-lane nested';
+        lane.appendChild(treeChip(router));
+        const meta = document.createElement('p');
+        meta.className = 'tree-subtitle';
+        meta.textContent = 'Router uplink';
+        lane.appendChild(meta);
+        children.appendChild(lane);
+      });
+
+      const connectedHardware = (sw.connections || [])
+        .map((id) => byHardwareId[id])
+        .filter((item) => item && item.id !== sw.id);
+
+      connectedHardware.forEach((device) => {
+        const lane = document.createElement('div');
+        lane.className = 'tree-lane nested';
+        lane.appendChild(treeChip(device));
+        const meta = infraMeta(device);
+        if (meta) lane.appendChild(meta);
+        children.appendChild(lane);
+      });
+
+      if (!children.childNodes.length) {
+        const none = document.createElement('p');
+        none.className = 'tree-empty';
+        none.textContent = 'No connected hardware';
+        children.appendChild(none);
+      }
+
+      switchLane.appendChild(children);
+      fabric.appendChild(switchLane);
+    });
+
+    if (!switches.length) {
+      routers.forEach((router) => {
+        const routerLane = document.createElement('div');
+        routerLane.className = 'tree-lane';
+        routerLane.appendChild(treeChip(router));
+        const routerMeta = infraMeta(router);
+        if (routerMeta) routerLane.appendChild(routerMeta);
+        fabric.appendChild(routerLane);
+      });
+    }
+
+    body.appendChild(fabric);
+  }
 
   const orphanGuests = [...vms, ...lxcs].filter((guest) => !guest.hostedOn);
   if (orphanGuests.length) {
