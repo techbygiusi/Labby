@@ -905,24 +905,55 @@ function buildGraphView() {
     return wrap;
   }
 
-  const width = 1100;
-  const height = 620;
+  const width = 1200;
+  const height = 640;
   canvas.style.setProperty('--graph-width', `${width}px`);
   canvas.style.setProperty('--graph-height', `${height}px`);
 
-  const levels = [
-    graphItems.filter((item) => item.type === 'hardware'),
-    graphItems.filter((item) => item.type === 'vm' || item.type === 'lxc'),
-    graphItems.filter((item) => item.type === 'app'),
-  ];
-
   const positions = new Map();
-  levels.forEach((group, rowIndex) => {
-    const y = 110 + rowIndex * 190;
-    const step = width / (group.length + 1);
-    group.forEach((item, idx) => {
-      positions.set(item.id, { x: Math.round(step * (idx + 1)), y });
+  const byId = Object.fromEntries(items.map((item) => [item.id, item]));
+
+  const hardware = graphItems.filter((item) => item.type === 'hardware');
+  const unhostedHardware = hardware.filter((item) => !item.hostedOn || !byId[item.hostedOn]);
+  const rootHardware = unhostedHardware.length ? unhostedHardware : hardware;
+
+  const rootStep = width / (rootHardware.length + 1);
+  rootHardware.forEach((host, idx) => {
+    const rootX = Math.round(rootStep * (idx + 1));
+    positions.set(host.id, { x: rootX, y: 105 });
+
+    const hostFamily = [
+      ...graphItems.filter((item) => item.type === 'vm' || item.type === 'lxc').filter((item) => item.hostedOn === host.id),
+      ...graphItems.filter((item) => item.type === 'app').filter((app) => {
+        if (!app.appHostedOn) return false;
+        const appHost = byId[app.appHostedOn];
+        return appHost?.id === host.id;
+      }),
+    ];
+
+    const familyStep = hostFamily.length > 0 ? 110 : 0;
+    const familyStart = rootX - ((hostFamily.length - 1) * familyStep) / 2;
+
+    hostFamily.forEach((child, childIndex) => {
+      const childX = Math.round(familyStart + childIndex * familyStep);
+      const childY = 320;
+      if (!positions.has(child.id)) {
+        positions.set(child.id, { x: childX, y: childY });
+      }
+
+      const appChildren = graphItems.filter((item) => item.type === 'app' && item.appHostedOn === child.id);
+      const appStep = appChildren.length > 0 ? 100 : 0;
+      const appStart = childX - ((appChildren.length - 1) * appStep) / 2;
+      appChildren.forEach((app, appIndex) => {
+        positions.set(app.id, { x: Math.round(appStart + appIndex * appStep), y: 540 });
+      });
     });
+  });
+
+  graphItems.forEach((item, idx) => {
+    if (positions.has(item.id)) return;
+    const fallbackStep = width / (graphItems.length + 1);
+    positions.set(item.id, { x: Math.round((idx + 1) * fallbackStep), y: item.type === 'app' ? 540 : 320 });
   });
 
   const svgNS = 'http://www.w3.org/2000/svg';
@@ -930,27 +961,13 @@ function buildGraphView() {
   links.setAttribute('class', 'graph-links');
   links.setAttribute('viewBox', `0 0 ${width} ${height}`);
   const seen = new Set();
-  const byId = Object.fromEntries(items.map((item) => [item.id, item]));
-
   graphItems.forEach((item) => {
     const from = positions.get(item.id);
     if (!from) return;
-    const graphConnections = new Set(item.connections);
+    const graphConnections = new Set();
 
-    if ((item.type === 'vm' || item.type === 'lxc') && item.hostedOn) {
-      graphConnections.add(item.hostedOn);
-    }
-
-    if (item.type === 'app' && item.appHostedOn) {
-      graphConnections.add(item.appHostedOn);
-      const appHost = byId[item.appHostedOn];
-      if ((appHost?.type === 'vm' || appHost?.type === 'lxc') && appHost.hostedOn) {
-        graphConnections.add(appHost.hostedOn);
-      }
-      if (appHost?.type === 'hardware') {
-        graphConnections.add(appHost.id);
-      }
-    }
+    if ((item.type === 'vm' || item.type === 'lxc') && item.hostedOn) graphConnections.add(item.hostedOn);
+    if (item.type === 'app' && item.appHostedOn) graphConnections.add(item.appHostedOn);
 
     [...graphConnections].forEach((targetId) => {
       const to = positions.get(targetId);
