@@ -905,8 +905,8 @@ function buildGraphView() {
     return wrap;
   }
 
-  const width = 1200;
-  const height = 640;
+  const width = Math.max(760, treeContent.clientWidth - 24);
+  const height = Math.max(460, treeContent.clientHeight - 24);
   canvas.style.setProperty('--graph-width', `${width}px`);
   canvas.style.setProperty('--graph-height', `${height}px`);
 
@@ -917,10 +917,13 @@ function buildGraphView() {
   const unhostedHardware = hardware.filter((item) => !item.hostedOn || !byId[item.hostedOn]);
   const rootHardware = unhostedHardware.length ? unhostedHardware : hardware;
 
+  const rootY = Math.round(height * 0.16);
+  const midY = Math.round(height * 0.52);
+  const appY = Math.round(height * 0.84);
   const rootStep = width / (rootHardware.length + 1);
   rootHardware.forEach((host, idx) => {
     const rootX = Math.round(rootStep * (idx + 1));
-    positions.set(host.id, { x: rootX, y: 105 });
+    positions.set(host.id, { x: rootX, y: rootY });
 
     const hostFamily = [
       ...graphItems.filter((item) => item.type === 'vm' || item.type === 'lxc').filter((item) => item.hostedOn === host.id),
@@ -936,7 +939,7 @@ function buildGraphView() {
 
     hostFamily.forEach((child, childIndex) => {
       const childX = Math.round(familyStart + childIndex * familyStep);
-      const childY = 320;
+      const childY = midY;
       if (!positions.has(child.id)) {
         positions.set(child.id, { x: childX, y: childY });
       }
@@ -945,7 +948,7 @@ function buildGraphView() {
       const appStep = appChildren.length > 0 ? 100 : 0;
       const appStart = childX - ((appChildren.length - 1) * appStep) / 2;
       appChildren.forEach((app, appIndex) => {
-        positions.set(app.id, { x: Math.round(appStart + appIndex * appStep), y: 540 });
+        positions.set(app.id, { x: Math.round(appStart + appIndex * appStep), y: appY });
       });
     });
   });
@@ -953,7 +956,7 @@ function buildGraphView() {
   graphItems.forEach((item, idx) => {
     if (positions.has(item.id)) return;
     const fallbackStep = width / (graphItems.length + 1);
-    positions.set(item.id, { x: Math.round((idx + 1) * fallbackStep), y: item.type === 'app' ? 540 : 320 });
+    positions.set(item.id, { x: Math.round((idx + 1) * fallbackStep), y: item.type === 'app' ? appY : midY });
   });
 
   const svgNS = 'http://www.w3.org/2000/svg';
@@ -1000,12 +1003,12 @@ function buildGraphView() {
     node.style.top = `${pos.y}px`;
     node.style.borderColor = networkBorderColor(item) || 'var(--line)';
 
-    node.addEventListener('mouseenter', () => {
+    node.addEventListener('mouseenter', (event) => {
       tip.classList.remove('hidden');
       tip.innerHTML = graphTooltipHtml(item);
-      tip.style.left = `${Math.min(pos.x + 28, width - 250)}px`;
-      tip.style.top = `${Math.min(pos.y + 28, height - 180)}px`;
+      positionGraphTooltip(event, tip, wrap);
     });
+    node.addEventListener('mousemove', (event) => positionGraphTooltip(event, tip, wrap));
     node.addEventListener('mouseleave', () => tip.classList.add('hidden'));
     node.addEventListener('click', () => {
       startEditing(item.id);
@@ -1017,6 +1020,16 @@ function buildGraphView() {
   });
 
   return wrap;
+}
+
+function positionGraphTooltip(event, tip, wrap) {
+  const wrapRect = wrap.getBoundingClientRect();
+  const x = event.clientX - wrapRect.left;
+  const y = event.clientY - wrapRect.top;
+  const tipWidth = 240;
+  const tipHeight = 180;
+  tip.style.left = `${Math.max(8, Math.min(x + 14, wrapRect.width - tipWidth - 8))}px`;
+  tip.style.top = `${Math.max(8, Math.min(y + 14, wrapRect.height - tipHeight - 8))}px`;
 }
 
 function graphTooltipHtml(item) {
