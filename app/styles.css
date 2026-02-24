@@ -2,9 +2,9 @@
 
 :root {
   color-scheme: light;
-  --bg: #f1f4fb;
-  --bg-bottom: #d9e8ff;
-  --wave: #f8fbff;
+  --bg: #ece9df;
+  --bg-bottom: #a98cf2;
+  --wave: #ece9df;
   --phone: #f5f1e7;
   --panel: #ffffff;
   --text: #202126;
@@ -24,9 +24,9 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: #0f1424;
-  --bg-bottom: #1f2b48;
-  --wave: #131e36;
+  --bg: #2a3046;
+  --bg-bottom: #141a2e;
+  --wave: #2a3046;
   --phone: #191f31;
   --panel: #222b42;
   --text: #eef2ff;
@@ -44,7 +44,7 @@ html, body { height: 100%; }
 body {
   margin: 0;
   font-family: Inter, system-ui, sans-serif;
-  background: linear-gradient(to bottom, var(--bg) 0%, var(--bg) 66%, var(--bg-bottom) 66%, var(--bg-bottom) 100%);
+  background: var(--bg);
   color: var(--text);
   height: 100vh;
   overflow: hidden;
@@ -55,23 +55,23 @@ body {
 body::before {
   content: '';
   position: fixed;
-  left: -10%;
-  right: -10%;
-  bottom: 28%;
-  height: clamp(110px, 18vh, 230px);
-  background: var(--wave);
-  border-radius: 100% 100% 0 0 / 75% 75% 0 0;
-  transform: rotate(-2.5deg);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 20vh;
+  background: var(--bg-bottom);
   z-index: -2;
 }
 
 body::after {
   content: '';
   position: fixed;
-  inset: 0;
-  background:
-    radial-gradient(circle at 14% 12%, color-mix(in srgb, var(--blue) 20%, transparent) 0%, transparent 42%),
-    radial-gradient(circle at 84% 8%, color-mix(in srgb, var(--yellow) 24%, transparent) 0%, transparent 35%);
+  left: -6%;
+  right: -6%;
+  bottom: calc(20vh - clamp(58px, 9vh, 110px));
+  height: clamp(84px, 13vh, 150px);
+  background: var(--wave);
+  border-radius: 100% 100% 0 0 / 100% 100% 0 0;
   z-index: -1;
   pointer-events: none;
 }
@@ -124,10 +124,10 @@ input, select, textarea {
 }
 textarea { resize: vertical; min-height: 74px; }
 ::placeholder { color: #5e6270; opacity: 1; }
-:root[data-theme='dark'] ::placeholder { color: #9ec2b6; }
+:root[data-theme='dark'] ::placeholder { color: #c3cbe4; }
 
 select option { color: #111; background: #fff; }
-:root[data-theme='dark'] select option { color: #001c11; background: #d4ffe9; }
+:root[data-theme='dark'] select option { color: #101a33; background: #dce4ff; }
 select[multiple] { min-height: 90px; }
 
 .mini-title { margin: 0 0 var(--space-1); font: 700 0.82rem/1.2 "Space Mono", monospace; color: var(--muted); }
@@ -533,7 +533,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 }
 
 :root[data-theme='dark'] .column { background: var(--panel); }
-:root[data-theme='dark'] .stats { background: #0f2a18; color: #9dffb8; }
+:root[data-theme='dark'] .stats { background: #2c3c66; color: #eef2ff; }
 :root[data-theme='dark'] .tree-dialog { box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45); }
 :root[data-theme='dark'] .tree-shell { background: var(--panel); }
 
