@@ -1183,8 +1183,8 @@ function buildGraphView() {
 
   const viewportWidth = Math.max(760, treeContent.clientWidth - 30);
   const viewportHeight = Math.max(460, treeContent.clientHeight - 34);
-  const minWidthForItems = Math.max(860, graphItems.length * 110);
-  const minHeightForItems = Math.max(620, Math.ceil(graphItems.length / 6) * 260);
+  const minWidthForItems = Math.max(680, graphItems.length * 84);
+  const minHeightForItems = Math.max(460, Math.ceil(graphItems.length / 8) * 180);
   const width = Math.max(viewportWidth, minWidthForItems);
   const height = Math.max(viewportHeight, minHeightForItems);
   canvas.style.setProperty('--graph-width', `${width}px`);
@@ -1250,7 +1250,7 @@ function buildGraphView() {
 
   const rawX = new Map();
   let cursor = 0;
-  const horizontalStep = 145;
+  const horizontalStep = 108;
 
   function assignX(nodeId, trail = new Set()) {
     if (rawX.has(nodeId)) return rawX.get(nodeId);
@@ -1311,15 +1311,15 @@ function buildGraphView() {
     const minRawX = Math.min(...allRawX);
     const maxRawX = Math.max(...allRawX);
     const rawSpan = Math.max(1, maxRawX - minRawX);
-    const horizontalPadding = 70;
+    const horizontalPadding = 46;
     const usableWidth = Math.max(240, width - horizontalPadding * 2);
     const compress = rawSpan > usableWidth ? usableWidth / rawSpan : 1;
     const finalSpan = rawSpan * compress;
     const startX = (width - finalSpan) / 2;
 
-    const topPadding = 52;
+    const topPadding = 44;
     const maxDepth = Math.max(1, Math.max(...depthValues));
-    const layerGap = Math.max(64, Math.round((height - topPadding - 44) / maxDepth));
+    const layerGap = Math.max(54, Math.round((height - topPadding - 30) / maxDepth));
 
     graphItems.forEach((item) => {
       const x = startX + (rawX.get(item.id) - minRawX) * compress;
@@ -1590,14 +1590,13 @@ function buildInfrastructureTree() {
     .filter((group) => group.hosts.length);
 
   groupedHardware.forEach((group) => {
-    const groupBlock = document.createElement('details');
-    groupBlock.className = 'tree-subgroup tree-collapsible';
-    groupBlock.open = group.kind === 'router-gateway' || group.kind === 'switch';
+    const groupBlock = document.createElement('div');
+    groupBlock.className = 'tree-subgroup';
 
-    const groupSummary = document.createElement('summary');
-    groupSummary.className = 'tree-summary';
-    groupSummary.textContent = `${hardwareTypeLabel(group.kind)} (${group.hosts.length})`;
-    groupBlock.appendChild(groupSummary);
+    const groupHead = document.createElement('div');
+    groupHead.className = 'tree-summary tree-group-head';
+    groupHead.textContent = `${hardwareTypeLabel(group.kind)} (${group.hosts.length})`;
+    groupBlock.appendChild(groupHead);
 
     const groupBody = document.createElement('div');
     groupBody.className = 'tree-children';
@@ -1607,7 +1606,7 @@ function buildInfrastructureTree() {
 
       const hostBlock = document.createElement('details');
       hostBlock.className = 'tree-collapsible tree-host';
-      hostBlock.open = hostGuests.length <= 1;
+      hostBlock.open = hostGuests.length <= 2;
 
       const hostSummary = document.createElement('summary');
       hostSummary.className = 'tree-summary tree-summary-host';
@@ -1621,7 +1620,7 @@ function buildInfrastructureTree() {
       hostBlock.appendChild(hostSummary);
 
       const hostChildren = document.createElement('div');
-      hostChildren.className = 'tree-children';
+      hostChildren.className = 'tree-children tree-layer-host';
 
       hostGuests.forEach((guest) => {
         const guestApps = apps.filter((app) => app.appHostedOn === guest.id);
@@ -1651,7 +1650,7 @@ function buildInfrastructureTree() {
         guestBlock.appendChild(guestSummary);
 
         const appWrap = document.createElement('div');
-        appWrap.className = 'tree-children';
+        appWrap.className = 'tree-children tree-layer-guest';
         guestApps.forEach((app) => {
           const appLane = document.createElement('div');
           appLane.className = 'tree-lane nested';
@@ -1674,6 +1673,7 @@ function buildInfrastructureTree() {
     groupBlock.appendChild(groupBody);
     body.appendChild(groupBlock);
   });
+
 
   const orphanGuests = [...vms, ...lxcs].filter((guest) => !guest.hostedOn);
   if (orphanGuests.length) {
