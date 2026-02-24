@@ -850,7 +850,7 @@ function applyFilters(list) {
 }
 
 function cardNode(item) {
-  const node = template.content.firstElementChild.cloneNode(true);
+  const node = createCardShell();
   node.dataset.type = item.type;
 
   const border = networkBorderColor(item);
@@ -866,10 +866,44 @@ function cardNode(item) {
   setCardText(node, '.card-hosting', hostingLabel(item));
   setCardText(node, '.card-links', connectionLabel(item));
 
-  node.querySelector('.type-badge').className = `type-badge ${item.type}`;
-  node.querySelector('.edit-btn').addEventListener('click', () => startEditing(item.id));
-  node.querySelector('.delete-btn').addEventListener('click', () => removeItem(item.id));
+  const badge = node.querySelector('.type-badge');
+  if (badge) badge.className = `type-badge ${item.type}`;
+
+  const editButton = node.querySelector('.edit-btn');
+  if (editButton) editButton.addEventListener('click', () => startEditing(item.id));
+
+  const deleteButton = node.querySelector('.delete-btn');
+  if (deleteButton) deleteButton.addEventListener('click', () => removeItem(item.id));
   return node;
+}
+
+function createCardShell() {
+  const shell = template?.content?.firstElementChild;
+  if (shell) return shell.cloneNode(true);
+
+  const fallback = document.createElement('article');
+  fallback.className = 'card';
+  fallback.innerHTML = `
+    <div class="card-head">
+      <div class="title-wrap">
+        <span class="type-badge"></span>
+        <h3 class="card-title"></h3>
+      </div>
+      <div class="card-controls">
+        <button class="icon-btn edit-btn" type="button">Edit</button>
+        <button class="icon-btn delete-btn" type="button">Delete</button>
+      </div>
+    </div>
+    <p class="card-desc"></p>
+    <p class="card-notes"></p>
+    <p class="card-ip"></p>
+    <p class="card-app"></p>
+    <p class="card-specs"></p>
+    <p class="card-network"></p>
+    <p class="card-hosting"></p>
+    <p class="card-links"></p>
+  `;
+  return fallback;
 }
 
 function setCardText(node, selector, value) {
