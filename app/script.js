@@ -1579,22 +1579,79 @@ function buildInfrastructureTree() {
   const lxcs = items.filter((item) => item.type === 'lxc');
   const apps = items.filter((item) => item.type === 'app');
 
-  function appendGuestTree(targetWrap, hostId) {
-    const guestsWrap = document.createElement('div');
-    guestsWrap.className = 'tree-children';
-    const guests = [...vms, ...lxcs].filter((guest) => guest.hostedOn === hostId);
+  const kindOrder = ['router-gateway', 'switch', 'hypervisor', 'server', 'nas', 'backup', 'pc'];
+  const groupedHardware = kindOrder
+    .map((kind) => ({
+      kind,
+      hosts: hardware
+        .filter((host) => (host.hardwareKind || 'server') === kind)
+        .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })),
+    }))
+    .filter((group) => group.hosts.length);
 
-    guests.forEach((guest) => {
-      const guestLane = document.createElement('div');
-      guestLane.className = 'tree-lane nested';
-      guestLane.appendChild(treeChip(guest));
-      const guestIp = treeIpMeta(guest);
-      if (guestIp) guestLane.appendChild(guestIp);
+  groupedHardware.forEach((group) => {
+    const groupBlock = document.createElement('details');
+    groupBlock.className = 'tree-subgroup tree-collapsible';
+    groupBlock.open = group.kind === 'router-gateway' || group.kind === 'switch';
 
-      const guestApps = apps.filter((app) => app.appHostedOn === guest.id);
-      const appWrap = document.createElement('div');
-      appWrap.className = 'tree-children';
-      if (guestApps.length) {
+    const groupSummary = document.createElement('summary');
+    groupSummary.className = 'tree-summary';
+    groupSummary.textContent = `${hardwareTypeLabel(group.kind)} (${group.hosts.length})`;
+    groupBlock.appendChild(groupSummary);
+
+    const groupBody = document.createElement('div');
+    groupBody.className = 'tree-children';
+
+    group.hosts.forEach((host) => {
+      const hostGuests = [...vms, ...lxcs].filter((guest) => guest.hostedOn === host.id);
+
+      const hostBlock = document.createElement('details');
+      hostBlock.className = 'tree-collapsible tree-host';
+      hostBlock.open = hostGuests.length <= 1;
+
+      const hostSummary = document.createElement('summary');
+      hostSummary.className = 'tree-summary tree-summary-host';
+      hostSummary.appendChild(treeChip(host));
+      const hostIp = treeIpMeta(host);
+      if (hostIp) hostSummary.appendChild(hostIp);
+      const guestCount = document.createElement('span');
+      guestCount.className = 'tree-count';
+      guestCount.textContent = `${hostGuests.length} guest${hostGuests.length === 1 ? '' : 's'}`;
+      hostSummary.appendChild(guestCount);
+      hostBlock.appendChild(hostSummary);
+
+      const hostChildren = document.createElement('div');
+      hostChildren.className = 'tree-children';
+
+      hostGuests.forEach((guest) => {
+        const guestApps = apps.filter((app) => app.appHostedOn === guest.id);
+
+        if (!guestApps.length) {
+          const guestLane = document.createElement('div');
+          guestLane.className = 'tree-lane nested';
+          guestLane.appendChild(treeChip(guest));
+          const guestIp = treeIpMeta(guest);
+          if (guestIp) guestLane.appendChild(guestIp);
+          hostChildren.appendChild(guestLane);
+          return;
+        }
+
+        const guestBlock = document.createElement('details');
+        guestBlock.className = 'tree-collapsible tree-guest';
+
+        const guestSummary = document.createElement('summary');
+        guestSummary.className = 'tree-summary tree-summary-guest';
+        guestSummary.appendChild(treeChip(guest));
+        const guestIp = treeIpMeta(guest);
+        if (guestIp) guestSummary.appendChild(guestIp);
+        const appCount = document.createElement('span');
+        appCount.className = 'tree-count';
+        appCount.textContent = `${guestApps.length} app${guestApps.length === 1 ? '' : 's'}`;
+        guestSummary.appendChild(appCount);
+        guestBlock.appendChild(guestSummary);
+
+        const appWrap = document.createElement('div');
+        appWrap.className = 'tree-children';
         guestApps.forEach((app) => {
           const appLane = document.createElement('div');
           appLane.className = 'tree-lane nested';
@@ -1605,63 +1662,55 @@ function buildInfrastructureTree() {
           if (appLink) appLane.appendChild(appLink);
           appWrap.appendChild(appLane);
         });
-      }
-      guestLane.appendChild(appWrap);
-      guestsWrap.appendChild(guestLane);
+
+        guestBlock.appendChild(appWrap);
+        hostChildren.appendChild(guestBlock);
+      });
+
+      hostBlock.appendChild(hostChildren);
+      groupBody.appendChild(hostBlock);
     });
 
-    targetWrap.appendChild(guestsWrap);
-  }
-
-
-  if (hardware.length) {
-    const allHardware = document.createElement('div');
-    allHardware.className = 'tree-subgroup';
-    allHardware.innerHTML = '<p class="tree-subtitle">All Hardware</p>';
-
-    const kindOrder = { 'router-gateway': 0, switch: 1 };
-    const sortedHardware = [...hardware].sort((a, b) => {
-      const aRank = kindOrder[a.hardwareKind] ?? 2;
-      const bRank = kindOrder[b.hardwareKind] ?? 2;
-      if (aRank !== bRank) return aRank - bRank;
-      return (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' });
-    });
-
-    sortedHardware.forEach((host) => {
-      const lane = document.createElement('div');
-      lane.className = 'tree-lane';
-      lane.appendChild(treeChip(host));
-      const hostIp = treeIpMeta(host);
-      if (hostIp) lane.appendChild(hostIp);
-      appendGuestTree(lane, host.id);
-      allHardware.appendChild(lane);
-    });
-
-    body.appendChild(allHardware);
-  }
-
+    groupBlock.appendChild(groupBody);
+    body.appendChild(groupBlock);
+  });
 
   const orphanGuests = [...vms, ...lxcs].filter((guest) => !guest.hostedOn);
   if (orphanGuests.length) {
-    const orphan = document.createElement('div');
-    orphan.className = 'tree-subgroup';
-    orphan.innerHTML = '<p class="tree-subtitle">Unassigned VMs/LXCs</p>';
+    const orphan = document.createElement('details');
+    orphan.className = 'tree-subgroup tree-collapsible';
+
+    const title = document.createElement('summary');
+    title.className = 'tree-summary';
+    title.textContent = `Unassigned VMs/LXCs (${orphanGuests.length})`;
+    orphan.appendChild(title);
+
+    const orphanBody = document.createElement('div');
+    orphanBody.className = 'tree-children';
     orphanGuests.forEach((guest) => {
       const row = document.createElement('div');
       row.className = 'tree-lane';
       row.appendChild(treeChip(guest));
       const guestIp = treeIpMeta(guest);
       if (guestIp) row.appendChild(guestIp);
-      orphan.appendChild(row);
+      orphanBody.appendChild(row);
     });
+    orphan.appendChild(orphanBody);
     body.appendChild(orphan);
   }
 
   const orphanApps = apps.filter((app) => !app.appHostedOn);
   if (orphanApps.length) {
-    const orphan = document.createElement('div');
-    orphan.className = 'tree-subgroup';
-    orphan.innerHTML = '<p class="tree-subtitle">Unassigned Apps</p>';
+    const orphan = document.createElement('details');
+    orphan.className = 'tree-subgroup tree-collapsible';
+
+    const title = document.createElement('summary');
+    title.className = 'tree-summary';
+    title.textContent = `Unassigned Apps (${orphanApps.length})`;
+    orphan.appendChild(title);
+
+    const orphanBody = document.createElement('div');
+    orphanBody.className = 'tree-children';
     orphanApps.forEach((app) => {
       const row = document.createElement('div');
       row.className = 'tree-lane';
@@ -1670,8 +1719,9 @@ function buildInfrastructureTree() {
       if (appIp) row.appendChild(appIp);
       const appLink = appTreeLink(app);
       if (appLink) row.appendChild(appLink);
-      orphan.appendChild(row);
+      orphanBody.appendChild(row);
     });
+    orphan.appendChild(orphanBody);
     body.appendChild(orphan);
   }
 
