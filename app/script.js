@@ -80,6 +80,8 @@ let selectedNetworkColor = networkPalette[0];
 let items = sanitizeItems(loadItems());
 let toastTimer = null;
 let treeViewMode = 'tree';
+let lastTypeSelection = typeSelect.value;
+let lastHardwareKindSelection = hardwareKindSelect.value;
 
 cleanupDuplicateIds(['symbol-wrap', 'hardware-kind-wrap', 'manufacturer-wrap', 'os-wrap', 'symbol', 'hardware-kind', 'manufacturer', 'os']);
 cleanupDuplicateFieldLabels();
@@ -786,11 +788,15 @@ function applyTypeVisibility() {
   gatewayInput.required = isNetwork;
   switchPortsInput.required = isSwitch;
 
-  symbolInput.placeholder = `e.g. ${defaultSymbol(type, hardwareKind)}`;
+  const nextDefaultSymbol = defaultSymbol(type, hardwareKind);
+  const previousDefaultSymbol = defaultSymbol(lastTypeSelection, lastHardwareKindSelection);
+  symbolInput.placeholder = `e.g. ${nextDefaultSymbol}`;
   updateStorageFieldLabels(hardwareKind);
-  if (!editingId && !symbolInput.value.trim()) {
-    symbolInput.value = defaultSymbol(type, hardwareKind);
+  if (!editingId && (!symbolInput.value.trim() || symbolInput.value === previousDefaultSymbol)) {
+    symbolInput.value = nextDefaultSymbol;
   }
+  lastTypeSelection = type;
+  lastHardwareKindSelection = hardwareKind;
 
   refreshHardwareConnectionOptions();
 }
@@ -850,21 +856,25 @@ function cardNode(item) {
   const border = networkBorderColor(item);
   if (border) node.style.borderColor = border;
 
-  node.querySelector('.card-title').textContent = item.name;
-  node.querySelector('.card-desc').textContent = item.description || 'No description';
-  node.querySelector('.card-notes').textContent = item.notes ? `Notes: ${item.notes}` : '';
-  node.querySelector('.card-ip').textContent = item.ip ? `IP: ${item.ip}` : '';
-  node.querySelector('.card-app').textContent = item.type === 'app' ? appDetails(item) : '';
-  node.querySelector('.card-specs').textContent = hardwareDetailsLabel(item) || specsLabel(item);
-  node.querySelector('.card-network').textContent = item.type === 'network' ? `Subnet: ${item.subnet} | Gateway: ${item.gateway}` : '';
-  node.querySelector('.card-hosting').textContent = hostingLabel(item);
-   node.querySelector('.card-id').textContent = `ID: ${item.id}`;
-  node.querySelector('.card-links').textContent = connectionLabel(item);
+  setCardText(node, '.card-title', item.name);
+  setCardText(node, '.card-desc', item.description || 'No description');
+  setCardText(node, '.card-notes', item.notes ? `Notes: ${item.notes}` : '');
+  setCardText(node, '.card-ip', item.ip ? `IP: ${item.ip}` : '');
+  setCardText(node, '.card-app', item.type === 'app' ? appDetails(item) : '');
+  setCardText(node, '.card-specs', hardwareDetailsLabel(item) || specsLabel(item));
+  setCardText(node, '.card-network', item.type === 'network' ? `Subnet: ${item.subnet} | Gateway: ${item.gateway}` : '');
+  setCardText(node, '.card-hosting', hostingLabel(item));
+  setCardText(node, '.card-links', connectionLabel(item));
 
   node.querySelector('.type-badge').className = `type-badge ${item.type}`;
   node.querySelector('.edit-btn').addEventListener('click', () => startEditing(item.id));
   node.querySelector('.delete-btn').addEventListener('click', () => removeItem(item.id));
   return node;
+}
+
+function setCardText(node, selector, value) {
+  const target = node.querySelector(selector);
+  if (target) target.textContent = value || '';
 }
 
 function appDetails(item) {
@@ -1540,13 +1550,6 @@ function buildInfrastructureTree() {
     guestsWrap.className = 'tree-children';
     const guests = [...vms, ...lxcs].filter((guest) => guest.hostedOn === hostId);
 
-    if (!guests.length) {
-      const none = document.createElement('p');
-      none.className = 'tree-empty';
-      none.textContent = 'No VMs/LXCs on this hardware';
-      guestsWrap.appendChild(none);
-    }
-
     guests.forEach((guest) => {
       const guestLane = document.createElement('div');
       guestLane.className = 'tree-lane nested';
@@ -1557,12 +1560,7 @@ function buildInfrastructureTree() {
       const guestApps = apps.filter((app) => app.appHostedOn === guest.id);
       const appWrap = document.createElement('div');
       appWrap.className = 'tree-children';
-      if (!guestApps.length) {
-        const emptyApp = document.createElement('p');
-        emptyApp.className = 'tree-empty';
-        emptyApp.textContent = 'No app assigned';
-        appWrap.appendChild(emptyApp);
-      } else {
+      if (guestApps.length) {
         guestApps.forEach((app) => {
           const appLane = document.createElement('div');
           appLane.className = 'tree-lane nested';
@@ -1599,8 +1597,8 @@ function buildInfrastructureTree() {
       const lane = document.createElement('div');
       lane.className = 'tree-lane';
       lane.appendChild(treeChip(host));
-      const hostMeta = infraMeta(host);
-      if (hostMeta) lane.appendChild(hostMeta);
+      const hostIp = treeIpMeta(host);
+      if (hostIp) lane.appendChild(hostIp);
       appendGuestTree(lane, host.id);
       allHardware.appendChild(lane);
     });
