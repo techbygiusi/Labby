@@ -1231,6 +1231,7 @@ function buildGraphView() {
 
   const parentById = new Map();
   const childrenById = new Map(graphItems.map((item) => [item.id, []]));
+  const graphNodeRadius = 23;
   graphItems.forEach((item) => {
     const candidateParentId = parentIdFor(item);
     const parentId = candidateParentId && candidateParentId !== item.id ? candidateParentId : '';
@@ -1363,19 +1364,29 @@ function buildGraphView() {
     }
 
     [...graphConnections].forEach((targetId) => {
-      const to = positions.get(targetId);
-      if (!to) return;
+      const targetPos = positions.get(targetId);
+      if (!targetPos) return;
       const key = [item.id, targetId].sort().join('::');
       if (seen.has(key)) return;
       seen.add(key);
+
+      const drawDownward = from.y <= targetPos.y;
+      const source = drawDownward ? from : targetPos;
+      const target = drawDownward ? targetPos : from;
+
+      const startX = source.x;
+      const startY = source.y + graphNodeRadius;
+      const endX = target.x;
+      const endY = target.y - graphNodeRadius;
+
       const curve = document.createElementNS(svgNS, 'path');
-      const yGap = Math.max(24, Math.abs(to.y - from.y));
-      const bend = Math.min(90, Math.round(yGap * 0.45));
-      const c1x = from.x;
-      const c1y = from.y + bend;
-      const c2x = to.x;
-      const c2y = to.y - bend;
-      curve.setAttribute('d', `M ${from.x} ${from.y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${to.x} ${to.y}`);
+      const yGap = Math.max(26, endY - startY);
+      const bend = Math.min(96, Math.round(yGap * 0.45));
+      const c1x = startX;
+      const c1y = startY + bend;
+      const c2x = endX;
+      const c2y = endY - bend;
+      curve.setAttribute('d', `M ${startX} ${startY} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${endX} ${endY}`);
       curve.setAttribute('stroke', '#6ca4ff');
       curve.setAttribute('stroke-width', '2');
       curve.setAttribute('stroke-opacity', '0.78');
