@@ -264,8 +264,9 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   align-items: center;
   justify-content: space-between;
   gap: 0.45rem;
-  padding: 0.2rem 0.25rem;
+  padding: 0.2rem 0.25rem 0.2rem 1rem;
   border-radius: 8px;
+  position: relative;
 }
 .tree-group-head {
   cursor: default;
@@ -275,9 +276,12 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   content: '▸';
   color: var(--muted);
   font-size: 0.84rem;
-  margin-right: 0.2rem;
+  position: absolute;
+  left: 0.15rem;
+  width: 0.6rem;
+  text-align: center;
 }
-.tree-group-head::before { content: '•'; }
+.tree-group-head::before { content: ''; }
 .tree-collapsible[open] > .tree-summary::before { content: '▾'; }
 .tree-summary-host,
 .tree-summary-guest {
@@ -295,10 +299,14 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   color: var(--muted);
 }
 .tree-host,
-.tree-guest { border-left: 2px dashed var(--line); padding-left: 0.65rem; margin-left: 0.35rem; }
-.tree-layer-host { margin-left: 1rem; }
-.tree-layer-guest { margin-left: 1rem; }
-.tree-lane.nested { margin-left: 0.75rem; }
+.tree-guest { margin-left: 0.35rem; }
+.tree-layer-host,
+.tree-layer-guest {
+  margin-left: 1rem;
+  border-left: 2px dashed var(--line);
+  padding-left: 0.75rem;
+}
+.tree-lane.nested { margin-left: 0; }
 :root[data-theme='dark'] .tree-shell { background: var(--panel); }
 :root[data-theme='dark'] .tree-link { color: #bfffe8; }
 
