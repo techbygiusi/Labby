@@ -858,7 +858,6 @@ function cardNode(item) {
   node.querySelector('.card-specs').textContent = hardwareDetailsLabel(item) || specsLabel(item);
   node.querySelector('.card-network').textContent = item.type === 'network' ? `Subnet: ${item.subnet} | Gateway: ${item.gateway}` : '';
   node.querySelector('.card-hosting').textContent = hostingLabel(item);
-   node.querySelector('.card-id').textContent = `ID: ${item.id}`;
   node.querySelector('.card-links').textContent = connectionLabel(item);
 
   node.querySelector('.type-badge').className = `type-badge ${item.type}`;
