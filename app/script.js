@@ -1539,13 +1539,6 @@ function buildInfrastructureTree() {
     guestsWrap.className = 'tree-children';
     const guests = [...vms, ...lxcs].filter((guest) => guest.hostedOn === hostId);
 
-    if (!guests.length) {
-      const none = document.createElement('p');
-      none.className = 'tree-empty';
-      none.textContent = 'No VMs/LXCs on this hardware';
-      guestsWrap.appendChild(none);
-    }
-
     guests.forEach((guest) => {
       const guestLane = document.createElement('div');
       guestLane.className = 'tree-lane nested';
@@ -1556,12 +1549,7 @@ function buildInfrastructureTree() {
       const guestApps = apps.filter((app) => app.appHostedOn === guest.id);
       const appWrap = document.createElement('div');
       appWrap.className = 'tree-children';
-      if (!guestApps.length) {
-        const emptyApp = document.createElement('p');
-        emptyApp.className = 'tree-empty';
-        emptyApp.textContent = 'No app assigned';
-        appWrap.appendChild(emptyApp);
-      } else {
+      if (guestApps.length) {
         guestApps.forEach((app) => {
           const appLane = document.createElement('div');
           appLane.className = 'tree-lane nested';
@@ -1598,8 +1586,8 @@ function buildInfrastructureTree() {
       const lane = document.createElement('div');
       lane.className = 'tree-lane';
       lane.appendChild(treeChip(host));
-      const hostMeta = infraMeta(host);
-      if (hostMeta) lane.appendChild(hostMeta);
+      const hostIp = treeIpMeta(host);
+      if (hostIp) lane.appendChild(hostIp);
       appendGuestTree(lane, host.id);
       allHardware.appendChild(lane);
     });
