@@ -58,7 +58,7 @@ body::before {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 20vh;
+  height: 30vh;
   background: var(--bg-bottom);
   z-index: -2;
 }
@@ -68,10 +68,27 @@ body::after {
   position: fixed;
   left: -6%;
   right: -6%;
-  bottom: calc(20vh - clamp(58px, 9vh, 110px));
-  height: clamp(84px, 13vh, 150px);
+  bottom: calc(30vh - clamp(56px, 8vh, 100px));
+  height: clamp(92px, 13vh, 155px);
   background: var(--wave);
-  border-radius: 100% 100% 0 0 / 100% 100% 0 0;
+  clip-path: polygon(
+    0% 64%,
+    8% 58%,
+    16% 66%,
+    24% 56%,
+    32% 65%,
+    40% 57%,
+    48% 67%,
+    56% 56%,
+    64% 65%,
+    72% 58%,
+    80% 66%,
+    88% 57%,
+    96% 64%,
+    100% 62%,
+    100% 100%,
+    0% 100%
+  );
   z-index: -1;
   pointer-events: none;
 }
