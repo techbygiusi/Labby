@@ -172,13 +172,12 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .icon-btn.delete-btn { color: var(--danger); border-color: var(--danger); }
 
 .card-title { margin: 0; font-size: 0.82rem; color: #1f2330; }
-.card-desc, .card-id, .card-links, .card-ip, .card-app, .card-specs, .card-network, .card-hosting, .card-notes {
+.card-desc, .card-links, .card-ip, .card-app, .card-specs, .card-network, .card-hosting, .card-notes {
   margin: 0.12rem 0;
   font: 600 0.69rem/1.22 'Space Mono', monospace;
   color: #2d2f36;
 }
 :root[data-theme='dark'] .card-desc,
-:root[data-theme='dark'] .card-id,
 :root[data-theme='dark'] .card-links,
 :root[data-theme='dark'] .card-ip,
 :root[data-theme='dark'] .card-app,
