@@ -15,6 +15,9 @@
   --blue: #b8d9ff;
   --danger: #d84b4b;
   --shadow: 0 14px 28px rgba(22, 25, 36, 0.14);
+  --scroll-track: #e7dfd1;
+  --scroll-thumb: #b49df0;
+  --scroll-thumb-hover: #9b7cea;
   --app-pad: clamp(10px, 1.1vw, 20px);
   --space-1: 0.3rem;
   --space-2: 0.5rem;
@@ -37,6 +40,9 @@
   --blue: #384b82;
   --danger: #ff8f9f;
   --shadow: 0 16px 34px rgba(2, 6, 17, 0.62);
+  --scroll-track: #1d2743;
+  --scroll-thumb: #7f96df;
+  --scroll-thumb-hover: #9db2f7;
 }
 
 * { box-sizing: border-box; }
@@ -58,7 +64,7 @@ body::before {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 30vh;
+  height: 20vh;
   background: var(--bg-bottom);
   z-index: -2;
 }
@@ -66,26 +72,63 @@ body::before {
 body::after {
   content: '';
   position: fixed;
-  left: -6%;
-  right: -6%;
-  bottom: calc(30vh - clamp(56px, 8vh, 100px));
-  height: clamp(92px, 13vh, 155px);
+  left: 0;
+  right: 0;
+  bottom: calc(20vh - clamp(54px, 7.5vh, 96px));
+  height: clamp(96px, 14vh, 165px);
   background: var(--wave);
   clip-path: polygon(
-    0% 64%,
-    8% 58%,
-    16% 66%,
-    24% 56%,
-    32% 65%,
-    40% 57%,
-    48% 67%,
-    56% 56%,
-    64% 65%,
-    72% 58%,
-    80% 66%,
-    88% 57%,
-    96% 64%,
-    100% 62%,
+    0% 61.1%,
+    2% 62.6%,
+    4% 64.0%,
+    6% 65.1%,
+    8% 66.0%,
+    10% 66.7%,
+    12% 67.0%,
+    14% 67.0%,
+    16% 66.6%,
+    18% 66.0%,
+    20% 65.1%,
+    22% 63.9%,
+    24% 62.5%,
+    26% 61.0%,
+    28% 59.4%,
+    30% 57.7%,
+    32% 56.0%,
+    34% 54.4%,
+    36% 52.9%,
+    38% 51.6%,
+    40% 50.5%,
+    42% 49.7%,
+    44% 49.2%,
+    46% 49.0%,
+    48% 49.1%,
+    50% 49.5%,
+    52% 50.3%,
+    54% 51.3%,
+    56% 52.5%,
+    58% 53.9%,
+    60% 55.5%,
+    62% 57.2%,
+    64% 58.9%,
+    66% 60.5%,
+    68% 62.1%,
+    70% 63.5%,
+    72% 64.8%,
+    74% 65.8%,
+    76% 66.5%,
+    78% 66.9%,
+    80% 67.0%,
+    82% 66.8%,
+    84% 66.2%,
+    86% 65.4%,
+    88% 64.3%,
+    90% 63.0%,
+    92% 61.5%,
+    94% 59.9%,
+    96% 58.2%,
+    98% 56.6%,
+    100% 54.9%,
     100% 100%,
     0% 100%
   );
@@ -442,7 +485,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--line) 70%, transparent) color-mix(in srgb, var(--panel) 70%, transparent);
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
 }
 
 #resource-form::-webkit-scrollbar,
@@ -457,7 +500,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .boards::-webkit-scrollbar-track,
 .tree-content::-webkit-scrollbar-track,
 .tree-dialog::-webkit-scrollbar-track {
-  background: color-mix(in srgb, var(--panel) 80%, transparent);
+  background: var(--scroll-track);
   border-radius: 999px;
 }
 
@@ -465,16 +508,16 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .boards::-webkit-scrollbar-thumb,
 .tree-content::-webkit-scrollbar-thumb,
 .tree-dialog::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--line) 72%, transparent);
+  background: var(--scroll-thumb);
   border-radius: 999px;
-  border: 2px solid color-mix(in srgb, var(--panel) 80%, transparent);
+  border: 2px solid var(--scroll-track);
 }
 
 #resource-form::-webkit-scrollbar-thumb:hover,
 .boards::-webkit-scrollbar-thumb:hover,
 .tree-content::-webkit-scrollbar-thumb:hover,
 .tree-dialog::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--line) 85%, transparent);
+  background: var(--scroll-thumb-hover);
 }
 
 
