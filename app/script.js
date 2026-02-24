@@ -80,6 +80,8 @@ let selectedNetworkColor = networkPalette[0];
 let items = sanitizeItems(loadItems());
 let toastTimer = null;
 let treeViewMode = 'tree';
+let lastTypeSelection = typeSelect.value;
+let lastHardwareKindSelection = hardwareKindSelect.value;
 
 cleanupDuplicateIds(['symbol-wrap', 'hardware-kind-wrap', 'manufacturer-wrap', 'os-wrap', 'symbol', 'hardware-kind', 'manufacturer', 'os']);
 cleanupDuplicateFieldLabels();
@@ -786,11 +788,15 @@ function applyTypeVisibility() {
   gatewayInput.required = isNetwork;
   switchPortsInput.required = isSwitch;
 
-  symbolInput.placeholder = `e.g. ${defaultSymbol(type, hardwareKind)}`;
+  const nextDefaultSymbol = defaultSymbol(type, hardwareKind);
+  const previousDefaultSymbol = defaultSymbol(lastTypeSelection, lastHardwareKindSelection);
+  symbolInput.placeholder = `e.g. ${nextDefaultSymbol}`;
   updateStorageFieldLabels(hardwareKind);
-  if (!editingId && !symbolInput.value.trim()) {
-    symbolInput.value = defaultSymbol(type, hardwareKind);
+  if (!editingId && (!symbolInput.value.trim() || symbolInput.value === previousDefaultSymbol)) {
+    symbolInput.value = nextDefaultSymbol;
   }
+  lastTypeSelection = type;
+  lastHardwareKindSelection = hardwareKind;
 
   refreshHardwareConnectionOptions();
 }
@@ -844,27 +850,65 @@ function applyFilters(list) {
 }
 
 function cardNode(item) {
-  const node = template.content.firstElementChild.cloneNode(true);
+  const node = createCardShell();
   node.dataset.type = item.type;
 
   const border = networkBorderColor(item);
   if (border) node.style.borderColor = border;
 
-  node.querySelector('.card-title').textContent = item.name;
-  node.querySelector('.card-desc').textContent = item.description || 'No description';
-  node.querySelector('.card-notes').textContent = item.notes ? `Notes: ${item.notes}` : '';
-  node.querySelector('.card-ip').textContent = item.ip ? `IP: ${item.ip}` : '';
-  node.querySelector('.card-app').textContent = item.type === 'app' ? appDetails(item) : '';
-  node.querySelector('.card-specs').textContent = hardwareDetailsLabel(item) || specsLabel(item);
-  node.querySelector('.card-network').textContent = item.type === 'network' ? `Subnet: ${item.subnet} | Gateway: ${item.gateway}` : '';
-  node.querySelector('.card-hosting').textContent = hostingLabel(item);
-   node.querySelector('.card-id').textContent = `ID: ${item.id}`;
-  node.querySelector('.card-links').textContent = connectionLabel(item);
+  setCardText(node, '.card-title', item.name);
+  setCardText(node, '.card-desc', item.description || 'No description');
+  setCardText(node, '.card-notes', item.notes ? `Notes: ${item.notes}` : '');
+  setCardText(node, '.card-ip', item.ip ? `IP: ${item.ip}` : '');
+  setCardText(node, '.card-app', item.type === 'app' ? appDetails(item) : '');
+  setCardText(node, '.card-specs', hardwareDetailsLabel(item) || specsLabel(item));
+  setCardText(node, '.card-network', item.type === 'network' ? `Subnet: ${item.subnet} | Gateway: ${item.gateway}` : '');
+  setCardText(node, '.card-hosting', hostingLabel(item));
+  setCardText(node, '.card-links', connectionLabel(item));
 
-  node.querySelector('.type-badge').className = `type-badge ${item.type}`;
-  node.querySelector('.edit-btn').addEventListener('click', () => startEditing(item.id));
-  node.querySelector('.delete-btn').addEventListener('click', () => removeItem(item.id));
+  const badge = node.querySelector('.type-badge');
+  if (badge) badge.className = `type-badge ${item.type}`;
+
+  const editButton = node.querySelector('.edit-btn');
+  if (editButton) editButton.addEventListener('click', () => startEditing(item.id));
+
+  const deleteButton = node.querySelector('.delete-btn');
+  if (deleteButton) deleteButton.addEventListener('click', () => removeItem(item.id));
   return node;
+}
+
+function createCardShell() {
+  const shell = template?.content?.firstElementChild;
+  if (shell) return shell.cloneNode(true);
+
+  const fallback = document.createElement('article');
+  fallback.className = 'card';
+  fallback.innerHTML = `
+    <div class="card-head">
+      <div class="title-wrap">
+        <span class="type-badge"></span>
+        <h3 class="card-title"></h3>
+      </div>
+      <div class="card-controls">
+        <button class="icon-btn edit-btn" type="button">Edit</button>
+        <button class="icon-btn delete-btn" type="button">Delete</button>
+      </div>
+    </div>
+    <p class="card-desc"></p>
+    <p class="card-notes"></p>
+    <p class="card-ip"></p>
+    <p class="card-app"></p>
+    <p class="card-specs"></p>
+    <p class="card-network"></p>
+    <p class="card-hosting"></p>
+    <p class="card-links"></p>
+  `;
+  return fallback;
+}
+
+function setCardText(node, selector, value) {
+  const target = node.querySelector(selector);
+  if (target) target.textContent = value || '';
 }
 
 function appDetails(item) {
@@ -1139,8 +1183,8 @@ function buildGraphView() {
 
   const viewportWidth = Math.max(760, treeContent.clientWidth - 30);
   const viewportHeight = Math.max(460, treeContent.clientHeight - 34);
-  const minWidthForItems = Math.max(860, graphItems.length * 110);
-  const minHeightForItems = Math.max(620, Math.ceil(graphItems.length / 6) * 260);
+  const minWidthForItems = Math.max(680, graphItems.length * 84);
+  const minHeightForItems = Math.max(460, Math.ceil(graphItems.length / 8) * 180);
   const width = Math.max(viewportWidth, minWidthForItems);
   const height = Math.max(viewportHeight, minHeightForItems);
   canvas.style.setProperty('--graph-width', `${width}px`);
@@ -1206,7 +1250,7 @@ function buildGraphView() {
 
   const rawX = new Map();
   let cursor = 0;
-  const horizontalStep = 145;
+  const horizontalStep = 108;
 
   function assignX(nodeId, trail = new Set()) {
     if (rawX.has(nodeId)) return rawX.get(nodeId);
@@ -1267,15 +1311,15 @@ function buildGraphView() {
     const minRawX = Math.min(...allRawX);
     const maxRawX = Math.max(...allRawX);
     const rawSpan = Math.max(1, maxRawX - minRawX);
-    const horizontalPadding = 70;
+    const horizontalPadding = 46;
     const usableWidth = Math.max(240, width - horizontalPadding * 2);
     const compress = rawSpan > usableWidth ? usableWidth / rawSpan : 1;
     const finalSpan = rawSpan * compress;
     const startX = (width - finalSpan) / 2;
 
-    const topPadding = 52;
+    const topPadding = 44;
     const maxDepth = Math.max(1, Math.max(...depthValues));
-    const layerGap = Math.max(64, Math.round((height - topPadding - 44) / maxDepth));
+    const layerGap = Math.max(54, Math.round((height - topPadding - 30) / maxDepth));
 
     graphItems.forEach((item) => {
       const x = startX + (rawX.get(item.id) - minRawX) * compress;
@@ -1535,34 +1579,78 @@ function buildInfrastructureTree() {
   const lxcs = items.filter((item) => item.type === 'lxc');
   const apps = items.filter((item) => item.type === 'app');
 
-  function appendGuestTree(targetWrap, hostId) {
-    const guestsWrap = document.createElement('div');
-    guestsWrap.className = 'tree-children';
-    const guests = [...vms, ...lxcs].filter((guest) => guest.hostedOn === hostId);
+  const kindOrder = ['router-gateway', 'switch', 'hypervisor', 'server', 'nas', 'backup', 'pc'];
+  const groupedHardware = kindOrder
+    .map((kind) => ({
+      kind,
+      hosts: hardware
+        .filter((host) => (host.hardwareKind || 'server') === kind)
+        .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })),
+    }))
+    .filter((group) => group.hosts.length);
 
-    if (!guests.length) {
-      const none = document.createElement('p');
-      none.className = 'tree-empty';
-      none.textContent = 'No VMs/LXCs on this hardware';
-      guestsWrap.appendChild(none);
-    }
+  groupedHardware.forEach((group) => {
+    const groupBlock = document.createElement('div');
+    groupBlock.className = 'tree-subgroup';
 
-    guests.forEach((guest) => {
-      const guestLane = document.createElement('div');
-      guestLane.className = 'tree-lane nested';
-      guestLane.appendChild(treeChip(guest));
-      const guestIp = treeIpMeta(guest);
-      if (guestIp) guestLane.appendChild(guestIp);
+    const groupHead = document.createElement('div');
+    groupHead.className = 'tree-summary tree-group-head';
+    groupHead.textContent = `${hardwareTypeLabel(group.kind)} (${group.hosts.length})`;
+    groupBlock.appendChild(groupHead);
 
-      const guestApps = apps.filter((app) => app.appHostedOn === guest.id);
-      const appWrap = document.createElement('div');
-      appWrap.className = 'tree-children';
-      if (!guestApps.length) {
-        const emptyApp = document.createElement('p');
-        emptyApp.className = 'tree-empty';
-        emptyApp.textContent = 'No app assigned';
-        appWrap.appendChild(emptyApp);
-      } else {
+    const groupBody = document.createElement('div');
+    groupBody.className = 'tree-children';
+
+    group.hosts.forEach((host) => {
+      const hostGuests = [...vms, ...lxcs].filter((guest) => guest.hostedOn === host.id);
+
+      const hostBlock = document.createElement('details');
+      hostBlock.className = 'tree-collapsible tree-host';
+      hostBlock.open = hostGuests.length <= 2;
+
+      const hostSummary = document.createElement('summary');
+      hostSummary.className = 'tree-summary tree-summary-host';
+      hostSummary.appendChild(treeChip(host));
+      const hostIp = treeIpMeta(host);
+      if (hostIp) hostSummary.appendChild(hostIp);
+      const guestCount = document.createElement('span');
+      guestCount.className = 'tree-count';
+      guestCount.textContent = `${hostGuests.length} guest${hostGuests.length === 1 ? '' : 's'}`;
+      hostSummary.appendChild(guestCount);
+      hostBlock.appendChild(hostSummary);
+
+      const hostChildren = document.createElement('div');
+      hostChildren.className = 'tree-children tree-layer-host';
+
+      hostGuests.forEach((guest) => {
+        const guestApps = apps.filter((app) => app.appHostedOn === guest.id);
+
+        if (!guestApps.length) {
+          const guestLane = document.createElement('div');
+          guestLane.className = 'tree-lane nested';
+          guestLane.appendChild(treeChip(guest));
+          const guestIp = treeIpMeta(guest);
+          if (guestIp) guestLane.appendChild(guestIp);
+          hostChildren.appendChild(guestLane);
+          return;
+        }
+
+        const guestBlock = document.createElement('details');
+        guestBlock.className = 'tree-collapsible tree-guest';
+
+        const guestSummary = document.createElement('summary');
+        guestSummary.className = 'tree-summary tree-summary-guest';
+        guestSummary.appendChild(treeChip(guest));
+        const guestIp = treeIpMeta(guest);
+        if (guestIp) guestSummary.appendChild(guestIp);
+        const appCount = document.createElement('span');
+        appCount.className = 'tree-count';
+        appCount.textContent = `${guestApps.length} app${guestApps.length === 1 ? '' : 's'}`;
+        guestSummary.appendChild(appCount);
+        guestBlock.appendChild(guestSummary);
+
+        const appWrap = document.createElement('div');
+        appWrap.className = 'tree-children tree-layer-guest';
         guestApps.forEach((app) => {
           const appLane = document.createElement('div');
           appLane.className = 'tree-lane nested';
@@ -1573,63 +1661,56 @@ function buildInfrastructureTree() {
           if (appLink) appLane.appendChild(appLink);
           appWrap.appendChild(appLane);
         });
-      }
-      guestLane.appendChild(appWrap);
-      guestsWrap.appendChild(guestLane);
+
+        guestBlock.appendChild(appWrap);
+        hostChildren.appendChild(guestBlock);
+      });
+
+      hostBlock.appendChild(hostChildren);
+      groupBody.appendChild(hostBlock);
     });
 
-    targetWrap.appendChild(guestsWrap);
-  }
-
-
-  if (hardware.length) {
-    const allHardware = document.createElement('div');
-    allHardware.className = 'tree-subgroup';
-    allHardware.innerHTML = '<p class="tree-subtitle">All Hardware</p>';
-
-    const kindOrder = { 'router-gateway': 0, switch: 1 };
-    const sortedHardware = [...hardware].sort((a, b) => {
-      const aRank = kindOrder[a.hardwareKind] ?? 2;
-      const bRank = kindOrder[b.hardwareKind] ?? 2;
-      if (aRank !== bRank) return aRank - bRank;
-      return (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' });
-    });
-
-    sortedHardware.forEach((host) => {
-      const lane = document.createElement('div');
-      lane.className = 'tree-lane';
-      lane.appendChild(treeChip(host));
-      const hostMeta = infraMeta(host);
-      if (hostMeta) lane.appendChild(hostMeta);
-      appendGuestTree(lane, host.id);
-      allHardware.appendChild(lane);
-    });
-
-    body.appendChild(allHardware);
-  }
+    groupBlock.appendChild(groupBody);
+    body.appendChild(groupBlock);
+  });
 
 
   const orphanGuests = [...vms, ...lxcs].filter((guest) => !guest.hostedOn);
   if (orphanGuests.length) {
-    const orphan = document.createElement('div');
-    orphan.className = 'tree-subgroup';
-    orphan.innerHTML = '<p class="tree-subtitle">Unassigned VMs/LXCs</p>';
+    const orphan = document.createElement('details');
+    orphan.className = 'tree-subgroup tree-collapsible';
+
+    const title = document.createElement('summary');
+    title.className = 'tree-summary';
+    title.textContent = `Unassigned VMs/LXCs (${orphanGuests.length})`;
+    orphan.appendChild(title);
+
+    const orphanBody = document.createElement('div');
+    orphanBody.className = 'tree-children';
     orphanGuests.forEach((guest) => {
       const row = document.createElement('div');
       row.className = 'tree-lane';
       row.appendChild(treeChip(guest));
       const guestIp = treeIpMeta(guest);
       if (guestIp) row.appendChild(guestIp);
-      orphan.appendChild(row);
+      orphanBody.appendChild(row);
     });
+    orphan.appendChild(orphanBody);
     body.appendChild(orphan);
   }
 
   const orphanApps = apps.filter((app) => !app.appHostedOn);
   if (orphanApps.length) {
-    const orphan = document.createElement('div');
-    orphan.className = 'tree-subgroup';
-    orphan.innerHTML = '<p class="tree-subtitle">Unassigned Apps</p>';
+    const orphan = document.createElement('details');
+    orphan.className = 'tree-subgroup tree-collapsible';
+
+    const title = document.createElement('summary');
+    title.className = 'tree-summary';
+    title.textContent = `Unassigned Apps (${orphanApps.length})`;
+    orphan.appendChild(title);
+
+    const orphanBody = document.createElement('div');
+    orphanBody.className = 'tree-children';
     orphanApps.forEach((app) => {
       const row = document.createElement('div');
       row.className = 'tree-lane';
@@ -1638,8 +1719,9 @@ function buildInfrastructureTree() {
       if (appIp) row.appendChild(appIp);
       const appLink = appTreeLink(app);
       if (appLink) row.appendChild(appLink);
-      orphan.appendChild(row);
+      orphanBody.appendChild(row);
     });
+    orphan.appendChild(orphanBody);
     body.appendChild(orphan);
   }
 
