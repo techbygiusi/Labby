@@ -12,8 +12,9 @@ Track your infrastructure, visualize relationships, and keep everything in one p
 <img width="3794" height="1878" alt="image" src="https://github.com/user-attachments/assets/71ebb5a7-9081-4685-b406-8819cfd0d7c5" />
 
 ### Tree / Graph Relationship View
-<img width="1562" height="1331" alt="image" src="https://github.com/user-attachments/assets/58caccb7-63f2-4591-ada6-4ad295f31777" />
-<img width="1552" height="1321" alt="image" src="https://github.com/user-attachments/assets/4f52bb4e-839e-4ec2-a4a5-f508c910f1f0" />
+<img width="2989" height="1686" alt="image" src="https://github.com/user-attachments/assets/689b37a6-3227-477f-98f8-4b74d4e27d81" />
+<img width="2981" height="1686" alt="image" src="https://github.com/user-attachments/assets/88a1fbac-3e80-403d-8329-ef4fd8ff61d7" />
+
 
 ---
 
