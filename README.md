@@ -26,7 +26,6 @@ Track your infrastructure, visualize relationships, and keep everything in one p
   - Apps
   - Networks
 - 🌐 **Topology mapping** with relationship Tree and Graph views
-- 🎯 **Quick add/edit/delete workflow**
 - 🎨 **Light & Dark mode**
 - 🧠 **Automatic network matching** by IP/CIDR
 - 🧾 **Rich metadata support**
@@ -144,6 +143,7 @@ docker-compose.yml
 - Data is local to your browser by default.
 - Clearing browser storage removes local data if not exported.
 - For shared/team usage, run behind your own reverse proxy + auth.
+- To find some nice icons for your components i recommend using https://semo.lol/
 
 ---
 
