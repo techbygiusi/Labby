@@ -47,10 +47,11 @@
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
+
 body {
   margin: 0;
   font-family: Inter, system-ui, sans-serif;
-  background: var(--bg);
+  background: var(--bg-bottom);
   color: var(--text);
   height: 100vh;
   overflow: hidden;
@@ -61,76 +62,65 @@ body {
 body::before {
   content: '';
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 20vh;
-  background: var(--bg-bottom);
-  z-index: -2;
-}
-
-body::after {
-  content: '';
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: calc(20vh - clamp(54px, 7.5vh, 96px));
-  height: clamp(96px, 14vh, 165px);
-  background: var(--wave);
+  inset: 0;
+  background: var(--bg);
+  --split: 20%;
+  --cut: calc(100% - var(--split));
+  --amp: 8%;
   clip-path: polygon(
-    0% 61.1%,
-    2% 62.6%,
-    4% 64.0%,
-    6% 65.1%,
-    8% 66.0%,
-    10% 66.7%,
-    12% 67.0%,
-    14% 67.0%,
-    16% 66.6%,
-    18% 66.0%,
-    20% 65.1%,
-    22% 63.9%,
-    24% 62.5%,
-    26% 61.0%,
-    28% 59.4%,
-    30% 57.7%,
-    32% 56.0%,
-    34% 54.4%,
-    36% 52.9%,
-    38% 51.6%,
-    40% 50.5%,
-    42% 49.7%,
-    44% 49.2%,
-    46% 49.0%,
-    48% 49.1%,
-    50% 49.5%,
-    52% 50.3%,
-    54% 51.3%,
-    56% 52.5%,
-    58% 53.9%,
-    60% 55.5%,
-    62% 57.2%,
-    64% 58.9%,
-    66% 60.5%,
-    68% 62.1%,
-    70% 63.5%,
-    72% 64.8%,
-    74% 65.8%,
-    76% 66.5%,
-    78% 66.9%,
-    80% 67.0%,
-    82% 66.8%,
-    84% 66.2%,
-    86% 65.4%,
-    88% 64.3%,
-    90% 63.0%,
-    92% 61.5%,
-    94% 59.9%,
-    96% 58.2%,
-    98% 56.6%,
-    100% 54.9%,
-    100% 100%,
-    0% 100%
+    0% 0%,
+    100% 0%,
+    100% calc(var(--cut) + var(--amp) * 0.45),
+    98% calc(var(--cut) + var(--amp) * 0.25),
+    96% calc(var(--cut) + var(--amp) * 0.10),
+    94% calc(var(--cut) + var(--amp) * -0.05),
+    92% calc(var(--cut) + var(--amp) * -0.20),
+    90% calc(var(--cut) + var(--amp) * -0.33),
+    88% calc(var(--cut) + var(--amp) * -0.45),
+    86% calc(var(--cut) + var(--amp) * -0.52),
+    84% calc(var(--cut) + var(--amp) * -0.55),
+    82% calc(var(--cut) + var(--amp) * -0.52),
+    80% calc(var(--cut) + var(--amp) * -0.45),
+    78% calc(var(--cut) + var(--amp) * -0.33),
+    76% calc(var(--cut) + var(--amp) * -0.20),
+    74% calc(var(--cut) + var(--amp) * -0.05),
+    72% calc(var(--cut) + var(--amp) * 0.10),
+    70% calc(var(--cut) + var(--amp) * 0.25),
+    68% calc(var(--cut) + var(--amp) * 0.38),
+    66% calc(var(--cut) + var(--amp) * 0.48),
+    64% calc(var(--cut) + var(--amp) * 0.54),
+    62% calc(var(--cut) + var(--amp) * 0.55),
+    60% calc(var(--cut) + var(--amp) * 0.52),
+    58% calc(var(--cut) + var(--amp) * 0.44),
+    56% calc(var(--cut) + var(--amp) * 0.32),
+    54% calc(var(--cut) + var(--amp) * 0.18),
+    52% calc(var(--cut) + var(--amp) * 0.02),
+    50% calc(var(--cut) + var(--amp) * -0.12),
+    48% calc(var(--cut) + var(--amp) * -0.26),
+    46% calc(var(--cut) + var(--amp) * -0.38),
+    44% calc(var(--cut) + var(--amp) * -0.48),
+    42% calc(var(--cut) + var(--amp) * -0.54),
+    40% calc(var(--cut) + var(--amp) * -0.55),
+    38% calc(var(--cut) + var(--amp) * -0.52),
+    36% calc(var(--cut) + var(--amp) * -0.44),
+    34% calc(var(--cut) + var(--amp) * -0.32),
+    32% calc(var(--cut) + var(--amp) * -0.18),
+    30% calc(var(--cut) + var(--amp) * -0.02),
+    28% calc(var(--cut) + var(--amp) * 0.12),
+    26% calc(var(--cut) + var(--amp) * 0.26),
+    24% calc(var(--cut) + var(--amp) * 0.38),
+    22% calc(var(--cut) + var(--amp) * 0.48),
+    20% calc(var(--cut) + var(--amp) * 0.54),
+    18% calc(var(--cut) + var(--amp) * 0.55),
+    16% calc(var(--cut) + var(--amp) * 0.52),
+    14% calc(var(--cut) + var(--amp) * 0.45),
+    12% calc(var(--cut) + var(--amp) * 0.33),
+    10% calc(var(--cut) + var(--amp) * 0.20),
+    8%  calc(var(--cut) + var(--amp) * 0.05),
+    6%  calc(var(--cut) + var(--amp) * -0.10),
+    4%  calc(var(--cut) + var(--amp) * -0.25),
+    2%  calc(var(--cut) + var(--amp) * -0.40),
+    0%  calc(var(--cut) + var(--amp) * -0.55)
   );
   z-index: -1;
   pointer-events: none;
@@ -519,7 +509,6 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .tree-dialog::-webkit-scrollbar-thumb:hover {
   background: var(--scroll-thumb-hover);
 }
-
 
 @media (max-width: 1100px) {
   body { height: auto; min-height: 100vh; overflow: auto; }
