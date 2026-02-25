@@ -15,9 +15,9 @@
   --blue: #b8d9ff;
   --danger: #d84b4b;
   --shadow: 0 14px 28px rgba(22, 25, 36, 0.14);
-  --scroll-track: #e6e8ee;
-  --scroll-thumb: #aab0bf;
-  --scroll-thumb-hover: #8f96a8;
+  --scroll-track: #e3d5ca;
+  --scroll-thumb: #d6ccc2;
+  --scroll-thumb-hover: #5e503f;
   --app-pad: clamp(10px, 1.1vw, 20px);
   --space-1: 0.3rem;
   --space-2: 0.5rem;
