@@ -473,6 +473,44 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   background: var(--scroll-thumb-hover);
 }
 
+.github {
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  z-index: 20;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  padding: 0.5rem 0.7rem;
+  border: 3px solid var(--line);
+  border-radius: 14px;
+
+  background: color-mix(in srgb, var(--phone) 92%, white);
+  color: var(--text);
+  text-decoration: none;
+
+  font: 700 0.8rem/1.2 'Space Mono', monospace;
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.2);
+
+  transition: transform 140ms ease, box-shadow 180ms ease, opacity 160ms ease;
+}
+
+.github svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.github:hover { transform: translateY(-1px); }
+.github:active { transform: translateY(1px) scale(0.99); }
+
+.github:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--line) 68%, white);
+  outline-offset: 2px;
+}
+
 @media (max-width: 1100px) {
   body { height: auto; min-height: 100vh; overflow: auto; }
   .topbar,
@@ -542,6 +580,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   .card-head { flex-wrap: wrap; }
   .card-controls { width: 100%; }
   .card-controls .icon-btn { flex: 1; }
+  .github-corner { left: 10px; bottom: 64px; }
 }
 
 :root[data-theme='dark'] .column { background: var(--panel); }
