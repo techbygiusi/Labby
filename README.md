@@ -6,9 +6,9 @@ Labby is a lightweight, browser-based homelab inventory and topology tool.
 Track your infrastructure, visualize relationships, and keep everything in one place.
 
 <p align="center">
-
-[![Use it now](https://img.shields.io/badge/🚀%20Use%20it%20now-Open%20Labby-1F1F1F?style=for-the-badge&labelColor=F6F0E6)](https://www.my-labby.com/)
-
+  <a href="https://www.my-labby.com/" target="_blank" rel="noopener noreferrer">
+    <img alt="Use it now" src="https://img.shields.io/badge/%F0%9F%9A%80%20Use%20it%20now-Open%20Labby-1F1F1F?style=for-the-badge&labelColor=F6F0E6">
+  </a>
 </p>
 
 > **P.S.:** I’m looking for someone to design a nice logo for the application. If you’re interested (or know someone), please reach out.
