@@ -4,6 +4,7 @@ Labby is a lightweight, browser-based homelab inventory and topology tool.
 Track your infrastructure, visualize relationships, and keep everything in one place.
 
 > **Disclaimer:** Labby is a vibe-coded project built mainly with Codex from OpenAI.
+
 > **P.S.:** I’m looking for someone to design a nice logo for the application — if you’re interested (or know someone), please reach out.
 
 ---
