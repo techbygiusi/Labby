@@ -1,6 +1,6 @@
 > **Disclaimer:** Labby is a vibe-coded project built mainly with Codex from OpenAI.
 
-# 🧪 Labby — Map Your Homelab
+# 🧪 Labby - Map Your Homelab
 
 Labby is a lightweight, browser-based homelab inventory and topology tool.
 Track your infrastructure, visualize relationships, and keep everything in one place.
