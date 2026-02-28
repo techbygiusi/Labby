@@ -127,7 +127,7 @@ Open: [http://localhost:9090](http://localhost:9090)
 5. 🌳 Open **Tree View** and switch to **Graph** for topology checks.
 6. 💾 Use **Export Config** to back up, **Import Config** to restore.
 
-> **P.S.:** Want your **Graph View** to look extra clean? Try assigning custom icons per device (servers, switches, routers, VMs, apps). If you’re hunting for matching icons / emojis, I recommend using `https://semo.lol/`.
+> **P.S.:** Want your **Graph View** to look extra clean? Try assigning custom icons per device (servers, switches, routers, VMs, apps). If you’re hunting for matching icons / emojis, I recommend using [semo.lol](https://semo.lol/).
 
 ---
 
