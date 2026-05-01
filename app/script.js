@@ -298,6 +298,47 @@ ipToggle.addEventListener('click', () => {
   ipDialog.showModal();
 });
 ipClose.addEventListener('click', () => ipDialog.close());
+const bottomNav = document.querySelector('.bottom-nav');
+const navAdd = document.getElementById('nav-add');
+const navIp = document.getElementById('nav-ip');
+const navTree = document.getElementById('nav-tree');
+const navConfig = document.getElementById('nav-config');
+
+function setActiveNav(id) {
+  document.querySelectorAll('.bottom-nav-item').forEach(btn => btn.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+}
+
+navAdd.addEventListener('click', () => {
+  setActiveNav('nav-add');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  document.getElementById('name').focus();
+});
+
+navIp.addEventListener('click', () => {
+  setActiveNav('nav-ip');
+  renderIPView();
+  ipDialog.showModal();
+});
+
+navTree.addEventListener('click', () => {
+  setActiveNav('nav-tree');
+  setTreeMode(treeViewMode);
+  treeDialog.showModal();
+});
+
+navConfig.addEventListener('click', () => {
+  setActiveNav('nav-config');
+  configDialog.showModal();
+});
+
+[ipDialog, treeDialog, configDialog].forEach(dialog => {
+  dialog.addEventListener('close', () => {
+    document.querySelectorAll('.bottom-nav-item').forEach(btn => btn.classList.remove('active'));
+  });
+});
+
 ipSearch.addEventListener('input', renderIPView);
 
 function extractIPs(item) {
