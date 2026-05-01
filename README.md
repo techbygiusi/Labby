@@ -1,7 +1,7 @@
 # 🧪 Labby - Next Gen | Map Your Homelab
 
 Labby is a lightweight homelab inventory and topology tool with persistent, browser-independent storage.
-Track your infrastructure, visualize relationships, and keep everything organized — accessible from any device.
+Track your infrastructure, visualize relationships, and keep everything organized.
 
 ---
 
