@@ -523,7 +523,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   #resource-form,
   .boards { min-height: auto; max-height: none; }
   .tree-toggle { bottom: max(12px, env(safe-area-inset-bottom)); right: max(12px, env(safe-area-inset-right)); }
-  .ip-toggle { bottom: max(12px, env(safe-area-inset-bottom)); right: 130px; }
+  .ip-toggle { bottom: max(12px, env(safe-area-inset-bottom)); right: 150px; }
 }
 
 @media (min-width: 2000px) {
@@ -577,7 +577,8 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 
 @media (max-width: 480px) {
   input, select, textarea { font-size: 16px; }
-  .tree-toggle { left: 10px; right: 10px; width: auto; text-align: center; }
+  .tree-toggle { left: 10px; right: 10px; width: auto; text-align: center; bottom: max(12px, env(safe-area-inset-bottom)); }
+  .ip-toggle { left: 10px; right: 10px; width: auto; text-align: center; bottom: calc(max(12px, env(safe-area-inset-bottom)) + 52px); }
   .card-head { flex-wrap: wrap; }
   .card-controls { width: 100%; }
   .card-controls .icon-btn { flex: 1; }
@@ -605,7 +606,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 
 .ip-toggle {
   position: fixed;
-  right: 140px;
+  right: 160px;
   bottom: 18px;
   z-index: 20;
   border: 3px solid var(--line);
