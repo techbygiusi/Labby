@@ -546,7 +546,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   .topbar-actions { width: 100%; justify-content: flex-start; }
   .topbar-actions .button { flex: 1; }
   h1 { font-size: 1.35rem; }
-  .phone-grid { padding: 0.4rem 0.55rem 5rem; gap: 0.8rem; }
+  .phone-grid { padding: 0.4rem 0.55rem 8rem; gap: 0.8rem; }
   .phone { border-width: 3px; border-radius: 24px; padding: 0.8rem; }
   .filters { grid-template-columns: 1fr; }
   .panel-head { flex-wrap: wrap; }
@@ -573,6 +573,8 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   .graph-info-panel { width: 100%; min-height: 0; max-height: none; height: auto; }
   .graph-node { width: 40px; height: 40px; font-size: 1.05rem; }
   .toast { width: calc(100vw - 20px); }
+  .tree-toggle { left: 10px; right: 10px; width: auto; text-align: center; bottom: max(12px, env(safe-area-inset-bottom)); }
+  .ip-toggle { left: 10px; right: 10px; width: auto; text-align: center; bottom: calc(max(12px, env(safe-area-inset-bottom)) + 56px); }
 }
 
 @media (max-width: 480px) {
