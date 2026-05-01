@@ -84,6 +84,15 @@
             Description
             <input id="description" type="text" placeholder="Short note" />
           </label>
+          <label>
+            Status
+            <select id="status">
+              <option value="">— Not set —</option>
+              <option value="online">🟢 Online</option>
+              <option value="offline">🔴 Offline</option>
+              <option value="maintenance">🟡 Maintenance</option>
+            </select>
+          </label>
           <label id="notes-wrap">
             Notes
             <textarea id="notes" rows="3" placeholder="Any details, credentials location, maintenance info..."></textarea>
@@ -364,9 +373,11 @@
           </div>
         </div>
         <p class="card-desc"></p>
+        <span class="card-status"></span>
         <p class="card-notes"></p>
         <p class="card-ip"></p>
         <p class="card-app"></p>
+        <div class="card-actions"></div>
         <p class="card-specs"></p>
         <p class="card-network"></p>
         <p class="card-hosting"></p>

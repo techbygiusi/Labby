@@ -53,6 +53,7 @@ const ipPortWrap = document.getElementById('ip-port-wrap');
 const webUrlInput = document.getElementById('web-url');
 const webUrlWrap = document.getElementById('web-url-wrap');
 const notesInput = document.getElementById('notes');
+const statusSelect = document.getElementById('status');
 const notesWrap = document.getElementById('notes-wrap');
 const subnetInput = document.getElementById('subnet');
 const gatewayInput = document.getElementById('gateway');
@@ -179,6 +180,7 @@ form.addEventListener('submit', async (event) => {
   const name = document.getElementById('name').value.trim();
   const description = document.getElementById('description').value.trim();
   const notes = notesInput.value.trim();
+  const status = statusSelect.value || '';
   const ip = ipInput.value.trim();
   const cpuCount = cpuCountSelect.value.trim();
   const ramModuleList = getRamModules();
@@ -211,6 +213,7 @@ form.addEventListener('submit', async (event) => {
     name,
     description,
     notes: supportsNotes(type) ? notes : '',
+    status: document.getElementById('status').value || '',
     ip: ['hardware', 'vm', 'lxc'].includes(type) ? ip : '',
     cpu: supportsComputeDetails(type) ? formatCpuLabel(type, cpuCount) : '',
     ram: supportsComputeDetails(type) ? formatRamLabel(ramModuleList) : '',
@@ -250,6 +253,8 @@ form.addEventListener('submit', async (event) => {
   await saveItems();
   showToast(wasEditing ? 'Resource updated.' : 'Resource added.');
   form.reset();
+  statusSelect.value = '';
+  statusSelect.value = '';
   symbolInput.value = defaultSymbol('hardware', 'server');
   hardwareKindSelect.value = 'server';
   resetDynamicHardwareFields();
@@ -297,10 +302,12 @@ if (ipSearch) ipSearch.addEventListener('input', renderIPView);
 
 function extractIPs(item) {
   const ips = [];
-  if (item.ip) ips.push({ addr: item.ip.split('/')[0].trim(), item });
+  if (item.ip) ips.push({ addr: item.ip.split('/')[0].trim(), port: null, item });
   if (item.type === 'app' && item.ipPort) {
-    const host = item.ipPort.split(':')[0].trim();
-    if (host) ips.push({ addr: host, item });
+    const parts = item.ipPort.split(':');
+    const host = parts[0].trim();
+    const port = parts[1] ? parts[1].trim() : null;
+    if (host) ips.push({ addr: host, port, item });
   }
   return ips;
 }
@@ -317,7 +324,12 @@ function buildIPRow(entry, query) {
   row.className = 'ip-row';
   const addr = document.createElement('span');
   addr.className = 'ip-row-addr';
-  addr.innerHTML = query ? highlightMatch(entry.addr, query) : entry.addr;
+  const addrText = entry.port ? `${entry.addr}:${entry.port}` : entry.addr;
+  const searchText = entry.addr + (entry.port ? ':' + entry.port : '');
+  addr.innerHTML = query ? highlightMatch(addrText, query) : addrText;
+  if (entry.port) {
+    addr.title = `Port: ${entry.port}`;
+  }
   const nameEl = document.createElement('span');
   nameEl.className = 'ip-row-name';
   nameEl.innerHTML = query ? highlightMatch(entry.item.name, query) : entry.item.name;
@@ -668,6 +680,7 @@ function sanitizeItems(raw) {
       os: item.os ? String(item.os) : '',
       symbol: item.symbol ? String(item.symbol) : defaultSymbol(item.type, item.hardwareKind),
       name: String(item.name),
+      status: ['online','offline','maintenance'].includes(item.status) ? item.status : '',
       description: item.description ? String(item.description) : '',
       notes: item.notes ? String(item.notes) : '',
       connections: Array.isArray(item.connections) ? [...new Set(item.connections.map(String))] : [],
@@ -962,12 +975,84 @@ function cardNode(item) {
   const badge = node.querySelector('.type-badge');
   if (badge) badge.className = `type-badge ${item.type}`;
 
+  const statusEl = node.querySelector('.card-status');
+  if (statusEl) {
+    const statusMap = { online: '🟢 Online', offline: '🔴 Offline', maintenance: '🟡 Maintenance' };
+    if (item.status && statusMap[item.status]) {
+      statusEl.textContent = statusMap[item.status];
+      statusEl.className = `card-status status-${item.status}`;
+    } else {
+      statusEl.textContent = '';
+      statusEl.className = 'card-status';
+    }
+  }
+
+  if (item.status === 'offline') node.classList.add('card-offline');
+  else if (item.status === 'maintenance') node.classList.add('card-maintenance');
+  else node.classList.remove('card-offline', 'card-maintenance');
+
+  const actionsEl = node.querySelector('.card-actions');
+  if (actionsEl) {
+    const actions = buildCardActions(item);
+    actions.forEach(el => actionsEl.appendChild(el));
+  }
+
   const editButton = node.querySelector('.edit-btn');
   if (editButton) editButton.addEventListener('click', () => isMobile() ? window.startEditingMobile(item.id) : startEditing(item.id));
 
   const deleteButton = node.querySelector('.delete-btn');
   if (deleteButton) deleteButton.addEventListener('click', () => removeItem(item.id));
   return node;
+}
+
+function buildCardActions(item) {
+  const els = [];
+
+  if (item.ip) {
+    els.push(makeCopyBtn(item.ip.split('/')[0], 'Copy IP'));
+  }
+
+  if (item.type === 'app' && item.ipPort) {
+    els.push(makeCopyBtn(item.ipPort, 'Copy IP:Port'));
+  }
+
+  if (item.type === 'app' && item.webUrl) {
+    const link = document.createElement('a');
+    link.href = item.webUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.className = 'card-action-link';
+    link.textContent = '🔗 Open';
+    link.title = item.webUrl;
+    els.push(link);
+
+    els.push(makeCopyBtn(item.webUrl, 'Copy URL'));
+  }
+
+  return els;
+}
+
+function makeCopyBtn(value, label) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'card-action-copy';
+  btn.textContent = '📋 ' + value;
+  btn.title = label;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(value).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.classList.remove('copied');
+      }, 1500);
+    }).catch(() => {
+      showToast('Could not copy to clipboard.', 'error');
+    });
+  });
+  return btn;
 }
 
 function createCardShell() {
@@ -988,9 +1073,11 @@ function createCardShell() {
       </div>
     </div>
     <p class="card-desc"></p>
+    <span class="card-status"></span>
     <p class="card-notes"></p>
     <p class="card-ip"></p>
     <p class="card-app"></p>
+    <div class="card-actions"></div>
     <p class="card-specs"></p>
     <p class="card-network"></p>
     <p class="card-hosting"></p>
@@ -1149,6 +1236,7 @@ function startEditing(id) {
   symbolInput.value = item.symbol || defaultSymbol(item.type, item.hardwareKind);
   document.getElementById('name').value = item.name;
   document.getElementById('description').value = item.description;
+  statusSelect.value = item.status || '';
   notesInput.value = item.notes || '';
   ipInput.value = item.ip || '';
   cpuCountSelect.value = String(item.cpuCount || inferCpuCount(item.cpu));
@@ -2158,7 +2246,7 @@ function renderIPInto(container, query) {
   const networks = items.filter(i => i.type === 'network');
   const allIPs = [];
   items.forEach(item => extractIPs(item).forEach(e => allIPs.push(e)));
-  const matched = query ? allIPs.filter(e => e.addr.includes(query) || e.item.name.toLowerCase().includes(query)) : allIPs;
+  const matched = query ? allIPs.filter(e => e.addr.includes(query) || (e.port && e.port.includes(query)) || e.item.name.toLowerCase().includes(query)) : allIPs;
 
   if (!matched.length) {
     const empty = document.createElement('p');
