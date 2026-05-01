@@ -42,7 +42,7 @@ Track your infrastructure, visualize relationships, and keep everything organize
 - 💾 NAS/Backup: Shares and RAID group tracking
 - 🟢 **Status field** per resource: Online / Offline / Maintenance — with colored badge and visual indicator on cards
 - 📋 **Copy-to-clipboard** for IPs and URLs directly on cards
-- 🔗 **Clickable web URLs** — open apps directly from their card
+- 🔗 **Clickable web URLs** open apps directly from their card
 
 ### IP View
 - 🌐 Dedicated IP View showing all used IP addresses
@@ -57,8 +57,8 @@ Track your infrastructure, visualize relationships, and keep everything organize
 - Add and Edit resources open as full-screen panels on mobile
 
 ### Config & Data
-- 📦 **Export / Import JSON** for backups and migration
-- 🗄️ Data stored server-side — survives container restarts via Docker volume
+- **Export / Import JSON** for backups and migration
+- Data stored server-side
 - Old localStorage exports can be imported directly
 
 ---
