@@ -251,6 +251,7 @@ form.addEventListener('submit', async (event) => {
   normalizeItems();
   await saveItems();
   showToast(wasEditing ? 'Resource updated.' : 'Resource added.');
+  if (isMobileLayout()) closeForm();
   form.reset();
   symbolInput.value = defaultSymbol('hardware', 'server');
   hardwareKindSelect.value = 'server';
@@ -264,6 +265,7 @@ form.addEventListener('submit', async (event) => {
 });
 
 cancelEditBtn.addEventListener('click', () => {
+  if (isMobileLayout()) closeForm();
   stopEditing();
   form.reset();
   symbolInput.value = defaultSymbol('hardware', 'server');
@@ -298,6 +300,45 @@ ipToggle.addEventListener('click', () => {
   ipDialog.showModal();
 });
 ipClose.addEventListener('click', () => ipDialog.close());
+
+const panelLeft = document.getElementById('panel-left');
+const phoneGrid = document.querySelector('.phone-grid');
+
+function openForm(title) {
+  panelLeft.setAttribute('data-title', title || 'Add Resource');
+  panelLeft.classList.add('panel-open');
+  phoneGrid.classList.add('form-open');
+  document.getElementById('nav-add').classList.add('active');
+  panelLeft.scrollTop = 0;
+}
+
+function closeForm() {
+  panelLeft.classList.remove('panel-open');
+  phoneGrid.classList.remove('form-open');
+  document.getElementById('nav-add').classList.remove('active');
+}
+
+function isMobileLayout() {
+  return window.innerWidth <= 1100;
+}
+
+
+
+const formCloseMobile = document.getElementById('form-close-mobile');
+formCloseMobile.addEventListener('click', () => {
+  stopEditing();
+  form.reset();
+  symbolInput.value = defaultSymbol('hardware', 'server');
+  hardwareKindSelect.value = 'server';
+  resetDynamicHardwareFields();
+  setMultiValues(routerSwitches, []);
+  setMultiValues(switchLinks, []);
+  setMultiValues(switchDeviceLinks, []);
+  setSelectedColor(networkPalette[0]);
+  applyTypeVisibility();
+  closeForm();
+});
+
 const bottomNav = document.querySelector('.bottom-nav');
 const navAdd = document.getElementById('nav-add');
 const navIp = document.getElementById('nav-ip');
@@ -311,9 +352,13 @@ function setActiveNav(id) {
 }
 
 navAdd.addEventListener('click', () => {
-  setActiveNav('nav-add');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  document.getElementById('name').focus();
+  if (isMobileLayout()) {
+    openForm();
+    setTimeout(() => document.getElementById('name').focus(), 50);
+  } else {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.getElementById('name').focus();
+  }
 });
 
 navIp.addEventListener('click', () => {
@@ -1300,7 +1345,8 @@ function startEditing(id) {
   if (supportsStorageGroups(item.type, item.hardwareKind) && item.nasRaids?.length) item.nasRaids.forEach((raid) => appendRaidRow(raid));
   else appendRaidRow();
 
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (isMobileLayout()) openForm('Edit: ' + item.name);
+  else window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function stopEditing() {

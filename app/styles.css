@@ -734,3 +734,114 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
     padding-bottom: calc(72px + max(0.5rem, env(safe-area-inset-bottom)));
   }
 }
+
+#panel-left {
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+@media (max-width: 1100px) {
+  #panel-left {
+    display: none;
+  }
+  #panel-left.panel-open {
+    display: flex;
+  }
+  .phone-grid.form-open {
+    grid-template-columns: 1fr;
+  }
+  .phone-grid.form-open .panel-center {
+    display: none;
+  }
+}
+
+.form-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.form-header h2 {
+  margin: 0;
+  flex: 1;
+}
+.form-back-btn {
+  display: none;
+}
+@media (max-width: 1100px) {
+  .form-back-btn {
+    display: inline-flex;
+  }
+}
+
+.desktop-form-title { display: block; }
+.form-close-mobile { display: none; }
+
+@media (max-width: 1100px) {
+  .desktop-form-title { display: none; }
+
+  #panel-left {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    border-radius: 0;
+    border: none;
+    overflow-y: auto;
+    padding: 1rem;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    background: var(--phone);
+    display: none;
+    flex-direction: column;
+  }
+
+  #panel-left.panel-open {
+    display: flex;
+  }
+
+  #panel-left::before {
+    content: attr(data-title);
+    display: block;
+    font: 700 1.1rem/1.3 'Space Mono', monospace;
+    margin-bottom: 1rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 2px solid var(--line);
+  }
+
+  .form-close-mobile {
+    display: block;
+    margin-top: auto;
+    position: sticky;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    width: 100%;
+    background: var(--panel);
+    border: 3px solid var(--line);
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+  }
+
+  .phone-grid.form-open .panel-center {
+    display: none !important;
+  }
+
+  #panel-left {
+    display: none;
+  }
+  #panel-left.panel-open {
+    display: flex;
+  }
+}
+
+.dialog-footer {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 2px solid var(--line);
+}
+.dialog-footer .button {
+  width: 100%;
+}
+
+.tree-dialog {
+  display: flex;
+  flex-direction: column;
+}

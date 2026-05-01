@@ -4,6 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Labby - Map Your Homelab</title>
+    <meta name="description" content="Labby is a lightweight homelab inventory and topology tool. Track hardware, VMs, LXCs, apps and networks — visualize relationships with tree and graph views." />
+    <meta name="keywords" content="homelab, network inventory, infrastructure map, proxmox, self-hosted, docker, topology, IP management" />
+    <meta name="author" content="TechByGiusi" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://my-labby.com/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://my-labby.com/" />
+    <meta property="og:title" content="Labby - Map Your Homelab" />
+    <meta property="og:description" content="Lightweight homelab inventory and topology tool. Track hardware, VMs, LXCs, apps and networks with persistent storage." />
+    <meta property="og:image" content="https://my-labby.com/logo.svg" />
+
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Labby - Map Your Homelab" />
+    <meta name="twitter:description" content="Lightweight homelab inventory and topology tool." />
+    <meta name="twitter:image" content="https://my-labby.com/logo.svg" />
+
     <link rel="icon" type="image/svg+xml" href="logo.svg" />
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -22,8 +39,8 @@
     </header>
 
     <main class="phone-grid">
-      <section class="phone panel-left">
-        <h2 id="form-title">Add Resource</h2>
+      <section class="phone panel-left" id="panel-left">
+        <h2 id="form-title" class="desktop-form-title">Add Resource</h2>
         <form id="resource-form" class="stack">
           <label>
             Type
@@ -211,12 +228,14 @@
     <dialog id="ip-dialog" class="tree-dialog">
       <div class="tree-head">
         <h3>IP Address View</h3>
-        <button id="ip-close" class="icon-btn" type="button">Close</button>
       </div>
       <div class="ip-search-bar">
         <input id="ip-search" type="text" placeholder="Search IP or hostname..." autocomplete="off" />
       </div>
       <div id="ip-content" class="tree-content"></div>
+      <div class="dialog-footer">
+        <button id="ip-close" class="button secondary" type="button">✕ Close</button>
+      </div>
     </dialog>
 
     <dialog id="tree-dialog" class="tree-dialog">
@@ -227,16 +246,17 @@
             <button id="tree-mode-tree" class="icon-btn active" type="button">Tree</button>
             <button id="tree-mode-graph" class="icon-btn" type="button">Graph</button>
           </div>
-          <button id="tree-close" class="icon-btn" type="button">Close</button>
         </div>
       </div>
       <div id="tree-content" class="tree-content"></div>
+      <div class="dialog-footer">
+        <button id="tree-close" class="button secondary" type="button">✕ Close</button>
+      </div>
     </dialog>
 
     <dialog id="config-dialog" class="tree-dialog">
       <div class="tree-head">
         <h3>Config</h3>
-        <button id="config-close" class="icon-btn" type="button">Close</button>
       </div>
       <p class="note">Backup or move your full homelab map.</p>
       <div class="stack">
@@ -253,6 +273,9 @@
         <p><span class="dot lxc"></span> LXC</p>
         <p><span class="dot app"></span> App</p>
         <p><span class="dot network"></span> Network</p>
+      </div>
+      <div class="dialog-footer">
+        <button id="config-close" class="button secondary" type="button">✕ Close</button>
       </div>
     </dialog>
 
