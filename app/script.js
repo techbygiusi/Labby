@@ -65,13 +65,11 @@ const filterType = document.getElementById('filter-type');
 const exportBtn = document.getElementById('export-btn');
 const importFile = document.getElementById('import-file');
 const treeToggle = document.getElementById('tree-toggle');
-const treeClose = document.getElementById('tree-close');
 const treeDialog = document.getElementById('tree-dialog');
 const treeContent = document.getElementById('tree-content');
 const treeModeTree = document.getElementById('tree-mode-tree');
 const treeModeGraph = document.getElementById('tree-mode-graph');
 const configToggle = document.getElementById('config-toggle');
-const configClose = document.getElementById('config-close');
 const configDialog = document.getElementById('config-dialog');
 const toast = document.getElementById('toast');
 
@@ -287,10 +285,8 @@ treeToggle.addEventListener('click', () => {
   treeDialog.showModal();
 });
 
-treeClose.addEventListener('click', () => treeDialog.close());
 
 const ipToggle = document.getElementById('ip-toggle');
-const ipClose = document.getElementById('ip-close');
 const ipDialog = document.getElementById('ip-dialog');
 const ipContent = document.getElementById('ip-content');
 const ipSearch = document.getElementById('ip-search');
@@ -299,7 +295,6 @@ ipToggle.addEventListener('click', () => {
   renderIPView();
   ipDialog.showModal();
 });
-ipClose.addEventListener('click', () => ipDialog.close());
 
 const panelLeft = document.getElementById('panel-left');
 const phoneGrid = document.querySelector('.phone-grid');
@@ -496,7 +491,6 @@ function highlightMatch(text, query) {
 
 
 configToggle.addEventListener('click', () => configDialog.showModal());
-configClose.addEventListener('click', () => configDialog.close());
 
 seedDemo.addEventListener('click', async () => {
   items = [
