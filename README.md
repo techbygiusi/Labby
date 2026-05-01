@@ -9,7 +9,22 @@ Track your infrastructure, visualize relationships, and keep everything organize
 
 ## 📸 Screenshots
 
-> Screenshots coming soon.
+### Desktop
+<table>
+  <tr>
+    <td width="50%"><img width="100%" src="https://github.com/user-attachments/assets/acab3547-1cfe-4494-91a6-9183eaec4673" /><br/><sub><b>Dashboard & Resource Management</b></sub></td>
+    <td width="50%"><img width="100%" src="https://github.com/user-attachments/assets/e340406f-5483-41eb-9a66-81dfb055bd2c" /><br/><sub><b>IP View — Subnets & Used IPs</b></sub></td>
+  </tr>
+</table>
+
+### Mobile
+<table>
+  <tr>
+    <td width="33%" align="center"><img width="100%" src="https://github.com/user-attachments/assets/ff9c2daa-e122-4462-9d8b-377465e23881" /><br/><sub><b>Topology View</b></sub></td>
+    <td width="33%" align="center"><img width="100%" src="https://github.com/user-attachments/assets/e83a6ba5-486b-4fcb-a4a9-8205f6fe1971" /><br/><sub><b>Config</b></sub></td>
+    <td width="33%" align="center"><img width="100%" src="https://github.com/user-attachments/assets/8d9f54fd-6a4d-46a3-b4d3-8ebbe82ec48d" /><br/><sub><b>IP View Mobile</b></sub></td>
+  </tr>
+</table>
 
 ---
 
@@ -40,7 +55,6 @@ Track your infrastructure, visualize relationships, and keep everything organize
 - 🖥️ **Desktop** — classic two-panel layout unchanged
 - Bottom nav: Topology / Add / IP View / Tree / Config
 - Add and Edit resources open as full-screen panels on mobile
-- SEO optimized with Open Graph and Twitter Card meta tags
 
 ### Config & Data
 - 📦 **Export / Import JSON** for backups and migration
