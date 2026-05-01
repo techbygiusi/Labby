@@ -2,7 +2,7 @@
 
 # 🧪 Labby - Map Your Homelab
 
-Labby is a lightweight, browser-based homelab inventory and topology tool.
+Labby is a lightweight homelab inventory and topology tool.
 Track your infrastructure, visualize relationships, and keep everything in one place.
 
 <p align="center">
@@ -11,7 +11,7 @@ Track your infrastructure, visualize relationships, and keep everything in one p
   </a>
 </p>
 
-> **P.S.:** I’m looking for someone to design a nice logo for the application. If you’re interested (or know someone), please reach out.
+> **P.S.:** I'm looking for someone to design a nice logo for the application. If you're interested (or know someone), please reach out.
 
 ---
 
@@ -44,13 +44,11 @@ Track your infrastructure, visualize relationships, and keep everything in one p
 - 💾 **Backup-friendly storage details**
   - Shares + RAID groups for NAS and Backup hardware types
 - 📦 **Export / Import JSON** for backups and migration
-- 🔒 **Runs fully client-side** (data in browser `localStorage` unless exported)
+- 🗄️ **Persistent storage** — data is saved server-side in SQLite, accessible from any browser
 
 ---
 
 ## 🚀 Installation
-
-## Option 1: Docker Compose (recommended)
 
 ### Requirements
 - Docker
@@ -68,7 +66,9 @@ Open: [http://localhost:8080](http://localhost:8080)
 docker compose down
 ```
 
-### Use a different port with Docker Compose
+> Data is preserved in a Docker volume (`labby-data`) and survives container restarts.
+
+### Use a different port
 
 Default mapping in `docker-compose.yml` is:
 
@@ -77,7 +77,7 @@ ports:
   - "8080:80"
 ```
 
-If you want another host port (example `9090`), change it to:
+Change to your preferred port (e.g. `9090`):
 
 ```yaml
 ports:
@@ -89,36 +89,6 @@ Then restart:
 ```bash
 docker compose up --build -d
 ```
-
-Open: [http://localhost:9090](http://localhost:9090)
-
----
-
-## Option 2: Docker only
-
-### Requirements
-- Docker
-
-### Build image
-```bash
-docker build -t labby .
-```
-
-### Run (default port)
-```bash
-docker run --rm -d -p 8080:80 --name labby labby
-```
-
-Open: [http://localhost:8080](http://localhost:8080)
-
-### Run on another port
-Example with host port `9090`:
-
-```bash
-docker run --rm -d -p 9090:80 --name labby labby
-```
-
-Open: [http://localhost:9090](http://localhost:9090)
 
 ---
 
@@ -133,7 +103,7 @@ Open: [http://localhost:9090](http://localhost:9090)
 5. 🌳 Open **Tree View** and switch to **Graph** for topology checks.
 6. 💾 Use **Export Config** to back up, **Import Config** to restore.
 
-> **P.S.:** Want your **Graph View** to look extra clean? Try assigning custom icons per device (servers, switches, routers, VMs, apps). If you’re hunting for matching icons / emojis, I recommend using [semo.lol](https://semo.lol/).
+> **P.S.:** Want your **Graph View** to look extra clean? Try assigning custom icons per device. If you're hunting for matching emojis, I recommend [semo.lol](https://semo.lol/).
 
 ---
 
@@ -141,24 +111,53 @@ Open: [http://localhost:9090](http://localhost:9090)
 
 ```text
 app/
-  index.html      # UI markup
-  styles.css      # Styling and layout
-  script.js       # App logic, state handling, rendering
+  index.html          # UI markup
+  styles.css          # Styling and layout
+  script.js           # App logic, state handling, rendering
+backend/
+  server.js           # Express API + SQLite storage
+  package.json
+  Dockerfile
+nginx/
+  default.conf        # Reverse proxy /api/* to backend
 Dockerfile
 docker-compose.yml
 ```
 
 ---
 
+## 🗄️ Data & Backup
+
+All data is stored in a SQLite database inside a named Docker volume (`labby-data`).
+
+To create a backup:
+
+```bash
+docker run --rm \
+  -v labby-data:/data \
+  -v $(pwd):/backup \
+  alpine tar czf /backup/labby-backup.tar.gz /data
+```
+
+To restore:
+
+```bash
+docker run --rm \
+  -v labby-data:/data \
+  -v $(pwd):/backup \
+  alpine tar xzf /backup/labby-backup.tar.gz -C /
+```
+
+---
+
 ## 📝 Notes
 
-- Data is local to your browser by default.
-- Clearing browser storage removes local data if not exported.
-- For shared/team usage, run behind your own reverse proxy + auth.
+- Data is stored server-side — all browsers and devices share the same data.
+- For team or multi-user setups, run behind a reverse proxy with authentication.
 
 ---
 
 ## 📝 License
 
 MIT License  
-© [TechByGiusi]([https://onebitlabs.net](https://techbygiusi.com/))
+© [TechByGiusi](https://techbygiusi.com/)
