@@ -155,7 +155,7 @@ docker run --rm \
 
 ## 📝 Notes
 
-- Data is stored server-side — all browsers and devices share the same data.
+- Data is stored server-side. All browsers and devices share the same data.
 - For team or multi-user setups, run behind a reverse proxy with authentication.
 
 ---
