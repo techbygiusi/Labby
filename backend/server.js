@@ -1,39 +1,14 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const initSqlJs = require('sql.js');
 
 const app = express();
 const PORT = 3001;
 const DATA_DIR = process.env.DATA_DIR || '/data';
-const DB_PATH = path.join(DATA_DIR, 'labby.db');
+const DB_PATH = path.join(DATA_DIR, 'labby.json');
 
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-let db;
-
-async function initDB() {
-  const SQL = await initSqlJs();
-  if (fs.existsSync(DB_PATH)) {
-    const fileBuffer = fs.readFileSync(DB_PATH);
-    db = new SQL.Database(fileBuffer);
-  } else {
-    db = new SQL.Database();
-  }
-  db.run(`
-    CREATE TABLE IF NOT EXISTS store (
-      key   TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    );
-  `);
-  saveDB();
-}
-
-function saveDB() {
-  const data = db.export();
-  fs.writeFileSync(DB_PATH, Buffer.from(data));
 }
 
 app.use(express.json({ limit: '10mb' }));
@@ -47,10 +22,10 @@ app.use((req, res, next) => {
 });
 
 app.get('/api/data', (req, res) => {
-  const result = db.exec("SELECT value FROM store WHERE key = 'items'");
-  if (!result.length || !result[0].values.length) return res.json([]);
   try {
-    res.json(JSON.parse(result[0].values[0][0]));
+    if (!fs.existsSync(DB_PATH)) return res.json([]);
+    const raw = fs.readFileSync(DB_PATH, 'utf8');
+    res.json(JSON.parse(raw));
   } catch {
     res.json([]);
   }
@@ -61,11 +36,7 @@ app.post('/api/data', (req, res) => {
   if (!Array.isArray(items)) {
     return res.status(400).json({ error: 'Body must be a JSON array.' });
   }
-  db.run(
-    "INSERT INTO store (key, value) VALUES ('items', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-    [JSON.stringify(items)]
-  );
-  saveDB();
+  fs.writeFileSync(DB_PATH, JSON.stringify(items), 'utf8');
   res.json({ ok: true, count: items.length });
 });
 
@@ -73,8 +44,6 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true });
 });
 
-initDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Labby backend running on port ${PORT}`);
-  });
+app.listen(PORT, () => {
+  console.log(`Labby backend running on port ${PORT}`);
 });

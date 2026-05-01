@@ -44,7 +44,7 @@ Track your infrastructure, visualize relationships, and keep everything in one p
 - 💾 **Backup-friendly storage details**
   - Shares + RAID groups for NAS and Backup hardware types
 - 📦 **Export / Import JSON** for backups and migration
-- 🗄️ **Persistent storage** - data is saved server-side in SQLite, accessible from any browser
+- 🗄️ **Persistent storage** — data is saved server-side in SQLite, accessible from any browser
 
 ---
 
@@ -152,7 +152,7 @@ docker run --rm \
 
 ## 📝 Notes
 
-- Data is stored server-side - all browsers and devices share the same data.
+- Data is stored server-side — all browsers and devices share the same data.
 - For team or multi-user setups, run behind a reverse proxy with authentication.
 
 ---

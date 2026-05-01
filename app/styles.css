@@ -523,6 +523,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   #resource-form,
   .boards { min-height: auto; max-height: none; }
   .tree-toggle { bottom: max(12px, env(safe-area-inset-bottom)); right: max(12px, env(safe-area-inset-right)); }
+  .ip-toggle { bottom: max(12px, env(safe-area-inset-bottom)); right: 130px; }
 }
 
 @media (min-width: 2000px) {
@@ -601,3 +602,71 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 :root[data-theme='dark'] .tree-empty,
 :root[data-theme='dark'] .tree-subtitle { color: #bdc7ea; }
 :root[data-theme='dark'] .tree-link { color: #a9d2ff; }
+
+.ip-toggle {
+  position: fixed;
+  right: 140px;
+  bottom: 18px;
+  z-index: 20;
+  border: 3px solid var(--line);
+  border-radius: 14px;
+  padding: 0.5rem 0.7rem;
+  background: var(--mint);
+  font: 700 0.8rem/1.2 'Space Mono', monospace;
+  cursor: pointer;
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.2);
+}
+.ip-toggle:hover { filter: brightness(0.93); }
+.ip-toggle:active { transform: translateY(1px) scale(0.99); }
+
+.ip-search-bar {
+  margin-bottom: var(--space-2);
+}
+.ip-search-bar input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem 0.7rem;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font: 0.85rem/1.4 'Space Mono', monospace;
+}
+.ip-search-bar input:focus { outline: none; border-color: var(--accent); }
+
+.ip-subnet-block { margin-bottom: var(--space-3); }
+.ip-subnet-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+.ip-subnet-label {
+  font: 700 0.8rem/1.2 'Space Mono', monospace;
+  background: var(--yellow);
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  padding: 0.2rem 0.5rem;
+}
+.ip-subnet-name {
+  font: 0.78rem/1.2 'Space Mono', monospace;
+  color: var(--text-2);
+}
+.ip-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.3rem 0.5rem;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  margin-bottom: 0.25rem;
+}
+.ip-row-addr {
+  font: 700 0.78rem/1.2 'Space Mono', monospace;
+  min-width: 140px;
+}
+.ip-row-name { font-size: 0.82rem; }
+.ip-row-type { font-size: 0.72rem; color: var(--text-2); margin-left: auto; }
+.ip-highlight { background: var(--yellow); border-radius: 3px; padding: 0 2px; }
+.ip-empty { font-size: 0.82rem; color: var(--text-2); padding: 0.3rem 0.5rem; }

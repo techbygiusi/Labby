@@ -184,7 +184,19 @@
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+    <button id="ip-toggle" class="ip-toggle" type="button">🌐 IP View</button>
     <button id="tree-toggle" class="tree-toggle" type="button">🌳 Tree View</button>
+
+    <dialog id="ip-dialog" class="tree-dialog">
+      <div class="tree-head">
+        <h3>IP Address View</h3>
+        <button id="ip-close" class="icon-btn" type="button">Close</button>
+      </div>
+      <div class="ip-search-bar">
+        <input id="ip-search" type="text" placeholder="Search IP or hostname..." autocomplete="off" />
+      </div>
+      <div id="ip-content" class="tree-content"></div>
+    </dialog>
 
     <dialog id="tree-dialog" class="tree-dialog">
       <div class="tree-head">

@@ -170,7 +170,7 @@ if (treeModeTree && treeModeGraph) {
   treeModeGraph.addEventListener('click', () => setTreeMode('graph'));
 }
 
-form.addEventListener('submit', (event) => {
+form.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   const type = typeSelect.value;
@@ -249,7 +249,7 @@ form.addEventListener('submit', (event) => {
   }
 
   normalizeItems();
-  saveItems();
+  await saveItems();
   showToast(wasEditing ? 'Resource updated.' : 'Resource added.');
   form.reset();
   symbolInput.value = defaultSymbol('hardware', 'server');
@@ -287,10 +287,132 @@ treeToggle.addEventListener('click', () => {
 
 treeClose.addEventListener('click', () => treeDialog.close());
 
+const ipToggle = document.getElementById('ip-toggle');
+const ipClose = document.getElementById('ip-close');
+const ipDialog = document.getElementById('ip-dialog');
+const ipContent = document.getElementById('ip-content');
+const ipSearch = document.getElementById('ip-search');
+
+ipToggle.addEventListener('click', () => {
+  renderIPView();
+  ipDialog.showModal();
+});
+ipClose.addEventListener('click', () => ipDialog.close());
+ipSearch.addEventListener('input', renderIPView);
+
+function extractIPs(item) {
+  const ips = [];
+  if (item.ip) ips.push({ addr: item.ip.split('/')[0].trim(), item });
+  if (item.type === 'app' && item.ipPort) {
+    const host = item.ipPort.split(':')[0].trim();
+    if (host) ips.push({ addr: host, item });
+  }
+  return ips;
+}
+
+function renderIPView() {
+  ipContent.innerHTML = '';
+  const query = ipSearch.value.trim().toLowerCase();
+
+  const networks = items.filter(i => i.type === 'network');
+  const allIPs = [];
+  items.forEach(item => extractIPs(item).forEach(e => allIPs.push(e)));
+
+  const matched = query
+    ? allIPs.filter(e => e.addr.includes(query) || e.item.name.toLowerCase().includes(query))
+    : allIPs;
+
+  if (!matched.length) {
+    const empty = document.createElement('p');
+    empty.className = 'tree-empty';
+    empty.textContent = query ? 'No matching IP addresses found.' : 'No IP addresses defined yet.';
+    ipContent.appendChild(empty);
+    return;
+  }
+
+  const bySubnet = new Map();
+  const unmatched = [];
+
+  matched.forEach(entry => {
+    const net = networks.find(n => ipInSubnet(entry.addr, n.subnet));
+    if (net) {
+      const key = net.id;
+      if (!bySubnet.has(key)) bySubnet.set(key, { net, entries: [] });
+      bySubnet.get(key).entries.push(entry);
+    } else {
+      unmatched.push(entry);
+    }
+  });
+
+  bySubnet.forEach(({ net, entries }) => {
+    entries.sort((a, b) => toIPv4Int(a.addr) - toIPv4Int(b.addr));
+    const block = document.createElement('div');
+    block.className = 'ip-subnet-block';
+    const head = document.createElement('div');
+    head.className = 'ip-subnet-head';
+    const label = document.createElement('span');
+    label.className = 'ip-subnet-label';
+    label.textContent = net.subnet;
+    if (net.networkColor) label.style.background = net.networkColor;
+    const name = document.createElement('span');
+    name.className = 'ip-subnet-name';
+    name.textContent = net.name + (net.gateway ? ' · GW: ' + net.gateway : '');
+    head.appendChild(label);
+    head.appendChild(name);
+    block.appendChild(head);
+    entries.forEach(e => block.appendChild(buildIPRow(e, query)));
+    ipContent.appendChild(block);
+  });
+
+  if (unmatched.length) {
+    unmatched.sort((a, b) => (toIPv4Int(a.addr) || 0) - (toIPv4Int(b.addr) || 0));
+    const block = document.createElement('div');
+    block.className = 'ip-subnet-block';
+    const head = document.createElement('div');
+    head.className = 'ip-subnet-head';
+    const label = document.createElement('span');
+    label.className = 'ip-subnet-label';
+    label.textContent = 'No subnet match';
+    head.appendChild(label);
+    block.appendChild(head);
+    unmatched.forEach(e => block.appendChild(buildIPRow(e, query)));
+    ipContent.appendChild(block);
+  }
+}
+
+function buildIPRow(entry, query) {
+  const row = document.createElement('div');
+  row.className = 'ip-row';
+  const addr = document.createElement('span');
+  addr.className = 'ip-row-addr';
+  addr.innerHTML = query ? highlightMatch(entry.addr, query) : entry.addr;
+  const nameEl = document.createElement('span');
+  nameEl.className = 'ip-row-name';
+  nameEl.innerHTML = query ? highlightMatch(entry.item.name, query) : entry.item.name;
+  const typeEl = document.createElement('span');
+  typeEl.className = 'ip-row-type';
+  typeEl.textContent = entry.item.type === 'hardware'
+    ? hardwareTypeLabel(entry.item.hardwareKind)
+    : labelSingle(entry.item.type);
+  row.appendChild(addr);
+  row.appendChild(nameEl);
+  row.appendChild(typeEl);
+  return row;
+}
+
+function highlightMatch(text, query) {
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return text;
+  return text.slice(0, idx) +
+    '<span class="ip-highlight">' + text.slice(idx, idx + query.length) + '</span>' +
+    text.slice(idx + query.length);
+}
+
+
 configToggle.addEventListener('click', () => configDialog.showModal());
 configClose.addEventListener('click', () => configDialog.close());
 
-seedDemo.addEventListener('click', () => {
+seedDemo.addEventListener('click', async () => {
   items = [
     { id: 'network-core', type: 'network', name: 'Core-LAN', description: 'Management and infra backbone', notes: 'Main rack and admin devices', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.10.0.0/24', gateway: '10.10.0.1', networkColor: '#10b981', hostedOn: '', appHostedOn: '' },
     { id: 'network-services', type: 'network', name: 'Services', description: 'Private service VLAN', notes: 'Apps and internal APIs', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.20.0.0/24', gateway: '10.20.0.1', networkColor: '#3b82f6', hostedOn: '', appHostedOn: '' },
@@ -322,16 +444,16 @@ seedDemo.addEventListener('click', () => {
   ];
   stopEditing();
   normalizeItems();
-  saveItems();
+  await saveItems();
   showToast('Demo topology loaded.');
   render();
 });
 
-clearAll.addEventListener('click', () => {
+clearAll.addEventListener('click', async () => {
   if (!confirm('Delete all resources?')) return;
   items = [];
   stopEditing();
-  saveItems();
+  await saveItems();
   showToast('All resources cleared.');
   render();
 });
@@ -359,7 +481,7 @@ importFile.addEventListener('change', async (event) => {
     const text = await file.text();
     items = sanitizeItems(JSON.parse(text));
     stopEditing();
-    saveItems();
+    await saveItems();
     showToast('Config imported successfully.');
     render();
   } catch {
@@ -575,8 +697,8 @@ function loadItems() {
   }
 }
 
-function saveItems() {
-  saveItemsToAPI(items);
+async function saveItems() {
+  await saveItemsToAPI(items);
 }
 
 function supportsNotes(type) {
@@ -1147,7 +1269,7 @@ function stopEditing() {
   cancelEditBtn.classList.add('hidden');
 }
 
-function removeItem(id) {
+async function removeItem(id) {
   const target = findById(id);
   if (!target) return;
   if (!confirm(`Delete "${target.name}"?`)) return;
@@ -1155,7 +1277,7 @@ function removeItem(id) {
   items = items.filter((item) => item.id !== id);
   normalizeItems();
   if (editingId === id) stopEditing();
-  saveItems();
+  await saveItems();
   showToast('Resource removed.');
   render();
 }
@@ -1662,7 +1784,7 @@ function buildInfrastructureTree() {
 
       const hostBlock = document.createElement('details');
       hostBlock.className = 'tree-collapsible tree-host';
-      hostBlock.open = hostGuests.length <= 2;
+      hostBlock.open = false;
 
       const hostSummary = document.createElement('summary');
       hostSummary.className = 'tree-summary tree-summary-host';
