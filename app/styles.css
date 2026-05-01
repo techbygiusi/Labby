@@ -589,7 +589,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   .card-head { flex-wrap: wrap; }
   .card-controls { width: 100%; }
   .card-controls .icon-btn { flex: 1; }
-  .github { left: 10px; bottom: calc(max(12px, env(safe-area-inset-bottom)) + 116px); }
+  .github { display: none; }
 }
 
 :root[data-theme='dark'] .column { background: var(--panel); }
