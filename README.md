@@ -1,4 +1,4 @@
-> **Disclaimer:** Labby is a vibe-coded project built mainly with Codex from OpenAI.
+> **Disclaimer:** Labby is a vibe-coded project built mainly with Codex from OpenAI and Claude from Anthropic.
 
 # 🧪 Labby - Map Your Homelab
 
