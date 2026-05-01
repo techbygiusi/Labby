@@ -249,7 +249,6 @@ form.addEventListener('submit', async (event) => {
   normalizeItems();
   await saveItems();
   showToast(wasEditing ? 'Resource updated.' : 'Resource added.');
-  if (isMobileLayout()) closeForm();
   form.reset();
   symbolInput.value = defaultSymbol('hardware', 'server');
   hardwareKindSelect.value = 'server';
@@ -263,7 +262,6 @@ form.addEventListener('submit', async (event) => {
 });
 
 cancelEditBtn.addEventListener('click', () => {
-  if (isMobileLayout()) closeForm();
   stopEditing();
   form.reset();
   symbolInput.value = defaultSymbol('hardware', 'server');
@@ -296,104 +294,9 @@ ipToggle.addEventListener('click', () => {
   ipDialog.showModal();
 });
 
-const panelLeft = document.getElementById('panel-left');
-const phoneGrid = document.querySelector('.phone-grid');
-
-function openForm(title) {
-  panelLeft.setAttribute('data-title', title || 'Add Resource');
-  panelLeft.classList.add('panel-open');
-  phoneGrid.classList.add('form-open');
-  document.getElementById('nav-add').classList.add('active');
-  panelLeft.scrollTop = 0;
-}
-
-function closeForm() {
-  panelLeft.classList.remove('panel-open');
-  phoneGrid.classList.remove('form-open');
-  document.getElementById('nav-add').classList.remove('active');
-}
-
-function isMobileLayout() {
-  return window.innerWidth <= 1100;
-}
-
-
-
-const formCloseMobile = document.getElementById('form-close-mobile');
-formCloseMobile.addEventListener('click', () => {
-  stopEditing();
-  form.reset();
-  symbolInput.value = defaultSymbol('hardware', 'server');
-  hardwareKindSelect.value = 'server';
-  resetDynamicHardwareFields();
-  setMultiValues(routerSwitches, []);
-  setMultiValues(switchLinks, []);
-  setMultiValues(switchDeviceLinks, []);
-  setSelectedColor(networkPalette[0]);
-  applyTypeVisibility();
-  closeForm();
-});
-
-const bottomNav = document.querySelector('.bottom-nav');
-const navAdd = document.getElementById('nav-add');
-const navIp = document.getElementById('nav-ip');
-const navTree = document.getElementById('nav-tree');
-const navConfig = document.getElementById('nav-config');
-
-function setActiveNav(id) {
-  document.querySelectorAll('.bottom-nav-item').forEach(btn => btn.classList.remove('active'));
-  const el = document.getElementById(id);
-  if (el) el.classList.add('active');
-}
-
-navAdd.addEventListener('click', () => {
-  if (isMobileLayout()) {
-    openForm();
-    setTimeout(() => document.getElementById('name').focus(), 50);
-  } else {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    document.getElementById('name').focus();
-  }
-});
-
-navIp.addEventListener('click', () => {
-  setActiveNav('nav-ip');
-  renderIPView();
-  ipDialog.showModal();
-});
-
-navTree.addEventListener('click', () => {
-  setActiveNav('nav-tree');
-  setTreeMode(treeViewMode);
-  treeDialog.showModal();
-});
-
-navConfig.addEventListener('click', () => {
-  setActiveNav('nav-config');
-  configDialog.showModal();
-});
-
-[ipDialog, treeDialog, configDialog].forEach(dialog => {
-  dialog.addEventListener('close', () => {
-    document.querySelectorAll('.bottom-nav-item').forEach(btn => btn.classList.remove('active'));
-  });
-});
-
-ipSearch.addEventListener('input', renderIPView);
-
-function extractIPs(item) {
-  const ips = [];
-  if (item.ip) ips.push({ addr: item.ip.split('/')[0].trim(), item });
-  if (item.type === 'app' && item.ipPort) {
-    const host = item.ipPort.split(':')[0].trim();
-    if (host) ips.push({ addr: host, item });
-  }
-  return ips;
-}
-
 function renderIPView() {
   ipContent.innerHTML = '';
-  const query = ipSearch.value.trim().toLowerCase();
+  const query = (ipSearch && ipSearch.value) ? ipSearch.value.trim().toLowerCase() : '';
 
   const networks = items.filter(i => i.type === 'network');
   const allIPs = [];
@@ -1112,7 +1015,7 @@ function cardNode(item) {
   if (badge) badge.className = `type-badge ${item.type}`;
 
   const editButton = node.querySelector('.edit-btn');
-  if (editButton) editButton.addEventListener('click', () => startEditing(item.id));
+  if (editButton) editButton.addEventListener('click', () => isMobile() ? window.startEditingMobile(item.id) : startEditing(item.id));
 
   const deleteButton = node.querySelector('.delete-btn');
   if (deleteButton) deleteButton.addEventListener('click', () => removeItem(item.id));
@@ -1339,8 +1242,7 @@ function startEditing(id) {
   if (supportsStorageGroups(item.type, item.hardwareKind) && item.nasRaids?.length) item.nasRaids.forEach((raid) => appendRaidRow(raid));
   else appendRaidRow();
 
-  if (isMobileLayout()) openForm('Edit: ' + item.name);
-  else window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function stopEditing() {
@@ -2183,3 +2085,239 @@ function setTheme(theme) {
   localStorage.setItem(themeKey, theme);
   themeToggle.textContent = theme === 'dark' ? '☀️ Light' : '🌙 Dark';
 }
+
+function isMobile() {
+  return window.innerWidth <= 1100;
+}
+
+function showMobileView(id) {
+  document.querySelectorAll('.mobile-view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
+  const view = document.getElementById(id);
+  if (view) view.classList.add('active');
+}
+
+function hideMobileViews() {
+  document.querySelectorAll('.mobile-view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
+  const topo = document.getElementById('nav-topology');
+  if (topo) topo.classList.add('active');
+}
+
+const navTopology = document.getElementById('nav-topology');
+const navAdd = document.getElementById('nav-add');
+const navIp = document.getElementById('nav-ip');
+const navTree = document.getElementById('nav-tree');
+const navConfig = document.getElementById('nav-config');
+
+if (navTopology) {
+  navTopology.classList.add('active');
+  navTopology.addEventListener('click', () => {
+    hideMobileViews();
+    navTopology.classList.add('active');
+  });
+}
+
+if (navAdd) navAdd.addEventListener('click', () => {
+  showMobileView('mobile-add');
+  navAdd.classList.add('active');
+  document.getElementById('mobile-form-title').textContent = 'Add Resource';
+  const body = document.getElementById('mobile-form-body');
+  const formEl = document.getElementById('resource-form');
+  if (body && formEl && !body.contains(formEl)) body.appendChild(formEl);
+  setTimeout(() => document.getElementById('name').focus(), 50);
+});
+
+if (navIp) navIp.addEventListener('click', () => {
+  showMobileView('mobile-ip');
+  navIp.classList.add('active');
+  renderIPViewMobile();
+});
+
+if (navTree) navTree.addEventListener('click', () => {
+  showMobileView('mobile-tree');
+  navTree.classList.add('active');
+  renderMobileTree();
+});
+
+if (navConfig) navConfig.addEventListener('click', () => {
+  showMobileView('mobile-config');
+  navConfig.classList.add('active');
+});
+
+const mobileFormClose = document.getElementById('mobile-form-close');
+if (mobileFormClose) mobileFormClose.addEventListener('click', () => {
+  stopEditing();
+  form.reset();
+  symbolInput.value = defaultSymbol('hardware', 'server');
+  hardwareKindSelect.value = 'server';
+  resetDynamicHardwareFields();
+  setMultiValues(routerSwitches, []);
+  setMultiValues(switchLinks, []);
+  setMultiValues(switchDeviceLinks, []);
+  setSelectedColor(networkPalette[0]);
+  applyTypeVisibility();
+  render();
+  hideMobileViews();
+});
+
+const mobileIpClose = document.getElementById('mobile-ip-close');
+if (mobileIpClose) mobileIpClose.addEventListener('click', hideMobileViews);
+
+const mobileTreeClose = document.getElementById('mobile-tree-close');
+if (mobileTreeClose) mobileTreeClose.addEventListener('click', hideMobileViews);
+
+const mobileConfigClose = document.getElementById('mobile-config-close');
+if (mobileConfigClose) mobileConfigClose.addEventListener('click', hideMobileViews);
+
+const mobileTreeModeTree = document.getElementById('mobile-tree-mode-tree');
+const mobileTreeModeGraph = document.getElementById('mobile-tree-mode-graph');
+if (mobileTreeModeTree) mobileTreeModeTree.addEventListener('click', () => {
+  treeViewMode = 'tree';
+  mobileTreeModeTree.classList.add('active');
+  mobileTreeModeGraph.classList.remove('active');
+  renderMobileTree();
+});
+if (mobileTreeModeGraph) mobileTreeModeGraph.addEventListener('click', () => {
+  treeViewMode = 'graph';
+  mobileTreeModeGraph.classList.add('active');
+  mobileTreeModeTree.classList.remove('active');
+  renderMobileTree();
+});
+
+function renderMobileTree() {
+  const container = document.getElementById('mobile-tree-content');
+  if (!container) return;
+  container.innerHTML = '';
+  const shell = document.createElement('div');
+  shell.className = 'tree-shell';
+  shell.appendChild(treeViewMode === 'graph' ? buildGraphView() : buildInfrastructureTree());
+  container.appendChild(shell);
+}
+
+const ipSearchMobile = document.getElementById('ip-search-mobile');
+if (ipSearchMobile) ipSearchMobile.addEventListener('input', renderIPViewMobile);
+
+function renderIPViewMobile() {
+  const container = document.getElementById('ip-content-mobile');
+  const searchEl = document.getElementById('ip-search-mobile');
+  if (!container || !searchEl) return;
+  container.innerHTML = '';
+  renderIPInto(container, searchEl.value.trim().toLowerCase());
+}
+
+function renderIPInto(container, query) {
+  const networks = items.filter(i => i.type === 'network');
+  const allIPs = [];
+  items.forEach(item => extractIPs(item).forEach(e => allIPs.push(e)));
+  const matched = query ? allIPs.filter(e => e.addr.includes(query) || e.item.name.toLowerCase().includes(query)) : allIPs;
+
+  if (!matched.length) {
+    const empty = document.createElement('p');
+    empty.className = 'tree-empty';
+    empty.textContent = query ? 'No matching IP addresses found.' : 'No IP addresses defined yet.';
+    container.appendChild(empty);
+    return;
+  }
+
+  const bySubnet = new Map();
+  const unmatched = [];
+  matched.forEach(entry => {
+    const net = networks.find(n => ipInSubnet(entry.addr, n.subnet));
+    if (net) {
+      if (!bySubnet.has(net.id)) bySubnet.set(net.id, { net, entries: [] });
+      bySubnet.get(net.id).entries.push(entry);
+    } else {
+      unmatched.push(entry);
+    }
+  });
+
+  bySubnet.forEach(({ net, entries }) => {
+    entries.sort((a, b) => toIPv4Int(a.addr) - toIPv4Int(b.addr));
+    const block = document.createElement('div');
+    block.className = 'ip-subnet-block';
+    const head = document.createElement('div');
+    head.className = 'ip-subnet-head';
+    const lbl = document.createElement('span');
+    lbl.className = 'ip-subnet-label';
+    lbl.textContent = net.subnet;
+    if (net.networkColor) lbl.style.background = net.networkColor;
+    const nm = document.createElement('span');
+    nm.className = 'ip-subnet-name';
+    nm.textContent = net.name + (net.gateway ? ' · GW: ' + net.gateway : '');
+    head.appendChild(lbl);
+    head.appendChild(nm);
+    block.appendChild(head);
+    entries.forEach(e => block.appendChild(buildIPRow(e, query)));
+    container.appendChild(block);
+  });
+
+  if (unmatched.length) {
+    unmatched.sort((a, b) => (toIPv4Int(a.addr) || 0) - (toIPv4Int(b.addr) || 0));
+    const block = document.createElement('div');
+    block.className = 'ip-subnet-block';
+    const head = document.createElement('div');
+    head.className = 'ip-subnet-head';
+    const lbl = document.createElement('span');
+    lbl.className = 'ip-subnet-label';
+    lbl.textContent = 'No subnet match';
+    head.appendChild(lbl);
+    block.appendChild(head);
+    unmatched.forEach(e => block.appendChild(buildIPRow(e, query)));
+    container.appendChild(block);
+  }
+}
+
+const exportBtnMobile = document.getElementById('export-btn-mobile');
+if (exportBtnMobile) exportBtnMobile.addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'labby-config.json';
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast('Config exported.');
+});
+
+const importFileMobile = document.getElementById('import-file-mobile');
+if (importFileMobile) importFileMobile.addEventListener('change', async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    items = sanitizeItems(JSON.parse(text));
+    stopEditing();
+    await saveItems();
+    showToast('Config imported successfully.');
+    render();
+  } catch {
+    showToast('Invalid config file.', 'error');
+  } finally {
+    importFileMobile.value = '';
+  }
+});
+
+const clearAllMobile = document.getElementById('clear-all-mobile');
+if (clearAllMobile) clearAllMobile.addEventListener('click', async () => {
+  if (!confirm('Delete all resources?')) return;
+  items = [];
+  stopEditing();
+  await saveItems();
+  showToast('All resources cleared.');
+  render();
+  hideMobileViews();
+});
+
+const editCardOriginal = startEditing;
+window.startEditingMobile = function(id) {
+  startEditing(id);
+  if (isMobile()) {
+    showMobileView('mobile-add');
+    navAdd.classList.add('active');
+    document.getElementById('mobile-form-title').textContent = 'Edit Resource';
+    const body = document.getElementById('mobile-form-body');
+    const formEl = document.getElementById('resource-form');
+    if (body && formEl && !body.contains(formEl)) body.appendChild(formEl);
+  }
+};

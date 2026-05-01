@@ -39,8 +39,8 @@
     </header>
 
     <main class="phone-grid">
-      <section class="phone panel-left" id="panel-left">
-        <h2 id="form-title" class="desktop-form-title">Add Resource</h2>
+      <section class="phone panel-left">
+        <h2 id="form-title">Add Resource</h2>
         <form id="resource-form" class="stack">
           <label>
             Type
@@ -174,7 +174,6 @@
             <button id="save-btn" class="button" type="submit">Add item</button>
             <button id="cancel-edit" class="button secondary hidden" type="button">Cancel</button>
           </div>
-          <button id="form-close-mobile" class="button secondary form-close-mobile" type="button">✕ Close</button>
         </form>
       </section>
 
@@ -205,6 +204,95 @@
     <div class="bottom-actions">
       <button id="ip-toggle" class="ip-toggle" type="button">🌐 IP View</button>
       <button id="tree-toggle" class="tree-toggle" type="button">🌳 Tree View</button>
+    </div>
+
+    <nav class="bottom-nav" aria-label="Mobile navigation">
+      <button class="bottom-nav-item" id="nav-topology" type="button">
+        <span class="bottom-nav-icon">🗂️</span>
+        <span class="bottom-nav-label">Topology</span>
+      </button>
+      <button class="bottom-nav-item" id="nav-add" type="button">
+        <span class="bottom-nav-icon">➕</span>
+        <span class="bottom-nav-label">Add</span>
+      </button>
+      <button class="bottom-nav-item" id="nav-ip" type="button">
+        <span class="bottom-nav-icon">🌐</span>
+        <span class="bottom-nav-label">IP View</span>
+      </button>
+      <button class="bottom-nav-item" id="nav-tree" type="button">
+        <span class="bottom-nav-icon">🌳</span>
+        <span class="bottom-nav-label">Tree</span>
+      </button>
+      <button class="bottom-nav-item" id="nav-config" type="button">
+        <span class="bottom-nav-icon">⚙️</span>
+        <span class="bottom-nav-label">Config</span>
+      </button>
+    </nav>
+
+    <div class="mobile-view" id="mobile-add">
+      <div class="mobile-view-head">
+        <h2 id="mobile-form-title">Add Resource</h2>
+      </div>
+      <div class="mobile-view-body" id="mobile-form-body"></div>
+      <div class="mobile-view-footer">
+        <button class="button secondary" id="mobile-form-close">← Back to Topology</button>
+      </div>
+    </div>
+
+    <div class="mobile-view" id="mobile-ip">
+      <div class="mobile-view-head">
+        <h2>IP View</h2>
+      </div>
+      <div class="mobile-view-body">
+        <div class="ip-search-bar">
+          <input id="ip-search-mobile" type="text" placeholder="Search IP or hostname..." autocomplete="off" />
+        </div>
+        <div id="ip-content-mobile"></div>
+      </div>
+      <div class="mobile-view-footer">
+        <button class="button secondary" id="mobile-ip-close">← Back to Topology</button>
+      </div>
+    </div>
+
+    <div class="mobile-view" id="mobile-tree">
+      <div class="mobile-view-head">
+        <h2>Relationship Tree</h2>
+        <div class="view-switch" role="tablist">
+          <button id="mobile-tree-mode-tree" class="icon-btn active" type="button">Tree</button>
+          <button id="mobile-tree-mode-graph" class="icon-btn" type="button">Graph</button>
+        </div>
+      </div>
+      <div class="mobile-view-body" id="mobile-tree-content"></div>
+      <div class="mobile-view-footer">
+        <button class="button secondary" id="mobile-tree-close">← Back to Topology</button>
+      </div>
+    </div>
+
+    <div class="mobile-view" id="mobile-config">
+      <div class="mobile-view-head">
+        <h2>Config</h2>
+      </div>
+      <div class="mobile-view-body">
+        <p class="note">Backup or move your full homelab map.</p>
+        <div class="stack">
+          <button id="export-btn-mobile" class="button secondary" type="button">Export Config</button>
+          <label class="button secondary file-label">
+            Import Config
+            <input id="import-file-mobile" type="file" accept="application/json" />
+          </label>
+          <button id="clear-all-mobile" class="button danger" type="button">Clear All</button>
+        </div>
+        <div class="legend" style="margin-top:1rem">
+          <p><span class="dot hardware"></span> Hardware</p>
+          <p><span class="dot vm"></span> VM</p>
+          <p><span class="dot lxc"></span> LXC</p>
+          <p><span class="dot app"></span> App</p>
+          <p><span class="dot network"></span> Network</p>
+        </div>
+      </div>
+      <div class="mobile-view-footer">
+        <button class="button secondary" id="mobile-config-close">← Back to Topology</button>
+      </div>
     </div>
 
     <nav class="bottom-nav" aria-label="Mobile navigation">
