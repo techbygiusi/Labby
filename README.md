@@ -1,5 +1,3 @@
-> **Disclaimer:** Labby is a vibe-coded project built with AI assistance.
-
 # 🧪 Labby - Next Gen | Map Your Homelab
 
 Labby is a lightweight homelab inventory and topology tool with persistent, browser-independent storage.
