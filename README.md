@@ -155,7 +155,7 @@ docker run --rm \
 
 ## 📝 Notes
 
-- Data is stored server-side — all browsers and devices share the same data
+- Data is stored server-side. All browsers and devices share the same data
 - Old localStorage exports (from pre-Next Gen versions) can be imported via Config → Import Config
 - For multi-user or team setups, consider running behind a reverse proxy with authentication
 
