@@ -293,75 +293,23 @@ ipToggle.addEventListener('click', () => {
   renderIPView();
   ipDialog.showModal();
 });
+if (ipSearch) ipSearch.addEventListener('input', renderIPView);
+
+function extractIPs(item) {
+  const ips = [];
+  if (item.ip) ips.push({ addr: item.ip.split('/')[0].trim(), item });
+  if (item.type === 'app' && item.ipPort) {
+    const host = item.ipPort.split(':')[0].trim();
+    if (host) ips.push({ addr: host, item });
+  }
+  return ips;
+}
 
 function renderIPView() {
+  if (!ipContent) return;
   ipContent.innerHTML = '';
   const query = (ipSearch && ipSearch.value) ? ipSearch.value.trim().toLowerCase() : '';
-
-  const networks = items.filter(i => i.type === 'network');
-  const allIPs = [];
-  items.forEach(item => extractIPs(item).forEach(e => allIPs.push(e)));
-
-  const matched = query
-    ? allIPs.filter(e => e.addr.includes(query) || e.item.name.toLowerCase().includes(query))
-    : allIPs;
-
-  if (!matched.length) {
-    const empty = document.createElement('p');
-    empty.className = 'tree-empty';
-    empty.textContent = query ? 'No matching IP addresses found.' : 'No IP addresses defined yet.';
-    ipContent.appendChild(empty);
-    return;
-  }
-
-  const bySubnet = new Map();
-  const unmatched = [];
-
-  matched.forEach(entry => {
-    const net = networks.find(n => ipInSubnet(entry.addr, n.subnet));
-    if (net) {
-      const key = net.id;
-      if (!bySubnet.has(key)) bySubnet.set(key, { net, entries: [] });
-      bySubnet.get(key).entries.push(entry);
-    } else {
-      unmatched.push(entry);
-    }
-  });
-
-  bySubnet.forEach(({ net, entries }) => {
-    entries.sort((a, b) => toIPv4Int(a.addr) - toIPv4Int(b.addr));
-    const block = document.createElement('div');
-    block.className = 'ip-subnet-block';
-    const head = document.createElement('div');
-    head.className = 'ip-subnet-head';
-    const label = document.createElement('span');
-    label.className = 'ip-subnet-label';
-    label.textContent = net.subnet;
-    if (net.networkColor) label.style.background = net.networkColor;
-    const name = document.createElement('span');
-    name.className = 'ip-subnet-name';
-    name.textContent = net.name + (net.gateway ? ' · GW: ' + net.gateway : '');
-    head.appendChild(label);
-    head.appendChild(name);
-    block.appendChild(head);
-    entries.forEach(e => block.appendChild(buildIPRow(e, query)));
-    ipContent.appendChild(block);
-  });
-
-  if (unmatched.length) {
-    unmatched.sort((a, b) => (toIPv4Int(a.addr) || 0) - (toIPv4Int(b.addr) || 0));
-    const block = document.createElement('div');
-    block.className = 'ip-subnet-block';
-    const head = document.createElement('div');
-    head.className = 'ip-subnet-head';
-    const label = document.createElement('span');
-    label.className = 'ip-subnet-label';
-    label.textContent = 'No subnet match';
-    head.appendChild(label);
-    block.appendChild(head);
-    unmatched.forEach(e => block.appendChild(buildIPRow(e, query)));
-    ipContent.appendChild(block);
-  }
+  renderIPInto(ipContent, query);
 }
 
 function buildIPRow(entry, query) {
