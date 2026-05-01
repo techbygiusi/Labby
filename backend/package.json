@@ -1,0 +1,13 @@
+{
+  "name": "labby-backend",
+  "version": "1.0.0",
+  "description": "Persistent storage backend for Labby",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.6.0",
+    "express": "^4.19.2"
+  }
+}

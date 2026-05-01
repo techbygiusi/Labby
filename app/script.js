@@ -77,11 +77,47 @@ const toast = document.getElementById('toast');
 
 let editingId = null;
 let selectedNetworkColor = networkPalette[0];
-let items = sanitizeItems(loadItems());
+let items = [];
 let toastTimer = null;
 let treeViewMode = 'tree';
 let lastTypeSelection = typeSelect.value;
 let lastHardwareKindSelection = hardwareKindSelect.value;
+
+const API_BASE = (() => {
+  const loc = window.location;
+  return window.LABBY_API || (loc.hostname === 'localhost' && loc.port === '8080' ? 'http://localhost:3001' : '');
+})();
+
+async function loadItemsFromAPI() {
+  try {
+    const res = await fetch(`${API_BASE}/api/data`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.warn('Labby: API not reachable, falling back to localStorage.', err);
+    try {
+      const raw = localStorage.getItem(storageKey);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+}
+
+async function saveItemsToAPI(itemList) {
+  try {
+    const res = await fetch(`${API_BASE}/api/data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(itemList),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  } catch (err) {
+    console.warn('Labby: API save failed, writing to localStorage as fallback.', err);
+    try { localStorage.setItem(storageKey, JSON.stringify(itemList)); } catch {}
+  }
+}
 
 cleanupDuplicateIds(['symbol-wrap', 'hardware-kind-wrap', 'manufacturer-wrap', 'os-wrap', 'symbol', 'hardware-kind', 'manufacturer', 'os']);
 cleanupDuplicateFieldLabels();
@@ -94,7 +130,11 @@ appendRaidRow();
 symbolInput.value = defaultSymbol('hardware', 'server');
 initTheme();
 applyTypeVisibility();
-render();
+
+(async () => {
+  items = sanitizeItems(await loadItemsFromAPI());
+  render();
+})();
 
 function cleanupDuplicateIds(ids) {
   ids.forEach((id) => {
@@ -536,7 +576,7 @@ function loadItems() {
 }
 
 function saveItems() {
-  localStorage.setItem(storageKey, JSON.stringify(items));
+  saveItemsToAPI(items);
 }
 
 function supportsNotes(type) {
