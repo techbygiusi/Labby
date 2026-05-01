@@ -11,7 +11,10 @@ Track your infrastructure, visualize relationships, and keep everything in one p
   </a>
 </p>
 
-> **P.S.:** I'm looking for someone to design a nice logo for the application. If you're interested (or know someone), please reach out.
+> 🚀 **A new version is in development!** Labby Next Gen includes persistent server-side storage, a mobile-optimized bottom navigation, IP View, copy-to-clipboard, status indicators and more.  
+> Try the preview on the **[labby-next-gen](https://github.com/techbygiusi/Labby/tree/labby-next-gen)** branch.
+
+> **P.S.:** I'm looking for someone to design a nice logo...
 
 ---
 
