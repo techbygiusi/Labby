@@ -730,6 +730,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
     padding: 0.3rem 0.2rem;
     border-radius: 10px;
     color: var(--text);
+    margin: 0 4px;
   }
   .bottom-nav-item.active { background: var(--yellow); }
   .bottom-nav-icon { font-size: 1.3rem; line-height: 1; }
