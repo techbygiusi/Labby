@@ -47,7 +47,7 @@ Track your infrastructure, visualize relationships, and keep everything in one p
 - 💾 **Backup-friendly storage details**
   - Shares + RAID groups for NAS and Backup hardware types
 - 📦 **Export / Import JSON** for backups and migration
-- 🗄️ **Persistent storage** — data is saved server-side in SQLite, accessible from any browser
+- 🗄️ **Persistent storage** Data is saved server-side in SQLite, accessible from any browser
 
 ---
 
