@@ -1247,8 +1247,8 @@ function startEditing(id) {
   cpuCountSelect.value = String(item.cpuCount || inferCpuCount(item.cpu));
   switchPortsInput.value = item.switchPorts || '';
   ipPortInput.value = item.ipPort || '';
-  webUrlInput.value = item.webUrl || '';
-  hardwareWebUrlInput.value = (item.type === 'hardware' ? item.webUrl : '') || '';
+  webUrlInput.value = item.type === 'app' ? (item.webUrl || '') : '';
+  hardwareWebUrlInput.value = item.type === 'hardware' ? (item.webUrl || '') : '';
   subnetInput.value = item.subnet || '';
   gatewayInput.value = item.gateway || '';
   setSelectedColor(item.networkColor || networkPalette[0]);
