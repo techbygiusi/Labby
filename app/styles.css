@@ -321,9 +321,8 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   align-items: center;
   justify-content: space-between;
   gap: 0.45rem;
-  padding: 0.2rem 0.25rem 0.2rem 1rem;
+  padding: 0.2rem 0.25rem;
   border-radius: 8px;
-  position: relative;
 }
 .tree-group-head {
   cursor: default;
@@ -333,12 +332,13 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   content: '▸';
   color: var(--muted);
   font-size: 0.84rem;
-  position: absolute;
-  left: 0.15rem;
+  flex-shrink: 0;
   width: 0.6rem;
   text-align: center;
+  line-height: 1;
+  align-self: center;
 }
-.tree-group-head::before { content: ''; }
+.tree-group-head::before { content: ''; width: 0; }
 .tree-collapsible[open] > .tree-summary::before { content: '▾'; }
 .tree-summary-host,
 .tree-summary-guest {
