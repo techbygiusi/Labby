@@ -52,6 +52,8 @@ const ipPortInput = document.getElementById('ip-port');
 const ipPortWrap = document.getElementById('ip-port-wrap');
 const webUrlInput = document.getElementById('web-url');
 const webUrlWrap = document.getElementById('web-url-wrap');
+const hardwareWebUrlInput = document.getElementById('hardware-web-url');
+const hardwareWebUrlWrap = document.getElementById('hardware-web-url-wrap');
 const notesInput = document.getElementById('notes');
 const statusSelect = document.getElementById('status');
 const notesWrap = document.getElementById('notes-wrap');
@@ -187,6 +189,7 @@ form.addEventListener('submit', async (event) => {
   const diskRows = getDiskRows();
   const ipPort = ipPortInput.value.trim();
   const webUrl = webUrlInput.value.trim();
+  const hardwareWebUrl = hardwareWebUrlInput.value.trim();
   const hostedOn = hostedOnSelect.value || '';
   const appHostedOn = appHostedOnSelect.value || '';
   const subnet = subnetInput.value.trim();
@@ -222,7 +225,7 @@ form.addEventListener('submit', async (event) => {
     ramModules: supportsComputeDetails(type) ? ramModuleList : [],
     diskRows: supportsComputeDetails(type) ? diskRows : [],
     ipPort: type === 'app' ? ipPort : '',
-    webUrl: type === 'app' ? webUrl : '',
+    webUrl: type === 'app' ? webUrl : (type === 'hardware' ? hardwareWebUrl : ''),
     subnet: type === 'network' ? subnet : '',
     gateway: type === 'network' ? gateway : '',
     networkColor: type === 'network' ? selectedNetworkColor : '',
@@ -254,6 +257,7 @@ form.addEventListener('submit', async (event) => {
   showToast(wasEditing ? 'Resource updated.' : 'Resource added.');
   form.reset();
   statusSelect.value = '';
+  hardwareWebUrlInput.value = '';
   statusSelect.value = '';
   symbolInput.value = defaultSymbol('hardware', 'server');
   hardwareKindSelect.value = 'server';
@@ -888,6 +892,7 @@ function applyTypeVisibility() {
   nasRaidsWrap.classList.toggle('hidden', !supportsStorage);
   ipPortWrap.classList.toggle('hidden', !isApp);
   webUrlWrap.classList.toggle('hidden', !isApp);
+  hardwareWebUrlWrap.classList.toggle('hidden', !isHardware);
   notesWrap.classList.toggle('hidden', !supportsNotes(type));
 
   subnetInput.required = isNetwork;
@@ -1016,7 +1021,7 @@ function buildCardActions(item) {
     els.push(makeCopyBtn(item.ipPort, 'Copy IP:Port'));
   }
 
-  if (item.type === 'app' && item.webUrl) {
+  if ((item.type === 'app' || item.type === 'hardware') && item.webUrl) {
     const link = document.createElement('a');
     link.href = item.webUrl;
     link.target = '_blank';
@@ -1243,6 +1248,7 @@ function startEditing(id) {
   switchPortsInput.value = item.switchPorts || '';
   ipPortInput.value = item.ipPort || '';
   webUrlInput.value = item.webUrl || '';
+  hardwareWebUrlInput.value = (item.type === 'hardware' ? item.webUrl : '') || '';
   subnetInput.value = item.subnet || '';
   gatewayInput.value = item.gateway || '';
   setSelectedColor(item.networkColor || networkPalette[0]);
