@@ -13,16 +13,15 @@ Track your infrastructure, visualize relationships, and keep everything organize
 <table>
   <tr>
     <td width="50%"><img width="100%" src="https://github.com/user-attachments/assets/acab3547-1cfe-4494-91a6-9183eaec4673" /><br/><sub><b>Dashboard & Resource Management</b></sub></td>
-    <td width="50%"><img width="100%" src="https://github.com/user-attachments/assets/e340406f-5483-41eb-9a66-81dfb055bd2c" /><br/><sub><b>IP View — Subnets & Used IPs</b></sub></td>
   </tr>
 </table>
 
 ### Mobile
 <table>
   <tr>
-    <td width="33%" align="center"><img width="100%" src="https://github.com/user-attachments/assets/ff9c2daa-e122-4462-9d8b-377465e23881" /><br/><sub><b>Topology View</b></sub></td>
-    <td width="33%" align="center"><img width="100%" src="https://github.com/user-attachments/assets/e83a6ba5-486b-4fcb-a4a9-8205f6fe1971" /><br/><sub><b>Config</b></sub></td>
-    <td width="33%" align="center"><img width="100%" src="https://github.com/user-attachments/assets/8d9f54fd-6a4d-46a3-b4d3-8ebbe82ec48d" /><br/><sub><b>Relationship View</b></sub></td>
+    <td width="33%" align="center"><img width="100%" src="https://github.com/user-attachments/assets/5429d9b7-b67c-470d-af13-6e10d2856eb0" /><br/><sub><b>Topology View</b></sub></td>
+    <td width="33%" align="center"><img width="100%" src="https://github.com/user-attachments/assets/b6e9f0cb-9c4b-446b-b6fc-3188958c0921" /><br/><sub><b>IP View</b></sub></td>
+    <td width="33%" align="center"><img width="100%" src="https://github.com/user-attachments/assets/764cbc83-0ea4-4306-addd-59ae244583e9" /><br/><sub><b>Config View</b></sub></td>
   </tr>
 </table>
 
