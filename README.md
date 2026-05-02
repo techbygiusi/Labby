@@ -21,11 +21,11 @@ Track your infrastructure, visualize relationships, and keep everything in one p
 ## 📸 Screenshots
 
 ### Dashboard + Resource Management
-<img width="3830" height="1893" alt="image" src="https://github.com/user-attachments/assets/b99c4fbd-8d37-4199-bc6f-5287f1dd298a" />
+<img width="3830" height="1893" alt="image" src="https://github.com/user-attachments/assets/b99c4fbd-8d37-4199-bc6f-5287f1dd298a" /></br>
 <img width="3833" height="1895" alt="image" src="https://github.com/user-attachments/assets/b2e3c69d-cc18-4a43-ac25-593687687592" />
 
 ### Tree / Graph Relationship View
-<img width="2605" height="1387" alt="image" src="https://github.com/user-attachments/assets/2a70cbf9-b77c-46ec-b4a4-2251a32b6f20" />
+<img width="2605" height="1387" alt="image" src="https://github.com/user-attachments/assets/2a70cbf9-b77c-46ec-b4a4-2251a32b6f20" /></br>
 <img width="2607" height="1303" alt="image" src="https://github.com/user-attachments/assets/c099fa0c-1f15-4354-87ed-6c4b5109570f" />
 
 ---
