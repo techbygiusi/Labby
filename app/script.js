@@ -776,8 +776,10 @@ function normalizeList(list) {
     }
     if (next.type !== 'app') {
       next.ipPort = '';
-      next.webUrl = '';
       next.appHostedOn = '';
+    }
+    if (next.type !== 'app' && next.type !== 'hardware') {
+      next.webUrl = '';
     }
     if (next.type !== 'network') {
       next.subnet = '';
