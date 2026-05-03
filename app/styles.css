@@ -1006,7 +1006,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 
 .show-tutorial-btn {
   position: fixed;
-  left: 18px;
+  left: 72px;
   bottom: 18px;
   z-index: 20;
   width: 36px;
