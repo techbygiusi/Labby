@@ -19,7 +19,6 @@ Track your infrastructure, visualize relationships, and keep everything organize
 <table>
   <tr>
     <td width="50%"><img width="100%" src="https://github.com/user-attachments/assets/acab3547-1cfe-4494-91a6-9183eaec4673" /><br/><sub><b>Dashboard & Resource Management</b></sub></td>
-    <td width="50%"><img width="100%" src="https://github.com/user-attachments/assets/e340406f-5483-41eb-9a66-81dfb055bd2c" /><br/><sub><b>IP View — Subnets & Used IPs</b></sub></td>
   </tr>
 </table>
 
