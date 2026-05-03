@@ -2,8 +2,8 @@
 
 # 🧪 Labby - Map Your Homelab
 
-Labby is a lightweight homelab inventory and topology tool.
-Track your infrastructure, visualize relationships, and keep everything in one place.
+Labby is a lightweight homelab inventory and topology tool with persistent, browser-independent storage.
+Track your infrastructure, visualize relationships, and keep everything organized.
 
 <p align="center">
   <a href="https://www.my-labby.com/" target="_blank" rel="noopener noreferrer">
@@ -11,43 +11,62 @@ Track your infrastructure, visualize relationships, and keep everything in one p
   </a>
 </p>
 
-> 🚀 **A new version is in development!** Labby Next Gen includes persistent server-side storage, a mobile-optimized bottom navigation, IP View, copy-to-clipboard, status indicators and more.  
-> Try the preview on the **[labby-next-gen](https://github.com/techbygiusi/Labby/tree/labby-next-gen)** branch.
-
-> **P.S.:** I'm looking for someone to design a nice logo...
-
 ---
 
 ## 📸 Screenshots
 
-### Dashboard + Resource Management
-<img width="3830" height="1893" alt="image" src="https://github.com/user-attachments/assets/b99c4fbd-8d37-4199-bc6f-5287f1dd298a" /></br>
-<img width="3833" height="1895" alt="image" src="https://github.com/user-attachments/assets/b2e3c69d-cc18-4a43-ac25-593687687592" />
+### Desktop
+<table>
+  <tr>
+    <td width="50%"><img width="100%" src="https://github.com/user-attachments/assets/acab3547-1cfe-4494-91a6-9183eaec4673" /><br/><sub><b>Dashboard & Resource Management</b></sub></td>
+    <td width="50%"><img width="100%" src="https://github.com/user-attachments/assets/e340406f-5483-41eb-9a66-81dfb055bd2c" /><br/><sub><b>IP View — Subnets & Used IPs</b></sub></td>
+  </tr>
+</table>
 
-### Tree / Graph Relationship View
-<img width="2605" height="1387" alt="image" src="https://github.com/user-attachments/assets/2a70cbf9-b77c-46ec-b4a4-2251a32b6f20" /></br>
-<img width="2607" height="1303" alt="image" src="https://github.com/user-attachments/assets/c099fa0c-1f15-4354-87ed-6c4b5109570f" />
+### Mobile
+<table>
+  <tr>
+    <td width="33%" align="center"><img width="100%" src="https://github.com/user-attachments/assets/5429d9b7-b67c-470d-af13-6e10d2856eb0" /><br/><sub><b>Topology View</b></sub></td>
+    <td width="33%" align="center"><img width="100%" src="https://github.com/user-attachments/assets/b6e9f0cb-9c4b-446b-b6fc-3188958c0921" /><br/><sub><b>IP View</b></sub></td>
+    <td width="33%" align="center"><img width="100%" src="https://github.com/user-attachments/assets/764cbc83-0ea4-4306-addd-59ae244583e9" /><br/><sub><b>Config View</b></sub></td>
+  </tr>
+</table>
 
 ---
 
 ## ✨ Features
 
-- 🖥️ **Resource tracking** for:
-  - Hardware
-  - VMs
-  - LXCs
-  - Apps
-  - Networks
-- 🌐 **Topology mapping** with relationship Tree and Graph views
+### Core
+- 🖥️ **Resource tracking** for Hardware, VMs, LXCs, Apps and Networks
+- 🌐 **Topology mapping** with Tree and Graph relationship views
 - 🎨 **Light & Dark mode**
 - 🧠 **Automatic network matching** by IP/CIDR
-- 🧾 **Rich metadata support**
-  - OS field for Hardware/VM/LXC
-  - Manufacturer, CPU, RAM, disks, notes, links, etc.
-- 💾 **Backup-friendly storage details**
-  - Shares + RAID groups for NAS and Backup hardware types
+- 🗄️ **Persistent server-side storage** — data saved in JSON on the backend, accessible from any browser or device
+
+### Resources & Metadata
+- 🔧 Rich metadata: OS, Manufacturer, CPU, RAM, Disks, Notes, Links
+- 💾 NAS/Backup: Shares and RAID group tracking
+- 🟢 **Status field** per resource: Online / Offline / Maintenance — with colored badge and visual indicator on cards
+- 📋 **Copy-to-clipboard** for IPs and URLs directly on cards
+- 🔗 **Clickable web URLs** open apps and hardware interfaces directly from their card
+
+### IP View
+- 🌐 Dedicated IP View showing all used IP addresses
+- Sorted by subnet with network color coding
+- Port display for apps (e.g. `10.20.0.21:2283`)
+- Live search by IP, hostname, or port
+
+### Navigation & UX
+- 📱 **Mobile & Tablet optimized** — full-screen views for each section via bottom navigation bar
+- 🖥️ **Desktop** — classic two-panel layout unchanged
+- Bottom nav: Topology / Add / IP View / Tree / Config
+- Add and Edit resources open as full-screen panels on mobile
+- 📖 Built-in tutorial accessible via Config menu
+
+### Config & Data
 - 📦 **Export / Import JSON** for backups and migration
-- 🗄️ **Persistent storage** Data is saved server-side in SQLite, accessible from any browser
+- Data stored server-side — survives container restarts via Docker volume
+- Old localStorage exports can be imported directly
 
 ---
 
@@ -71,24 +90,15 @@ docker compose down
 
 > Data is preserved in a Docker volume (`labby-data`) and survives container restarts.
 
-### Use a different port
+### Change port
 
-Default mapping in `docker-compose.yml` is:
-
-```yaml
-ports:
-  - "8080:80"
-```
-
-Change to your preferred port (e.g. `9090`):
-
+Edit `docker-compose.yml`:
 ```yaml
 ports:
   - "9090:80"
 ```
 
 Then restart:
-
 ```bash
 docker compose up --build -d
 ```
@@ -97,16 +107,15 @@ docker compose up --build -d
 
 ## 🧭 Quick Start
 
-1. ➕ Add one or more **Networks** (subnet, gateway, color).
-2. 🖥️ Add **Hardware**, **VM**, and **LXC** resources.
-3. ⚙️ Add **Apps** with `IP:Port` and optional Web URL.
-4. 🔗 Define hosting relationships:
-   - VM/LXC hosted on Hardware
-   - App hosted on VM/LXC
-5. 🌳 Open **Tree View** and switch to **Graph** for topology checks.
-6. 💾 Use **Export Config** to back up, **Import Config** to restore.
+1. ➕ Add **Networks** first (subnet, gateway, color)
+2. 🖥️ Add **Hardware**, **VMs** and **LXCs**
+3. ⚙️ Add **Apps** with IP:Port and Web URL
+4. 🔗 Set hosting relationships (VM on Hardware, App on VM/LXC)
+5. 🌳 Open **Tree View** or **Graph** to visualize topology
+6. 🌐 Open **IP View** to see all used IPs sorted by subnet
+7. 💾 Use **Export Config** to back up your data
 
-> **P.S.:** Want your **Graph View** to look extra clean? Try assigning custom icons per device. If you're hunting for matching emojis, I recommend [semo.lol](https://semo.lol/).
+> **Tip:** Use custom emojis as icons for devices. Great resource: [semo.lol](https://semo.lol/)
 
 ---
 
@@ -116,14 +125,14 @@ docker compose up --build -d
 app/
   index.html          # UI markup
   styles.css          # Styling and layout
-  script.js           # App logic, state handling, rendering
+  script.js           # App logic, rendering, mobile nav
 backend/
-  server.js           # Express API + SQLite storage
+  server.js           # Express API + JSON file storage
   package.json
   Dockerfile
 nginx/
   default.conf        # Reverse proxy /api/* to backend
-Dockerfile
+Dockerfile            # Frontend (nginx)
 docker-compose.yml
 ```
 
@@ -131,10 +140,9 @@ docker-compose.yml
 
 ## 🗄️ Data & Backup
 
-All data is stored in a SQLite database inside a named Docker volume (`labby-data`).
+All data is stored in a JSON file inside a named Docker volume (`labby-data`).
 
-To create a backup:
-
+**Create a backup:**
 ```bash
 docker run --rm \
   -v labby-data:/data \
@@ -142,8 +150,7 @@ docker run --rm \
   alpine tar czf /backup/labby-backup.tar.gz /data
 ```
 
-To restore:
-
+**Restore from backup:**
 ```bash
 docker run --rm \
   -v labby-data:/data \
@@ -155,8 +162,9 @@ docker run --rm \
 
 ## 📝 Notes
 
-- Data is stored server-side. All browsers and devices share the same data.
-- For team or multi-user setups, run behind a reverse proxy with authentication.
+- Data is stored server-side — all browsers and devices share the same data
+- Old localStorage exports (from pre-Next Gen versions) can be imported via Config → Import Config
+- For multi-user or team setups, consider running behind a reverse proxy with authentication
 
 ---
 
