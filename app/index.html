@@ -4,10 +4,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Labby - Map Your Homelab</title>
+    <meta name="description" content="Labby is a lightweight homelab inventory and topology tool. Track hardware, VMs, LXCs, apps and networks — visualize relationships with tree and graph views." />
+    <meta name="keywords" content="homelab, network inventory, infrastructure map, proxmox, self-hosted, docker, topology, IP management" />
+    <meta name="author" content="TechByGiusi" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://my-labby.com/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://my-labby.com/" />
+    <meta property="og:title" content="Labby - Map Your Homelab" />
+    <meta property="og:description" content="Lightweight homelab inventory and topology tool. Track hardware, VMs, LXCs, apps and networks with persistent storage." />
+    <meta property="og:image" content="https://my-labby.com/logo.svg" />
+
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Labby - Map Your Homelab" />
+    <meta name="twitter:description" content="Lightweight homelab inventory and topology tool." />
+    <meta name="twitter:image" content="https://my-labby.com/logo.svg" />
+
     <link rel="icon" type="image/svg+xml" href="logo.svg" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <div class="demo-banner">🎭 Demo mode — changes are saved in your browser only. <a href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener noreferrer">Self-host Labby</a> for permanent storage.</div>
     <header class="topbar">
       <div class="brand-wrap">
         <img src="logo.svg" alt="Labby logo" class="logo" />
@@ -67,6 +85,15 @@
             Description
             <input id="description" type="text" placeholder="Short note" />
           </label>
+          <label>
+            Status
+            <select id="status">
+              <option value="">— Not set —</option>
+              <option value="online">🟢 Online</option>
+              <option value="offline">🔴 Offline</option>
+              <option value="maintenance">🟡 Maintenance</option>
+            </select>
+          </label>
           <label id="notes-wrap">
             Notes
             <textarea id="notes" rows="3" placeholder="Any details, credentials location, maintenance info..."></textarea>
@@ -74,6 +101,10 @@
           <label>
             IP Address (Hardware/VM/LXC)
             <input id="ip-address" type="text" placeholder="e.g. 192.168.10.20" />
+          </label>
+          <label id="hardware-web-url-wrap" class="hidden">
+            Web URL (Hardware)
+            <input id="hardware-web-url" type="text" placeholder="https://nas.local" />
           </label>
           <fieldset id="compute-fields" class="network-fields">
             <legend>Compute details</legend>
@@ -126,6 +157,7 @@
             Web URL (App)
             <input id="web-url" type="url" placeholder="https://app.example.local" />
           </label>
+
           <label id="hosted-on-wrap">
             Hosted on (Hardware)
             <select id="hosted-on">
@@ -189,15 +221,108 @@
       <button id="tree-toggle" class="tree-toggle" type="button">🌳 Tree View</button>
     </div>
 
+    <nav class="bottom-nav" aria-label="Mobile navigation">
+      <button class="bottom-nav-item" id="nav-topology" type="button">
+        <span class="bottom-nav-icon">🗂️</span>
+        <span class="bottom-nav-label">Topology</span>
+      </button>
+      <button class="bottom-nav-item" id="nav-add" type="button">
+        <span class="bottom-nav-icon">➕</span>
+        <span class="bottom-nav-label">Add</span>
+      </button>
+      <button class="bottom-nav-item" id="nav-ip" type="button">
+        <span class="bottom-nav-icon">🌐</span>
+        <span class="bottom-nav-label">IP View</span>
+      </button>
+      <button class="bottom-nav-item" id="nav-tree" type="button">
+        <span class="bottom-nav-icon">🌳</span>
+        <span class="bottom-nav-label">Tree</span>
+      </button>
+      <button class="bottom-nav-item" id="nav-config" type="button">
+        <span class="bottom-nav-icon">⚙️</span>
+        <span class="bottom-nav-label">Config</span>
+      </button>
+    </nav>
+
+    <div class="mobile-view" id="mobile-add">
+      <div class="mobile-view-head">
+        <h2 id="mobile-form-title">Add Resource</h2>
+      </div>
+      <div class="mobile-view-body" id="mobile-form-body"></div>
+      <div class="mobile-view-footer">
+        <button class="button secondary" id="mobile-form-close">← Back to Topology</button>
+      </div>
+    </div>
+
+    <div class="mobile-view" id="mobile-ip">
+      <div class="mobile-view-head">
+        <h2>IP View</h2>
+      </div>
+      <div class="mobile-view-body">
+        <div class="ip-search-bar">
+          <input id="ip-search-mobile" type="text" placeholder="Search IP or hostname..." autocomplete="off" />
+        </div>
+        <div id="ip-content-mobile"></div>
+      </div>
+      <div class="mobile-view-footer">
+        <button class="button secondary" id="mobile-ip-close">← Back to Topology</button>
+      </div>
+    </div>
+
+    <div class="mobile-view" id="mobile-tree">
+      <div class="mobile-view-head">
+        <h2>Relationship Tree</h2>
+        <div class="view-switch" role="tablist">
+          <button id="mobile-tree-mode-tree" class="icon-btn active" type="button">Tree</button>
+          <button id="mobile-tree-mode-graph" class="icon-btn" type="button">Graph</button>
+        </div>
+      </div>
+      <div class="mobile-view-body" id="mobile-tree-content"></div>
+      <div class="mobile-view-footer">
+        <button class="button secondary" id="mobile-tree-close">← Back to Topology</button>
+      </div>
+    </div>
+
+    <div class="mobile-view" id="mobile-config">
+      <div class="mobile-view-head">
+        <h2>Config</h2>
+      </div>
+      <div class="mobile-view-body">
+        <p class="note">Backup or move your full homelab map.</p>
+        <div class="stack">
+          <button id="export-btn-mobile" class="button secondary" type="button">Export Config</button>
+          <label class="button secondary file-label">
+            Import Config
+            <input id="import-file-mobile" type="file" accept="application/json" />
+          </label>
+          <button id="clear-all-mobile" class="button danger" type="button">Clear All</button>
+        </div>
+        <div class="legend" style="margin-top:1rem">
+          <p><span class="dot hardware"></span> Hardware</p>
+          <p><span class="dot vm"></span> VM</p>
+          <p><span class="dot lxc"></span> LXC</p>
+          <p><span class="dot app"></span> App</p>
+          <p><span class="dot network"></span> Network</p>
+        </div>
+      </div>
+      <div class="mobile-view-footer">
+        <button class="button secondary" id="mobile-config-close">← Back to Topology</button>
+      </div>
+    </div>
+
+
+
     <dialog id="ip-dialog" class="tree-dialog">
       <div class="tree-head">
         <h3>IP Address View</h3>
-        <button id="ip-close" class="icon-btn" type="button">Close</button>
       </div>
       <div class="ip-search-bar">
         <input id="ip-search" type="text" placeholder="Search IP or hostname..." autocomplete="off" />
       </div>
       <div id="ip-content" class="tree-content"></div>
+      <div class="dialog-footer">
+        <button class="button secondary" onclick="document.getElementById('ip-dialog').close()">✕ Close</button>
+      </div>
     </dialog>
 
     <dialog id="tree-dialog" class="tree-dialog">
@@ -208,16 +333,17 @@
             <button id="tree-mode-tree" class="icon-btn active" type="button">Tree</button>
             <button id="tree-mode-graph" class="icon-btn" type="button">Graph</button>
           </div>
-          <button id="tree-close" class="icon-btn" type="button">Close</button>
         </div>
       </div>
       <div id="tree-content" class="tree-content"></div>
+      <div class="dialog-footer">
+        <button class="button secondary" onclick="document.getElementById('tree-dialog').close()">✕ Close</button>
+      </div>
     </dialog>
 
     <dialog id="config-dialog" class="tree-dialog">
       <div class="tree-head">
         <h3>Config</h3>
-        <button id="config-close" class="icon-btn" type="button">Close</button>
       </div>
       <p class="note">Backup or move your full homelab map.</p>
       <div class="stack">
@@ -235,6 +361,9 @@
         <p><span class="dot app"></span> App</p>
         <p><span class="dot network"></span> Network</p>
       </div>
+      <div class="dialog-footer">
+        <button class="button secondary" onclick="document.getElementById('config-dialog').close()">✕ Close</button>
+      </div>
     </dialog>
 
     <template id="item-template">
@@ -250,9 +379,11 @@
           </div>
         </div>
         <p class="card-desc"></p>
+        <span class="card-status"></span>
         <p class="card-notes"></p>
         <p class="card-ip"></p>
         <p class="card-app"></p>
+        <div class="card-actions"></div>
         <p class="card-specs"></p>
         <p class="card-network"></p>
         <p class="card-hosting"></p>
@@ -279,6 +410,23 @@
       </svg>
       <span>GitHub</span>
     </a>
+
+    <div id="welcome-overlay" class="welcome-overlay">
+      <div class="welcome-card">
+        <div class="tutorial-icon" id="tutorial-icon">🧪</div>
+        <h2 class="tutorial-title" id="tutorial-title">Welcome to Labby!</h2>
+        <p class="tutorial-text" id="tutorial-text"></p>
+        <div class="tutorial-dots" id="tutorial-dots"></div>
+        <div class="tutorial-progress" id="tutorial-progress"></div>
+        <div class="tutorial-actions">
+          <button id="tutorial-prev" class="button secondary" type="button" style="display:none">← Back</button>
+          <button id="tutorial-next" class="button" type="button">Next →</button>
+        </div>
+        <button id="tutorial-skip" class="tutorial-skip" type="button">Skip tutorial</button>
+      </div>
+    </div>
+
+    <button id="show-tutorial-btn" class="show-tutorial-btn" type="button" title="Show tutorial">?</button>
 
     <script src="script.js"></script>
   </body>

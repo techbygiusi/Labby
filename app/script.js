@@ -52,7 +52,10 @@ const ipPortInput = document.getElementById('ip-port');
 const ipPortWrap = document.getElementById('ip-port-wrap');
 const webUrlInput = document.getElementById('web-url');
 const webUrlWrap = document.getElementById('web-url-wrap');
+const hardwareWebUrlInput = document.getElementById('hardware-web-url');
+const hardwareWebUrlWrap = document.getElementById('hardware-web-url-wrap');
 const notesInput = document.getElementById('notes');
+const statusSelect = document.getElementById('status');
 const notesWrap = document.getElementById('notes-wrap');
 const subnetInput = document.getElementById('subnet');
 const gatewayInput = document.getElementById('gateway');
@@ -65,13 +68,11 @@ const filterType = document.getElementById('filter-type');
 const exportBtn = document.getElementById('export-btn');
 const importFile = document.getElementById('import-file');
 const treeToggle = document.getElementById('tree-toggle');
-const treeClose = document.getElementById('tree-close');
 const treeDialog = document.getElementById('tree-dialog');
 const treeContent = document.getElementById('tree-content');
 const treeModeTree = document.getElementById('tree-mode-tree');
 const treeModeGraph = document.getElementById('tree-mode-graph');
 const configToggle = document.getElementById('config-toggle');
-const configClose = document.getElementById('config-close');
 const configDialog = document.getElementById('config-dialog');
 const toast = document.getElementById('toast');
 
@@ -132,8 +133,15 @@ initTheme();
 applyTypeVisibility();
 
 (async () => {
-  items = sanitizeItems(await loadItemsFromAPI());
+  const stored = loadItemsFromLocalStorage();
+  if (stored && stored.length > 0) {
+    items = sanitizeItems(stored);
+  } else {
+    items = sanitizeItems(getDemoItems());
+    saveItemsToLocalStorage(items);
+  }
   render();
+  showWelcomePopup();
 })();
 
 function cleanupDuplicateIds(ids) {
@@ -181,12 +189,14 @@ form.addEventListener('submit', async (event) => {
   const name = document.getElementById('name').value.trim();
   const description = document.getElementById('description').value.trim();
   const notes = notesInput.value.trim();
+  const status = statusSelect.value || '';
   const ip = ipInput.value.trim();
   const cpuCount = cpuCountSelect.value.trim();
   const ramModuleList = getRamModules();
   const diskRows = getDiskRows();
   const ipPort = ipPortInput.value.trim();
   const webUrl = webUrlInput.value.trim();
+  const hardwareWebUrl = (document.getElementById('hardware-web-url') ? document.getElementById('hardware-web-url').value.trim() : '') || hardwareWebUrlInput.value.trim();
   const hostedOn = hostedOnSelect.value || '';
   const appHostedOn = appHostedOnSelect.value || '';
   const subnet = subnetInput.value.trim();
@@ -213,6 +223,7 @@ form.addEventListener('submit', async (event) => {
     name,
     description,
     notes: supportsNotes(type) ? notes : '',
+    status: document.getElementById('status').value || '',
     ip: ['hardware', 'vm', 'lxc'].includes(type) ? ip : '',
     cpu: supportsComputeDetails(type) ? formatCpuLabel(type, cpuCount) : '',
     ram: supportsComputeDetails(type) ? formatRamLabel(ramModuleList) : '',
@@ -221,7 +232,7 @@ form.addEventListener('submit', async (event) => {
     ramModules: supportsComputeDetails(type) ? ramModuleList : [],
     diskRows: supportsComputeDetails(type) ? diskRows : [],
     ipPort: type === 'app' ? ipPort : '',
-    webUrl: type === 'app' ? webUrl : '',
+    webUrl: type === 'app' ? webUrl : (type === 'hardware' ? hardwareWebUrl : ''),
     subnet: type === 'network' ? subnet : '',
     gateway: type === 'network' ? gateway : '',
     networkColor: type === 'network' ? selectedNetworkColor : '',
@@ -252,6 +263,9 @@ form.addEventListener('submit', async (event) => {
   await saveItems();
   showToast(wasEditing ? 'Resource updated.' : 'Resource added.');
   form.reset();
+  statusSelect.value = '';
+  hardwareWebUrlInput.value = '';
+  statusSelect.value = '';
   symbolInput.value = defaultSymbol('hardware', 'server');
   hardwareKindSelect.value = 'server';
   resetDynamicHardwareFields();
@@ -285,10 +299,8 @@ treeToggle.addEventListener('click', () => {
   treeDialog.showModal();
 });
 
-treeClose.addEventListener('click', () => treeDialog.close());
 
 const ipToggle = document.getElementById('ip-toggle');
-const ipClose = document.getElementById('ip-close');
 const ipDialog = document.getElementById('ip-dialog');
 const ipContent = document.getElementById('ip-content');
 const ipSearch = document.getElementById('ip-search');
@@ -297,87 +309,25 @@ ipToggle.addEventListener('click', () => {
   renderIPView();
   ipDialog.showModal();
 });
-ipClose.addEventListener('click', () => ipDialog.close());
-ipSearch.addEventListener('input', renderIPView);
+if (ipSearch) ipSearch.addEventListener('input', renderIPView);
 
 function extractIPs(item) {
   const ips = [];
-  if (item.ip) ips.push({ addr: item.ip.split('/')[0].trim(), item });
+  if (item.ip) ips.push({ addr: item.ip.split('/')[0].trim(), port: null, item });
   if (item.type === 'app' && item.ipPort) {
-    const host = item.ipPort.split(':')[0].trim();
-    if (host) ips.push({ addr: host, item });
+    const parts = item.ipPort.split(':');
+    const host = parts[0].trim();
+    const port = parts[1] ? parts[1].trim() : null;
+    if (host) ips.push({ addr: host, port, item });
   }
   return ips;
 }
 
 function renderIPView() {
+  if (!ipContent) return;
   ipContent.innerHTML = '';
-  const query = ipSearch.value.trim().toLowerCase();
-
-  const networks = items.filter(i => i.type === 'network');
-  const allIPs = [];
-  items.forEach(item => extractIPs(item).forEach(e => allIPs.push(e)));
-
-  const matched = query
-    ? allIPs.filter(e => e.addr.includes(query) || e.item.name.toLowerCase().includes(query))
-    : allIPs;
-
-  if (!matched.length) {
-    const empty = document.createElement('p');
-    empty.className = 'tree-empty';
-    empty.textContent = query ? 'No matching IP addresses found.' : 'No IP addresses defined yet.';
-    ipContent.appendChild(empty);
-    return;
-  }
-
-  const bySubnet = new Map();
-  const unmatched = [];
-
-  matched.forEach(entry => {
-    const net = networks.find(n => ipInSubnet(entry.addr, n.subnet));
-    if (net) {
-      const key = net.id;
-      if (!bySubnet.has(key)) bySubnet.set(key, { net, entries: [] });
-      bySubnet.get(key).entries.push(entry);
-    } else {
-      unmatched.push(entry);
-    }
-  });
-
-  bySubnet.forEach(({ net, entries }) => {
-    entries.sort((a, b) => toIPv4Int(a.addr) - toIPv4Int(b.addr));
-    const block = document.createElement('div');
-    block.className = 'ip-subnet-block';
-    const head = document.createElement('div');
-    head.className = 'ip-subnet-head';
-    const label = document.createElement('span');
-    label.className = 'ip-subnet-label';
-    label.textContent = net.subnet;
-    if (net.networkColor) label.style.background = net.networkColor;
-    const name = document.createElement('span');
-    name.className = 'ip-subnet-name';
-    name.textContent = net.name + (net.gateway ? ' · GW: ' + net.gateway : '');
-    head.appendChild(label);
-    head.appendChild(name);
-    block.appendChild(head);
-    entries.forEach(e => block.appendChild(buildIPRow(e, query)));
-    ipContent.appendChild(block);
-  });
-
-  if (unmatched.length) {
-    unmatched.sort((a, b) => (toIPv4Int(a.addr) || 0) - (toIPv4Int(b.addr) || 0));
-    const block = document.createElement('div');
-    block.className = 'ip-subnet-block';
-    const head = document.createElement('div');
-    head.className = 'ip-subnet-head';
-    const label = document.createElement('span');
-    label.className = 'ip-subnet-label';
-    label.textContent = 'No subnet match';
-    head.appendChild(label);
-    block.appendChild(head);
-    unmatched.forEach(e => block.appendChild(buildIPRow(e, query)));
-    ipContent.appendChild(block);
-  }
+  const query = (ipSearch && ipSearch.value) ? ipSearch.value.trim().toLowerCase() : '';
+  renderIPInto(ipContent, query);
 }
 
 function buildIPRow(entry, query) {
@@ -385,7 +335,12 @@ function buildIPRow(entry, query) {
   row.className = 'ip-row';
   const addr = document.createElement('span');
   addr.className = 'ip-row-addr';
-  addr.innerHTML = query ? highlightMatch(entry.addr, query) : entry.addr;
+  const addrText = entry.port ? `${entry.addr}:${entry.port}` : entry.addr;
+  const searchText = entry.addr + (entry.port ? ':' + entry.port : '');
+  addr.innerHTML = query ? highlightMatch(addrText, query) : addrText;
+  if (entry.port) {
+    addr.title = `Port: ${entry.port}`;
+  }
   const nameEl = document.createElement('span');
   nameEl.className = 'ip-row-name';
   nameEl.innerHTML = query ? highlightMatch(entry.item.name, query) : entry.item.name;
@@ -410,7 +365,6 @@ function highlightMatch(text, query) {
 
 
 configToggle.addEventListener('click', () => configDialog.showModal());
-configClose.addEventListener('click', () => configDialog.close());
 
 seedDemo.addEventListener('click', async () => {
   items = [
@@ -698,7 +652,7 @@ function loadItems() {
 }
 
 async function saveItems() {
-  await saveItemsToAPI(items);
+  saveItemsToLocalStorage(items);
 }
 
 function supportsNotes(type) {
@@ -737,6 +691,7 @@ function sanitizeItems(raw) {
       os: item.os ? String(item.os) : '',
       symbol: item.symbol ? String(item.symbol) : defaultSymbol(item.type, item.hardwareKind),
       name: String(item.name),
+      status: ['online','offline','maintenance'].includes(item.status) ? item.status : '',
       description: item.description ? String(item.description) : '',
       notes: item.notes ? String(item.notes) : '',
       connections: Array.isArray(item.connections) ? [...new Set(item.connections.map(String))] : [],
@@ -828,8 +783,10 @@ function normalizeList(list) {
     }
     if (next.type !== 'app') {
       next.ipPort = '';
-      next.webUrl = '';
       next.appHostedOn = '';
+    }
+    if (next.type !== 'app' && next.type !== 'hardware') {
+      next.webUrl = '';
     }
     if (next.type !== 'network') {
       next.subnet = '';
@@ -944,6 +901,7 @@ function applyTypeVisibility() {
   nasRaidsWrap.classList.toggle('hidden', !supportsStorage);
   ipPortWrap.classList.toggle('hidden', !isApp);
   webUrlWrap.classList.toggle('hidden', !isApp);
+  hardwareWebUrlWrap.classList.toggle('hidden', !isHardware);
   notesWrap.classList.toggle('hidden', !supportsNotes(type));
 
   subnetInput.required = isNetwork;
@@ -1031,12 +989,84 @@ function cardNode(item) {
   const badge = node.querySelector('.type-badge');
   if (badge) badge.className = `type-badge ${item.type}`;
 
+  const statusEl = node.querySelector('.card-status');
+  if (statusEl) {
+    const statusMap = { online: '🟢 Online', offline: '🔴 Offline', maintenance: '🟡 Maintenance' };
+    if (item.status && statusMap[item.status]) {
+      statusEl.textContent = statusMap[item.status];
+      statusEl.className = `card-status status-${item.status}`;
+    } else {
+      statusEl.textContent = '';
+      statusEl.className = 'card-status';
+    }
+  }
+
+  if (item.status === 'offline') node.classList.add('card-offline');
+  else if (item.status === 'maintenance') node.classList.add('card-maintenance');
+  else node.classList.remove('card-offline', 'card-maintenance');
+
+  const actionsEl = node.querySelector('.card-actions');
+  if (actionsEl) {
+    const actions = buildCardActions(item);
+    actions.forEach(el => actionsEl.appendChild(el));
+  }
+
   const editButton = node.querySelector('.edit-btn');
-  if (editButton) editButton.addEventListener('click', () => startEditing(item.id));
+  if (editButton) editButton.addEventListener('click', () => isMobile() ? window.startEditingMobile(item.id) : startEditing(item.id));
 
   const deleteButton = node.querySelector('.delete-btn');
   if (deleteButton) deleteButton.addEventListener('click', () => removeItem(item.id));
   return node;
+}
+
+function buildCardActions(item) {
+  const els = [];
+
+  if (item.ip) {
+    els.push(makeCopyBtn(item.ip.split('/')[0], 'Copy IP'));
+  }
+
+  if (item.type === 'app' && item.ipPort) {
+    els.push(makeCopyBtn(item.ipPort, 'Copy IP:Port'));
+  }
+
+  if ((item.type === 'app' || item.type === 'hardware') && item.webUrl) {
+    const link = document.createElement('a');
+    link.href = item.webUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.className = 'card-action-link';
+    link.textContent = '🔗 Open';
+    link.title = item.webUrl;
+    els.push(link);
+
+    els.push(makeCopyBtn(item.webUrl, 'Copy URL'));
+  }
+
+  return els;
+}
+
+function makeCopyBtn(value, label) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'card-action-copy';
+  btn.textContent = '📋 ' + value;
+  btn.title = label;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(value).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.classList.remove('copied');
+      }, 1500);
+    }).catch(() => {
+      showToast('Could not copy to clipboard.', 'error');
+    });
+  });
+  return btn;
 }
 
 function createCardShell() {
@@ -1057,9 +1087,11 @@ function createCardShell() {
       </div>
     </div>
     <p class="card-desc"></p>
+    <span class="card-status"></span>
     <p class="card-notes"></p>
     <p class="card-ip"></p>
     <p class="card-app"></p>
+    <div class="card-actions"></div>
     <p class="card-specs"></p>
     <p class="card-network"></p>
     <p class="card-hosting"></p>
@@ -1218,12 +1250,14 @@ function startEditing(id) {
   symbolInput.value = item.symbol || defaultSymbol(item.type, item.hardwareKind);
   document.getElementById('name').value = item.name;
   document.getElementById('description').value = item.description;
+  statusSelect.value = item.status || '';
   notesInput.value = item.notes || '';
   ipInput.value = item.ip || '';
   cpuCountSelect.value = String(item.cpuCount || inferCpuCount(item.cpu));
   switchPortsInput.value = item.switchPorts || '';
   ipPortInput.value = item.ipPort || '';
-  webUrlInput.value = item.webUrl || '';
+  webUrlInput.value = item.type === 'app' ? (item.webUrl || '') : '';
+  hardwareWebUrlInput.value = item.type === 'hardware' ? (item.webUrl || '') : '';
   subnetInput.value = item.subnet || '';
   gatewayInput.value = item.gateway || '';
   setSelectedColor(item.networkColor || networkPalette[0]);
@@ -2102,3 +2136,335 @@ function setTheme(theme) {
   localStorage.setItem(themeKey, theme);
   themeToggle.textContent = theme === 'dark' ? '☀️ Light' : '🌙 Dark';
 }
+
+function isMobile() {
+  return window.innerWidth <= 1100;
+}
+
+function showMobileView(id) {
+  document.querySelectorAll('.mobile-view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
+  const view = document.getElementById(id);
+  if (view) view.classList.add('active');
+}
+
+function hideMobileViews() {
+  document.querySelectorAll('.mobile-view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
+  const topo = document.getElementById('nav-topology');
+  if (topo) topo.classList.add('active');
+}
+
+const navTopology = document.getElementById('nav-topology');
+const navAdd = document.getElementById('nav-add');
+const navIp = document.getElementById('nav-ip');
+const navTree = document.getElementById('nav-tree');
+const navConfig = document.getElementById('nav-config');
+
+if (navTopology) {
+  navTopology.classList.add('active');
+  navTopology.addEventListener('click', () => {
+    hideMobileViews();
+    navTopology.classList.add('active');
+  });
+}
+
+if (navAdd) navAdd.addEventListener('click', () => {
+  showMobileView('mobile-add');
+  navAdd.classList.add('active');
+  document.getElementById('mobile-form-title').textContent = 'Add Resource';
+  const body = document.getElementById('mobile-form-body');
+  const formEl = document.getElementById('resource-form');
+  if (body && formEl && !body.contains(formEl)) body.appendChild(formEl);
+  setTimeout(() => document.getElementById('name').focus(), 50);
+});
+
+if (navIp) navIp.addEventListener('click', () => {
+  showMobileView('mobile-ip');
+  navIp.classList.add('active');
+  renderIPViewMobile();
+});
+
+if (navTree) navTree.addEventListener('click', () => {
+  showMobileView('mobile-tree');
+  navTree.classList.add('active');
+  renderMobileTree();
+});
+
+if (navConfig) navConfig.addEventListener('click', () => {
+  showMobileView('mobile-config');
+  navConfig.classList.add('active');
+});
+
+const mobileFormClose = document.getElementById('mobile-form-close');
+if (mobileFormClose) mobileFormClose.addEventListener('click', () => {
+  stopEditing();
+  form.reset();
+  symbolInput.value = defaultSymbol('hardware', 'server');
+  hardwareKindSelect.value = 'server';
+  resetDynamicHardwareFields();
+  setMultiValues(routerSwitches, []);
+  setMultiValues(switchLinks, []);
+  setMultiValues(switchDeviceLinks, []);
+  setSelectedColor(networkPalette[0]);
+  applyTypeVisibility();
+  render();
+  hideMobileViews();
+});
+
+const mobileIpClose = document.getElementById('mobile-ip-close');
+if (mobileIpClose) mobileIpClose.addEventListener('click', hideMobileViews);
+
+const mobileTreeClose = document.getElementById('mobile-tree-close');
+if (mobileTreeClose) mobileTreeClose.addEventListener('click', hideMobileViews);
+
+const mobileConfigClose = document.getElementById('mobile-config-close');
+if (mobileConfigClose) mobileConfigClose.addEventListener('click', hideMobileViews);
+
+const mobileTreeModeTree = document.getElementById('mobile-tree-mode-tree');
+const mobileTreeModeGraph = document.getElementById('mobile-tree-mode-graph');
+if (mobileTreeModeTree) mobileTreeModeTree.addEventListener('click', () => {
+  treeViewMode = 'tree';
+  mobileTreeModeTree.classList.add('active');
+  mobileTreeModeGraph.classList.remove('active');
+  renderMobileTree();
+});
+if (mobileTreeModeGraph) mobileTreeModeGraph.addEventListener('click', () => {
+  treeViewMode = 'graph';
+  mobileTreeModeGraph.classList.add('active');
+  mobileTreeModeTree.classList.remove('active');
+  renderMobileTree();
+});
+
+function renderMobileTree() {
+  const container = document.getElementById('mobile-tree-content');
+  if (!container) return;
+  container.innerHTML = '';
+  const shell = document.createElement('div');
+  shell.className = 'tree-shell';
+  shell.appendChild(treeViewMode === 'graph' ? buildGraphView() : buildInfrastructureTree());
+  container.appendChild(shell);
+}
+
+const ipSearchMobile = document.getElementById('ip-search-mobile');
+if (ipSearchMobile) ipSearchMobile.addEventListener('input', renderIPViewMobile);
+
+function renderIPViewMobile() {
+  const container = document.getElementById('ip-content-mobile');
+  const searchEl = document.getElementById('ip-search-mobile');
+  if (!container || !searchEl) return;
+  container.innerHTML = '';
+  renderIPInto(container, searchEl.value.trim().toLowerCase());
+}
+
+function renderIPInto(container, query) {
+  const networks = items.filter(i => i.type === 'network');
+  const allIPs = [];
+  items.forEach(item => extractIPs(item).forEach(e => allIPs.push(e)));
+  const matched = query ? allIPs.filter(e => e.addr.includes(query) || (e.port && e.port.includes(query)) || e.item.name.toLowerCase().includes(query)) : allIPs;
+
+  if (!matched.length) {
+    const empty = document.createElement('p');
+    empty.className = 'tree-empty';
+    empty.textContent = query ? 'No matching IP addresses found.' : 'No IP addresses defined yet.';
+    container.appendChild(empty);
+    return;
+  }
+
+  const bySubnet = new Map();
+  const unmatched = [];
+  matched.forEach(entry => {
+    const net = networks.find(n => ipInSubnet(entry.addr, n.subnet));
+    if (net) {
+      if (!bySubnet.has(net.id)) bySubnet.set(net.id, { net, entries: [] });
+      bySubnet.get(net.id).entries.push(entry);
+    } else {
+      unmatched.push(entry);
+    }
+  });
+
+  bySubnet.forEach(({ net, entries }) => {
+    entries.sort((a, b) => toIPv4Int(a.addr) - toIPv4Int(b.addr));
+    const block = document.createElement('div');
+    block.className = 'ip-subnet-block';
+    const head = document.createElement('div');
+    head.className = 'ip-subnet-head';
+    const lbl = document.createElement('span');
+    lbl.className = 'ip-subnet-label';
+    lbl.textContent = net.subnet;
+    if (net.networkColor) lbl.style.background = net.networkColor;
+    const nm = document.createElement('span');
+    nm.className = 'ip-subnet-name';
+    nm.textContent = net.name + (net.gateway ? ' · GW: ' + net.gateway : '');
+    head.appendChild(lbl);
+    head.appendChild(nm);
+    block.appendChild(head);
+    entries.forEach(e => block.appendChild(buildIPRow(e, query)));
+    container.appendChild(block);
+  });
+
+  if (unmatched.length) {
+    unmatched.sort((a, b) => (toIPv4Int(a.addr) || 0) - (toIPv4Int(b.addr) || 0));
+    const block = document.createElement('div');
+    block.className = 'ip-subnet-block';
+    const head = document.createElement('div');
+    head.className = 'ip-subnet-head';
+    const lbl = document.createElement('span');
+    lbl.className = 'ip-subnet-label';
+    lbl.textContent = 'No subnet match';
+    head.appendChild(lbl);
+    block.appendChild(head);
+    unmatched.forEach(e => block.appendChild(buildIPRow(e, query)));
+    container.appendChild(block);
+  }
+}
+
+const exportBtnMobile = document.getElementById('export-btn-mobile');
+if (exportBtnMobile) exportBtnMobile.addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'labby-config.json';
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast('Config exported.');
+});
+
+const importFileMobile = document.getElementById('import-file-mobile');
+if (importFileMobile) importFileMobile.addEventListener('change', async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    items = sanitizeItems(JSON.parse(text));
+    stopEditing();
+    await saveItems();
+    showToast('Config imported successfully.');
+    render();
+  } catch {
+    showToast('Invalid config file.', 'error');
+  } finally {
+    importFileMobile.value = '';
+  }
+});
+
+const clearAllMobile = document.getElementById('clear-all-mobile');
+if (clearAllMobile) clearAllMobile.addEventListener('click', async () => {
+  if (!confirm('Delete all resources?')) return;
+  items = [];
+  stopEditing();
+  await saveItems();
+  showToast('All resources cleared.');
+  render();
+  hideMobileViews();
+});
+
+const editCardOriginal = startEditing;
+window.startEditingMobile = function(id) {
+  startEditing(id);
+  if (isMobile()) {
+    showMobileView('mobile-add');
+    navAdd.classList.add('active');
+    document.getElementById('mobile-form-title').textContent = 'Edit Resource';
+    const body = document.getElementById('mobile-form-body');
+    const formEl = document.getElementById('resource-form');
+    if (body && formEl && !body.contains(formEl)) body.appendChild(formEl);
+  }
+};
+
+function getDemoItems() {
+  return [
+    { id: 'net-core', type: 'network', name: 'Core LAN', description: 'Main management network', notes: 'All infrastructure devices', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.10.0.0/24', gateway: '10.10.0.1', networkColor: '#10b981', hostedOn: '', appHostedOn: '', status: '' },
+    { id: 'net-services', type: 'network', name: 'Services', description: 'Internal services VLAN', notes: 'Apps and APIs', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.20.0.0/24', gateway: '10.20.0.1', networkColor: '#3b82f6', hostedOn: '', appHostedOn: '', status: '' },
+    { id: 'net-storage', type: 'network', name: 'Storage', description: 'Storage replication network', notes: 'NAS and backup traffic', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.40.0.0/24', gateway: '10.40.0.1', networkColor: '#8b5cf6', hostedOn: '', appHostedOn: '', status: '' },
+
+    { id: 'hw-router', type: 'hardware', hardwareKind: 'router-gateway', manufacturer: 'MikroTik', os: 'RouterOS 7', symbol: '📡', name: 'EdgeRouter-1', description: 'Main internet gateway', notes: 'Fiber uplink, managed by admin', connections: ['hw-switch'], ip: '10.10.0.1/24', webUrl: 'https://10.10.0.1', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: [], ipPort: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
+    { id: 'hw-switch', type: 'hardware', hardwareKind: 'switch', manufacturer: 'Ubiquiti', os: 'UniFi 8.4', symbol: '🔀', name: 'Switch-Core-24', description: '24-port managed switch', notes: 'Rack U1, VLAN configured', connections: ['hw-router', 'hw-proxmox', 'hw-nas', 'hw-backup'], ip: '10.10.0.2/24', webUrl: 'https://unifi.ui.com/', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: [], ipPort: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '24', nasShares: [], nasRaids: [], status: 'online' },
+    { id: 'hw-proxmox', type: 'hardware', hardwareKind: 'hypervisor', manufacturer: 'Dell', os: 'Proxmox VE 8.2', symbol: '🖥️', name: 'Proxmox-01', description: 'Primary virtualization host', notes: 'Rack U2, 2x NVMe pool', connections: [], ip: '10.10.0.10/24', webUrl: 'https://10.10.0.10:8006', cpu: '16 cores', ram: '2 x 32 DDR5', disks: '2 x 2 TB NVMe', cpuCount: '16', ramModules: [{ size: '32', type: 'DDR5' }, { size: '32', type: 'DDR5' }], diskRows: [{ size: '2 TB', type: 'NVMe' }, { size: '2 TB', type: 'NVMe' }], ipPort: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
+    { id: 'hw-nas', type: 'hardware', hardwareKind: 'nas', manufacturer: 'Synology', os: 'DSM 7.2', symbol: '🗄️', name: 'NAS-Main', description: 'Primary shared storage', notes: 'Rack U4, SMB + NFS shares', connections: [], ip: '10.40.0.20/24', webUrl: 'https://10.40.0.20:5001', cpu: '8 cores', ram: '2 x 16 DDR4 ECC', disks: '4 x 12 TB HDD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }], diskRows: [{ size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }], ipPort: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [{ name: 'media', link: '/volume1/media' }, { name: 'backups', link: '/volume1/backups' }], nasRaids: [{ name: 'Array-A', level: 'RAID5', size: '36 TB' }], status: 'online' },
+    { id: 'hw-backup', type: 'hardware', hardwareKind: 'backup', manufacturer: 'Supermicro', os: 'TrueNAS SCALE', symbol: '💾', name: 'Backup-Vault', description: 'Offsite backup node', notes: 'Immutable snapshots, Rack U5', connections: [], ip: '10.40.0.30/24', cpu: '8 cores', ram: '4 x 16 DDR4 ECC', disks: '6 x 8 TB HDD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }], diskRows: [{ size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [{ name: 'archive', link: '/mnt/backup/archive' }], nasRaids: [{ name: 'Backup-Pool', level: 'RAIDZ2', size: '32 TB' }], status: 'maintenance' },
+
+    { id: 'vm-docker', type: 'vm', name: 'vm-docker-01', description: 'Docker workloads', notes: 'Compose stacks, main app host', connections: [], ip: '10.20.0.21/24', cpu: '6 vCPU', ram: '2 x 8 DDR5', disks: '2 x 120 GB SSD', cpuCount: '6', ramModules: [{ size: '8', type: 'DDR5' }, { size: '8', type: 'DDR5' }], diskRows: [{ size: '120 GB', type: 'SSD' }, { size: '120 GB', type: 'SSD' }], os: 'Ubuntu 24.04 LTS', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hw-proxmox', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
+    { id: 'vm-media', type: 'vm', name: 'vm-media-01', description: 'Media processing VM', notes: 'Jellyfin + *arr stack', connections: [], ip: '10.20.0.22/24', cpu: '8 vCPU', ram: '2 x 16 DDR5', disks: '1 x 500 GB SSD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR5' }, { size: '16', type: 'DDR5' }], diskRows: [{ size: '500 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hw-proxmox', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
+    { id: 'vm-monitoring', type: 'vm', name: 'vm-monitoring', description: 'Metrics and alerting', notes: 'Grafana + Prometheus + Loki', connections: [], ip: '10.20.0.23/24', cpu: '4 vCPU', ram: '2 x 8 DDR5', disks: '1 x 200 GB SSD', cpuCount: '4', ramModules: [{ size: '8', type: 'DDR5' }, { size: '8', type: 'DDR5' }], diskRows: [{ size: '200 GB', type: 'SSD' }], os: 'Ubuntu 22.04 LTS', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hw-proxmox', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'offline' },
+
+    { id: 'lxc-dns', type: 'lxc', name: 'lxc-dns-01', description: 'DNS resolver', notes: 'AdGuard Home + Unbound', connections: [], ip: '10.10.0.40/24', cpu: '2 vCPU', ram: '2 x 2 DDR5', disks: '1 x 20 GB SSD', cpuCount: '2', ramModules: [{ size: '2', type: 'DDR5' }, { size: '2', type: 'DDR5' }], diskRows: [{ size: '20 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hw-proxmox', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
+    { id: 'lxc-proxy', type: 'lxc', name: 'lxc-proxy-01', description: 'Reverse proxy', notes: 'Nginx Proxy Manager', connections: [], ip: '10.20.0.50/24', cpu: '2 vCPU', ram: '2 x 2 DDR5', disks: '1 x 20 GB SSD', cpuCount: '2', ramModules: [{ size: '2', type: 'DDR5' }, { size: '2', type: 'DDR5' }], diskRows: [{ size: '20 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hw-proxmox', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
+
+    { id: 'app-jellyfin', type: 'app', name: 'Jellyfin', description: 'Media server', notes: 'Streams from NAS media share', connections: [], ip: '', ipPort: '10.20.0.22:8096', webUrl: 'https://media.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-media', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online', symbol: '🎬', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
+    { id: 'app-grafana', type: 'app', name: 'Grafana', description: 'Metrics dashboard', notes: 'Connected to Prometheus', connections: [], ip: '', ipPort: '10.20.0.23:3000', webUrl: 'https://grafana.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-monitoring', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'offline', symbol: '📊', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
+    { id: 'app-portainer', type: 'app', name: 'Portainer', description: 'Docker management UI', notes: 'Manages vm-docker-01 containers', connections: [], ip: '', ipPort: '10.20.0.21:9000', webUrl: 'https://portainer.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-docker', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online', symbol: '🐳', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
+    { id: 'app-adguard', type: 'app', name: 'AdGuard Home', description: 'DNS ad blocker', notes: 'Network-wide ad blocking', connections: [], ip: '', ipPort: '10.10.0.40:3000', webUrl: 'https://adguard.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'lxc-dns', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online', symbol: '🛡️', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
+    { id: 'app-npm', type: 'app', name: 'Nginx Proxy Manager', description: 'Reverse proxy UI', notes: 'SSL termination for all services', connections: [], ip: '', ipPort: '10.20.0.50:81', webUrl: 'https://proxy.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'lxc-proxy', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online', symbol: '🔒', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
+  ];
+}
+
+let tutorialStep = 0;
+const tutorialSteps = [
+  { title: 'Welcome to Labby! 👋', text: 'Labby helps you map your homelab — track hardware, VMs, apps and networks, and visualize how everything connects.', icon: '🧪' },
+  { title: 'Your Topology', text: 'The main view shows all your resources grouped by type. Each card shows specs, IP, status and quick actions.', icon: '🗂️' },
+  { title: 'Add Resources', text: 'Tap ➕ Add to create new hardware, VMs, LXCs, apps or networks. Fill in as much or as little as you like.', icon: '➕' },
+  { title: 'IP View 🌐', text: 'The IP View shows all used IPs sorted by subnet. Search by IP, hostname or port to find devices instantly.', icon: '🌐' },
+  { title: 'Relationship Tree 🌳', text: 'The Tree and Graph views visualize how your infrastructure connects — which VMs run on which hardware, which apps run on which VMs.', icon: '🌳' },
+  { title: 'Status Indicators', text: 'Mark devices as 🟢 Online, 🔴 Offline or 🟡 Maintenance. Offline cards are dimmed, maintenance cards get a dashed border.', icon: '🟢' },
+  { title: 'Demo Mode 🎭', text: 'This is a live demo — changes are saved to your browser only and reset on first visit. Self-host Labby to keep your data permanently.', icon: '🎭' },
+];
+
+function showWelcomePopup() {
+  const seen = localStorage.getItem('labby-welcome-seen');
+  if (seen) return;
+  tutorialStep = 0;
+  renderTutorialStep();
+  document.getElementById('welcome-overlay').classList.add('active');
+}
+
+function renderTutorialStep() {
+  const step = tutorialSteps[tutorialStep];
+  document.getElementById('tutorial-icon').textContent = step.icon;
+  document.getElementById('tutorial-title').textContent = step.title;
+  document.getElementById('tutorial-text').textContent = step.text;
+  document.getElementById('tutorial-progress').textContent = `${tutorialStep + 1} / ${tutorialSteps.length}`;
+  document.getElementById('tutorial-prev').style.display = tutorialStep === 0 ? 'none' : 'block';
+  document.getElementById('tutorial-next').textContent = tutorialStep === tutorialSteps.length - 1 ? "Let's go! 🚀" : 'Next →';
+  const dots = document.getElementById('tutorial-dots');
+  dots.innerHTML = '';
+  tutorialSteps.forEach((_, i) => {
+    const dot = document.createElement('span');
+    dot.className = 'tutorial-dot' + (i === tutorialStep ? ' active' : '');
+    dot.addEventListener('click', () => { tutorialStep = i; renderTutorialStep(); });
+    dots.appendChild(dot);
+  });
+}
+
+document.getElementById('tutorial-next').addEventListener('click', () => {
+  if (tutorialStep < tutorialSteps.length - 1) {
+    tutorialStep++;
+    renderTutorialStep();
+  } else {
+    closeTutorial();
+  }
+});
+
+document.getElementById('tutorial-prev').addEventListener('click', () => {
+  if (tutorialStep > 0) {
+    tutorialStep--;
+    renderTutorialStep();
+  }
+});
+
+document.getElementById('tutorial-skip').addEventListener('click', closeTutorial);
+document.getElementById('welcome-overlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('welcome-overlay')) closeTutorial();
+});
+
+function closeTutorial() {
+  document.getElementById('welcome-overlay').classList.remove('active');
+  localStorage.setItem('labby-welcome-seen', '1');
+}
+
+document.getElementById('show-tutorial-btn').addEventListener('click', () => {
+  tutorialStep = 0;
+  renderTutorialStep();
+  document.getElementById('welcome-overlay').classList.add('active');
+});
