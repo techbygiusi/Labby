@@ -732,7 +732,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
     color: var(--text);
     margin: 0 4px;
   }
-  .bottom-nav-item.active { background: #3d3452; outline: 2px solid #c4a8e0; }
+  .bottom-nav-item.active { background: var(--yellow); }
   .bottom-nav-icon { font-size: 1.3rem; line-height: 1; }
   .bottom-nav-label { font: 700 0.62rem/1 'Space Mono', monospace; }
 
@@ -812,6 +812,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 :root[data-theme='dark'] .status-online  { background: #203028; color: #a8ddb8; border-color: #7abd90; }
 :root[data-theme='dark'] .status-offline { background: #2e2030; color: #e8a0b0; border-color: #c47888; }
 :root[data-theme='dark'] .status-maintenance { background: #2e2838; color: #e8d0a0; border-color: #c8a870; }
+:root[data-theme='dark'] .bottom-nav-item.active { background: #3d3452; outline: 2px solid #c4a8e0; }
 
 @keyframes btn-bounce {
   0%   { transform: scale(1); }
