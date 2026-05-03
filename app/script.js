@@ -2442,8 +2442,4 @@ function closeTutorial() {
   localStorage.setItem('labby-welcome-seen', '1');
 }
 
-document.getElementById('show-tutorial-btn').addEventListener('click', () => {
-  tutorialStep = 0;
-  renderTutorialStep();
-  document.getElementById('welcome-overlay').classList.add('active');
-});
+
