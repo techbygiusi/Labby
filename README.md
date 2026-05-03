@@ -1,15 +1,9 @@
 > **Disclaimer:** Labby is a vibe-coded project built mainly with Codex from OpenAI and Claude from Anthropic.
 
-# 🧪 Labby - Map Your Homelab
+# 🧪 Labby - Next Gen | Map Your Homelab
 
 Labby is a lightweight homelab inventory and topology tool with persistent, browser-independent storage.
 Track your infrastructure, visualize relationships, and keep everything organized.
-
-<p align="center">
-  <a href="https://www.my-labby.com/" target="_blank" rel="noopener noreferrer">
-    <img alt="Use it now" src="https://img.shields.io/badge/%F0%9F%9A%80%20Use%20it%20now-Open%20Labby-1F1F1F?style=for-the-badge&labelColor=F6F0E6">
-  </a>
-</p>
 
 ---
 
@@ -47,7 +41,7 @@ Track your infrastructure, visualize relationships, and keep everything organize
 - 💾 NAS/Backup: Shares and RAID group tracking
 - 🟢 **Status field** per resource: Online / Offline / Maintenance — with colored badge and visual indicator on cards
 - 📋 **Copy-to-clipboard** for IPs and URLs directly on cards
-- 🔗 **Clickable web URLs** open apps and hardware interfaces directly from their card
+- 🔗 **Clickable web URLs** open apps directly from their card
 
 ### IP View
 - 🌐 Dedicated IP View showing all used IP addresses
@@ -60,11 +54,10 @@ Track your infrastructure, visualize relationships, and keep everything organize
 - 🖥️ **Desktop** — classic two-panel layout unchanged
 - Bottom nav: Topology / Add / IP View / Tree / Config
 - Add and Edit resources open as full-screen panels on mobile
-- 📖 Built-in tutorial accessible via Config menu
 
 ### Config & Data
-- 📦 **Export / Import JSON** for backups and migration
-- Data stored server-side — survives container restarts via Docker volume
+- **Export / Import JSON** for backups and migration
+- Data stored server-side
 - Old localStorage exports can be imported directly
 
 ---
@@ -161,7 +154,7 @@ docker run --rm \
 
 ## 📝 Notes
 
-- Data is stored server-side — all browsers and devices share the same data
+- Data is stored server-side. All browsers and devices share the same data
 - Old localStorage exports (from pre-Next Gen versions) can be imported via Config → Import Config
 - For multi-user or team setups, consider running behind a reverse proxy with authentication
 

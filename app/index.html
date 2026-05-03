@@ -295,6 +295,7 @@
             <input id="import-file-mobile" type="file" accept="application/json" />
           </label>
           <button id="clear-all-mobile" class="button danger" type="button">Clear All</button>
+          <button id="show-tutorial-btn-mobile" class="button secondary" type="button">📖 Tutorial</button>
         </div>
         <div class="legend" style="margin-top:1rem">
           <p><span class="dot hardware"></span> Hardware</p>
@@ -352,6 +353,7 @@
           <input id="import-file" type="file" accept="application/json" />
         </label>
         <button id="clear-all" class="button danger" type="button">Clear All</button>
+        <button id="show-tutorial-btn" class="button secondary" type="button">📖 Tutorial</button>
       </div>
       <div class="legend">
         <p><span class="dot hardware"></span> Hardware</p>
@@ -409,6 +411,21 @@
       </svg>
       <span>GitHub</span>
     </a>
+
+    <div id="welcome-overlay" class="welcome-overlay">
+      <div class="welcome-card">
+        <div class="tutorial-icon" id="tutorial-icon">🧪</div>
+        <h2 class="tutorial-title" id="tutorial-title">Welcome to Labby!</h2>
+        <p class="tutorial-text" id="tutorial-text"></p>
+        <div class="tutorial-dots" id="tutorial-dots"></div>
+        <div class="tutorial-progress" id="tutorial-progress"></div>
+        <div class="tutorial-actions">
+          <button id="tutorial-prev" class="button secondary" type="button" style="display:none">← Back</button>
+          <button id="tutorial-next" class="button" type="button">Next →</button>
+        </div>
+        <button id="tutorial-skip" class="tutorial-skip" type="button">Skip tutorial</button>
+      </div>
+    </div>
 
     <script src="script.js"></script>
   </body>

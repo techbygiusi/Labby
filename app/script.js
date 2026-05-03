@@ -2365,3 +2365,68 @@ window.startEditingMobile = function(id) {
     if (body && formEl && !body.contains(formEl)) body.appendChild(formEl);
   }
 };
+
+let tutorialStep = 0;
+const tutorialSteps = [
+  { title: 'Welcome to Labby! 👋', text: 'Labby helps you map your homelab — track hardware, VMs, apps and networks, and visualize how everything connects.', icon: '🧪' },
+  { title: 'Your Topology', text: 'The main view shows all your resources grouped by type. Each card shows specs, IP, status and quick actions.', icon: '🗂️' },
+  { title: 'Add Resources', text: 'Use the form on the left (desktop) or tap ➕ Add (mobile) to create hardware, VMs, LXCs, apps or networks.', icon: '➕' },
+  { title: 'IP View 🌐', text: 'The IP View shows all used IPs sorted by subnet. Search by IP, hostname or port to find devices instantly.', icon: '🌐' },
+  { title: 'Relationship Tree 🌳', text: 'Tree and Graph views visualize how your infrastructure connects — which VMs run on which hardware, which apps run on which VMs.', icon: '🌳' },
+  { title: 'Status Indicators', text: 'Mark devices as 🟢 Online, 🔴 Offline or 🟡 Maintenance. Offline cards are dimmed, maintenance cards get a dashed border.', icon: '🟢' },
+  { title: 'Copy & Open 📋', text: 'Click any IP or URL on a card to copy it to clipboard. Apps with a web URL show an Open button to launch directly.', icon: '📋' },
+  { title: 'Config & Backup 💾', text: 'Use Config → Export to back up your data as JSON. Import to restore or migrate to another instance.', icon: '💾' },
+];
+
+function openTutorial() {
+  tutorialStep = 0;
+  renderTutorialStep();
+  document.getElementById('welcome-overlay').classList.add('active');
+  document.getElementById('config-dialog').close();
+  hideMobileViews();
+}
+
+function renderTutorialStep() {
+  const step = tutorialSteps[tutorialStep];
+  document.getElementById('tutorial-icon').textContent = step.icon;
+  document.getElementById('tutorial-title').textContent = step.title;
+  document.getElementById('tutorial-text').textContent = step.text;
+  document.getElementById('tutorial-progress').textContent = `${tutorialStep + 1} / ${tutorialSteps.length}`;
+  document.getElementById('tutorial-prev').style.display = tutorialStep === 0 ? 'none' : 'block';
+  document.getElementById('tutorial-next').textContent = tutorialStep === tutorialSteps.length - 1 ? "Let's go! 🚀" : 'Next →';
+  const dots = document.getElementById('tutorial-dots');
+  dots.innerHTML = '';
+  tutorialSteps.forEach((_, i) => {
+    const dot = document.createElement('span');
+    dot.className = 'tutorial-dot' + (i === tutorialStep ? ' active' : '');
+    dot.addEventListener('click', () => { tutorialStep = i; renderTutorialStep(); });
+    dots.appendChild(dot);
+  });
+}
+
+function closeTutorial() {
+  document.getElementById('welcome-overlay').classList.remove('active');
+  localStorage.setItem('labby-tutorial-seen', '1');
+}
+
+document.getElementById('tutorial-next').addEventListener('click', () => {
+  if (tutorialStep < tutorialSteps.length - 1) {
+    tutorialStep++;
+    renderTutorialStep();
+  } else {
+    closeTutorial();
+  }
+});
+
+document.getElementById('tutorial-prev').addEventListener('click', () => {
+  if (tutorialStep > 0) { tutorialStep--; renderTutorialStep(); }
+});
+
+document.getElementById('tutorial-skip').addEventListener('click', closeTutorial);
+
+document.getElementById('welcome-overlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('welcome-overlay')) closeTutorial();
+});
+
+document.getElementById('show-tutorial-btn').addEventListener('click', openTutorial);
+document.getElementById('show-tutorial-btn-mobile').addEventListener('click', openTutorial);

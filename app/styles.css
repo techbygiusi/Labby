@@ -905,3 +905,72 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .card-action-link:active {
   animation: btn-bounce 0.25s ease forwards;
 }
+
+.welcome-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0,0,0,0.55);
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.welcome-overlay.active { display: flex; }
+
+.welcome-card {
+  background: var(--phone);
+  border: 3px solid var(--line);
+  border-radius: 24px;
+  padding: 2rem 1.8rem 1.5rem;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+  text-align: center;
+  animation: pop-in 200ms ease;
+}
+
+.tutorial-icon { font-size: 3rem; line-height: 1; margin-bottom: 0.8rem; }
+.tutorial-title { font: 700 1.1rem/1.3 'Space Mono', monospace; margin: 0 0 0.8rem; }
+.tutorial-text { font-size: 0.88rem; line-height: 1.6; color: var(--text); margin: 0 0 1.2rem; }
+
+.tutorial-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+.tutorial-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line);
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+.tutorial-dot.active { background: var(--yellow); transform: scale(1.3); }
+
+.tutorial-progress {
+  font: 0.7rem/1 'Space Mono', monospace;
+  color: var(--muted);
+  margin-bottom: 1rem;
+}
+
+.tutorial-actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  margin-bottom: 0.8rem;
+}
+.tutorial-actions .button { min-width: 120px; }
+
+.tutorial-skip {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font: 0.72rem/1 'Space Mono', monospace;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0.3rem;
+}
+.tutorial-skip:hover { color: var(--text); }
