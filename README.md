@@ -1,6 +1,6 @@
 > **Disclaimer:** Labby is a vibe-coded project built mainly with Codex from OpenAI and Claude from Anthropic.
 
-# 🧪 Labby | Map Your Homelab
+# 🧪 Labby - Map Your Homelab
 
 Labby is a lightweight homelab inventory and topology tool with persistent, browser-independent storage.
 Track your infrastructure, visualize relationships, and keep everything organized.
@@ -34,7 +34,7 @@ Track your infrastructure, visualize relationships, and keep everything organize
 - 🌐 **Topology mapping** with Tree and Graph relationship views
 - 🎨 **Light & Dark mode**
 - 🧠 **Automatic network matching** by IP/CIDR
-- 🗄️ **Persistent server-side storage** — data saved in JSON on the backend, accessible from any browser or device
+- 🗄️ **Persistent server-side storage** data saved in JSON on the backend, accessible from any browser or device
 
 <img width="3840" height="2160" alt="1" src="https://github.com/user-attachments/assets/e119b364-c3fe-408d-a37e-1ae3f30e8435" />
 
