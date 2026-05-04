@@ -12,14 +12,14 @@ Track your infrastructure, visualize relationships, and keep everything organize
 ### Desktop
 <table>
   <tr>
-    <td width="50%"><img width="100%" src="https://github.com/user-attachments/assets/acab3547-1cfe-4494-91a6-9183eaec4673" /><br/><sub><b>Dashboard & Resource Management</b></sub></td>
+    <img width="3840" height="2160" alt="2" src="https://github.com/user-attachments/assets/9503a0df-fbf4-4093-8627-117e6098e369" />
   </tr>
 </table>
 
 ### Mobile
 <table>
-  <tr>
-    <td width="33%" align="center"><img width="100%" src="https://github.com/user-attachments/assets/5429d9b7-b67c-470d-af13-6e10d2856eb0" /><br/><sub><b>Topology View</b></sub></td>
+  <tr >
+    <td width="33%" align="center"><img width="100%" src="https://github.com/user-attachments/assets/5429d9b7-b67c-470d-af13-6e10d2856eb0" /><br/><sub><b>Dashboard</b></sub></td>
     <td width="33%" align="center"><img width="100%" src="https://github.com/user-attachments/assets/b6e9f0cb-9c4b-446b-b6fc-3188958c0921" /><br/><sub><b>IP View</b></sub></td>
     <td width="33%" align="center"><img width="100%" src="https://github.com/user-attachments/assets/764cbc83-0ea4-4306-addd-59ae244583e9" /><br/><sub><b>Config View</b></sub></td>
   </tr>
@@ -36,12 +36,17 @@ Track your infrastructure, visualize relationships, and keep everything organize
 - 🧠 **Automatic network matching** by IP/CIDR
 - 🗄️ **Persistent server-side storage** — data saved in JSON on the backend, accessible from any browser or device
 
+<img width="3840" height="2160" alt="1" src="https://github.com/user-attachments/assets/e119b364-c3fe-408d-a37e-1ae3f30e8435" />
+
 ### Resources & Metadata
 - 🔧 Rich metadata: OS, Manufacturer, CPU, RAM, Disks, Notes, Links
 - 💾 NAS/Backup: Shares and RAID group tracking
-- 🟢 **Status field** per resource: Online / Offline / Maintenance — with colored badge and visual indicator on cards
+- 🟢 **Status field** per resource: Online / Offline / Maintenance
 - 📋 **Copy-to-clipboard** for IPs and URLs directly on cards
 - 🔗 **Clickable web URLs** open apps directly from their card
+
+<img width="3840" height="2160" alt="4" src="https://github.com/user-attachments/assets/16bd5002-06e5-455c-88eb-c54fe544f6a4" />
+
 
 ### IP View
 - 🌐 Dedicated IP View showing all used IP addresses
@@ -54,6 +59,8 @@ Track your infrastructure, visualize relationships, and keep everything organize
 - 🖥️ **Desktop** — classic two-panel layout unchanged
 - Bottom nav: Topology / Add / IP View / Tree / Config
 - Add and Edit resources open as full-screen panels on mobile
+
+<img width="3840" height="2160" alt="5" src="https://github.com/user-attachments/assets/fe8a4c7e-cc30-4533-a5af-888c0b3148be" />
 
 ### Config & Data
 - **Export / Import JSON** for backups and migration
