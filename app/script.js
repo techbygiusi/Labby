@@ -2381,13 +2381,13 @@ function getDemoItems() {
 
 let tutorialStep = 0;
 const tutorialSteps = [
-  { title: 'Welcome to Labby! 👋', text: 'Labby helps you map your homelab — track hardware, VMs, apps and networks, and visualize how everything connects.', icon: '🧪' },
+  { title: 'Welcome to Labby! 👋', text: 'Labby helps you map your homelab. Track hardware, VMs, apps and networks, and visualize how everything connects.', icon: '🧪' },
   { title: 'Your Topology', text: 'The main view shows all your resources grouped by type. Each card shows specs, IP, status and quick actions.', icon: '🗂️' },
   { title: 'Add Resources', text: 'Tap ➕ Add to create new hardware, VMs, LXCs, apps or networks. Fill in as much or as little as you like.', icon: '➕' },
   { title: 'IP View 🌐', text: 'The IP View shows all used IPs sorted by subnet. Search by IP, hostname or port to find devices instantly.', icon: '🌐' },
-  { title: 'Relationship Tree 🌳', text: 'The Tree and Graph views visualize how your infrastructure connects — which VMs run on which hardware, which apps run on which VMs.', icon: '🌳' },
+  { title: 'Relationship Tree 🌳', text: 'The Tree and Graph views visualize how your infrastructure connects. Which VMs run on which hardware, which apps run on which VMs.', icon: '🌳' },
   { title: 'Status Indicators', text: 'Mark devices as 🟢 Online, 🔴 Offline or 🟡 Maintenance. Offline cards are dimmed, maintenance cards get a dashed border.', icon: '🟢' },
-  { title: 'Demo Mode 🎭', text: 'This is a live demo — changes are saved to your browser only and reset on first visit. Self-host Labby to keep your data permanently.', icon: '🎭' },
+  { title: 'Demo Mode 🎭', text: 'This is a live demo. Changes are saved to your browser only and reset on first visit. Self-host Labby to keep your data permanently.', icon: '🎭' },
 ];
 
 function showWelcomePopup() {
