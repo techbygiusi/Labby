@@ -5,6 +5,16 @@
 Labby is a lightweight homelab inventory and topology tool with persistent, browser-independent storage.
 Track your infrastructure, visualize relationships, and keep everything organized.
 
+<p align="center">
+  <a href="https://www.my-labby.com/" target="_blank" rel="noopener noreferrer">
+    <img alt="Use it now" src="https://img.shields.io/badge/%F0%9F%9A%80%20Use%20it%20now-Open%20Labby-1F1F1F?style=for-the-badge&labelColor=F6F0E6">
+  </a>
+</p>
+
+<p align="center">
+  <sub>⚠️ Demo site. Changes are saved in your browser only. Self-host Labby for permanent storage.</sub>
+</p>
+
 ---
 
 ## 📸 Screenshots
