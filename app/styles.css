@@ -1338,27 +1338,92 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .rack-slot:hover .rack-slot-remove { opacity: 0.55; }
 .rack-slot-remove:hover { opacity: 1 !important; background: color-mix(in srgb, var(--danger) 12%, transparent); }
 
-/* Slot state colours */
+/* ── Category colour tokens (light mode) ───────────────────── */
+:root {
+  --cat-compute:  #c8dff8;   /* soft blue       */
+  --cat-network:  #b8f0d0;   /* soft green      */
+  --cat-power:    #fde5a8;   /* soft amber      */
+  --cat-mgmt:     #e5d0f8;   /* soft violet     */
+  --cat-filler:   #e0ddd8;   /* neutral grey    */
+  --cat-compute-border: #7ab4e8;
+  --cat-network-border: #5ecc8e;
+  --cat-power-border:   #f0b840;
+  --cat-mgmt-border:    #b48ee0;
+  --cat-filler-border:  #aaa89e;
+}
+:root[data-theme='dark'] {
+  --cat-compute:  #1e3a5c;
+  --cat-network:  #1a4030;
+  --cat-power:    #4a3408;
+  --cat-mgmt:     #2e1e50;
+  --cat-filler:   #2a2638;
+  --cat-compute-border: #3a6ea8;
+  --cat-network-border: #2e8a58;
+  --cat-power-border:   #c08020;
+  --cat-mgmt-border:    #7040c0;
+  --cat-filler-border:  #504860;
+}
+
+/* ── Slot state colours ─────────────────────────────────────── */
 .rack-slot.empty { background: var(--panel); cursor: default; }
-.rack-slot.empty:hover { background: color-mix(in srgb, var(--blue) 14%, var(--panel)); cursor: crosshair; }
+.rack-slot.empty:hover { background: color-mix(in srgb, var(--blue) 12%, var(--panel)); cursor: crosshair; }
 .rack-slot.empty .rack-slot-label {
   color: var(--muted);
   font-size: 0.62rem;
   font-weight: 400;
 }
-.rack-slot.occupied {
-  background: color-mix(in srgb, var(--yellow) 22%, var(--panel));
-  cursor: pointer;
+
+/* Category-coloured occupied slots */
+.rack-slot.occupied { cursor: pointer; }
+
+.rack-slot.occupied.cat-compute  { background: var(--cat-compute); border-left: 3px solid var(--cat-compute-border); }
+.rack-slot.occupied.cat-network  { background: var(--cat-network); border-left: 3px solid var(--cat-network-border); }
+.rack-slot.occupied.cat-power    { background: var(--cat-power);   border-left: 3px solid var(--cat-power-border); }
+.rack-slot.occupied.cat-mgmt     { background: var(--cat-mgmt);    border-left: 3px solid var(--cat-mgmt-border); }
+.rack-slot.occupied.cat-filler   { background: var(--cat-filler);  border-left: 3px solid var(--cat-filler-border); cursor: default; }
+
+.rack-slot.occupied.cat-compute:hover  { filter: brightness(0.94); }
+.rack-slot.occupied.cat-network:hover  { filter: brightness(0.94); }
+.rack-slot.occupied.cat-power:hover    { filter: brightness(0.94); }
+.rack-slot.occupied.cat-mgmt:hover     { filter: brightness(0.94); }
+.rack-slot.occupied.cat-filler:hover   { filter: none; }
+
+/* U-count badge on occupied slots — always visible */
+.rack-slot.occupied .rack-slot-num {
+  font-weight: 700;
+  color: var(--text);
+  opacity: 0.55;
 }
-.rack-slot.occupied:hover {
-  background: color-mix(in srgb, var(--yellow) 38%, var(--panel));
+
+.rack-slot.drag-over   { background: color-mix(in srgb, var(--mint) 50%, var(--panel)) !important; filter: none !important; }
+.rack-slot.drag-invalid { background: color-mix(in srgb, var(--danger) 22%, var(--panel)) !important; filter: none !important; }
+
+/* Palette items coloured by category */
+.rack-palette-item.cat-compute { border-color: var(--cat-compute-border); }
+.rack-palette-item.cat-network { border-color: var(--cat-network-border); }
+.rack-palette-item.cat-power   { border-color: var(--cat-power-border); }
+.rack-palette-item.cat-mgmt    { border-color: var(--cat-mgmt-border); }
+.rack-palette-item.cat-filler  { border-color: var(--cat-filler-border); color: var(--muted); }
+
+.rack-palette-item.cat-compute:hover { background: var(--cat-compute); }
+.rack-palette-item.cat-network:hover { background: var(--cat-network); }
+.rack-palette-item.cat-power:hover   { background: var(--cat-power); }
+.rack-palette-item.cat-mgmt:hover    { background: var(--cat-mgmt); }
+.rack-palette-item.cat-filler:hover  { background: var(--cat-filler); }
+
+/* Palette section headers */
+.rack-palette-section {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font: 700 0.62rem/1.2 'Space Mono', monospace;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 0.45rem 0.3rem 0.1rem;
+  margin-top: 0.2rem;
 }
-.rack-slot.drag-over {
-  background: color-mix(in srgb, var(--mint) 50%, var(--panel));
-}
-.rack-slot.drag-invalid {
-  background: color-mix(in srgb, var(--danger) 22%, var(--panel));
-}
+.rack-palette-section:first-child { margin-top: 0; padding-top: 0.2rem; }
 
 /* Multi-device tags inside a slot */
 .rack-multi-devices {
@@ -1370,8 +1435,8 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 }
 .rack-multi-slot {
   font: 600 0.58rem/1.2 'Space Mono', monospace;
-  background: color-mix(in srgb, var(--blue) 35%, var(--panel));
-  border: 1.5px solid color-mix(in srgb, var(--line) 60%, transparent);
+  background: color-mix(in srgb, var(--cat-compute-border) 25%, var(--panel));
+  border: 1.5px solid var(--cat-compute-border);
   border-radius: 4px;
   padding: 1px 4px;
   white-space: nowrap;

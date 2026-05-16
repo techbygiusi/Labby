@@ -2459,38 +2459,34 @@ document.getElementById('show-tutorial-btn-mobile').addEventListener('click', op
 
 // ---- Palette component definitions ----
 const RACK_COMPONENTS = [
-  // Servers
-  { componentType: '1u-server',         heightU: 1, label: '1U Server' },
-  { componentType: '2u-server',         heightU: 2, label: '2U Server' },
-  { componentType: '4u-server',         heightU: 4, label: '4U Server' },
-  // Switches
-  { componentType: '1u-switch',         heightU: 1, label: '1U Switch' },
-  { componentType: '2u-switch',         heightU: 2, label: '2U Switch' },
-  // Patch panels
-  { componentType: '1u-patch-panel',    heightU: 1, label: '1U Patch Panel' },
-  { componentType: '2u-patch-panel',    heightU: 2, label: '2U Patch Panel' },
-  // Blanks
-  { componentType: '1u-blank',          heightU: 1, label: '1U Blank' },
-  { componentType: '2u-blank',          heightU: 2, label: '2U Blank' },
-  { componentType: '4u-blank',          heightU: 4, label: '4U Blank' },
-  // KVM
-  { componentType: '1u-kvm',            heightU: 1, label: '1U KVM' },
-  // UPS
-  { componentType: '1u-ups',            heightU: 1, label: '1U UPS' },
-  { componentType: '2u-ups',            heightU: 2, label: '2U UPS' },
-  { componentType: '4u-ups',            heightU: 4, label: '4U UPS' },
-  // Routers
-  { componentType: '1u-router',         heightU: 1, label: '1U Router' },
-  { componentType: '2u-router',         heightU: 2, label: '2U Router' },
-  // Multi-PC (2 side by side)
-  { componentType: '2pc-1u',            heightU: 1, label: '2× PC (1U)', multiDevice: 2 },
-  { componentType: '2pc-2u',            heightU: 2, label: '2× PC (2U)', multiDevice: 2 },
-  // Multi-PC (3 side by side)
-  { componentType: '3pc-1u',            heightU: 1, label: '3× PC (1U)', multiDevice: 3 },
-  { componentType: '3pc-2u',            heightU: 2, label: '3× PC (2U)', multiDevice: 3 },
-  // Power strips
-  { componentType: '1u-pdu',            heightU: 1, label: '1U PDU', isPDU: true },
-  { componentType: '2u-pdu',            heightU: 2, label: '2U PDU', isPDU: true },
+  // ── Compute ─────────────────────────────────────────────────
+  { componentType: '1u-server',      heightU: 1, label: '1U Server',      category: 'compute' },
+  { componentType: '2u-server',      heightU: 2, label: '2U Server',      category: 'compute' },
+  { componentType: '4u-server',      heightU: 4, label: '4U Server',      category: 'compute' },
+  { componentType: '2pc-1u',         heightU: 1, label: '2× PC (1U)',     category: 'compute', multiDevice: 2 },
+  { componentType: '2pc-2u',         heightU: 2, label: '2× PC (2U)',     category: 'compute', multiDevice: 2 },
+  { componentType: '3pc-1u',         heightU: 1, label: '3× PC (1U)',     category: 'compute', multiDevice: 3 },
+  { componentType: '3pc-2u',         heightU: 2, label: '3× PC (2U)',     category: 'compute', multiDevice: 3 },
+  // ── Networking ──────────────────────────────────────────────
+  { componentType: '1u-router',      heightU: 1, label: '1U Router',      category: 'network' },
+  { componentType: '2u-router',      heightU: 2, label: '2U Router',      category: 'network' },
+  { componentType: '1u-switch',      heightU: 1, label: '1U Switch',      category: 'network' },
+  { componentType: '2u-switch',      heightU: 2, label: '2U Switch',      category: 'network' },
+  { componentType: '1u-patch-panel', heightU: 1, label: '1U Patch Panel', category: 'network' },
+  { componentType: '2u-patch-panel', heightU: 2, label: '2U Patch Panel', category: 'network' },
+  { componentType: '1u-cable-mgmt',  heightU: 1, label: '1U Cable Mgmt',  category: 'network', isPassive: true },
+  // ── Power ────────────────────────────────────────────────────
+  { componentType: '1u-ups',         heightU: 1, label: '1U UPS',         category: 'power' },
+  { componentType: '2u-ups',         heightU: 2, label: '2U UPS',         category: 'power' },
+  { componentType: '4u-ups',         heightU: 4, label: '4U UPS',         category: 'power' },
+  { componentType: '1u-pdu',         heightU: 1, label: '1U PDU',         category: 'power', isPDU: true },
+  { componentType: '2u-pdu',         heightU: 2, label: '2U PDU',         category: 'power', isPDU: true },
+  // ── Management ───────────────────────────────────────────────
+  { componentType: '1u-kvm',         heightU: 1, label: '1U KVM',         category: 'mgmt' },
+  // ── Filler ───────────────────────────────────────────────────
+  { componentType: '1u-blank',       heightU: 1, label: '1U Blank',       category: 'filler', isBlank: true },
+  { componentType: '2u-blank',       heightU: 2, label: '2U Blank',       category: 'filler', isBlank: true },
+  { componentType: '4u-blank',       heightU: 4, label: '4U Blank',       category: 'filler', isBlank: true },
 ];
 
 // ---- State ----
@@ -2797,19 +2793,37 @@ function autoSaveRack() {
 }
 
 // ---- Palette ----
+const CATEGORY_META = {
+  compute: { label: 'Compute',    icon: '🖥' },
+  network: { label: 'Network',    icon: '🔌' },
+  power:   { label: 'Power',      icon: '⚡' },
+  mgmt:    { label: 'Management', icon: '🖱' },
+  filler:  { label: 'Filler',     icon: '▭'  },
+};
+
 function renderPalette() {
   if (!rackPaletteItems) return;
   rackPaletteItems.innerHTML = '';
+  let lastCategory = null;
   RACK_COMPONENTS.forEach(comp => {
+    // Section header when category changes
+    if (comp.category !== lastCategory) {
+      lastCategory = comp.category;
+      const meta = CATEGORY_META[comp.category] || { label: comp.category, icon: '' };
+      const hdr = document.createElement('div');
+      hdr.className = 'rack-palette-section';
+      hdr.innerHTML = `<span>${meta.icon}</span><span>${meta.label}</span>`;
+      rackPaletteItems.appendChild(hdr);
+    }
     const el = document.createElement('div');
-    el.className = 'rack-palette-item';
+    el.className = `rack-palette-item cat-${comp.category}`;
     el.draggable = true;
     el.dataset.componentType = comp.componentType;
     el.dataset.heightU = comp.heightU;
     el.dataset.label   = comp.label;
     el.innerHTML = `<span class="rack-palette-drag">⠿</span><span class="rack-palette-label">${comp.label}</span><span class="rack-palette-hu">${comp.heightU}U</span>`;
     el.addEventListener('dragstart', e => {
-      rackDragComponent = { componentType: comp.componentType, heightU: comp.heightU, label: comp.label, multiDevice: comp.multiDevice || null, isPDU: comp.isPDU || false, source: 'palette' };
+      rackDragComponent = { componentType: comp.componentType, heightU: comp.heightU, label: comp.label, category: comp.category || 'compute', multiDevice: comp.multiDevice || null, isPDU: comp.isPDU || false, isBlank: comp.isBlank || false, isPassive: comp.isPassive || false, source: 'palette' };
       e.dataTransfer.effectAllowed = 'copy';
     });
     el.addEventListener('dragend', () => { rackDragComponent = null; });
@@ -2875,16 +2889,22 @@ function createEmptySlot(side, u, rack) {
       componentType: rackDragComponent.componentType,
       heightU: rackDragComponent.heightU,
       label: rackDragComponent.label,
+      category: rackDragComponent.category || 'compute',
       linkedDeviceId: rackDragComponent.linkedDeviceId || null,
       multiDevice: rackDragComponent.multiDevice || null,
       linkedDevices: rackDragComponent.linkedDevices || null,
       isPDU: rackDragComponent.isPDU || false,
       pduPorts: rackDragComponent.pduPorts || null,
       pduLinks: rackDragComponent.pduLinks || null,
+      isBlank: rackDragComponent.isBlank || false,
+      isPassive: rackDragComponent.isPassive || false,
     };
     saveRackData();
     renderRackDiagram(side);
-    showLinkPanel(slotKey, side);
+    // Blanks and cable management have no hardware to link
+    if (!rackDragComponent.isBlank && !rackDragComponent.isPassive) {
+      showLinkPanel(slotKey, side);
+    }
     rackDragComponent = null;
   });
   return el;
@@ -2892,7 +2912,8 @@ function createEmptySlot(side, u, rack) {
 
 function createOccupiedSlot(side, u, comp, slotKey, rack) {
   const el = document.createElement('div');
-  el.className = 'rack-slot occupied';
+  const cat = comp.category || (comp.isBlank ? 'filler' : 'compute');
+  el.className = `rack-slot occupied cat-${cat}`;
   el.dataset.u    = u;
   el.dataset.side = side;
   el.draggable    = true;
@@ -2926,6 +2947,7 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
 
   el.addEventListener('click', e => {
     if (e.target.classList.contains('rack-slot-remove')) return;
+    if (comp.isBlank || comp.isPassive) return;
     showLinkPanel(slotKey, side);
   });
   el.querySelector('.rack-slot-remove').addEventListener('click', e => {
@@ -2935,7 +2957,7 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
     renderRackDiagram(side);
   });
   el.addEventListener('dragstart', e => {
-    rackDragComponent = { componentType: comp.componentType, heightU: comp.heightU, label: comp.label, linkedDeviceId: comp.linkedDeviceId || null, multiDevice: comp.multiDevice || null, linkedDevices: comp.linkedDevices || null, isPDU: comp.isPDU || false, pduPorts: comp.pduPorts || null, pduLinks: comp.pduLinks || null, fromSlot: slotKey, source: 'rack' };
+    rackDragComponent = { componentType: comp.componentType, heightU: comp.heightU, label: comp.label, category: comp.category || 'compute', linkedDeviceId: comp.linkedDeviceId || null, multiDevice: comp.multiDevice || null, linkedDevices: comp.linkedDevices || null, isPDU: comp.isPDU || false, pduPorts: comp.pduPorts || null, pduLinks: comp.pduLinks || null, isBlank: comp.isBlank || false, isPassive: comp.isPassive || false, fromSlot: slotKey, source: 'rack' };
     e.dataTransfer.effectAllowed = 'move';
     setTimeout(() => el.style.opacity = '0.4', 0);
   });
