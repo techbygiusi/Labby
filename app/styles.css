@@ -613,10 +613,6 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 
 /* ── IP View styles ── */
 .ip-toggle {
-  position: fixed;
-  right: 160px;
-  bottom: 18px;
-  z-index: 20;
   border: 3px solid var(--line);
   border-radius: 14px;
   padding: 0.5rem 0.7rem;
@@ -1229,12 +1225,14 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   gap: 1.2rem;
   overflow: auto;
   padding: 1rem 1.2rem;
+  justify-content: center;
 }
 .rack-view-col {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-width: 220px;
+  min-width: 260px;
+  max-width: 520px;
   flex: 1;
 }
 .rack-view-title {
@@ -1320,21 +1318,23 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .rack-link-panel {
   position: absolute;
   left: 0;
-  right: 0;
   top: 100%;
   z-index: 50;
   background: var(--phone);
   border: 3px solid var(--line);
-  border-radius: 0 0 8px 8px;
-  padding: 0.45rem 0.6rem;
+  border-radius: 0 0 10px 10px;
+  padding: 0.5rem 0.65rem;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.4rem;
   font: 600 0.72rem/1.2 'Space Mono', monospace;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.22);
+  min-width: 260px;
 }
-.rack-link-panel select {
+.rack-link-panel > select {
   flex: 1;
+  min-width: 140px;
   border: 2px solid var(--line);
   border-radius: 8px;
   padding: 0.25rem 0.4rem;
@@ -1355,4 +1355,67 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 /* Mobile: hide rack toggle */
 @media (max-width: 1100px) {
   .rack-toggle { display: none; }
+}
+
+/* Multi-device slot styles */
+.rack-multi-devices {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.rack-multi-slot {
+  font: 600 0.65rem/1.1 'Space Mono', monospace;
+  background: color-mix(in srgb, var(--blue) 40%, var(--panel));
+  border: 1.5px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 80px;
+  text-overflow: ellipsis;
+}
+
+/* Link panel multi-row */
+.rack-link-multi-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+}
+.rack-link-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.rack-link-row-label {
+  font: 700 0.7rem/1.2 'Space Mono', monospace;
+  color: var(--muted);
+  white-space: nowrap;
+  min-width: 52px;
+}
+.rack-link-row select {
+  flex: 1;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  padding: 0.22rem 0.4rem;
+  background: var(--panel);
+  color: var(--text);
+  font: 0.72rem/1.2 'Space Mono', monospace;
+}
+.rack-link-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+.rack-link-label {
+  font: 700 0.7rem/1.2 'Space Mono', monospace;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Wider link panel for multi/PDU */
+.rack-link-panel {
+  min-width: 260px;
+  max-width: 380px;
 }

@@ -2459,60 +2459,80 @@ document.getElementById('show-tutorial-btn-mobile').addEventListener('click', op
 
 // ---- Palette component definitions ----
 const RACK_COMPONENTS = [
-  { componentType: '1u-server',      heightU: 1, label: '1U Server' },
-  { componentType: '2u-server',      heightU: 2, label: '2U Server' },
-  { componentType: '4u-server',      heightU: 4, label: '4U Server' },
-  { componentType: '1u-switch',      heightU: 1, label: '1U Switch' },
-  { componentType: '2u-switch',      heightU: 2, label: '2U Switch' },
-  { componentType: '1u-patch-panel', heightU: 1, label: '1U Patch Panel' },
-  { componentType: '2u-patch-panel', heightU: 2, label: '2U Patch Panel' },
-  { componentType: '1u-blank',       heightU: 1, label: '1U Blank' },
-  { componentType: '2u-blank',       heightU: 2, label: '2U Blank' },
-  { componentType: '1u-kvm',         heightU: 1, label: '1U KVM' },
-  { componentType: '2u-ups',         heightU: 2, label: '2U UPS' },
+  // Servers
+  { componentType: '1u-server',         heightU: 1, label: '1U Server' },
+  { componentType: '2u-server',         heightU: 2, label: '2U Server' },
+  { componentType: '4u-server',         heightU: 4, label: '4U Server' },
+  // Switches
+  { componentType: '1u-switch',         heightU: 1, label: '1U Switch' },
+  { componentType: '2u-switch',         heightU: 2, label: '2U Switch' },
+  // Patch panels
+  { componentType: '1u-patch-panel',    heightU: 1, label: '1U Patch Panel' },
+  { componentType: '2u-patch-panel',    heightU: 2, label: '2U Patch Panel' },
+  // Blanks
+  { componentType: '1u-blank',          heightU: 1, label: '1U Blank' },
+  { componentType: '2u-blank',          heightU: 2, label: '2U Blank' },
+  { componentType: '4u-blank',          heightU: 4, label: '4U Blank' },
+  // KVM
+  { componentType: '1u-kvm',            heightU: 1, label: '1U KVM' },
+  // UPS
+  { componentType: '1u-ups',            heightU: 1, label: '1U UPS' },
+  { componentType: '2u-ups',            heightU: 2, label: '2U UPS' },
+  { componentType: '4u-ups',            heightU: 4, label: '4U UPS' },
+  // Routers
+  { componentType: '1u-router',         heightU: 1, label: '1U Router' },
+  { componentType: '2u-router',         heightU: 2, label: '2U Router' },
+  // Multi-PC (2 side by side)
+  { componentType: '2pc-1u',            heightU: 1, label: '2× PC (1U)', multiDevice: 2 },
+  { componentType: '2pc-2u',            heightU: 2, label: '2× PC (2U)', multiDevice: 2 },
+  // Multi-PC (3 side by side)
+  { componentType: '3pc-1u',            heightU: 1, label: '3× PC (1U)', multiDevice: 3 },
+  { componentType: '3pc-2u',            heightU: 2, label: '3× PC (2U)', multiDevice: 3 },
+  // Power strips
+  { componentType: '1u-pdu',            heightU: 1, label: '1U PDU', isPDU: true },
+  { componentType: '2u-pdu',            heightU: 2, label: '2U PDU', isPDU: true },
 ];
 
 // ---- State ----
-let rackEditorRackId = null;  // currently open rack in editor
-let rackDragComponent = null; // { componentType, heightU, label } or { fromSlot, side }
-let rackLinkPanelTarget = null; // { slotKey, side, el }
-let rackFormMode = null; // 'location' | 'rack' | 'editLocation' | 'editRack'
-let rackFormPendingLocationId = null; // set during two-step create
+let rackEditorRackId = null;
+let rackDragComponent = null;
+let rackLinkPanelTarget = null;
+let rackFormMode = null;
+let rackFormPendingLocationId = null;
 
 // ---- DOM refs ----
-const rackOverview    = document.getElementById('rack-overview');
-const rackEditor      = document.getElementById('rack-editor');
-const rackFormPage    = document.getElementById('rack-form-page');
-const rackToggleBtn   = document.getElementById('rack-toggle');
-const rackCloseBtn    = document.getElementById('rack-close-btn');
-const rackAddLocBtn   = document.getElementById('rack-add-location-btn');
-const rackAddRackBtn  = document.getElementById('rack-add-rack-btn');
-const rackOverviewBody= document.getElementById('rack-overview-body');
-const rackEditorBack  = document.getElementById('rack-editor-back');
-const rackEditorSave  = document.getElementById('rack-editor-save');
-const rackEditorName  = document.getElementById('rack-editor-name');
+const rackOverview     = document.getElementById('rack-overview');
+const rackEditor       = document.getElementById('rack-editor');
+const rackFormPage     = document.getElementById('rack-form-page');
+const rackToggleBtn    = document.getElementById('rack-toggle');
+const rackCloseBtn     = document.getElementById('rack-close-btn');
+const rackAddLocBtn    = document.getElementById('rack-add-location-btn');
+const rackAddRackBtn   = document.getElementById('rack-add-rack-btn');
+const rackOverviewBody = document.getElementById('rack-overview-body');
+const rackEditorBack   = document.getElementById('rack-editor-back');
+const rackEditorSave   = document.getElementById('rack-editor-save');
+const rackEditorName   = document.getElementById('rack-editor-name');
 const rackEditorLocBadge = document.getElementById('rack-editor-location-badge');
-const rackFront       = document.getElementById('rack-front');
-const rackRear        = document.getElementById('rack-rear');
-const rackPaletteItems= document.getElementById('rack-palette-items');
+const rackFront        = document.getElementById('rack-front');
+const rackRear         = document.getElementById('rack-rear');
+const rackPaletteItems = document.getElementById('rack-palette-items');
 const rackFormPageTitle = document.getElementById('rack-form-page-title');
 const rackFormPageBody  = document.getElementById('rack-form-page-body');
-const rackFormBack    = document.getElementById('rack-form-back');
-const phoneGrid       = document.querySelector('.phone-grid');
+const rackFormBack      = document.getElementById('rack-form-back');
+const phoneGrid         = document.querySelector('.phone-grid');
 
 // ---- Helpers ----
-function rackById(id) { return racks.find(r => r.id === id); }
+function rackById(id)     { return racks.find(r => r.id === id); }
 function locationById(id) { return locations.find(l => l.id === id); }
 
-async function saveRackData() {
-  await saveItemsToAPI(items);
-}
+async function saveRackData() { await saveItemsToAPI(items); }
 
 function showRackOverlay(id) {
-  [rackOverview, rackEditor, rackFormPage].forEach(el => el.classList.add('hidden'));
+  [rackOverview, rackEditor, rackFormPage].forEach(el => el && el.classList.add('hidden'));
   if (phoneGrid) phoneGrid.style.display = '';
   if (id) {
-    document.getElementById(id).classList.remove('hidden');
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('hidden');
     if (phoneGrid) phoneGrid.style.display = 'none';
   }
 }
@@ -2520,37 +2540,21 @@ function showRackOverlay(id) {
 // ---- Main toggle ----
 if (rackToggleBtn) {
   rackToggleBtn.addEventListener('click', () => {
-    if (isMobile()) {
-      showToast('Rack View is available on desktop.', 'error');
-      return;
-    }
+    if (isMobile()) { showToast('Rack View ist nur auf dem Desktop verfügbar.', 'error'); return; }
     renderRackOverview();
     showRackOverlay('rack-overview');
   });
 }
+if (rackCloseBtn)   rackCloseBtn.addEventListener('click', () => { showRackOverlay(null); });
+if (rackAddLocBtn)  rackAddLocBtn.addEventListener('click', () => openLocationForm(null, null));
+if (rackAddRackBtn) rackAddRackBtn.addEventListener('click', () => openRackForm(null, null));
 
-if (rackCloseBtn) {
-  rackCloseBtn.addEventListener('click', () => {
-    showRackOverlay(null);
-    renderRackOverview(); // reset state
-  });
-}
-
-if (rackAddLocBtn) {
-  rackAddLocBtn.addEventListener('click', () => openLocationForm(null));
-}
-
-if (rackAddRackBtn) {
-  rackAddRackBtn.addEventListener('click', () => openRackForm(null, null));
-}
-
-// ---- Rack Overview renderer ----
+// ---- Rack Overview ----
 function renderRackOverview() {
   if (!rackOverviewBody) return;
   rackOverviewBody.innerHTML = '';
 
   if (locations.length === 0) {
-    // Empty state
     const es = document.createElement('div');
     es.className = 'rack-empty-state';
     es.innerHTML = `
@@ -2560,17 +2564,17 @@ function renderRackOverview() {
       <button class="button" id="rack-create-first">+ Create your first Rack</button>
     `;
     rackOverviewBody.appendChild(es);
-    document.getElementById('rack-create-first').addEventListener('click', () => {
-      openLocationForm('create-flow');
-    });
+    document.getElementById('rack-create-first').addEventListener('click', () => openLocationForm('create-flow', null));
     return;
   }
 
-  // Location selector
+  // Location selector row
   const locBar = document.createElement('div');
   locBar.className = 'rack-location-bar';
+
   const locLabel = document.createElement('label');
   locLabel.textContent = 'Location:';
+
   const locSel = document.createElement('select');
   locSel.id = 'rack-location-select';
   locations.forEach(loc => {
@@ -2579,20 +2583,28 @@ function renderRackOverview() {
     opt.textContent = loc.name;
     locSel.appendChild(opt);
   });
+
+  // Edit location button
+  const editLocBtn = document.createElement('button');
+  editLocBtn.className = 'button secondary';
+  editLocBtn.textContent = '✏️ Edit Location';
+  editLocBtn.type = 'button';
+  editLocBtn.addEventListener('click', () => {
+    openLocationForm(null, locSel.value);
+  });
+
   locBar.appendChild(locLabel);
   locBar.appendChild(locSel);
+  locBar.appendChild(editLocBtn);
   rackOverviewBody.appendChild(locBar);
 
-  // Rack cards
   const grid = document.createElement('div');
   grid.className = 'rack-cards-grid';
-  grid.id = 'rack-cards-grid';
   rackOverviewBody.appendChild(grid);
 
   function renderCards() {
     grid.innerHTML = '';
-    const selectedLocId = locSel.value;
-    const locationRacks = racks.filter(r => r.locationId === selectedLocId);
+    const locationRacks = racks.filter(r => r.locationId === locSel.value);
     if (locationRacks.length === 0) {
       const empty = document.createElement('div');
       empty.style.cssText = 'color:var(--muted);font:0.8rem/1.4 Space Mono,monospace;padding:1rem 0;';
@@ -2619,17 +2631,16 @@ function renderRackOverview() {
 
 // ---- Location form ----
 function openLocationForm(mode, existingId) {
-  // mode: 'create-flow' (then proceeds to rack form), null (standalone add), 'edit'
   rackFormMode = mode === 'create-flow' ? 'location-flow' : (existingId ? 'editLocation' : 'location');
   const existing = existingId ? locationById(existingId) : null;
   rackFormPageTitle.textContent = existing ? 'Edit Location' : 'Create Location';
-
   rackFormPageBody.innerHTML = '';
+
   const inner = document.createElement('div');
   inner.className = 'rack-form-inner';
   inner.innerHTML = `
     <label>Name *
-      <input id="rf-loc-name" type="text" placeholder="e.g. Server Room 1" value="${existing ? escapeHtml(existing.name) : ''}" required />
+      <input id="rf-loc-name" type="text" placeholder="e.g. Server Room 1" value="${existing ? escapeHtml(existing.name) : ''}" />
     </label>
     <label>Address
       <input id="rf-loc-address" type="text" placeholder="e.g. Basement, Rack Bay A" value="${existing ? escapeHtml(existing.address || '') : ''}" />
@@ -2637,6 +2648,7 @@ function openLocationForm(mode, existingId) {
     <label>Notes
       <textarea id="rf-loc-notes" rows="3" placeholder="Any details...">${existing ? escapeHtml(existing.notes || '') : ''}</textarea>
     </label>
+    ${existing ? `<button class="button danger" id="rf-loc-delete" type="button" style="margin-top:0.5rem">🗑 Delete Location</button>` : ''}
     <div class="rack-form-actions">
       <button class="button" id="rf-loc-submit" type="button">${mode === 'create-flow' ? 'Next: Create Rack →' : (existing ? 'Save Location' : 'Add Location')}</button>
     </div>
@@ -2647,15 +2659,15 @@ function openLocationForm(mode, existingId) {
     const name = document.getElementById('rf-loc-name').value.trim();
     if (!name) { showToast('Location name is required.', 'error'); return; }
     if (existing) {
-      existing.name = name;
+      existing.name    = name;
       existing.address = document.getElementById('rf-loc-address').value.trim();
-      existing.notes = document.getElementById('rf-loc-notes').value.trim();
+      existing.notes   = document.getElementById('rf-loc-notes').value.trim();
     } else {
       const loc = {
         id: 'location-' + Date.now(),
         name,
         address: document.getElementById('rf-loc-address').value.trim(),
-        notes: document.getElementById('rf-loc-notes').value.trim(),
+        notes:   document.getElementById('rf-loc-notes').value.trim(),
       };
       locations.push(loc);
       rackFormPendingLocationId = loc.id;
@@ -2670,10 +2682,19 @@ function openLocationForm(mode, existingId) {
     }
   });
 
-  rackFormBack.onclick = () => {
-    showRackOverlay('rack-overview');
-  };
+  if (existing) {
+    document.getElementById('rf-loc-delete').addEventListener('click', () => {
+      if (!confirm(`Delete location "${existing.name}"? All racks there will also be deleted.`)) return;
+      racks = racks.filter(r => r.locationId !== existing.id);
+      locations = locations.filter(l => l.id !== existing.id);
+      saveRackData();
+      renderRackOverview();
+      showRackOverlay('rack-overview');
+      showToast('Location deleted.');
+    });
+  }
 
+  rackFormBack.onclick = () => showRackOverlay('rack-overview');
   showRackOverlay('rack-form-page');
 }
 
@@ -2681,19 +2702,18 @@ function openLocationForm(mode, existingId) {
 function openRackForm(existingId, preselectedLocationId) {
   const existing = existingId ? rackById(existingId) : null;
   rackFormPageTitle.textContent = existing ? 'Edit Rack' : 'Create Rack';
-
   rackFormPageBody.innerHTML = '';
+
   const inner = document.createElement('div');
   inner.className = 'rack-form-inner';
 
-  // Build location options
   const locOpts = locations.map(loc =>
     `<option value="${loc.id}" ${(preselectedLocationId || existing?.locationId) === loc.id ? 'selected' : ''}>${escapeHtml(loc.name)}</option>`
   ).join('');
 
   inner.innerHTML = `
     <label>Name *
-      <input id="rf-rack-name" type="text" placeholder="e.g. Main Rack" value="${existing ? escapeHtml(existing.name) : ''}" required />
+      <input id="rf-rack-name" type="text" placeholder="e.g. Main Rack" value="${existing ? escapeHtml(existing.name) : ''}" />
     </label>
     <label>Notes
       <textarea id="rf-rack-notes" rows="3" placeholder="Any details...">${existing ? escapeHtml(existing.notes || '') : ''}</textarea>
@@ -2717,10 +2737,10 @@ function openRackForm(existingId, preselectedLocationId) {
   rackFormPageBody.appendChild(inner);
 
   document.getElementById('rf-rack-submit').addEventListener('click', () => {
-    const name = document.getElementById('rf-rack-name').value.trim();
+    const name  = document.getElementById('rf-rack-name').value.trim();
     if (!name) { showToast('Rack name is required.', 'error'); return; }
-    const hu = parseInt(document.getElementById('rf-rack-hu').value, 10) || 42;
-    const ff = document.getElementById('rf-rack-ff').value;
+    const hu    = parseInt(document.getElementById('rf-rack-hu').value, 10) || 42;
+    const ff    = document.getElementById('rf-rack-ff').value;
     const locId = document.getElementById('rf-rack-loc').value;
     if (existing) {
       existing.name = name;
@@ -2733,30 +2753,14 @@ function openRackForm(existingId, preselectedLocationId) {
       renderRackOverview();
       showRackOverlay('rack-overview');
     } else {
-      const rack = {
-        id: 'rack-' + Date.now(),
-        name,
-        notes: document.getElementById('rf-rack-notes').value.trim(),
-        heightUnits: hu,
-        formFactor: ff,
-        locationId: locId,
-        slots: {},
-      };
+      const rack = { id: 'rack-' + Date.now(), name, notes: document.getElementById('rf-rack-notes').value.trim(), heightUnits: hu, formFactor: ff, locationId: locId, slots: {} };
       racks.push(rack);
       saveRackData();
       openRackEditor(rack.id);
     }
   });
 
-  rackFormBack.onclick = () => {
-    if (rackFormMode === 'location-flow') {
-      // back to location form would be confusing — go to overview
-      showRackOverlay('rack-overview');
-    } else {
-      showRackOverlay('rack-overview');
-    }
-  };
-
+  rackFormBack.onclick = () => showRackOverlay('rack-overview');
   showRackOverlay('rack-form-page');
 }
 
@@ -2766,14 +2770,11 @@ function openRackEditor(rackId) {
   const rack = rackById(rackId);
   if (!rack) return;
   const loc = locationById(rack.locationId);
-
   rackEditorName.textContent = rack.name;
   rackEditorLocBadge.textContent = loc ? `📍 ${loc.name}` : '';
-
   renderPalette();
   renderRackDiagram('front');
   renderRackDiagram('rear');
-
   showRackOverlay('rack-editor');
 }
 
@@ -2784,12 +2785,8 @@ if (rackEditorBack) {
     showRackOverlay('rack-overview');
   });
 }
-
 if (rackEditorSave) {
-  rackEditorSave.addEventListener('click', () => {
-    autoSaveRack();
-    showToast('Rack saved.');
-  });
+  rackEditorSave.addEventListener('click', () => { autoSaveRack(); showToast('Rack saved.'); });
 }
 
 function autoSaveRack() {
@@ -2809,10 +2806,10 @@ function renderPalette() {
     el.draggable = true;
     el.dataset.componentType = comp.componentType;
     el.dataset.heightU = comp.heightU;
-    el.dataset.label = comp.label;
+    el.dataset.label   = comp.label;
     el.innerHTML = `<span class="rack-palette-drag">⠿</span><span>${comp.label}</span><span class="rack-palette-hu">${comp.heightU}U</span>`;
     el.addEventListener('dragstart', e => {
-      rackDragComponent = { componentType: comp.componentType, heightU: comp.heightU, label: comp.label, source: 'palette' };
+      rackDragComponent = { componentType: comp.componentType, heightU: comp.heightU, label: comp.label, multiDevice: comp.multiDevice || null, isPDU: comp.isPDU || false, source: 'palette' };
       e.dataTransfer.effectAllowed = 'copy';
     });
     el.addEventListener('dragend', () => { rackDragComponent = null; });
@@ -2829,31 +2826,23 @@ function renderRackDiagram(side) {
   if (!rack) return;
 
   const hu = rack.heightUnits || 42;
-  // Build occupied map: slotKey -> { comp, startU }
-  const occupiedMap = {}; // u (1-based) -> { comp, startU }
+  const occupiedMap = {};
   Object.entries(rack.slots || {}).forEach(([key, comp]) => {
     if (!key.startsWith(side + '-')) return;
     const u = parseInt(key.split('-')[1], 10);
-    for (let i = 0; i < comp.heightU; i++) {
-      occupiedMap[u + i] = { comp, startU: u, key };
-    }
+    for (let i = 0; i < comp.heightU; i++) occupiedMap[u + i] = { comp, startU: u, key };
   });
 
   let u = 1;
   while (u <= hu) {
     const info = occupiedMap[u];
     if (info && info.startU === u) {
-      // Render occupied slot spanning heightU rows
-      const slotEl = createOccupiedSlot(side, u, info.comp, info.key, rack);
-      container.appendChild(slotEl);
+      container.appendChild(createOccupiedSlot(side, u, info.comp, info.key, rack));
       u += info.comp.heightU;
     } else if (info) {
-      // Continuation of a multi-U slot — skip
       u++;
     } else {
-      // Empty slot
-      const slotEl = createEmptySlot(side, u, rack);
-      container.appendChild(slotEl);
+      container.appendChild(createEmptySlot(side, u, rack));
       u++;
     }
   }
@@ -2862,110 +2851,98 @@ function renderRackDiagram(side) {
 function createEmptySlot(side, u, rack) {
   const el = document.createElement('div');
   el.className = 'rack-slot empty';
-  el.dataset.u = u;
+  el.dataset.u    = u;
   el.dataset.side = side;
   el.innerHTML = `<span class="rack-slot-num">${u}</span><span class="rack-slot-label" style="color:var(--muted);font-size:0.65rem">— empty —</span>`;
 
-  // Drop target
   el.addEventListener('dragover', e => {
     e.preventDefault();
     if (!rackDragComponent) return;
     const fits = canFit(side, u, rackDragComponent.heightU, rack, rackDragComponent.fromSlot);
-    el.classList.toggle('drag-over', fits);
+    el.classList.toggle('drag-over',   fits);
     el.classList.toggle('drag-invalid', !fits);
   });
-  el.addEventListener('dragleave', () => {
-    el.classList.remove('drag-over', 'drag-invalid');
-  });
+  el.addEventListener('dragleave', () => el.classList.remove('drag-over', 'drag-invalid'));
   el.addEventListener('drop', e => {
     e.preventDefault();
     el.classList.remove('drag-over', 'drag-invalid');
     if (!rackDragComponent) return;
     const fits = canFit(side, u, rackDragComponent.heightU, rack, rackDragComponent.fromSlot);
     if (!fits) { showToast('Not enough space.', 'error'); return; }
-    // Remove from source if moving
-    if (rackDragComponent.fromSlot) {
-      delete rack.slots[rackDragComponent.fromSlot];
-    }
+    if (rackDragComponent.fromSlot) delete rack.slots[rackDragComponent.fromSlot];
     const slotKey = `${side}-${u}`;
     rack.slots[slotKey] = {
       componentType: rackDragComponent.componentType,
       heightU: rackDragComponent.heightU,
       label: rackDragComponent.label,
       linkedDeviceId: rackDragComponent.linkedDeviceId || null,
+      multiDevice: rackDragComponent.multiDevice || null,
+      linkedDevices: rackDragComponent.linkedDevices || null,
+      isPDU: rackDragComponent.isPDU || false,
+      pduPorts: rackDragComponent.pduPorts || null,
+      pduLinks: rackDragComponent.pduLinks || null,
     };
     saveRackData();
     renderRackDiagram(side);
-    // Show link panel
     showLinkPanel(slotKey, side);
     rackDragComponent = null;
   });
-
   return el;
 }
 
 function createOccupiedSlot(side, u, comp, slotKey, rack) {
   const el = document.createElement('div');
   el.className = 'rack-slot occupied';
-  el.dataset.u = u;
+  el.dataset.u    = u;
   el.dataset.side = side;
-  el.draggable = true;
+  el.draggable    = true;
   el.style.minHeight = (comp.heightU * 28) + 'px';
 
-  const linkedDevice = comp.linkedDeviceId ? findById(comp.linkedDeviceId) : null;
-  const deviceLabel = linkedDevice ? `${linkedDevice.symbol || ''} ${linkedDevice.name}` : '';
+  // Build device label(s)
+  let deviceHtml = '';
+  if (comp.multiDevice && comp.linkedDevices) {
+    const labels = comp.linkedDevices.map((id, i) => {
+      const dev = id ? findById(id) : null;
+      return `<span class="rack-multi-slot">${i+1}:${dev ? escapeHtml((dev.symbol||'')+''+dev.name) : '—'}</span>`;
+    }).join('');
+    deviceHtml = `<span class="rack-slot-device rack-multi-devices">${labels}</span>`;
+  } else if (comp.linkedDeviceId) {
+    const dev = findById(comp.linkedDeviceId);
+    if (dev) deviceHtml = `<span class="rack-slot-device">${escapeHtml((dev.symbol||'')+' '+dev.name)}</span>`;
+  } else if (comp.isPDU && comp.pduPorts) {
+    deviceHtml = `<span class="rack-slot-device">${comp.pduPorts} ports</span>`;
+  }
 
   el.innerHTML = `
     <span class="rack-slot-num">${u}</span>
     <span class="rack-slot-label">${escapeHtml(comp.label)}</span>
-    ${deviceLabel ? `<span class="rack-slot-device">${escapeHtml(deviceLabel)}</span>` : ''}
+    ${deviceHtml}
     <button class="rack-slot-remove" title="Remove" data-key="${slotKey}" data-side="${side}">✕</button>
   `;
 
-  // Click to edit link
   el.addEventListener('click', e => {
     if (e.target.classList.contains('rack-slot-remove')) return;
     showLinkPanel(slotKey, side);
   });
-
-  // Remove button
   el.querySelector('.rack-slot-remove').addEventListener('click', e => {
     e.stopPropagation();
     delete rack.slots[slotKey];
     saveRackData();
     renderRackDiagram(side);
   });
-
-  // Drag to move
   el.addEventListener('dragstart', e => {
-    rackDragComponent = {
-      componentType: comp.componentType,
-      heightU: comp.heightU,
-      label: comp.label,
-      linkedDeviceId: comp.linkedDeviceId || null,
-      fromSlot: slotKey,
-      source: 'rack',
-    };
+    rackDragComponent = { componentType: comp.componentType, heightU: comp.heightU, label: comp.label, linkedDeviceId: comp.linkedDeviceId || null, multiDevice: comp.multiDevice || null, linkedDevices: comp.linkedDevices || null, isPDU: comp.isPDU || false, pduPorts: comp.pduPorts || null, pduLinks: comp.pduLinks || null, fromSlot: slotKey, source: 'rack' };
     e.dataTransfer.effectAllowed = 'move';
     setTimeout(() => el.style.opacity = '0.4', 0);
   });
-  el.addEventListener('dragend', () => {
-    el.style.opacity = '';
-    rackDragComponent = null;
-  });
-
-  // Also accept drops ON occupied slots (for replacing)
-  el.addEventListener('dragover', e => {
-    if (!rackDragComponent || rackDragComponent.fromSlot === slotKey) return;
-    e.preventDefault();
-  });
+  el.addEventListener('dragend', () => { el.style.opacity = ''; rackDragComponent = null; });
+  el.addEventListener('dragover', e => { if (!rackDragComponent || rackDragComponent.fromSlot === slotKey) return; e.preventDefault(); });
   el.addEventListener('drop', e => {
     e.preventDefault();
     if (!rackDragComponent || rackDragComponent.fromSlot === slotKey) return;
     showToast('Slot is occupied. Remove it first.', 'error');
     rackDragComponent = null;
   });
-
   return el;
 }
 
@@ -2975,12 +2952,10 @@ function canFit(side, startU, heightU, rack, excludeSlot) {
   for (let u = startU; u < startU + heightU; u++) {
     const key = `${side}-${u}`;
     if (rack.slots[key] && key !== excludeSlot) return false;
-    // Also check if this u is a continuation of another slot
-    const occupied = Object.entries(rack.slots).find(([k, comp]) => {
-      if (k === excludeSlot) return false;
-      if (!k.startsWith(side + '-')) return false;
+    const occupied = Object.entries(rack.slots).find(([k, c]) => {
+      if (k === excludeSlot || !k.startsWith(side + '-')) return false;
       const slotU = parseInt(k.split('-')[1], 10);
-      return u > slotU && u < slotU + comp.heightU;
+      return u > slotU && u < slotU + c.heightU;
     });
     if (occupied) return false;
   }
@@ -2988,13 +2963,16 @@ function canFit(side, startU, heightU, rack, excludeSlot) {
 }
 
 // ---- Link panel ----
+// Critical: use mousedown to detect clicks, not click, so we can detect
+// when the user clicks inside the panel before focus shifts away.
+let _linkPanelMouseInside = false;
+
 function showLinkPanel(slotKey, side) {
   closeLinkPanel();
   const rack = rackById(rackEditorRackId);
   if (!rack || !rack.slots[slotKey]) return;
   const comp = rack.slots[slotKey];
 
-  // Find the slot element
   const container = side === 'front' ? rackFront : rackRear;
   const u = parseInt(slotKey.split('-')[1], 10);
   const slotEl = container.querySelector(`[data-u="${u}"][data-side="${side}"]`);
@@ -3005,17 +2983,107 @@ function showLinkPanel(slotKey, side) {
   panel.className = 'rack-link-panel';
   panel.id = 'rack-link-panel-active';
 
+  // Track mouse inside panel to prevent accidental close
+  panel.addEventListener('mousedown', () => { _linkPanelMouseInside = true; });
+  panel.addEventListener('mouseup',   () => { setTimeout(() => { _linkPanelMouseInside = false; }, 100); });
+
   const hardwareItems = items.filter(i => i.type === 'hardware');
+
+  // Multi-device (2pc, 3pc) — show one row per slot
+  if (comp.multiDevice) {
+    const count = comp.multiDevice;
+    const devs  = comp.linkedDevices || Array(count).fill(null);
+    let rows = '';
+    for (let i = 0; i < count; i++) {
+      const opts = hardwareItems.map(itm =>
+        `<option value="${itm.id}" ${devs[i] === itm.id ? 'selected' : ''}>${escapeHtml((itm.symbol||'')+' '+itm.name)}</option>`
+      ).join('');
+      rows += `
+        <div class="rack-link-row">
+          <span class="rack-link-row-label">PC ${i+1}:</span>
+          <select class="rack-link-multi" data-idx="${i}">
+            <option value="">— none —</option>${opts}
+          </select>
+        </div>`;
+    }
+    panel.innerHTML = `<div class="rack-link-multi-wrap">${rows}<div class="rack-link-actions"><button class="button" id="rack-link-ok">OK</button><button class="button secondary" id="rack-link-skip">Skip</button></div></div>`;
+    slotEl.appendChild(panel);
+    rackLinkPanelTarget = { slotKey, side };
+
+    document.getElementById('rack-link-ok').addEventListener('click', () => {
+      const selects = panel.querySelectorAll('.rack-link-multi');
+      comp.linkedDevices = Array.from(selects).map(s => s.value || null);
+      comp.linkedDeviceId = comp.linkedDevices[0];
+      saveRackData();
+      closeLinkPanel();
+      renderRackDiagram(side);
+    });
+    document.getElementById('rack-link-skip').addEventListener('click', () => closeLinkPanel());
+    return;
+  }
+
+  // PDU — choose number of ports + link devices to each port
+  if (comp.isPDU) {
+    const currentPorts = comp.pduPorts || 8;
+    const portOpts = [4, 6, 8, 10, 12, 16, 20, 24].map(n =>
+      `<option value="${n}" ${currentPorts === n ? 'selected' : ''}>${n} ports</option>`
+    ).join('');
+    const pduLinks = comp.pduLinks || {};
+    const portRows = Array.from({ length: currentPorts }, (_, i) => {
+      const opts = hardwareItems.map(itm =>
+        `<option value="${itm.id}" ${pduLinks[i] === itm.id ? 'selected' : ''}>${escapeHtml((itm.symbol||'')+' '+itm.name)}</option>`
+      ).join('');
+      return `<div class="rack-link-row"><span class="rack-link-row-label">Port ${i+1}:</span><select class="rack-pdu-port" data-port="${i}"><option value="">— empty —</option>${opts}</select></div>`;
+    }).join('');
+
+    panel.innerHTML = `
+      <div class="rack-link-multi-wrap">
+        <div class="rack-link-row">
+          <span class="rack-link-row-label">Ports:</span>
+          <select id="rack-pdu-count">${portOpts}</select>
+        </div>
+        <div id="rack-pdu-port-rows">${portRows}</div>
+        <div class="rack-link-actions">
+          <button class="button" id="rack-link-ok">OK</button>
+          <button class="button secondary" id="rack-link-skip">Skip</button>
+        </div>
+      </div>`;
+    slotEl.appendChild(panel);
+    rackLinkPanelTarget = { slotKey, side };
+
+    // Rebuild port rows when port count changes
+    document.getElementById('rack-pdu-count').addEventListener('change', function() {
+      const n = parseInt(this.value, 10);
+      const rows = Array.from({ length: n }, (_, i) => {
+        const opts = hardwareItems.map(itm =>
+          `<option value="${itm.id}" ${pduLinks[i] === itm.id ? 'selected' : ''}>${escapeHtml((itm.symbol||'')+' '+itm.name)}</option>`
+        ).join('');
+        return `<div class="rack-link-row"><span class="rack-link-row-label">Port ${i+1}:</span><select class="rack-pdu-port" data-port="${i}"><option value="">— empty —</option>${opts}</select></div>`;
+      }).join('');
+      document.getElementById('rack-pdu-port-rows').innerHTML = rows;
+    });
+
+    document.getElementById('rack-link-ok').addEventListener('click', () => {
+      comp.pduPorts = parseInt(document.getElementById('rack-pdu-count').value, 10);
+      const portSels = panel.querySelectorAll('.rack-pdu-port');
+      comp.pduLinks  = {};
+      portSels.forEach(s => { comp.pduLinks[parseInt(s.dataset.port)] = s.value || null; });
+      saveRackData();
+      closeLinkPanel();
+      renderRackDiagram(side);
+    });
+    document.getElementById('rack-link-skip').addEventListener('click', () => closeLinkPanel());
+    return;
+  }
+
+  // Standard single-device link
   const opts = hardwareItems.map(i =>
-    `<option value="${i.id}" ${comp.linkedDeviceId === i.id ? 'selected' : ''}>${escapeHtml((i.symbol || '') + ' ' + i.name)}</option>`
+    `<option value="${i.id}" ${comp.linkedDeviceId === i.id ? 'selected' : ''}>${escapeHtml((i.symbol||'')+' '+i.name)}</option>`
   ).join('');
 
   panel.innerHTML = `
-    <span>Link:</span>
-    <select id="rack-link-select">
-      <option value="">— none —</option>
-      ${opts}
-    </select>
+    <span class="rack-link-label">Link to device:</span>
+    <select id="rack-link-select"><option value="">— none —</option>${opts}</select>
     <button class="button" id="rack-link-ok" type="button">OK</button>
     <button class="button secondary" id="rack-link-skip" type="button">Skip</button>
   `;
@@ -3024,30 +3092,31 @@ function showLinkPanel(slotKey, side) {
   rackLinkPanelTarget = { slotKey, side };
 
   document.getElementById('rack-link-ok').addEventListener('click', () => {
-    const val = document.getElementById('rack-link-select').value || null;
-    comp.linkedDeviceId = val;
+    comp.linkedDeviceId = document.getElementById('rack-link-select').value || null;
     saveRackData();
     closeLinkPanel();
     renderRackDiagram(side);
   });
-  document.getElementById('rack-link-skip').addEventListener('click', () => {
-    closeLinkPanel();
-  });
+  document.getElementById('rack-link-skip').addEventListener('click', () => closeLinkPanel());
 }
 
 function closeLinkPanel() {
   const existing = document.getElementById('rack-link-panel-active');
   if (existing) existing.remove();
   rackLinkPanelTarget = null;
+  _linkPanelMouseInside = false;
 }
 
-// Close link panel when clicking outside
-document.addEventListener('click', e => {
+// Close link panel on outside click — but NOT while user is interacting inside the panel
+document.addEventListener('mousedown', e => {
   if (!rackLinkPanelTarget) return;
-  if (e.target.closest('#rack-link-panel-active')) return;
+  const panel = document.getElementById('rack-link-panel-active');
+  if (!panel) return;
+  if (panel.contains(e.target)) { _linkPanelMouseInside = true; return; }
+  // If click is on the same occupied slot, don't close (toggle handled by click)
   if (e.target.closest('.rack-slot.occupied')) return;
   closeLinkPanel();
-}, true);
+});
 
 // ---- Utility ----
 function escapeHtml(str) {
