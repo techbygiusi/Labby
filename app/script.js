@@ -79,6 +79,8 @@ const toast = document.getElementById('toast');
 let editingId = null;
 let selectedNetworkColor = networkPalette[0];
 let items = [];
+let locations = [];
+let racks = [];
 let toastTimer = null;
 let treeViewMode = 'tree';
 let lastTypeSelection = typeSelect.value;
@@ -94,29 +96,46 @@ async function loadItemsFromAPI() {
     const res = await fetch(`${API_BASE}/api/data`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    if (Array.isArray(data)) {
+      // Legacy: bare array
+      return { items: data, locations: [], racks: [] };
+    }
+    return {
+      items: Array.isArray(data.items) ? data.items : [],
+      locations: Array.isArray(data.locations) ? data.locations : [],
+      racks: Array.isArray(data.racks) ? data.racks : [],
+    };
   } catch (err) {
     console.warn('Labby: API not reachable, falling back to localStorage.', err);
     try {
       const raw = localStorage.getItem(storageKey);
-      return raw ? JSON.parse(raw) : [];
+      const parsed = raw ? JSON.parse(raw) : [];
+      const lsItems = Array.isArray(parsed) ? parsed : (parsed.items || []);
+      const lsLocations = Array.isArray(parsed) ? [] : (parsed.locations || []);
+      const lsRacks = Array.isArray(parsed) ? [] : (parsed.racks || []);
+      return { items: lsItems, locations: lsLocations, racks: lsRacks };
     } catch {
-      return [];
+      return { items: [], locations: [], racks: [] };
     }
   }
 }
 
 async function saveItemsToAPI(itemList) {
+  const payload = {
+    items: itemList,
+    locations: locations,
+    racks: racks,
+  };
   try {
     const res = await fetch(`${API_BASE}/api/data`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(itemList),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
   } catch (err) {
     console.warn('Labby: API save failed, writing to localStorage as fallback.', err);
-    try { localStorage.setItem(storageKey, JSON.stringify(itemList)); } catch {}
+    try { localStorage.setItem(storageKey, JSON.stringify(payload)); } catch {}
   }
 }
 
@@ -133,7 +152,10 @@ initTheme();
 applyTypeVisibility();
 
 (async () => {
-  items = sanitizeItems(await loadItemsFromAPI());
+  const loaded = await loadItemsFromAPI();
+  items = sanitizeItems(loaded.items);
+  locations = loaded.locations || [];
+  racks = loaded.racks || [];
   render();
 })();
 
@@ -2430,3 +2452,605 @@ document.getElementById('welcome-overlay').addEventListener('click', (e) => {
 
 document.getElementById('show-tutorial-btn').addEventListener('click', openTutorial);
 document.getElementById('show-tutorial-btn-mobile').addEventListener('click', openTutorial);
+
+/* ================================================================
+   RACK FEATURE
+   ================================================================ */
+
+// ---- Palette component definitions ----
+const RACK_COMPONENTS = [
+  { componentType: '1u-server',      heightU: 1, label: '1U Server' },
+  { componentType: '2u-server',      heightU: 2, label: '2U Server' },
+  { componentType: '4u-server',      heightU: 4, label: '4U Server' },
+  { componentType: '1u-switch',      heightU: 1, label: '1U Switch' },
+  { componentType: '2u-switch',      heightU: 2, label: '2U Switch' },
+  { componentType: '1u-patch-panel', heightU: 1, label: '1U Patch Panel' },
+  { componentType: '2u-patch-panel', heightU: 2, label: '2U Patch Panel' },
+  { componentType: '1u-blank',       heightU: 1, label: '1U Blank' },
+  { componentType: '2u-blank',       heightU: 2, label: '2U Blank' },
+  { componentType: '1u-kvm',         heightU: 1, label: '1U KVM' },
+  { componentType: '2u-ups',         heightU: 2, label: '2U UPS' },
+];
+
+// ---- State ----
+let rackEditorRackId = null;  // currently open rack in editor
+let rackDragComponent = null; // { componentType, heightU, label } or { fromSlot, side }
+let rackLinkPanelTarget = null; // { slotKey, side, el }
+let rackFormMode = null; // 'location' | 'rack' | 'editLocation' | 'editRack'
+let rackFormPendingLocationId = null; // set during two-step create
+
+// ---- DOM refs ----
+const rackOverview    = document.getElementById('rack-overview');
+const rackEditor      = document.getElementById('rack-editor');
+const rackFormPage    = document.getElementById('rack-form-page');
+const rackToggleBtn   = document.getElementById('rack-toggle');
+const rackCloseBtn    = document.getElementById('rack-close-btn');
+const rackAddLocBtn   = document.getElementById('rack-add-location-btn');
+const rackAddRackBtn  = document.getElementById('rack-add-rack-btn');
+const rackOverviewBody= document.getElementById('rack-overview-body');
+const rackEditorBack  = document.getElementById('rack-editor-back');
+const rackEditorSave  = document.getElementById('rack-editor-save');
+const rackEditorName  = document.getElementById('rack-editor-name');
+const rackEditorLocBadge = document.getElementById('rack-editor-location-badge');
+const rackFront       = document.getElementById('rack-front');
+const rackRear        = document.getElementById('rack-rear');
+const rackPaletteItems= document.getElementById('rack-palette-items');
+const rackFormPageTitle = document.getElementById('rack-form-page-title');
+const rackFormPageBody  = document.getElementById('rack-form-page-body');
+const rackFormBack    = document.getElementById('rack-form-back');
+const phoneGrid       = document.querySelector('.phone-grid');
+
+// ---- Helpers ----
+function rackById(id) { return racks.find(r => r.id === id); }
+function locationById(id) { return locations.find(l => l.id === id); }
+
+async function saveRackData() {
+  await saveItemsToAPI(items);
+}
+
+function showRackOverlay(id) {
+  [rackOverview, rackEditor, rackFormPage].forEach(el => el.classList.add('hidden'));
+  if (phoneGrid) phoneGrid.style.display = '';
+  if (id) {
+    document.getElementById(id).classList.remove('hidden');
+    if (phoneGrid) phoneGrid.style.display = 'none';
+  }
+}
+
+// ---- Main toggle ----
+if (rackToggleBtn) {
+  rackToggleBtn.addEventListener('click', () => {
+    if (isMobile()) {
+      showToast('Rack View is available on desktop.', 'error');
+      return;
+    }
+    renderRackOverview();
+    showRackOverlay('rack-overview');
+  });
+}
+
+if (rackCloseBtn) {
+  rackCloseBtn.addEventListener('click', () => {
+    showRackOverlay(null);
+    renderRackOverview(); // reset state
+  });
+}
+
+if (rackAddLocBtn) {
+  rackAddLocBtn.addEventListener('click', () => openLocationForm(null));
+}
+
+if (rackAddRackBtn) {
+  rackAddRackBtn.addEventListener('click', () => openRackForm(null, null));
+}
+
+// ---- Rack Overview renderer ----
+function renderRackOverview() {
+  if (!rackOverviewBody) return;
+  rackOverviewBody.innerHTML = '';
+
+  if (locations.length === 0) {
+    // Empty state
+    const es = document.createElement('div');
+    es.className = 'rack-empty-state';
+    es.innerHTML = `
+      <div style="font-size:3rem">🗄️</div>
+      <h3>No Racks Yet</h3>
+      <p>Start by creating a location, then add your first rack.</p>
+      <button class="button" id="rack-create-first">+ Create your first Rack</button>
+    `;
+    rackOverviewBody.appendChild(es);
+    document.getElementById('rack-create-first').addEventListener('click', () => {
+      openLocationForm('create-flow');
+    });
+    return;
+  }
+
+  // Location selector
+  const locBar = document.createElement('div');
+  locBar.className = 'rack-location-bar';
+  const locLabel = document.createElement('label');
+  locLabel.textContent = 'Location:';
+  const locSel = document.createElement('select');
+  locSel.id = 'rack-location-select';
+  locations.forEach(loc => {
+    const opt = document.createElement('option');
+    opt.value = loc.id;
+    opt.textContent = loc.name;
+    locSel.appendChild(opt);
+  });
+  locBar.appendChild(locLabel);
+  locBar.appendChild(locSel);
+  rackOverviewBody.appendChild(locBar);
+
+  // Rack cards
+  const grid = document.createElement('div');
+  grid.className = 'rack-cards-grid';
+  grid.id = 'rack-cards-grid';
+  rackOverviewBody.appendChild(grid);
+
+  function renderCards() {
+    grid.innerHTML = '';
+    const selectedLocId = locSel.value;
+    const locationRacks = racks.filter(r => r.locationId === selectedLocId);
+    if (locationRacks.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'color:var(--muted);font:0.8rem/1.4 Space Mono,monospace;padding:1rem 0;';
+      empty.textContent = 'No racks at this location.';
+      grid.appendChild(empty);
+    } else {
+      locationRacks.forEach(rack => {
+        const card = document.createElement('div');
+        card.className = 'rack-card';
+        card.innerHTML = `
+          <div class="rack-card-icon">🗄️</div>
+          <p class="rack-card-name">${escapeHtml(rack.name)}</p>
+          <p class="rack-card-meta">${rack.heightUnits}U · ${rack.formFactor === '10inch' ? '10″' : '19″'}</p>
+        `;
+        card.addEventListener('click', () => openRackEditor(rack.id));
+        grid.appendChild(card);
+      });
+    }
+  }
+
+  locSel.addEventListener('change', renderCards);
+  renderCards();
+}
+
+// ---- Location form ----
+function openLocationForm(mode, existingId) {
+  // mode: 'create-flow' (then proceeds to rack form), null (standalone add), 'edit'
+  rackFormMode = mode === 'create-flow' ? 'location-flow' : (existingId ? 'editLocation' : 'location');
+  const existing = existingId ? locationById(existingId) : null;
+  rackFormPageTitle.textContent = existing ? 'Edit Location' : 'Create Location';
+
+  rackFormPageBody.innerHTML = '';
+  const inner = document.createElement('div');
+  inner.className = 'rack-form-inner';
+  inner.innerHTML = `
+    <label>Name *
+      <input id="rf-loc-name" type="text" placeholder="e.g. Server Room 1" value="${existing ? escapeHtml(existing.name) : ''}" required />
+    </label>
+    <label>Address
+      <input id="rf-loc-address" type="text" placeholder="e.g. Basement, Rack Bay A" value="${existing ? escapeHtml(existing.address || '') : ''}" />
+    </label>
+    <label>Notes
+      <textarea id="rf-loc-notes" rows="3" placeholder="Any details...">${existing ? escapeHtml(existing.notes || '') : ''}</textarea>
+    </label>
+    <div class="rack-form-actions">
+      <button class="button" id="rf-loc-submit" type="button">${mode === 'create-flow' ? 'Next: Create Rack →' : (existing ? 'Save Location' : 'Add Location')}</button>
+    </div>
+  `;
+  rackFormPageBody.appendChild(inner);
+
+  document.getElementById('rf-loc-submit').addEventListener('click', () => {
+    const name = document.getElementById('rf-loc-name').value.trim();
+    if (!name) { showToast('Location name is required.', 'error'); return; }
+    if (existing) {
+      existing.name = name;
+      existing.address = document.getElementById('rf-loc-address').value.trim();
+      existing.notes = document.getElementById('rf-loc-notes').value.trim();
+    } else {
+      const loc = {
+        id: 'location-' + Date.now(),
+        name,
+        address: document.getElementById('rf-loc-address').value.trim(),
+        notes: document.getElementById('rf-loc-notes').value.trim(),
+      };
+      locations.push(loc);
+      rackFormPendingLocationId = loc.id;
+    }
+    saveRackData();
+    if (mode === 'create-flow') {
+      openRackForm(null, rackFormPendingLocationId);
+    } else {
+      renderRackOverview();
+      showRackOverlay('rack-overview');
+      showToast(existing ? 'Location updated.' : 'Location added.');
+    }
+  });
+
+  rackFormBack.onclick = () => {
+    showRackOverlay('rack-overview');
+  };
+
+  showRackOverlay('rack-form-page');
+}
+
+// ---- Rack form ----
+function openRackForm(existingId, preselectedLocationId) {
+  const existing = existingId ? rackById(existingId) : null;
+  rackFormPageTitle.textContent = existing ? 'Edit Rack' : 'Create Rack';
+
+  rackFormPageBody.innerHTML = '';
+  const inner = document.createElement('div');
+  inner.className = 'rack-form-inner';
+
+  // Build location options
+  const locOpts = locations.map(loc =>
+    `<option value="${loc.id}" ${(preselectedLocationId || existing?.locationId) === loc.id ? 'selected' : ''}>${escapeHtml(loc.name)}</option>`
+  ).join('');
+
+  inner.innerHTML = `
+    <label>Name *
+      <input id="rf-rack-name" type="text" placeholder="e.g. Main Rack" value="${existing ? escapeHtml(existing.name) : ''}" required />
+    </label>
+    <label>Notes
+      <textarea id="rf-rack-notes" rows="3" placeholder="Any details...">${existing ? escapeHtml(existing.notes || '') : ''}</textarea>
+    </label>
+    <label>Height Units
+      <input id="rf-rack-hu" type="number" min="1" max="100" placeholder="e.g. 42" value="${existing ? existing.heightUnits : 42}" />
+    </label>
+    <label>Form Factor
+      <select id="rf-rack-ff">
+        <option value="19inch" ${(!existing || existing.formFactor === '19inch') ? 'selected' : ''}>19 inch</option>
+        <option value="10inch" ${existing?.formFactor === '10inch' ? 'selected' : ''}>10 inch</option>
+      </select>
+    </label>
+    <label>Location
+      <select id="rf-rack-loc">${locOpts}</select>
+    </label>
+    <div class="rack-form-actions">
+      <button class="button" id="rf-rack-submit" type="button">${existing ? 'Save Rack' : 'Create Rack & Open Editor'}</button>
+    </div>
+  `;
+  rackFormPageBody.appendChild(inner);
+
+  document.getElementById('rf-rack-submit').addEventListener('click', () => {
+    const name = document.getElementById('rf-rack-name').value.trim();
+    if (!name) { showToast('Rack name is required.', 'error'); return; }
+    const hu = parseInt(document.getElementById('rf-rack-hu').value, 10) || 42;
+    const ff = document.getElementById('rf-rack-ff').value;
+    const locId = document.getElementById('rf-rack-loc').value;
+    if (existing) {
+      existing.name = name;
+      existing.notes = document.getElementById('rf-rack-notes').value.trim();
+      existing.heightUnits = hu;
+      existing.formFactor = ff;
+      existing.locationId = locId;
+      saveRackData();
+      showToast('Rack updated.');
+      renderRackOverview();
+      showRackOverlay('rack-overview');
+    } else {
+      const rack = {
+        id: 'rack-' + Date.now(),
+        name,
+        notes: document.getElementById('rf-rack-notes').value.trim(),
+        heightUnits: hu,
+        formFactor: ff,
+        locationId: locId,
+        slots: {},
+      };
+      racks.push(rack);
+      saveRackData();
+      openRackEditor(rack.id);
+    }
+  });
+
+  rackFormBack.onclick = () => {
+    if (rackFormMode === 'location-flow') {
+      // back to location form would be confusing — go to overview
+      showRackOverlay('rack-overview');
+    } else {
+      showRackOverlay('rack-overview');
+    }
+  };
+
+  showRackOverlay('rack-form-page');
+}
+
+// ---- Rack Editor ----
+function openRackEditor(rackId) {
+  rackEditorRackId = rackId;
+  const rack = rackById(rackId);
+  if (!rack) return;
+  const loc = locationById(rack.locationId);
+
+  rackEditorName.textContent = rack.name;
+  rackEditorLocBadge.textContent = loc ? `📍 ${loc.name}` : '';
+
+  renderPalette();
+  renderRackDiagram('front');
+  renderRackDiagram('rear');
+
+  showRackOverlay('rack-editor');
+}
+
+if (rackEditorBack) {
+  rackEditorBack.addEventListener('click', () => {
+    autoSaveRack();
+    renderRackOverview();
+    showRackOverlay('rack-overview');
+  });
+}
+
+if (rackEditorSave) {
+  rackEditorSave.addEventListener('click', () => {
+    autoSaveRack();
+    showToast('Rack saved.');
+  });
+}
+
+function autoSaveRack() {
+  const rack = rackById(rackEditorRackId);
+  if (!rack) return;
+  rack.name = rackEditorName.textContent.trim() || rack.name;
+  saveRackData();
+}
+
+// ---- Palette ----
+function renderPalette() {
+  if (!rackPaletteItems) return;
+  rackPaletteItems.innerHTML = '';
+  RACK_COMPONENTS.forEach(comp => {
+    const el = document.createElement('div');
+    el.className = 'rack-palette-item';
+    el.draggable = true;
+    el.dataset.componentType = comp.componentType;
+    el.dataset.heightU = comp.heightU;
+    el.dataset.label = comp.label;
+    el.innerHTML = `<span class="rack-palette-drag">⠿</span><span>${comp.label}</span><span class="rack-palette-hu">${comp.heightU}U</span>`;
+    el.addEventListener('dragstart', e => {
+      rackDragComponent = { componentType: comp.componentType, heightU: comp.heightU, label: comp.label, source: 'palette' };
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+    el.addEventListener('dragend', () => { rackDragComponent = null; });
+    rackPaletteItems.appendChild(el);
+  });
+}
+
+// ---- Rack diagram ----
+function renderRackDiagram(side) {
+  const container = side === 'front' ? rackFront : rackRear;
+  if (!container) return;
+  container.innerHTML = '';
+  const rack = rackById(rackEditorRackId);
+  if (!rack) return;
+
+  const hu = rack.heightUnits || 42;
+  // Build occupied map: slotKey -> { comp, startU }
+  const occupiedMap = {}; // u (1-based) -> { comp, startU }
+  Object.entries(rack.slots || {}).forEach(([key, comp]) => {
+    if (!key.startsWith(side + '-')) return;
+    const u = parseInt(key.split('-')[1], 10);
+    for (let i = 0; i < comp.heightU; i++) {
+      occupiedMap[u + i] = { comp, startU: u, key };
+    }
+  });
+
+  let u = 1;
+  while (u <= hu) {
+    const info = occupiedMap[u];
+    if (info && info.startU === u) {
+      // Render occupied slot spanning heightU rows
+      const slotEl = createOccupiedSlot(side, u, info.comp, info.key, rack);
+      container.appendChild(slotEl);
+      u += info.comp.heightU;
+    } else if (info) {
+      // Continuation of a multi-U slot — skip
+      u++;
+    } else {
+      // Empty slot
+      const slotEl = createEmptySlot(side, u, rack);
+      container.appendChild(slotEl);
+      u++;
+    }
+  }
+}
+
+function createEmptySlot(side, u, rack) {
+  const el = document.createElement('div');
+  el.className = 'rack-slot empty';
+  el.dataset.u = u;
+  el.dataset.side = side;
+  el.innerHTML = `<span class="rack-slot-num">${u}</span><span class="rack-slot-label" style="color:var(--muted);font-size:0.65rem">— empty —</span>`;
+
+  // Drop target
+  el.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!rackDragComponent) return;
+    const fits = canFit(side, u, rackDragComponent.heightU, rack, rackDragComponent.fromSlot);
+    el.classList.toggle('drag-over', fits);
+    el.classList.toggle('drag-invalid', !fits);
+  });
+  el.addEventListener('dragleave', () => {
+    el.classList.remove('drag-over', 'drag-invalid');
+  });
+  el.addEventListener('drop', e => {
+    e.preventDefault();
+    el.classList.remove('drag-over', 'drag-invalid');
+    if (!rackDragComponent) return;
+    const fits = canFit(side, u, rackDragComponent.heightU, rack, rackDragComponent.fromSlot);
+    if (!fits) { showToast('Not enough space.', 'error'); return; }
+    // Remove from source if moving
+    if (rackDragComponent.fromSlot) {
+      delete rack.slots[rackDragComponent.fromSlot];
+    }
+    const slotKey = `${side}-${u}`;
+    rack.slots[slotKey] = {
+      componentType: rackDragComponent.componentType,
+      heightU: rackDragComponent.heightU,
+      label: rackDragComponent.label,
+      linkedDeviceId: rackDragComponent.linkedDeviceId || null,
+    };
+    saveRackData();
+    renderRackDiagram(side);
+    // Show link panel
+    showLinkPanel(slotKey, side);
+    rackDragComponent = null;
+  });
+
+  return el;
+}
+
+function createOccupiedSlot(side, u, comp, slotKey, rack) {
+  const el = document.createElement('div');
+  el.className = 'rack-slot occupied';
+  el.dataset.u = u;
+  el.dataset.side = side;
+  el.draggable = true;
+  el.style.minHeight = (comp.heightU * 28) + 'px';
+
+  const linkedDevice = comp.linkedDeviceId ? findById(comp.linkedDeviceId) : null;
+  const deviceLabel = linkedDevice ? `${linkedDevice.symbol || ''} ${linkedDevice.name}` : '';
+
+  el.innerHTML = `
+    <span class="rack-slot-num">${u}</span>
+    <span class="rack-slot-label">${escapeHtml(comp.label)}</span>
+    ${deviceLabel ? `<span class="rack-slot-device">${escapeHtml(deviceLabel)}</span>` : ''}
+    <button class="rack-slot-remove" title="Remove" data-key="${slotKey}" data-side="${side}">✕</button>
+  `;
+
+  // Click to edit link
+  el.addEventListener('click', e => {
+    if (e.target.classList.contains('rack-slot-remove')) return;
+    showLinkPanel(slotKey, side);
+  });
+
+  // Remove button
+  el.querySelector('.rack-slot-remove').addEventListener('click', e => {
+    e.stopPropagation();
+    delete rack.slots[slotKey];
+    saveRackData();
+    renderRackDiagram(side);
+  });
+
+  // Drag to move
+  el.addEventListener('dragstart', e => {
+    rackDragComponent = {
+      componentType: comp.componentType,
+      heightU: comp.heightU,
+      label: comp.label,
+      linkedDeviceId: comp.linkedDeviceId || null,
+      fromSlot: slotKey,
+      source: 'rack',
+    };
+    e.dataTransfer.effectAllowed = 'move';
+    setTimeout(() => el.style.opacity = '0.4', 0);
+  });
+  el.addEventListener('dragend', () => {
+    el.style.opacity = '';
+    rackDragComponent = null;
+  });
+
+  // Also accept drops ON occupied slots (for replacing)
+  el.addEventListener('dragover', e => {
+    if (!rackDragComponent || rackDragComponent.fromSlot === slotKey) return;
+    e.preventDefault();
+  });
+  el.addEventListener('drop', e => {
+    e.preventDefault();
+    if (!rackDragComponent || rackDragComponent.fromSlot === slotKey) return;
+    showToast('Slot is occupied. Remove it first.', 'error');
+    rackDragComponent = null;
+  });
+
+  return el;
+}
+
+function canFit(side, startU, heightU, rack, excludeSlot) {
+  const hu = rack.heightUnits || 42;
+  if (startU + heightU - 1 > hu) return false;
+  for (let u = startU; u < startU + heightU; u++) {
+    const key = `${side}-${u}`;
+    if (rack.slots[key] && key !== excludeSlot) return false;
+    // Also check if this u is a continuation of another slot
+    const occupied = Object.entries(rack.slots).find(([k, comp]) => {
+      if (k === excludeSlot) return false;
+      if (!k.startsWith(side + '-')) return false;
+      const slotU = parseInt(k.split('-')[1], 10);
+      return u > slotU && u < slotU + comp.heightU;
+    });
+    if (occupied) return false;
+  }
+  return true;
+}
+
+// ---- Link panel ----
+function showLinkPanel(slotKey, side) {
+  closeLinkPanel();
+  const rack = rackById(rackEditorRackId);
+  if (!rack || !rack.slots[slotKey]) return;
+  const comp = rack.slots[slotKey];
+
+  // Find the slot element
+  const container = side === 'front' ? rackFront : rackRear;
+  const u = parseInt(slotKey.split('-')[1], 10);
+  const slotEl = container.querySelector(`[data-u="${u}"][data-side="${side}"]`);
+  if (!slotEl) return;
+
+  slotEl.style.position = 'relative';
+  const panel = document.createElement('div');
+  panel.className = 'rack-link-panel';
+  panel.id = 'rack-link-panel-active';
+
+  const hardwareItems = items.filter(i => i.type === 'hardware');
+  const opts = hardwareItems.map(i =>
+    `<option value="${i.id}" ${comp.linkedDeviceId === i.id ? 'selected' : ''}>${escapeHtml((i.symbol || '') + ' ' + i.name)}</option>`
+  ).join('');
+
+  panel.innerHTML = `
+    <span>Link:</span>
+    <select id="rack-link-select">
+      <option value="">— none —</option>
+      ${opts}
+    </select>
+    <button class="button" id="rack-link-ok" type="button">OK</button>
+    <button class="button secondary" id="rack-link-skip" type="button">Skip</button>
+  `;
+
+  slotEl.appendChild(panel);
+  rackLinkPanelTarget = { slotKey, side };
+
+  document.getElementById('rack-link-ok').addEventListener('click', () => {
+    const val = document.getElementById('rack-link-select').value || null;
+    comp.linkedDeviceId = val;
+    saveRackData();
+    closeLinkPanel();
+    renderRackDiagram(side);
+  });
+  document.getElementById('rack-link-skip').addEventListener('click', () => {
+    closeLinkPanel();
+  });
+}
+
+function closeLinkPanel() {
+  const existing = document.getElementById('rack-link-panel-active');
+  if (existing) existing.remove();
+  rackLinkPanelTarget = null;
+}
+
+// Close link panel when clicking outside
+document.addEventListener('click', e => {
+  if (!rackLinkPanelTarget) return;
+  if (e.target.closest('#rack-link-panel-active')) return;
+  if (e.target.closest('.rack-slot.occupied')) return;
+  closeLinkPanel();
+}, true);
+
+// ---- Utility ----
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}

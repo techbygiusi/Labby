@@ -218,6 +218,7 @@
     <div class="bottom-actions">
       <button id="ip-toggle" class="ip-toggle" type="button">🌐 IP View</button>
       <button id="tree-toggle" class="tree-toggle" type="button">🌳 Tree View</button>
+      <button id="rack-toggle" class="rack-toggle" type="button">🗄️ Rack View</button>
     </div>
 
     <nav class="bottom-nav" aria-label="Mobile navigation">
@@ -423,6 +424,57 @@
         </div>
         <button id="tutorial-skip" class="tutorial-skip" type="button">Skip tutorial</button>
       </div>
+    </div>
+
+    <!-- ===== RACK OVERVIEW ===== -->
+    <div id="rack-overview" class="rack-overlay hidden">
+      <div class="rack-overlay-head">
+        <h2 class="rack-overlay-title">🗄️ Rack View</h2>
+        <div class="rack-overlay-actions">
+          <button id="rack-add-location-btn" class="button secondary" type="button">+ Add Location</button>
+          <button id="rack-add-rack-btn" class="button secondary" type="button">+ Add Rack</button>
+          <button id="rack-close-btn" class="button secondary" type="button">✕ Close</button>
+        </div>
+      </div>
+      <div id="rack-overview-body" class="rack-overview-body"></div>
+    </div>
+
+    <!-- ===== RACK EDITOR ===== -->
+    <div id="rack-editor" class="rack-overlay hidden">
+      <div class="rack-overlay-head">
+        <button id="rack-editor-back" class="button secondary" type="button">← Rack Overview</button>
+        <div class="rack-editor-title-wrap">
+          <span id="rack-editor-name" contenteditable="true" class="rack-editor-name" spellcheck="false"></span>
+          <span id="rack-editor-location-badge" class="rack-location-badge"></span>
+        </div>
+        <button id="rack-editor-save" class="button" type="button">💾 Save</button>
+      </div>
+      <div id="rack-editor-body" class="rack-editor-body">
+        <div class="rack-palette" id="rack-palette">
+          <h3 class="rack-palette-title">Components</h3>
+          <div id="rack-palette-items" class="rack-palette-items"></div>
+        </div>
+        <div class="rack-views-wrap">
+          <div class="rack-view-col">
+            <h3 class="rack-view-title">Front</h3>
+            <div class="rack-frame" id="rack-front"></div>
+          </div>
+          <div class="rack-view-col">
+            <h3 class="rack-view-title">Rear</h3>
+            <div class="rack-frame" id="rack-rear"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== RACK FORM SUB-PAGE ===== -->
+    <div id="rack-form-page" class="rack-overlay hidden">
+      <div class="rack-overlay-head">
+        <button id="rack-form-back" class="button secondary" type="button">← Back</button>
+        <h2 id="rack-form-page-title" class="rack-overlay-title"></h2>
+        <span></span>
+      </div>
+      <div id="rack-form-page-body" class="rack-form-page-body"></div>
     </div>
 
     <script src="script.js"></script>
