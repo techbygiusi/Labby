@@ -419,8 +419,8 @@ seedDemo.addEventListener('click', async () => {
 });
 
 clearAll.addEventListener('click', async () => {
-  if (!confirm('Delete all resources?')) return;
-  items = [];
+  if (!confirm('Delete all resources? This also clears all rack and location data.')) return;
+  items = []; locations = []; racks = [];
   stopEditing();
   await saveItems();
   showToast('All resources cleared.');
@@ -433,7 +433,8 @@ themeToggle.addEventListener('click', () => {
 });
 
 exportBtn.addEventListener('click', () => {
-  const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
+  const config = { items, locations, racks };
+  const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -448,7 +449,15 @@ importFile.addEventListener('change', async (event) => {
   if (!file) return;
   try {
     const text = await file.text();
-    items = sanitizeItems(JSON.parse(text));
+    const parsed = JSON.parse(text);
+    // Support both old bare-array format and new { items, locations, racks } format
+    if (Array.isArray(parsed)) {
+      items = sanitizeItems(parsed);
+    } else {
+      items     = sanitizeItems(parsed.items     || []);
+      locations = Array.isArray(parsed.locations) ? parsed.locations : [];
+      racks     = Array.isArray(parsed.racks)     ? parsed.racks     : [];
+    }
     stopEditing();
     await saveItems();
     showToast('Config imported successfully.');
@@ -2336,7 +2345,8 @@ function renderIPInto(container, query) {
 
 const exportBtnMobile = document.getElementById('export-btn-mobile');
 if (exportBtnMobile) exportBtnMobile.addEventListener('click', () => {
-  const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
+  const config = { items, locations, racks };
+  const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -2352,7 +2362,14 @@ if (importFileMobile) importFileMobile.addEventListener('change', async (event) 
   if (!file) return;
   try {
     const text = await file.text();
-    items = sanitizeItems(JSON.parse(text));
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) {
+      items = sanitizeItems(parsed);
+    } else {
+      items     = sanitizeItems(parsed.items     || []);
+      locations = Array.isArray(parsed.locations) ? parsed.locations : [];
+      racks     = Array.isArray(parsed.racks)     ? parsed.racks     : [];
+    }
     stopEditing();
     await saveItems();
     showToast('Config imported successfully.');
@@ -2366,8 +2383,8 @@ if (importFileMobile) importFileMobile.addEventListener('change', async (event) 
 
 const clearAllMobile = document.getElementById('clear-all-mobile');
 if (clearAllMobile) clearAllMobile.addEventListener('click', async () => {
-  if (!confirm('Delete all resources?')) return;
-  items = [];
+  if (!confirm('Delete all resources? This also clears all rack and location data.')) return;
+  items = []; locations = []; racks = [];
   stopEditing();
   await saveItems();
   showToast('All resources cleared.');
