@@ -2921,17 +2921,19 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
   const uPx = Math.max(28, Math.min(42, window.innerHeight * 0.018));
   el.style.minHeight = (comp.heightU * uPx) + 'px';
 
-  // Build device label(s)
+  // Build device label(s) — consistent plain-text style for all types
   let deviceHtml = '';
   if (comp.multiDevice && comp.linkedDevices) {
-    const labels = comp.linkedDevices.map((id, i) => {
+    // Same plain style as single-device, each PC on its own .rack-slot-device line
+    const lines = comp.linkedDevices.map((id, i) => {
       const dev = id ? findById(id) : null;
-      return `<span class="rack-multi-slot">${i+1}: ${dev ? escapeHtml((dev.symbol||'')+' '+dev.name) : '—'}</span>`;
+      const name = dev ? escapeHtml((dev.symbol || '') + ' ' + dev.name) : '—';
+      return `<span class="rack-slot-device"><span class="rack-slot-device-idx">${i + 1}.</span> ${name}</span>`;
     }).join('');
-    deviceHtml = `<div class="rack-multi-devices">${labels}</div>`;
+    deviceHtml = `<div class="rack-multi-lines">${lines}</div>`;
   } else if (comp.linkedDeviceId) {
     const dev = findById(comp.linkedDeviceId);
-    if (dev) deviceHtml = `<span class="rack-slot-device">${escapeHtml((dev.symbol||'')+' '+dev.name)}</span>`;
+    if (dev) deviceHtml = `<span class="rack-slot-device">${escapeHtml((dev.symbol || '') + ' ' + dev.name)}</span>`;
   } else if (comp.isPDU && comp.pduPorts) {
     deviceHtml = `<span class="rack-slot-device">${comp.pduPorts} ports</span>`;
   }

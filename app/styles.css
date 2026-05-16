@@ -1426,24 +1426,18 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .rack-palette-section:first-child { margin-top: 0; padding-top: 0.2rem; }
 
 /* Multi-device tags inside a slot */
-.rack-multi-devices {
+/* Multi-device lines — same plain style as single device */
+.rack-multi-lines {
   display: flex;
-  gap: 3px;
-  flex-wrap: nowrap;
+  flex-direction: column;
+  gap: 0;
   overflow: hidden;
-  margin-top: 1px;
 }
-.rack-multi-slot {
-  font: 600 0.58rem/1.2 'Space Mono', monospace;
-  background: color-mix(in srgb, var(--cat-compute-border) 25%, var(--panel));
-  border: 1.5px solid var(--cat-compute-border);
-  border-radius: 4px;
-  padding: 1px 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  max-width: 90px;
-  text-overflow: ellipsis;
-  flex-shrink: 1;
+/* Small numbered prefix "1." "2." etc */
+.rack-slot-device-idx {
+  font-weight: 700;
+  color: color-mix(in srgb, var(--muted) 80%, var(--text));
+  margin-right: 2px;
 }
 
 /* ── Link panel (fixed overlay on body) ──────────────────────── */
