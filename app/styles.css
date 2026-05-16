@@ -1232,7 +1232,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .rack-views-wrap {
   flex: 1;
   display: flex;
-  align-items: stretch;   /* both cols grow to the height of the taller one */
+  align-items: flex-start;
   justify-content: center;
   gap: clamp(1rem, 2vw, 2.5rem);
   overflow: auto;
@@ -1262,7 +1262,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   border-radius: 10px;
   background: var(--panel);
   overflow: hidden;
-  flex: 1;   /* grow to fill col height → both frames match the taller one */
+  /* Height equalised via JS after render — see equaliseRackHeights() */
 }
 
 /* ── Rack slots ──────────────────────────────────────────────── */

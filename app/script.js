@@ -2771,6 +2771,7 @@ function openRackEditor(rackId) {
   renderPalette();
   renderRackDiagram('front');
   renderRackDiagram('rear');
+  equaliseRackHeights();
   showRackOverlay('rack-editor');
 }
 
@@ -2860,6 +2861,8 @@ function renderRackDiagram(side) {
       u++;
     }
   }
+  // Re-equalise after every diagram render (requestAnimationFrame so DOM has updated)
+  requestAnimationFrame(equaliseRackHeights);
 }
 
 function createEmptySlot(side, u, rack) {
@@ -3152,6 +3155,18 @@ document.addEventListener('keydown', e => {
 });
 
 // ---- Utility ----
+
+// Make front and rear rack frames the same height (taller wins)
+function equaliseRackHeights() {
+  if (!rackFront || !rackRear) return;
+  // Reset first so natural heights can be measured
+  rackFront.style.minHeight = '';
+  rackRear.style.minHeight  = '';
+  const h = Math.max(rackFront.scrollHeight, rackRear.scrollHeight);
+  rackFront.style.minHeight = h + 'px';
+  rackRear.style.minHeight  = h + 'px';
+}
+
 function escapeHtml(str) {
   if (!str) return '';
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
