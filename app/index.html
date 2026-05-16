@@ -442,12 +442,14 @@
     <!-- ===== RACK EDITOR ===== -->
     <div id="rack-editor" class="rack-overlay hidden">
       <div class="rack-overlay-head">
-        <button id="rack-editor-back" class="button secondary" type="button">← Rack Overview</button>
         <div class="rack-editor-title-wrap">
           <span id="rack-editor-name" contenteditable="true" class="rack-editor-name" spellcheck="false"></span>
           <span id="rack-editor-location-badge" class="rack-location-badge"></span>
         </div>
-        <button id="rack-editor-save" class="button" type="button">💾 Save</button>
+        <div class="rack-editor-right-actions">
+          <button id="rack-editor-save" class="button" type="button">💾 Save</button>
+          <button id="rack-editor-back" class="button secondary" type="button">← Rack Overview</button>
+        </div>
       </div>
       <div id="rack-editor-body" class="rack-editor-body">
         <div class="rack-palette" id="rack-palette">
@@ -470,9 +472,8 @@
     <!-- ===== RACK FORM SUB-PAGE ===== -->
     <div id="rack-form-page" class="rack-overlay hidden">
       <div class="rack-overlay-head">
-        <button id="rack-form-back" class="button secondary" type="button">← Back</button>
         <h2 id="rack-form-page-title" class="rack-overlay-title"></h2>
-        <span></span>
+        <button id="rack-form-back" class="button secondary" type="button">← Back</button>
       </div>
       <div id="rack-form-page-body" class="rack-form-page-body"></div>
     </div>

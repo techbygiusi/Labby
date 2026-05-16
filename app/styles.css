@@ -1503,3 +1503,10 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 @media (max-width: 1100px) {
   .rack-toggle { display: none; }
 }
+
+.rack-editor-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
