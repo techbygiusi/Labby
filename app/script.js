@@ -2807,7 +2807,7 @@ function renderPalette() {
     el.dataset.componentType = comp.componentType;
     el.dataset.heightU = comp.heightU;
     el.dataset.label   = comp.label;
-    el.innerHTML = `<span class="rack-palette-drag">⠿</span><span>${comp.label}</span><span class="rack-palette-hu">${comp.heightU}U</span>`;
+    el.innerHTML = `<span class="rack-palette-drag">⠿</span><span class="rack-palette-label">${comp.label}</span><span class="rack-palette-hu">${comp.heightU}U</span>`;
     el.addEventListener('dragstart', e => {
       rackDragComponent = { componentType: comp.componentType, heightU: comp.heightU, label: comp.label, multiDevice: comp.multiDevice || null, isPDU: comp.isPDU || false, source: 'palette' };
       e.dataTransfer.effectAllowed = 'copy';
@@ -2853,7 +2853,7 @@ function createEmptySlot(side, u, rack) {
   el.className = 'rack-slot empty';
   el.dataset.u    = u;
   el.dataset.side = side;
-  el.innerHTML = `<span class="rack-slot-num">${u}</span><span class="rack-slot-label" style="color:var(--muted);font-size:0.65rem">— empty —</span>`;
+  el.innerHTML = `<span class="rack-slot-num">${u}</span><div class="rack-slot-content"><span class="rack-slot-label">— empty —</span></div>`;
 
   el.addEventListener('dragover', e => {
     e.preventDefault();
@@ -2903,9 +2903,9 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
   if (comp.multiDevice && comp.linkedDevices) {
     const labels = comp.linkedDevices.map((id, i) => {
       const dev = id ? findById(id) : null;
-      return `<span class="rack-multi-slot">${i+1}:${dev ? escapeHtml((dev.symbol||'')+''+dev.name) : '—'}</span>`;
+      return `<span class="rack-multi-slot">${i+1}: ${dev ? escapeHtml((dev.symbol||'')+' '+dev.name) : '—'}</span>`;
     }).join('');
-    deviceHtml = `<span class="rack-slot-device rack-multi-devices">${labels}</span>`;
+    deviceHtml = `<div class="rack-multi-devices">${labels}</div>`;
   } else if (comp.linkedDeviceId) {
     const dev = findById(comp.linkedDeviceId);
     if (dev) deviceHtml = `<span class="rack-slot-device">${escapeHtml((dev.symbol||'')+' '+dev.name)}</span>`;
@@ -2915,8 +2915,10 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
 
   el.innerHTML = `
     <span class="rack-slot-num">${u}</span>
-    <span class="rack-slot-label">${escapeHtml(comp.label)}</span>
-    ${deviceHtml}
+    <div class="rack-slot-content">
+      <span class="rack-slot-label">${escapeHtml(comp.label)}</span>
+      ${deviceHtml}
+    </div>
     <button class="rack-slot-remove" title="Remove" data-key="${slotKey}" data-side="${side}">✕</button>
   `;
 
