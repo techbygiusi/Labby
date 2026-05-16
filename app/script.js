@@ -2782,9 +2782,7 @@ if (rackEditorBack) {
     showRackOverlay('rack-overview');
   });
 }
-if (rackEditorSave) {
-  rackEditorSave.addEventListener('click', () => { autoSaveRack(); showToast('Rack saved.'); });
-}
+
 
 function autoSaveRack() {
   const rack = rackById(rackEditorRackId);
@@ -3156,15 +3154,41 @@ document.addEventListener('keydown', e => {
 
 // ---- Utility ----
 
-// Make front and rear rack frames the same height (taller wins)
+// Make front and rear rack frames the same height.
+// Strategy: set minHeight on the shorter frame so it matches the taller one,
+// and distribute the extra space evenly among its empty slots.
 function equaliseRackHeights() {
   if (!rackFront || !rackRear) return;
-  // Reset first so natural heights can be measured
-  rackFront.style.minHeight = '';
-  rackRear.style.minHeight  = '';
-  const h = Math.max(rackFront.scrollHeight, rackRear.scrollHeight);
-  rackFront.style.minHeight = h + 'px';
-  rackRear.style.minHeight  = h + 'px';
+
+  // 1. Reset any previous overrides so we measure natural height
+  [rackFront, rackRear].forEach(f => {
+    f.style.minHeight = '';
+    f.querySelectorAll('.rack-slot.empty').forEach(s => s.style.minHeight = '');
+  });
+
+  const hFront = rackFront.scrollHeight;
+  const hRear  = rackRear.scrollHeight;
+  if (hFront === hRear) return;
+
+  const [shorter, taller, targetH] = hFront < hRear
+    ? [rackFront, rackRear, hRear]
+    : [rackRear, rackFront, hFront];
+
+  const diff = targetH - shorter.scrollHeight;
+  const emptySlots = shorter.querySelectorAll('.rack-slot.empty');
+  if (emptySlots.length === 0) {
+    // No empty slots to expand — just set minHeight on the frame
+    shorter.style.minHeight = targetH + 'px';
+    return;
+  }
+
+  // Distribute extra pixels evenly across empty slots (integer math, last slot absorbs remainder)
+  const extra = Math.floor(diff / emptySlots.length);
+  const baseU = Math.max(28, Math.min(42, window.innerHeight * 0.018));
+  emptySlots.forEach((slot, i) => {
+    const add = i === emptySlots.length - 1 ? diff - extra * i : extra;
+    slot.style.minHeight = (baseU + add) + 'px';
+  });
 }
 
 function escapeHtml(str) {
