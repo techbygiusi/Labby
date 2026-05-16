@@ -1232,7 +1232,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .rack-views-wrap {
   flex: 1;
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;   /* both cols grow to the height of the taller one */
   justify-content: center;
   gap: clamp(1rem, 2vw, 2.5rem);
   overflow: auto;
@@ -1242,7 +1242,6 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  /* Each rack column takes ~40% of available space (minus palette + gap) */
   flex: 1 1 0;
   min-width: 240px;
   max-width: 680px;
@@ -1254,6 +1253,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   letter-spacing: 0.06em;
   margin: 0;
   text-align: center;
+  flex-shrink: 0;
 }
 
 /* ── Rack frame ──────────────────────────────────────────────── */
@@ -1262,6 +1262,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   border-radius: 10px;
   background: var(--panel);
   overflow: hidden;
+  flex: 1;   /* grow to fill col height → both frames match the taller one */
 }
 
 /* ── Rack slots ──────────────────────────────────────────────── */
