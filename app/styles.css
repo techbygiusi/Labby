@@ -1314,37 +1314,23 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 }
 .rack-slot-remove:hover { opacity: 1; background: color-mix(in srgb, var(--danger) 15%, transparent); }
 
-/* Inline link panel */
+/* Link panel — rendered as fixed overlay on body, positioned via JS */
 .rack-link-panel {
-  position: absolute;
-  left: 0;
-  top: 100%;
-  z-index: 50;
+  /* position + left + width + top set inline by JS */
   background: var(--phone);
   border: 3px solid var(--line);
-  border-radius: 0 0 10px 10px;
-  padding: 0.5rem 0.65rem;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
-  font: 600 0.72rem/1.2 'Space Mono', monospace;
-  box-shadow: 0 10px 24px rgba(0,0,0,0.22);
-  min-width: 260px;
-}
-.rack-link-panel > select {
-  flex: 1;
-  min-width: 140px;
-  border: 2px solid var(--line);
-  border-radius: 8px;
-  padding: 0.25rem 0.4rem;
-  background: var(--panel);
-  color: var(--text);
-  font: 0.72rem/1.2 'Space Mono', monospace;
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  padding: 0.6rem 0.8rem;
+  font: 600 0.75rem/1.3 'Space Mono', monospace;
+  box-shadow: 0 14px 32px rgba(0,0,0,0.28);
+  box-sizing: border-box;
+  max-height: 60vh;
+  overflow-y: auto;
 }
 .rack-link-panel .button {
   font-size: 0.72rem;
-  padding: 0.2rem 0.5rem;
+  padding: 0.25rem 0.6rem;
 }
 
 /* Dark theme tweaks for rack toggle */
@@ -1380,42 +1366,41 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .rack-link-multi-wrap {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.38rem;
   width: 100%;
 }
 .rack-link-row {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
+  width: 100%;
 }
 .rack-link-row-label {
-  font: 700 0.7rem/1.2 'Space Mono', monospace;
+  font: 700 0.72rem/1.2 'Space Mono', monospace;
   color: var(--muted);
   white-space: nowrap;
-  min-width: 52px;
+  min-width: 58px;
+  flex-shrink: 0;
 }
 .rack-link-row select {
   flex: 1;
+  min-width: 0;
   border: 2px solid var(--line);
   border-radius: 8px;
-  padding: 0.22rem 0.4rem;
+  padding: 0.28rem 0.45rem;
   background: var(--panel);
   color: var(--text);
-  font: 0.72rem/1.2 'Space Mono', monospace;
+  font: 0.75rem/1.3 'Space Mono', monospace;
 }
 .rack-link-actions {
   display: flex;
-  gap: 0.4rem;
-  margin-top: 0.25rem;
+  gap: 0.45rem;
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--line);
 }
 .rack-link-label {
-  font: 700 0.7rem/1.2 'Space Mono', monospace;
+  font: 700 0.72rem/1.2 'Space Mono', monospace;
   color: var(--muted);
   white-space: nowrap;
-}
-
-/* Wider link panel for multi/PDU */
-.rack-link-panel {
-  min-width: 260px;
-  max-width: 380px;
 }

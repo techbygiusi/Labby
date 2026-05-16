@@ -2963,9 +2963,11 @@ function canFit(side, startU, heightU, rack, excludeSlot) {
 }
 
 // ---- Link panel ----
-// Critical: use mousedown to detect clicks, not click, so we can detect
-// when the user clicks inside the panel before focus shifts away.
-let _linkPanelMouseInside = false;
+// ---- Link panel ----
+// The panel is rendered as a FIXED overlay appended to body so it never
+// gets clipped by overflow:hidden ancestors (rack-frame, rack-editor-body).
+// Closing: only via OK / Skip / Escape — NO outside-click-to-close, because
+// that interferes with native <select> dropdowns on every platform.
 
 function showLinkPanel(slotKey, side) {
   closeLinkPanel();
@@ -2978,144 +2980,147 @@ function showLinkPanel(slotKey, side) {
   const slotEl = container.querySelector(`[data-u="${u}"][data-side="${side}"]`);
   if (!slotEl) return;
 
-  slotEl.style.position = 'relative';
+  // Measure where the slot is on screen so we can anchor the panel
+  const slotRect  = slotEl.getBoundingClientRect();
+  const frameRect = container.getBoundingClientRect();
+
   const panel = document.createElement('div');
   panel.className = 'rack-link-panel';
   panel.id = 'rack-link-panel-active';
 
-  // Track mouse inside panel to prevent accidental close
-  panel.addEventListener('mousedown', () => { _linkPanelMouseInside = true; });
-  panel.addEventListener('mouseup',   () => { setTimeout(() => { _linkPanelMouseInside = false; }, 100); });
+  // Position: fixed, left-aligned to the rack frame, top just below the slot
+  // Width matches the rack frame exactly
+  panel.style.position = 'fixed';
+  panel.style.left     = frameRect.left + 'px';
+  panel.style.width    = frameRect.width + 'px';
+  panel.style.top      = (slotRect.bottom) + 'px';
+  panel.style.zIndex   = '200';
 
   const hardwareItems = items.filter(i => i.type === 'hardware');
 
-  // Multi-device (2pc, 3pc) — show one row per slot
+  function buildHwOpts(selectedId) {
+    return hardwareItems.map(itm =>
+      `<option value="${itm.id}" ${selectedId === itm.id ? 'selected' : ''}>${escapeHtml((itm.symbol || '') + ' ' + itm.name)}</option>`
+    ).join('');
+  }
+
+  // ── Multi-device (2× PC / 3× PC) ──────────────────────────────────────
   if (comp.multiDevice) {
     const count = comp.multiDevice;
     const devs  = comp.linkedDevices || Array(count).fill(null);
     let rows = '';
     for (let i = 0; i < count; i++) {
-      const opts = hardwareItems.map(itm =>
-        `<option value="${itm.id}" ${devs[i] === itm.id ? 'selected' : ''}>${escapeHtml((itm.symbol||'')+' '+itm.name)}</option>`
-      ).join('');
       rows += `
         <div class="rack-link-row">
-          <span class="rack-link-row-label">PC ${i+1}:</span>
+          <span class="rack-link-row-label">PC ${i + 1}:</span>
           <select class="rack-link-multi" data-idx="${i}">
-            <option value="">— none —</option>${opts}
+            <option value="">— none —</option>${buildHwOpts(devs[i])}
           </select>
         </div>`;
     }
-    panel.innerHTML = `<div class="rack-link-multi-wrap">${rows}<div class="rack-link-actions"><button class="button" id="rack-link-ok">OK</button><button class="button secondary" id="rack-link-skip">Skip</button></div></div>`;
-    slotEl.appendChild(panel);
+    panel.innerHTML = `
+      <div class="rack-link-multi-wrap">
+        ${rows}
+        <div class="rack-link-actions">
+          <button class="button" id="rack-link-ok" type="button">✓ OK</button>
+          <button class="button secondary" id="rack-link-skip" type="button">Skip</button>
+        </div>
+      </div>`;
+    document.body.appendChild(panel);
     rackLinkPanelTarget = { slotKey, side };
 
-    document.getElementById('rack-link-ok').addEventListener('click', () => {
+    panel.querySelector('#rack-link-ok').addEventListener('click', () => {
       const selects = panel.querySelectorAll('.rack-link-multi');
-      comp.linkedDevices = Array.from(selects).map(s => s.value || null);
+      comp.linkedDevices  = Array.from(selects).map(s => s.value || null);
       comp.linkedDeviceId = comp.linkedDevices[0];
-      saveRackData();
-      closeLinkPanel();
-      renderRackDiagram(side);
+      saveRackData(); closeLinkPanel(); renderRackDiagram(side);
     });
-    document.getElementById('rack-link-skip').addEventListener('click', () => closeLinkPanel());
+    panel.querySelector('#rack-link-skip').addEventListener('click', () => closeLinkPanel());
     return;
   }
 
-  // PDU — choose number of ports + link devices to each port
+  // ── PDU ───────────────────────────────────────────────────────────────
   if (comp.isPDU) {
     const currentPorts = comp.pduPorts || 8;
-    const portOpts = [4, 6, 8, 10, 12, 16, 20, 24].map(n =>
-      `<option value="${n}" ${currentPorts === n ? 'selected' : ''}>${n} ports</option>`
-    ).join('');
-    const pduLinks = comp.pduLinks || {};
-    const portRows = Array.from({ length: currentPorts }, (_, i) => {
-      const opts = hardwareItems.map(itm =>
-        `<option value="${itm.id}" ${pduLinks[i] === itm.id ? 'selected' : ''}>${escapeHtml((itm.symbol||'')+' '+itm.name)}</option>`
-      ).join('');
-      return `<div class="rack-link-row"><span class="rack-link-row-label">Port ${i+1}:</span><select class="rack-pdu-port" data-port="${i}"><option value="">— empty —</option>${opts}</select></div>`;
-    }).join('');
+    const portCounts   = [4, 6, 8, 10, 12, 16, 20, 24];
+    const pduLinks     = comp.pduLinks || {};
+
+    function buildPortRows(n) {
+      return Array.from({ length: n }, (_, i) => `
+        <div class="rack-link-row">
+          <span class="rack-link-row-label">Port ${i + 1}:</span>
+          <select class="rack-pdu-port" data-port="${i}">
+            <option value="">— empty —</option>${buildHwOpts(pduLinks[i] || null)}
+          </select>
+        </div>`).join('');
+    }
 
     panel.innerHTML = `
       <div class="rack-link-multi-wrap">
         <div class="rack-link-row">
           <span class="rack-link-row-label">Ports:</span>
-          <select id="rack-pdu-count">${portOpts}</select>
+          <select id="rack-pdu-count">
+            ${portCounts.map(n => `<option value="${n}" ${currentPorts === n ? 'selected' : ''}>${n} ports</option>`).join('')}
+          </select>
         </div>
-        <div id="rack-pdu-port-rows">${portRows}</div>
+        <div id="rack-pdu-port-rows">${buildPortRows(currentPorts)}</div>
         <div class="rack-link-actions">
-          <button class="button" id="rack-link-ok">OK</button>
-          <button class="button secondary" id="rack-link-skip">Skip</button>
+          <button class="button" id="rack-link-ok" type="button">✓ OK</button>
+          <button class="button secondary" id="rack-link-skip" type="button">Skip</button>
         </div>
       </div>`;
-    slotEl.appendChild(panel);
+    document.body.appendChild(panel);
     rackLinkPanelTarget = { slotKey, side };
 
-    // Rebuild port rows when port count changes
-    document.getElementById('rack-pdu-count').addEventListener('change', function() {
-      const n = parseInt(this.value, 10);
-      const rows = Array.from({ length: n }, (_, i) => {
-        const opts = hardwareItems.map(itm =>
-          `<option value="${itm.id}" ${pduLinks[i] === itm.id ? 'selected' : ''}>${escapeHtml((itm.symbol||'')+' '+itm.name)}</option>`
-        ).join('');
-        return `<div class="rack-link-row"><span class="rack-link-row-label">Port ${i+1}:</span><select class="rack-pdu-port" data-port="${i}"><option value="">— empty —</option>${opts}</select></div>`;
-      }).join('');
-      document.getElementById('rack-pdu-port-rows').innerHTML = rows;
+    panel.querySelector('#rack-pdu-count').addEventListener('change', function() {
+      panel.querySelector('#rack-pdu-port-rows').innerHTML = buildPortRows(parseInt(this.value, 10));
     });
-
-    document.getElementById('rack-link-ok').addEventListener('click', () => {
-      comp.pduPorts = parseInt(document.getElementById('rack-pdu-count').value, 10);
-      const portSels = panel.querySelectorAll('.rack-pdu-port');
-      comp.pduLinks  = {};
-      portSels.forEach(s => { comp.pduLinks[parseInt(s.dataset.port)] = s.value || null; });
-      saveRackData();
-      closeLinkPanel();
-      renderRackDiagram(side);
+    panel.querySelector('#rack-link-ok').addEventListener('click', () => {
+      comp.pduPorts = parseInt(panel.querySelector('#rack-pdu-count').value, 10);
+      comp.pduLinks = {};
+      panel.querySelectorAll('.rack-pdu-port').forEach(s => {
+        comp.pduLinks[parseInt(s.dataset.port)] = s.value || null;
+      });
+      saveRackData(); closeLinkPanel(); renderRackDiagram(side);
     });
-    document.getElementById('rack-link-skip').addEventListener('click', () => closeLinkPanel());
+    panel.querySelector('#rack-link-skip').addEventListener('click', () => closeLinkPanel());
     return;
   }
 
-  // Standard single-device link
-  const opts = hardwareItems.map(i =>
-    `<option value="${i.id}" ${comp.linkedDeviceId === i.id ? 'selected' : ''}>${escapeHtml((i.symbol||'')+' '+i.name)}</option>`
-  ).join('');
-
+  // ── Standard single-device link ───────────────────────────────────────
   panel.innerHTML = `
-    <span class="rack-link-label">Link to device:</span>
-    <select id="rack-link-select"><option value="">— none —</option>${opts}</select>
-    <button class="button" id="rack-link-ok" type="button">OK</button>
-    <button class="button secondary" id="rack-link-skip" type="button">Skip</button>
+    <div class="rack-link-multi-wrap">
+      <div class="rack-link-row">
+        <span class="rack-link-row-label">Gerät:</span>
+        <select id="rack-link-select">
+          <option value="">— none —</option>${buildHwOpts(comp.linkedDeviceId)}
+        </select>
+      </div>
+      <div class="rack-link-actions">
+        <button class="button" id="rack-link-ok" type="button">✓ OK</button>
+        <button class="button secondary" id="rack-link-skip" type="button">Skip</button>
+      </div>
+    </div>
   `;
-
-  slotEl.appendChild(panel);
+  document.body.appendChild(panel);
   rackLinkPanelTarget = { slotKey, side };
 
-  document.getElementById('rack-link-ok').addEventListener('click', () => {
-    comp.linkedDeviceId = document.getElementById('rack-link-select').value || null;
-    saveRackData();
-    closeLinkPanel();
-    renderRackDiagram(side);
+  panel.querySelector('#rack-link-ok').addEventListener('click', () => {
+    comp.linkedDeviceId = panel.querySelector('#rack-link-select').value || null;
+    saveRackData(); closeLinkPanel(); renderRackDiagram(side);
   });
-  document.getElementById('rack-link-skip').addEventListener('click', () => closeLinkPanel());
+  panel.querySelector('#rack-link-skip').addEventListener('click', () => closeLinkPanel());
 }
 
 function closeLinkPanel() {
   const existing = document.getElementById('rack-link-panel-active');
   if (existing) existing.remove();
   rackLinkPanelTarget = null;
-  _linkPanelMouseInside = false;
 }
 
-// Close link panel on outside click — but NOT while user is interacting inside the panel
-document.addEventListener('mousedown', e => {
-  if (!rackLinkPanelTarget) return;
-  const panel = document.getElementById('rack-link-panel-active');
-  if (!panel) return;
-  if (panel.contains(e.target)) { _linkPanelMouseInside = true; return; }
-  // If click is on the same occupied slot, don't close (toggle handled by click)
-  if (e.target.closest('.rack-slot.occupied')) return;
-  closeLinkPanel();
+// Close panel with Escape key only — no outside-click, no mousedown tricks
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && rackLinkPanelTarget) closeLinkPanel();
 });
 
 // ---- Utility ----
