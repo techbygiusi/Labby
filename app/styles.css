@@ -1171,7 +1171,8 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 
 /* ── Component palette ───────────────────────────────────────── */
 .rack-palette {
-  width: 148px;
+  /* Fluid: 14% of viewport, min 180px, max 260px */
+  width: clamp(180px, 14vw, 260px);
   flex-shrink: 0;
   border-right: 3px solid var(--line);
   background: var(--phone);
@@ -1180,32 +1181,32 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   overflow: hidden;
 }
 .rack-palette-title {
-  font: 700 0.72rem/1.2 'Space Mono', monospace;
+  font: 700 0.74rem/1.2 'Space Mono', monospace;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0;
-  padding: 0.6rem 0.7rem 0.4rem;
+  padding: 0.65rem 0.8rem 0.45rem;
   border-bottom: 2px solid var(--line);
   flex-shrink: 0;
 }
 .rack-palette-items {
   flex: 1;
   overflow-y: auto;
-  padding: 0.4rem 0.45rem;
+  padding: 0.45rem 0.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.28rem;
 }
 .rack-palette-item {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.4rem;
   border: 2px solid var(--line);
-  border-radius: 7px;
-  padding: 0.28rem 0.45rem;
+  border-radius: 8px;
+  padding: 0.32rem 0.55rem;
   background: var(--panel);
-  font: 600 0.68rem/1.2 'Space Mono', monospace;
+  font: 600 0.74rem/1.2 'Space Mono', monospace;
   cursor: grab;
   user-select: none;
   white-space: nowrap;
@@ -1213,36 +1214,38 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 }
 .rack-palette-item:hover {
   background: color-mix(in srgb, var(--yellow) 30%, var(--panel));
-  border-color: var(--line);
 }
 .rack-palette-item:active { cursor: grabbing; opacity: 0.7; }
-.rack-palette-drag { color: var(--muted); flex-shrink: 0; }
+.rack-palette-drag { color: var(--muted); flex-shrink: 0; font-size: 0.9rem; }
 .rack-palette-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
 .rack-palette-hu {
-  font-size: 0.6rem;
+  font-size: 0.62rem;
   color: var(--muted);
   flex-shrink: 0;
-  background: color-mix(in srgb, var(--line) 12%, transparent);
-  border-radius: 3px;
-  padding: 1px 3px;
+  background: color-mix(in srgb, var(--line) 14%, transparent);
+  border-radius: 4px;
+  padding: 1px 4px;
+  font-weight: 700;
 }
 
 /* ── Rack views wrapper ──────────────────────────────────────── */
 .rack-views-wrap {
   flex: 1;
   display: flex;
-  align-items: flex-start;   /* don't stretch cols vertically */
+  align-items: flex-start;
   justify-content: center;
-  gap: 2rem;
+  gap: clamp(1rem, 2vw, 2.5rem);
   overflow: auto;
-  padding: 1.2rem 1.4rem;
+  padding: clamp(0.8rem, 1.2vw, 1.4rem) clamp(0.8rem, 1.4vw, 1.6rem);
 }
 .rack-view-col {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  width: 380px;
-  flex-shrink: 0;
+  /* Each rack column takes ~40% of available space (minus palette + gap) */
+  flex: 1 1 0;
+  min-width: 240px;
+  max-width: 680px;
 }
 .rack-view-title {
   font: 700 0.75rem/1.2 'Space Mono', monospace;
@@ -1264,21 +1267,22 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 /* ── Rack slots ──────────────────────────────────────────────── */
 .rack-slot {
   border-bottom: 1px solid color-mix(in srgb, var(--line) 40%, transparent);
-  min-height: 30px;
+  /* Row height: fluid 1.8% of viewport height, min 28px, max 42px */
+  min-height: clamp(28px, 1.8vh, 42px);
   display: grid;
   /* num | label+devices | remove */
-  grid-template-columns: 24px 1fr 22px;
+  grid-template-columns: 26px 1fr 24px;
   align-items: center;
   gap: 0;
   padding: 0;
   position: relative;
   transition: background 0.08s;
-  overflow: visible;  /* let link panel escape */
+  overflow: visible;
 }
 .rack-slot:last-child { border-bottom: none; }
 
 .rack-slot-num {
-  font: 400 0.58rem/1 'Space Mono', monospace;
+  font: 400 clamp(0.55rem, 0.72vw, 0.65rem)/1 'Space Mono', monospace;
   color: var(--muted);
   text-align: right;
   padding-right: 5px;
@@ -1299,14 +1303,14 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 }
 
 .rack-slot-label {
-  font: 600 0.72rem/1.2 'Space Mono', monospace;
+  font: 600 clamp(0.68rem, 0.9vw, 0.82rem)/1.2 'Space Mono', monospace;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .rack-slot-device {
-  font: 400 0.62rem/1.15 'Space Mono', monospace;
+  font: 400 clamp(0.6rem, 0.75vw, 0.7rem)/1.15 'Space Mono', monospace;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;

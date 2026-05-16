@@ -2896,7 +2896,9 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
   el.dataset.u    = u;
   el.dataset.side = side;
   el.draggable    = true;
-  el.style.minHeight = (comp.heightU * 28) + 'px';
+  // Match the CSS clamp: clamp(28px, 1.8vh, 42px) per U
+  const uPx = Math.max(28, Math.min(42, window.innerHeight * 0.018));
+  el.style.minHeight = (comp.heightU * uPx) + 'px';
 
   // Build device label(s)
   let deviceHtml = '';
