@@ -2558,19 +2558,38 @@ if (rackToggleBtn) {
     showRackOverlay('rack-overview');
   });
 }
-if (rackCloseBtn)   rackCloseBtn.addEventListener('click', () => { showRackOverlay(null); });
-if (rackAddLocBtn)  rackAddLocBtn.addEventListener('click', () => openLocationForm(null, null));
-if (rackAddRackBtn) rackAddRackBtn.addEventListener('click', () => openRackForm(null, null));
+// Header buttons are now rendered dynamically inside renderRackOverview()
 
 // ---- Rack Overview ----
 function renderRackOverview() {
   if (!rackOverviewBody) return;
   rackOverviewBody.innerHTML = '';
 
-  // Inner wrapper — same width as dashboard
+  // Inner wrapper — same max-width as dashboard
   const inner = document.createElement('div');
   inner.className = 'rack-overview-inner';
   rackOverviewBody.appendChild(inner);
+
+  // ── Floating top bar (title + action buttons) ───────────────
+  const topBar = document.createElement('div');
+  topBar.className = 'rack-ov-topbar';
+  topBar.innerHTML = `
+    <h2 class="rack-ov-title">🗄️ Rack View</h2>
+    <div class="rack-ov-actions">
+      <button class="button rack-ov-btn-loc" id="rov-add-loc" type="button">+ Location</button>
+      <button class="button rack-ov-btn-rack" id="rov-add-rack" type="button">+ Rack</button>
+      <button class="button secondary rack-ov-btn-close" id="rov-close" type="button">✕ Close</button>
+    </div>
+  `;
+  inner.appendChild(topBar);
+  topBar.querySelector('#rov-add-loc').addEventListener('click', () => openLocationForm(null, null));
+  topBar.querySelector('#rov-add-rack').addEventListener('click', () => openRackForm(null, null));
+  topBar.querySelector('#rov-close').addEventListener('click', () => showRackOverlay(null));
+
+  // ── Rounded panel (like dashboard .phone) ───────────────────
+  const panel = document.createElement('div');
+  panel.className = 'rack-ov-panel';
+  inner.appendChild(panel);
 
   if (locations.length === 0) {
     const es = document.createElement('div');
@@ -2581,7 +2600,7 @@ function renderRackOverview() {
       <p>Start by creating a location, then add your first rack.</p>
       <button class="button" id="rack-create-first">+ Create your first Rack</button>
     `;
-    inner.appendChild(es);
+    panel.appendChild(es);
     document.getElementById('rack-create-first').addEventListener('click', () => openLocationForm('create-flow', null));
     return;
   }
@@ -2605,18 +2624,18 @@ function renderRackOverview() {
   // Edit location button
   const editLocBtn = document.createElement('button');
   editLocBtn.className = 'button secondary';
-  editLocBtn.textContent = '✏️ Edit Location';
+  editLocBtn.textContent = '✏️ Edit';
   editLocBtn.type = 'button';
   editLocBtn.addEventListener('click', () => openLocationForm(null, locSel.value));
 
   locBar.appendChild(locLabel);
   locBar.appendChild(locSel);
   locBar.appendChild(editLocBtn);
-  inner.appendChild(locBar);
+  panel.appendChild(locBar);
 
   const grid = document.createElement('div');
   grid.className = 'rack-cards-grid';
-  inner.appendChild(grid);
+  panel.appendChild(grid);
 
   function renderCards() {
     grid.innerHTML = '';
@@ -3004,9 +3023,12 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
   el.dataset.u    = u;
   el.dataset.side = side;
   el.draggable    = true;
-  // Match the CSS clamp: clamp(28px, 1.8vh, 42px) per U
+  // Match the CSS --rack-u-height variable exactly
   const uPx = Math.max(28, Math.min(42, window.innerHeight * 0.018));
-  el.style.minHeight = (comp.heightU * uPx) + 'px';
+  const totalH = comp.heightU * uPx;
+  el.style.height    = totalH + 'px';
+  el.style.minHeight = totalH + 'px';
+  el.style.maxHeight = totalH + 'px';
 
   // Build device label(s) — consistent plain-text style for all types
   let deviceHtml = '';
@@ -3273,7 +3295,10 @@ function equaliseRackHeights() {
   const baseU = Math.max(28, Math.min(42, window.innerHeight * 0.018));
   emptySlots.forEach((slot, i) => {
     const add = i === emptySlots.length - 1 ? diff - extra * i : extra;
-    slot.style.minHeight = (baseU + add) + 'px';
+    const h = (baseU + add) + 'px';
+    slot.style.height    = h;
+    slot.style.minHeight = h;
+    slot.style.maxHeight = h;
   });
 }
 
