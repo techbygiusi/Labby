@@ -2674,15 +2674,21 @@ function showRackContextMenu(x, y, rack, onDelete) {
   menu.style.top  = Math.min(y, window.innerHeight - 150) + 'px';
   document.body.appendChild(menu);
 
-  menu.querySelector('#ctx-open').addEventListener('click', () => {
+  menu.querySelector('#ctx-open').addEventListener('mousedown', e => e.stopPropagation());
+  menu.querySelector('#ctx-open').addEventListener('click', e => {
+    e.stopPropagation();
     closeContextMenu();
     openRackEditor(rack.id);
   });
-  menu.querySelector('#ctx-edit').addEventListener('click', () => {
+  menu.querySelector('#ctx-edit').addEventListener('mousedown', e => e.stopPropagation());
+  menu.querySelector('#ctx-edit').addEventListener('click', e => {
+    e.stopPropagation();
     closeContextMenu();
     openRackForm(rack.id, null);
   });
-  menu.querySelector('#ctx-delete').addEventListener('click', () => {
+  menu.querySelector('#ctx-delete').addEventListener('mousedown', e => e.stopPropagation());
+  menu.querySelector('#ctx-delete').addEventListener('click', e => {
+    e.stopPropagation();
     closeContextMenu();
     if (!confirm(`Delete rack "${rack.name}"? This cannot be undone.`)) return;
     racks = racks.filter(r => r.id !== rack.id);
@@ -2691,10 +2697,14 @@ function showRackContextMenu(x, y, rack, onDelete) {
     showToast('Rack deleted.');
   });
 
-  // Close on outside click or Escape
-  setTimeout(() => {
-    document.addEventListener('mousedown', closeContextMenu, { once: true });
-  }, 0);
+  // Close on outside mousedown (after this event cycle finishes)
+  const outsideHandler = e => {
+    if (!menu.contains(e.target)) {
+      closeContextMenu();
+      document.removeEventListener('mousedown', outsideHandler);
+    }
+  };
+  setTimeout(() => document.addEventListener('mousedown', outsideHandler), 50);
 }
 
 document.addEventListener('keydown', e => {
