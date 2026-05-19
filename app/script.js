@@ -2751,9 +2751,10 @@ function openLocationForm(mode, existingId) {
     <label>Notes
       <textarea id="rf-loc-notes" rows="3" placeholder="Any details...">${existing ? escapeHtml(existing.notes || '') : ''}</textarea>
     </label>
-    ${existing ? `<button class="button danger" id="rf-loc-delete" type="button" style="margin-top:0.5rem">🗑 Delete Location</button>` : ''}
-    <div class="rack-form-actions">
-      <button class="button" id="rf-loc-submit" type="button">${mode === 'create-flow' ? 'Next: Create Rack →' : (existing ? 'Save Location' : 'Add Location')}</button>
+    ${existing ? `<button class="button rack-form-btn-danger" id="rf-loc-delete" type="button">🗑 Delete Location</button>` : ''}
+    <div class="rack-form-btns">
+      <button class="button rack-form-btn-primary" id="rf-loc-submit" type="button">${mode === 'create-flow' ? 'Next: Create Rack →' : (existing ? 'Save Location' : 'Add Location')}</button>
+      <button class="button secondary rack-form-btn-close" id="rf-loc-close" type="button">✕ Close</button>
     </div>
   `;
   rackFormPageBody.appendChild(inner);
@@ -2799,6 +2800,8 @@ function openLocationForm(mode, existingId) {
 
   rackFormBack.onclick = () => { rackFormDialog.close(); };
   rackFormDialog.showModal();
+  const rfLocClose = document.getElementById('rf-loc-close');
+  if (rfLocClose) rfLocClose.addEventListener('click', () => rackFormDialog.close());
 }
 
 // ---- Rack form ----
@@ -2833,8 +2836,9 @@ function openRackForm(existingId, preselectedLocationId) {
     <label>Location
       <select id="rf-rack-loc">${locOpts}</select>
     </label>
-    <div class="rack-form-actions">
-      <button class="button" id="rf-rack-submit" type="button">${existing ? 'Save Rack' : 'Create Rack & Open Editor'}</button>
+    <div class="rack-form-btns">
+      <button class="button rack-form-btn-primary" id="rf-rack-submit" type="button">${existing ? 'Save Rack' : 'Create Rack & Open Editor'}</button>
+      <button class="button secondary rack-form-btn-close" id="rf-rack-close" type="button">✕ Close</button>
     </div>
   `;
   rackFormPageBody.appendChild(inner);
@@ -2865,6 +2869,8 @@ function openRackForm(existingId, preselectedLocationId) {
 
   rackFormBack.onclick = () => { rackFormDialog.close(); };
   rackFormDialog.showModal();
+  const rfRackClose = document.getElementById('rf-rack-close');
+  if (rfRackClose) rfRackClose.addEventListener('click', () => rackFormDialog.close());
 }
 
 // ---- Rack Editor ----

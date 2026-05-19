@@ -1635,15 +1635,52 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 
 /* ── Rack form dialog (popup, not full page) ─────────────────── */
 .rack-form-dialog {
-  width: min(520px, 92vw);
-  max-height: 90vh;
+  width: min(500px, 92vw);
+  max-height: 92vh;
   overflow-y: auto;
-  z-index: 200;  /* above rack-overlay (100) */
+  z-index: 200;
+  padding: 1.4rem 1.5rem 1.2rem;
 }
 .rack-form-dialog::backdrop {
   background: rgba(0, 0, 0, 0.5);
-  z-index: 199;
+}
+.rack-form-dialog-title {
+  font: 700 1.05rem/1.2 'Space Mono', monospace;
+  margin: 0 0 1.1rem 0;
+  color: var(--text);
 }
 .rack-form-dialog-body {
-  padding-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+/* Full-width side-by-side action buttons at the bottom */
+.rack-form-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.rack-form-btn-primary,
+.rack-form-btn-close {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+}
+/* Danger button (delete) — full width, above the btns row */
+.rack-form-btn-danger {
+  width: 100%;
+  background: color-mix(in srgb, var(--danger) 18%, var(--panel)) !important;
+  color: var(--danger) !important;
+  border-color: var(--danger) !important;
+  margin-top: 0.75rem;
+  margin-bottom: 0;
+  text-align: center;
+}
+.rack-form-btn-danger:hover {
+  background: color-mix(in srgb, var(--danger) 30%, var(--panel)) !important;
+}
+/* Override rack-form-inner to not add extra outer padding */
+.rack-form-dialog .rack-form-inner {
+  gap: 0.65rem;
 }
