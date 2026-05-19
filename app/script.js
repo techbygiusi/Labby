@@ -2567,6 +2567,11 @@ function renderRackOverview() {
   if (!rackOverviewBody) return;
   rackOverviewBody.innerHTML = '';
 
+  // Inner wrapper — same width as dashboard
+  const inner = document.createElement('div');
+  inner.className = 'rack-overview-inner';
+  rackOverviewBody.appendChild(inner);
+
   if (locations.length === 0) {
     const es = document.createElement('div');
     es.className = 'rack-empty-state';
@@ -2576,7 +2581,7 @@ function renderRackOverview() {
       <p>Start by creating a location, then add your first rack.</p>
       <button class="button" id="rack-create-first">+ Create your first Rack</button>
     `;
-    rackOverviewBody.appendChild(es);
+    inner.appendChild(es);
     document.getElementById('rack-create-first').addEventListener('click', () => openLocationForm('create-flow', null));
     return;
   }
@@ -2602,18 +2607,16 @@ function renderRackOverview() {
   editLocBtn.className = 'button secondary';
   editLocBtn.textContent = '✏️ Edit Location';
   editLocBtn.type = 'button';
-  editLocBtn.addEventListener('click', () => {
-    openLocationForm(null, locSel.value);
-  });
+  editLocBtn.addEventListener('click', () => openLocationForm(null, locSel.value));
 
   locBar.appendChild(locLabel);
   locBar.appendChild(locSel);
   locBar.appendChild(editLocBtn);
-  rackOverviewBody.appendChild(locBar);
+  inner.appendChild(locBar);
 
   const grid = document.createElement('div');
   grid.className = 'rack-cards-grid';
-  rackOverviewBody.appendChild(grid);
+  inner.appendChild(grid);
 
   function renderCards() {
     grid.innerHTML = '';
@@ -2633,6 +2636,11 @@ function renderRackOverview() {
           <p class="rack-card-meta">${rack.heightUnits}U · ${rack.formFactor === '10inch' ? '10″' : '19″'}</p>
         `;
         card.addEventListener('click', () => openRackEditor(rack.id));
+        // Right-click context menu
+        card.addEventListener('contextmenu', e => {
+          e.preventDefault();
+          showRackContextMenu(e.clientX, e.clientY, rack, renderCards);
+        });
         grid.appendChild(card);
       });
     }
@@ -2641,6 +2649,57 @@ function renderRackOverview() {
   locSel.addEventListener('change', renderCards);
   renderCards();
 }
+
+// ── Context menu ─────────────────────────────────────────────
+function closeContextMenu() {
+  const existing = document.getElementById('rack-ctx-menu');
+  if (existing) existing.remove();
+}
+
+function showRackContextMenu(x, y, rack, onDelete) {
+  closeContextMenu();
+  const menu = document.createElement('div');
+  menu.className = 'rack-ctx-menu';
+  menu.id = 'rack-ctx-menu';
+
+  menu.innerHTML = `
+    <div class="rack-ctx-item" id="ctx-open">📂 Open Editor</div>
+    <div class="rack-ctx-item" id="ctx-edit">✏️ Edit Rack</div>
+    <div class="rack-ctx-sep"></div>
+    <div class="rack-ctx-item danger" id="ctx-delete">🗑 Delete Rack</div>
+  `;
+
+  // Position — keep inside viewport
+  menu.style.left = Math.min(x, window.innerWidth  - 200) + 'px';
+  menu.style.top  = Math.min(y, window.innerHeight - 150) + 'px';
+  document.body.appendChild(menu);
+
+  menu.querySelector('#ctx-open').addEventListener('click', () => {
+    closeContextMenu();
+    openRackEditor(rack.id);
+  });
+  menu.querySelector('#ctx-edit').addEventListener('click', () => {
+    closeContextMenu();
+    openRackForm(rack.id, null);
+  });
+  menu.querySelector('#ctx-delete').addEventListener('click', () => {
+    closeContextMenu();
+    if (!confirm(`Delete rack "${rack.name}"? This cannot be undone.`)) return;
+    racks = racks.filter(r => r.id !== rack.id);
+    saveRackData();
+    renderRackOverview();
+    showToast('Rack deleted.');
+  });
+
+  // Close on outside click or Escape
+  setTimeout(() => {
+    document.addEventListener('mousedown', closeContextMenu, { once: true });
+  }, 0);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeContextMenu();
+});
 
 // ---- Location form ----
 function openLocationForm(mode, existingId) {
