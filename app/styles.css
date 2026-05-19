@@ -1651,15 +1651,15 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   max-height: 92vh;
   overflow-y: auto;
   z-index: 200;
-  padding: 1.4rem 1.5rem 1.2rem;
-  border-radius: 20px;
+  padding: 0.9rem;   /* matches .tree-dialog / config */
+  border-radius: 16px;
 }
 .rack-form-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.45);  /* matches .tree-dialog::backdrop */
 }
 .rack-form-dialog-title {
-  font: 700 1.05rem/1.2 'Space Mono', monospace;
-  margin: 0 0 1.1rem 0;
+  font: 700 1rem/1.2 'Space Mono', monospace;
+  margin: 0 0 0.6rem 0;  /* tight, like config heading */
   color: var(--text);
 }
 .rack-form-dialog-body {
@@ -1667,12 +1667,11 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   flex-direction: column;
   gap: 0;
 }
-/* Full-width side-by-side action buttons at the bottom */
 .rack-form-btns {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  margin-top: 1rem;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
 }
 .rack-form-btn-primary,
 .rack-form-btn-close {
@@ -1680,13 +1679,12 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   justify-content: center;
   text-align: center;
 }
-/* Danger button (delete) — full width, above the btns row */
 .rack-form-btn-danger {
   width: 100%;
   background: transparent;
   color: var(--danger);
   border-color: var(--danger);
-  margin-top: 0.75rem;
+  margin-top: 0.45rem;
   margin-bottom: 0;
   text-align: center;
 }
@@ -1694,7 +1692,13 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   background: color-mix(in srgb, var(--danger) 12%, var(--panel));
   animation: delete-shake 0.4s ease;
 }
-/* Override rack-form-inner to not add extra outer padding */
 .rack-form-dialog .rack-form-inner {
-  gap: 0.65rem;
+  gap: 0.45rem;  /* same density as config fields */
+}
+
+/* Delete / Clear / Danger buttons — rectangular, no border-radius */
+.button.danger,
+.icon-btn.delete-btn,
+.rack-form-btn-danger {
+  border-radius: 4px !important;
 }
