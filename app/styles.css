@@ -1670,15 +1670,16 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 /* Danger button (delete) — full width, above the btns row */
 .rack-form-btn-danger {
   width: 100%;
-  background: color-mix(in srgb, var(--danger) 18%, var(--panel)) !important;
+  background: transparent !important;
   color: var(--danger) !important;
-  border-color: var(--danger) !important;
+  border: 2px solid var(--danger) !important;
   margin-top: 0.75rem;
   margin-bottom: 0;
   text-align: center;
+  font-weight: 600;
 }
 .rack-form-btn-danger:hover {
-  background: color-mix(in srgb, var(--danger) 30%, var(--panel)) !important;
+  background: color-mix(in srgb, var(--danger) 12%, var(--panel)) !important;
 }
 /* Override rack-form-inner to not add extra outer padding */
 .rack-form-dialog .rack-form-inner {
