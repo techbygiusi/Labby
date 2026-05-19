@@ -2532,7 +2532,7 @@ const rackRear         = document.getElementById('rack-rear');
 const rackPaletteItems = document.getElementById('rack-palette-items');
 const rackFormPageTitle = document.getElementById('rack-form-page-title');
 const rackFormPageBody  = document.getElementById('rack-form-page-body');
-const rackFormBack      = document.getElementById('rack-form-back');
+// rackFormBack removed — dialog now uses inline close buttons
 const phoneGrid         = document.querySelector('.phone-grid');
 
 // ---- Helpers ----
@@ -2798,7 +2798,6 @@ function openLocationForm(mode, existingId) {
     });
   }
 
-  rackFormBack.onclick = () => { rackFormDialog.close(); };
   rackFormDialog.showModal();
   const rfLocClose = document.getElementById('rf-loc-close');
   if (rfLocClose) rfLocClose.addEventListener('click', () => rackFormDialog.close());
@@ -2867,7 +2866,6 @@ function openRackForm(existingId, preselectedLocationId) {
     }
   });
 
-  rackFormBack.onclick = () => { rackFormDialog.close(); };
   rackFormDialog.showModal();
   const rfRackClose = document.getElementById('rf-rack-close');
   if (rfRackClose) rfRackClose.addEventListener('click', () => rackFormDialog.close());
