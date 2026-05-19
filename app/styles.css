@@ -158,9 +158,9 @@ select[multiple] { min-height: 90px; }
 .nested-fields { margin-top: 0.2rem; }
 .share-row.raid-row { grid-template-columns: 1fr 0.9fr 1fr auto; }
 
-.button { border: 2px solid var(--line); border-radius: 12px; min-height: 36px; padding: 0.42rem 0.65rem; font: 700 0.8rem/1.2 'Space Mono', monospace; cursor: pointer; background: var(--yellow); color: #222; }
-.button.secondary { background: var(--panel); color: var(--text); }
-.button.danger { background: #f1b2b2; color: #300; }
+.button { border: 2px solid var(--line); border-radius: 14px; min-height: 36px; padding: 0.42rem 0.75rem; font: 700 0.8rem/1.2 'Space Mono', monospace; cursor: pointer; background: var(--yellow); color: #222; transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease; }
+.button.secondary { background: var(--panel); color: var(--text); border-color: var(--line); }
+.button.danger { background: transparent; color: var(--danger); border-color: var(--danger); }
 .actions { display: flex; gap: var(--space-2); margin-top: var(--space-1); }
 .hidden { display: none !important; }
 
@@ -170,6 +170,8 @@ textarea:focus-visible,
 .button:focus-visible,
 .icon-btn:focus-visible,
 .tree-toggle:focus-visible,
+.ip-toggle:focus-visible,
+.rack-toggle:focus-visible,
 .color-dot:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--line) 68%, white);
   outline-offset: 2px;
@@ -180,14 +182,14 @@ textarea:focus-visible,
 .card,
 .column,
 .tree-chip,
-.tree-dialog { transition: transform 140ms ease, box-shadow 180ms ease, opacity 160ms ease, filter 160ms ease; }
+.tree-dialog { transition: transform 120ms ease, box-shadow 140ms ease, opacity 140ms ease, filter 120ms ease; }
 
-.button:hover,
+.button:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
 .icon-btn:hover { transform: translateY(-1px); }
 
 .button:active,
 .icon-btn:active,
-.tree-toggle:active { transform: translateY(1px) scale(0.99); }
+.tree-toggle:active { transform: translateY(1px) scale(0.99); box-shadow: none; }
 
 input:hover,
 select:hover,
@@ -218,8 +220,9 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .type-badge.network { transform: rotate(45deg); }
 
 .card-controls { display: flex; gap: 0.25rem; }
-.icon-btn { border: 2px solid var(--line); border-radius: 8px; min-height: 36px; background: var(--panel); color: var(--text); font: 700 0.75rem/1 'Space Mono', monospace; padding: 0.25rem 0.45rem; cursor: pointer; }
-.icon-btn.delete-btn { color: var(--danger); border-color: var(--danger); }
+.icon-btn { border: 2px solid var(--line); border-radius: 14px; min-height: 36px; background: var(--panel); color: var(--text); font: 700 0.75rem/1 'Space Mono', monospace; padding: 0.25rem 0.55rem; cursor: pointer; transition: transform 120ms ease, box-shadow 120ms ease; }
+.icon-btn.delete-btn { color: var(--danger); border-color: var(--danger); background: transparent; }
+.icon-btn.delete-btn:hover { background: color-mix(in srgb, var(--danger) 12%, var(--panel)); }
 
 .card-title { margin: 0; font-size: 0.82rem; color: #1f2330; }
 .card-desc, .card-links, .card-ip, .card-app, .card-specs, .card-network, .card-hosting, .card-notes {
@@ -268,6 +271,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   font: 700 0.8rem/1.2 'Space Mono', monospace;
   cursor: pointer;
   box-shadow: 0 10px 18px rgba(0, 0, 0, 0.2);
+  transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
 }
 
 .tree-dialog {
@@ -620,6 +624,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   font: 700 0.8rem/1.2 'Space Mono', monospace;
   cursor: pointer;
   box-shadow: 0 10px 18px rgba(0,0,0,0.2);
+  transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
 }
 .ip-toggle:hover { filter: brightness(0.93); }
 .ip-toggle:active { transform: translateY(1px) scale(0.99); }
@@ -856,9 +861,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   animation: btn-bounce 0.35s ease forwards, btn-glow 0.5s ease forwards;
 }
 
-.button.danger:hover {
-  animation: delete-shake 0.4s ease;
-}
+.button.danger:hover { background: color-mix(in srgb, var(--danger) 12%, var(--panel)); animation: delete-shake 0.4s ease; }
 
 .icon-btn:hover {
   transform: scale(1.08);
@@ -984,8 +987,9 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   font: 700 0.8rem/1.2 'Space Mono', monospace;
   cursor: pointer;
   box-shadow: 0 10px 18px rgba(0, 0, 0, 0.2);
+  transition: transform 120ms ease, filter 120ms ease;
 }
-.rack-toggle:hover { filter: brightness(0.93); }
+.rack-toggle:hover { transform: translateY(-1px); filter: brightness(0.95); }
 .rack-toggle:active { transform: translateY(1px) scale(0.99); }
 
 /* ── Full-viewport overlay base ─────────────────────────────── */
@@ -1094,9 +1098,9 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   align-items: center;
 }
 /* Coloured action buttons matching the dashboard's feel */
-.rack-ov-btn-loc  { background: var(--mint) !important; }
-.rack-ov-btn-rack { background: var(--yellow) !important; }
-.rack-ov-btn-close { background: transparent !important; }
+.rack-ov-btn-loc  { background: var(--mint); }
+.rack-ov-btn-rack { background: var(--yellow); }
+.rack-ov-btn-close { background: var(--panel); color: var(--text); }
 
 /* Rounded panel — mirrors dashboard .phone style */
 .rack-ov-panel {
@@ -1108,6 +1112,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
+  /* Matches .phone panel style exactly */
 }
 
 /* ── Empty state ─────────────────────────────────────────────── */
@@ -1143,13 +1148,14 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .rack-location-bar select {
   flex: 1;
   min-width: 120px;
-  border: 3px solid var(--line);
-  border-radius: 10px;
-  padding: 0.3rem 0.55rem;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  padding: 0.32rem 0.55rem;
   background: var(--panel);
   color: var(--text);
   font: 700 0.8rem/1.2 'Space Mono', monospace;
   cursor: pointer;
+  transition: border-color 120ms ease;
 }
 
 /* ── Rack cards grid ─────────────────────────────────────────── */
@@ -1159,16 +1165,16 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   gap: 0.9rem;
 }
 .rack-card {
-  background: var(--phone);
-  border: 3px solid var(--line);
-  border-radius: 18px;
-  padding: 1rem 1.1rem;
+  background: color-mix(in srgb, var(--phone) 92%, white);
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  padding: 0.9rem 1rem;
   cursor: pointer;
-  transition: box-shadow 0.15s, transform 0.1s;
+  transition: box-shadow 120ms ease, transform 120ms ease;
   box-shadow: var(--shadow);
 }
 .rack-card:hover {
-  box-shadow: 0 18px 36px rgba(0,0,0,0.18);
+  box-shadow: 0 16px 32px rgba(0,0,0,0.16);
   transform: translateY(-2px);
 }
 .rack-card-icon { font-size: 1.5rem; margin-bottom: 0.35rem; }
@@ -1204,12 +1210,19 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .rack-form-inner input,
 .rack-form-inner select,
 .rack-form-inner textarea {
-  border: 3px solid var(--line);
-  border-radius: 10px;
-  padding: 0.4rem 0.65rem;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  padding: 0.42rem 0.65rem;
   background: var(--panel);
   color: var(--text);
   font: 0.84rem/1.4 Inter, system-ui, sans-serif;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.rack-form-inner input:focus,
+.rack-form-inner select:focus,
+.rack-form-inner textarea:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, transparent);
+  outline: none;
 }
 .rack-form-inner textarea { resize: vertical; min-height: 68px; }
 .rack-form-actions { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
@@ -1338,11 +1351,10 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 
 /* ── Rack frame ──────────────────────────────────────────────── */
 .rack-frame {
-  border: 3px solid var(--line);
-  border-radius: 10px;
+  border: 2px solid var(--line);
+  border-radius: 14px;
   background: var(--panel);
   overflow: hidden;
-  /* Height equalised via JS after render — see equaliseRackHeights() */
 }
 
 /* ── Rack slots ──────────────────────────────────────────────── */
@@ -1607,8 +1619,8 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   position: fixed;
   z-index: 300;
   background: var(--phone);
-  border: 3px solid var(--line);
-  border-radius: 12px;
+  border: 2px solid var(--line);
+  border-radius: 16px;
   padding: 0.3rem 0;
   min-width: 160px;
   box-shadow: 0 14px 32px rgba(0,0,0,0.26);
@@ -1640,6 +1652,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   overflow-y: auto;
   z-index: 200;
   padding: 1.4rem 1.5rem 1.2rem;
+  border-radius: 20px;
 }
 .rack-form-dialog::backdrop {
   background: rgba(0, 0, 0, 0.5);
@@ -1670,16 +1683,16 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 /* Danger button (delete) — full width, above the btns row */
 .rack-form-btn-danger {
   width: 100%;
-  background: transparent !important;
-  color: var(--danger) !important;
-  border: 2px solid var(--danger) !important;
+  background: transparent;
+  color: var(--danger);
+  border-color: var(--danger);
   margin-top: 0.75rem;
   margin-bottom: 0;
   text-align: center;
-  font-weight: 600;
 }
 .rack-form-btn-danger:hover {
-  background: color-mix(in srgb, var(--danger) 12%, var(--panel)) !important;
+  background: color-mix(in srgb, var(--danger) 12%, var(--panel));
+  animation: delete-shake 0.4s ease;
 }
 /* Override rack-form-inner to not add extra outer padding */
 .rack-form-dialog .rack-form-inner {
