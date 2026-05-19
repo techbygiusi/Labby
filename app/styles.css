@@ -1632,3 +1632,18 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   background: color-mix(in srgb, var(--line) 35%, transparent);
   margin: 0.25rem 0;
 }
+
+/* ── Rack form dialog (popup, not full page) ─────────────────── */
+.rack-form-dialog {
+  width: min(520px, 92vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  z-index: 200;  /* above rack-overlay (100) */
+}
+.rack-form-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 199;
+}
+.rack-form-dialog-body {
+  padding-top: 0.75rem;
+}

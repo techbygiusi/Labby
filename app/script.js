@@ -2516,7 +2516,8 @@ let rackFormPendingLocationId = null;
 // ---- DOM refs ----
 const rackOverview     = document.getElementById('rack-overview');
 const rackEditor       = document.getElementById('rack-editor');
-const rackFormPage     = document.getElementById('rack-form-page');
+const rackFormDialog   = document.getElementById('rack-form-dialog');
+const rackFormPage     = rackFormDialog; // alias for compatibility
 const rackToggleBtn    = document.getElementById('rack-toggle');
 const rackCloseBtn     = document.getElementById('rack-close-btn');
 const rackAddLocBtn    = document.getElementById('rack-add-location-btn');
@@ -2541,7 +2542,8 @@ function locationById(id) { return locations.find(l => l.id === id); }
 async function saveRackData() { await saveItemsToAPI(items); }
 
 function showRackOverlay(id) {
-  [rackOverview, rackEditor, rackFormPage].forEach(el => el && el.classList.add('hidden'));
+  // Only toggle the full-screen overlays — never the form dialog
+  [rackOverview, rackEditor].forEach(el => el && el.classList.add('hidden'));
   if (phoneGrid) phoneGrid.style.display = '';
   if (id) {
     const el = document.getElementById(id);
@@ -2795,8 +2797,8 @@ function openLocationForm(mode, existingId) {
     });
   }
 
-  rackFormBack.onclick = () => showRackOverlay('rack-overview');
-  showRackOverlay('rack-form-page');
+  rackFormBack.onclick = () => { rackFormDialog.close(); };
+  rackFormDialog.showModal();
 }
 
 // ---- Rack form ----
@@ -2861,8 +2863,8 @@ function openRackForm(existingId, preselectedLocationId) {
     }
   });
 
-  rackFormBack.onclick = () => showRackOverlay('rack-overview');
-  showRackOverlay('rack-form-page');
+  rackFormBack.onclick = () => { rackFormDialog.close(); };
+  rackFormDialog.showModal();
 }
 
 // ---- Rack Editor ----
