@@ -992,13 +992,44 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .rack-overlay {
   position: fixed;
   inset: 0;
-  z-index: 40;
-  /* Transparent — lets body + body::before wave show through */
-  background: transparent;
+  z-index: 100;  /* above topbar (auto), bottom-actions (20), github (20) */
+  background: var(--bg-bottom);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
+/* Wave layer — mirrors body::before so the split background appears */
+.rack-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  --split: 20%;
+  --cut: calc(100% - var(--split));
+  --amp: 2.2%;
+  clip-path: polygon(
+    0% 0%,
+    100% 0%,
+    100% calc(var(--cut) + var(--amp) * 0.35),
+    92% calc(var(--cut) + var(--amp) * 0.12),
+    84% calc(var(--cut) + var(--amp) * -0.05),
+    76% calc(var(--cut) + var(--amp) * -0.18),
+    68% calc(var(--cut) + var(--amp) * -0.26),
+    60% calc(var(--cut) + var(--amp) * -0.28),
+    52% calc(var(--cut) + var(--amp) * -0.22),
+    44% calc(var(--cut) + var(--amp) * -0.10),
+    36% calc(var(--cut) + var(--amp) * 0.05),
+    28% calc(var(--cut) + var(--amp) * 0.18),
+    20% calc(var(--cut) + var(--amp) * 0.27),
+    12% calc(var(--cut) + var(--amp) * 0.24),
+    6%  calc(var(--cut) + var(--amp) * 0.12),
+    0%  calc(var(--cut) + var(--amp) * -0.05)
+  );
+  z-index: 0;
+  pointer-events: none;
+}
+/* All direct children sit above the wave pseudo-element */
+.rack-overlay > * { position: relative; z-index: 1; }
 .rack-overlay.hidden { display: none; }
 
 /* ── Overlay header ──────────────────────────────────────────── */
