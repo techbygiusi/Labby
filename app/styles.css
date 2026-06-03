@@ -584,7 +584,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   .graph-node { width: 40px; height: 40px; font-size: 1.05rem; }
   .toast { width: calc(100vw - 20px); }
   .bottom-actions { left: 10px; right: 10px; bottom: max(12px, env(safe-area-inset-bottom)); flex-direction: column-reverse; gap: 8px; }
-  .tree-toggle, .ip-toggle { width: 100%; text-align: center; box-sizing: border-box; 
+  .tree-toggle, .ip-toggle { width: 100%; text-align: center; box-sizing: border-box; }
   #config-toggle { display: none; }
 }
 
