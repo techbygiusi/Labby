@@ -2154,6 +2154,7 @@ function label(type) {
 
 const customThemesKey = 'labby-custom-themes';
 let themePreviewPrev = null;
+let editingThemeId = null;
 const themeVars = [
   { key: '--bg',          label: 'Background' },
   { key: '--bg-bottom',   label: 'Background (bottom)' },
@@ -2356,8 +2357,35 @@ function renderThemeGrids() {
   presetThemes.forEach(t => dg.appendChild(makeThemeSwatch(t.id, t.name, {})));
   const customs = getCustomThemes();
   cg.innerHTML = '';
-  customs.forEach(t => cg.appendChild(makeThemeSwatch(t.id, t.name, { deletable: true })));
+  customs.forEach(t => {
+    const el = makeThemeSwatch(t.id, t.name, { deletable: true });
+    const editBtn = document.createElement('button');
+    editBtn.className='theme-edit-btn';
+    editBtn.type='button';
+    editBtn.textContent='Edit';
+    editBtn.onclick=(e)=>{e.stopPropagation();editCustomTheme(t.id);};
+    el.appendChild(editBtn);
+    cg.appendChild(el);
+  });
   if (empty) empty.style.display = customs.length ? 'none' : '';
+}
+
+
+function editCustomTheme(id) {
+  const theme = customThemeById(id);
+  if (!theme) return;
+  editingThemeId = id;
+  switchThemeTab('customize');
+  setTimeout(() => {
+    const nameInput = document.getElementById('tb-name');
+    const base = document.getElementById('tb-base');
+    if (nameInput) nameInput.value = theme.name || '';
+    if (base) base.value = theme.dark ? 'dark' : 'light';
+    Object.entries(theme.vars || {}).forEach(([k,v]) => {
+      const el = document.querySelector('[data-var="' + k + '"]');
+      if (el) el.value = v;
+    });
+  }, 0);
 }
 
 function renderCustomizeTab() {
@@ -2410,9 +2438,15 @@ function renderCustomizeTab() {
   document.getElementById('tb-save').onclick = () => {
     const d = collect();
     const name = (document.getElementById('tb-name').value || '').trim().slice(0, 24) || 'My Theme';
-    const theme = { id: 'custom-' + Date.now(), name, dark: d.dark, vars: d.vars };
     const arr = getCustomThemes();
-    arr.push(theme);
+    if (editingThemeId) {
+      const idx = arr.findIndex(t => t.id === editingThemeId);
+      if (idx !== -1) arr[idx] = { id: editingThemeId, name, dark: d.dark, vars: d.vars };
+      editingThemeId = null;
+    } else {
+      const theme = { id: 'custom-' + Date.now(), name, dark: d.dark, vars: d.vars };
+      arr.push(theme);
+    }
     saveCustomThemes(arr);
     themePreviewPrev = null;
     const pv = document.getElementById('preview-theme-style');
