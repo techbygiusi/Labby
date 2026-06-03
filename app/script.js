@@ -2725,14 +2725,14 @@ window.startEditingMobile = function(id) {
 
 let tutorialStep = 0;
 const tutorialSteps = [
-  { title: 'Welcome to Labby! 👋', text: 'Labby helps you map your homelab. Track hardware, VMs, apps and networks, and visualize how everything connects.', icon: '🧪' },
+  { title: 'Welcome to Labby! 👋', text: 'Labby helps you map your homelab. Track hardware, VMs, apps and networks, and visualize how everything connects.'},
   { title: 'Your Topology', text: 'The main view shows all your resources grouped by type. Each card shows specs, IP, status and quick actions.', icon: '🗂️' },
   { title: 'Add Resources', text: 'Use the form on the left (desktop) or tap ➕ Add (mobile) to create hardware, VMs, LXCs, apps or networks.', icon: '➕' },
-  { title: 'IP View 🌐', text: 'The IP View shows all used IPs sorted by subnet. Search by IP, hostname or port to find devices instantly.', icon: '🌐' },
-  { title: 'Relationship Tree 🌳', text: 'Tree and Graph views visualize how your infrastructure connects. Which VMs run on which hardware, which apps run on which VMs.', icon: '🌳' },
+  { title: 'IP View', text: 'The IP View shows all used IPs sorted by subnet. Search by IP, hostname or port to find devices instantly.', icon: '🌐' },
+  { title: 'Relationship Tree', text: 'Tree and Graph views visualize how your infrastructure connects. Which VMs run on which hardware, which apps run on which VMs.', icon: '🌳' },
   { title: 'Status Indicators', text: 'Mark devices as 🟢 Online, 🔴 Offline or 🟡 Maintenance. Offline cards are dimmed, maintenance cards get a dashed border.', icon: '🟢' },
-  { title: 'Copy & Open 📋', text: 'Click any IP or URL on a card to copy it to clipboard. Apps with a web URL show an Open button to launch directly.', icon: '📋' },
-  { title: 'Config & Backup 💾', text: 'Use Config → Export to back up your data as JSON. Import to restore or migrate to another instance.', icon: '💾' },
+  { title: 'Copy & Open', text: 'Click any IP or URL on a card to copy it to clipboard. Apps with a web URL show an Open button to launch directly.', icon: '📋' },
+  { title: 'Config & Backup', text: 'Use Config → Export to back up your data as JSON. Import to restore or migrate to another instance.', icon: '💾' },
 ];
 
 function openTutorial() {
