@@ -419,12 +419,14 @@ seedDemo.addEventListener('click', async () => {
 });
 
 clearAll.addEventListener('click', async () => {
-  if (!confirm('Delete all resources? This also clears all rack and location data.')) return;
+  if (!confirm('Delete all resources? This also clears all rack, location and custom theme data.')) return;
   items = []; locations = []; racks = [];
+  localStorage.removeItem('labby-custom-themes');
   stopEditing();
   await saveItems();
-  showToast('All resources cleared.');
+  showToast('All resources and custom themes cleared.');
   render();
+  if (typeof renderThemeLists === 'function') renderThemeLists();
 });
 
 document.getElementById('theme-btn').addEventListener('click', () => {
@@ -3632,4 +3634,5 @@ function escapeHtml(str) {
 
 // Theme initialization moved after definitions
 try { initTheme(); } catch(e){ console.error(e); }
+
 
