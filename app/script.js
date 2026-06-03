@@ -147,7 +147,8 @@ appendRamModuleRow();
 appendDiskRow();
 appendRaidRow();
 symbolInput.value = defaultSymbol('hardware', 'server');
-initTheme();
+// initTheme moved to end
+
 applyTypeVisibility();
 
 (async () => {
@@ -3593,3 +3594,8 @@ function escapeHtml(str) {
   if (!str) return '';
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+
+
+// Theme initialization moved after definitions
+try { initTheme(); } catch(e){ console.error(e); }
+
