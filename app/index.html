@@ -34,7 +34,6 @@
       </div>
       <div class="topbar-actions">
         <button id="config-toggle" class="button secondary" type="button">⚙️ Config</button>
-        <button id="theme-toggle" class="button secondary" aria-label="Toggle theme">🌙 Dark</button>
       </div>
     </header>
 
@@ -288,6 +287,7 @@
         <h2>Config</h2>
       </div>
       <div class="mobile-view-body">
+        <button id="theme-btn-mobile" class="button secondary" type="button" style="width:100%;margin-bottom:1rem">🎨 Themes</button>
         <p class="note">Backup or move your full homelab map.</p>
         <div class="stack">
           <button id="export-btn-mobile" class="button secondary" type="button">Export Config</button>
@@ -352,7 +352,10 @@
           <input id="import-file" type="file" accept="application/json" />
         </label>
         <button id="clear-all" class="button danger" type="button">Clear All</button>
-        <button id="show-tutorial-btn" class="button secondary" type="button">📖 Tutorial</button>
+        <div class="config-btn-row">
+          <button id="theme-btn" class="button secondary" type="button">🎨 Themes</button>
+          <button id="show-tutorial-btn" class="button secondary" type="button">📖 Tutorial</button>
+        </div>
       </div>
       <div class="legend">
         <p><span class="dot hardware"></span> Hardware</p>
@@ -363,6 +366,29 @@
       </div>
       <div class="dialog-footer">
         <button class="button secondary" onclick="document.getElementById('config-dialog').close()">✕ Close</button>
+      </div>
+    </dialog>
+
+    <dialog id="theme-picker-dialog" class="tree-dialog theme-picker-dialog">
+      <div class="tree-head">
+        <h3>🎨 Themes</h3>
+      </div>
+      <p class="note">Pick a theme or build your own.</p>
+      <div id="theme-picker-grid" class="theme-picker-grid"></div>
+      <div class="dialog-footer">
+        <button class="button secondary" onclick="document.getElementById('theme-picker-dialog').close()">✕ Close</button>
+      </div>
+    </dialog>
+
+    <dialog id="theme-builder-dialog" class="tree-dialog theme-builder-dialog">
+      <div class="tree-head">
+        <h3>🎨 Custom Theme</h3>
+      </div>
+      <div id="theme-builder-body" class="theme-builder-body"></div>
+      <div class="dialog-footer theme-builder-footer">
+        <button id="tb-reset" class="button secondary" type="button">Reset</button>
+        <button id="tb-save" class="button" type="button">Save Theme</button>
+        <button class="button secondary" onclick="document.getElementById('theme-builder-dialog').close()">✕ Close</button>
       </div>
     </dialog>
 
