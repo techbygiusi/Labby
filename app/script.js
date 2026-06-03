@@ -10,7 +10,6 @@ const typeSelect = document.getElementById('type');
 const symbolInput = document.getElementById('symbol');
 const seedDemo = document.getElementById('seed-demo');
 const clearAll = document.getElementById('clear-all');
-const themeToggle = document.getElementById('theme-toggle');
 const template = document.getElementById('item-template');
 const hostedOnSelect = document.getElementById('hosted-on');
 const hostedOnWrap = document.getElementById('hosted-on-wrap');
@@ -427,10 +426,11 @@ clearAll.addEventListener('click', async () => {
   render();
 });
 
-themeToggle.addEventListener('click', () => {
-  const current = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
-  setTheme(current === 'dark' ? 'light' : 'dark');
+document.getElementById('theme-btn').addEventListener('click', () => {
+  configDialog.close();
+  openThemePicker();
 });
+document.getElementById('theme-btn-mobile').addEventListener('click', openThemePicker);
 
 exportBtn.addEventListener('click', () => {
   const config = { items, locations, racks };
@@ -2149,16 +2149,196 @@ function label(type) {
   return ({ hardware: 'Hardware', vm: 'VMs', lxc: 'LXCs', app: 'Apps', network: 'Networks' })[type] || type;
 }
 
+const customThemeKey = 'labby-custom-theme';
+const themeVars = [
+  { key: '--bg',          label: 'Background' },
+  { key: '--bg-bottom',   label: 'Background (bottom)' },
+  { key: '--phone',       label: 'Panel surface' },
+  { key: '--panel',       label: 'Card / input surface' },
+  { key: '--text',        label: 'Text' },
+  { key: '--muted',       label: 'Muted text' },
+  { key: '--line',        label: 'Borders' },
+  { key: '--yellow',      label: 'Accent (buttons)' },
+  { key: '--blue',        label: 'Info box' },
+  { key: '--mint',        label: 'Highlight' },
+  { key: '--danger',      label: 'Danger' },
+  { key: '--type-hardware', label: 'Hardware' },
+  { key: '--type-vm',       label: 'VM' },
+  { key: '--type-lxc',      label: 'LXC' },
+  { key: '--type-app',      label: 'App' },
+  { key: '--type-network',  label: 'Network' },
+];
+const presetThemes = [
+  { id: 'light',    name: 'Light',    dark: false, sw: ['#f5f1e7', '#2e2f36', '#b8d9ff', '#b8efca', '#f4d371'] },
+  { id: 'ocean',    name: 'Ocean',    dark: false, sw: ['#eef6fa', '#1d4456', '#bfe2f5', '#b4ecd9', '#ffd36b'] },
+  { id: 'forest',   name: 'Forest',   dark: false, sw: ['#f2f7ec', '#2d4429', '#cfe6d4', '#c2eabf', '#f2cf65'] },
+  { id: 'rose',     name: 'Rose',     dark: false, sw: ['#fbf0f3', '#4a2535', '#f2cdd9', '#d8ecd0', '#f6cf7d'] },
+  { id: 'solar',    name: 'Solar',    dark: false, sw: ['#fbf3e1', '#4a3a20', '#ffe2b3', '#d8e8b0', '#f3c441'] },
+  { id: 'dark',     name: 'Dark',     dark: true,  sw: ['#231d30', '#5c4d7a', '#352c4a', '#356f71', '#e8b4d8'] },
+  { id: 'midnight', name: 'Midnight', dark: true,  sw: ['#14253c', '#34557d', '#1f3a5c', '#1d5258', '#6cb6e8'] },
+  { id: 'carbon',   name: 'Carbon',   dark: true,  sw: ['#1e2125', '#444b54', '#283540', '#2a3a32', '#e0c060'] },
+  { id: 'nord',     name: 'Nord',     dark: true,  sw: ['#3b4252', '#5a6478', '#3e4a5e', '#3b4a44', '#ebcb8b'] },
+  { id: 'grape',    name: 'Grape',    dark: true,  sw: ['#241634', '#6b3fa0', '#3d2a5c', '#2f5868', '#d68ce8'] },
+];
+
+function defaultCustomTheme() {
+  return {
+    dark: false,
+    vars: {
+      '--bg': '#ece9df', '--bg-bottom': '#d6ccc2', '--phone': '#f5f1e7',
+      '--panel': '#ffffff', '--text': '#202126', '--muted': '#575a64',
+      '--line': '#2e2f36', '--yellow': '#f4d371', '--blue': '#b8d9ff',
+      '--mint': '#b8efca', '--danger': '#d84b4b',
+      '--type-hardware': '#b8d9ff', '--type-vm': '#d6f0ff', '--type-lxc': '#d0f7ef',
+      '--type-app': '#fce7d9', '--type-network': '#b8efca',
+    },
+  };
+}
+
+function getCustomTheme() {
+  try {
+    const raw = localStorage.getItem(customThemeKey);
+    if (!raw) return defaultCustomTheme();
+    const parsed = JSON.parse(raw);
+    const base = defaultCustomTheme();
+    return { dark: !!parsed.dark, vars: { ...base.vars, ...(parsed.vars || {}) } };
+  } catch { return defaultCustomTheme(); }
+}
+
+function applyCustomThemeStyle(custom) {
+  let el = document.getElementById('custom-theme-style');
+  if (!el) {
+    el = document.createElement('style');
+    el.id = 'custom-theme-style';
+    document.head.appendChild(el);
+  }
+  const decls = themeVars.map(v => v.key + ': ' + custom.vars[v.key] + ';').join(' ');
+  el.textContent = ":root[data-theme='custom'] { color-scheme: " + (custom.dark ? 'dark' : 'light') + '; ' + decls + ' }';
+}
+
 function initTheme() {
   const saved = localStorage.getItem(themeKey);
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyCustomThemeStyle(getCustomTheme());
   setTheme(saved || (prefersDark ? 'dark' : 'light'));
+}
+
+function isDarkTheme(theme) {
+  if (theme === 'custom') return getCustomTheme().dark;
+  const p = presetThemes.find(t => t.id === theme);
+  return p ? p.dark : false;
 }
 
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
+  if (isDarkTheme(theme)) document.documentElement.setAttribute('data-dark', '');
+  else document.documentElement.removeAttribute('data-dark');
   localStorage.setItem(themeKey, theme);
-  themeToggle.textContent = theme === 'dark' ? '☀️ Light' : '🌙 Dark';
+}
+
+function buildThemePreview(theme) {
+  if (theme === 'custom') {
+    const c = getCustomTheme();
+    return { phone: c.vars['--phone'], line: c.vars['--line'], a: c.vars['--type-hardware'], b: c.vars['--type-network'], c: c.vars['--yellow'] };
+  }
+  const p = presetThemes.find(t => t.id === theme);
+  const sw = p ? p.sw : presetThemes[0].sw;
+  return { phone: sw[0], line: sw[1], a: sw[2], b: sw[3], c: sw[4] };
+}
+
+function openThemePicker() {
+  const dlg = document.getElementById('theme-picker-dialog');
+  const grid = document.getElementById('theme-picker-grid');
+  const current = document.documentElement.dataset.theme || 'light';
+  grid.innerHTML = '';
+
+  const makeSwatch = (id, name, isCustom) => {
+    const p = buildThemePreview(id);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'theme-swatch' + (current === id ? ' active' : '');
+    btn.innerHTML =
+      '<span class="theme-swatch-preview" style="background:' + p.phone + ';border-color:' + p.line + '">' +
+        '<span class="theme-swatch-bar" style="background:' + p.a + '"></span>' +
+        '<span class="theme-swatch-bar" style="background:' + p.b + '"></span>' +
+        '<span class="theme-swatch-bar" style="background:' + p.c + '"></span>' +
+      '</span>' +
+      '<span class="theme-swatch-name">' + name + (isCustom ? ' ✏️' : '') + '</span>';
+    btn.addEventListener('click', () => {
+      if (isCustom) { dlg.close(); openThemeBuilder(); return; }
+      setTheme(id);
+      openThemePicker();
+    });
+    return btn;
+  };
+
+  presetThemes.forEach(t => grid.appendChild(makeSwatch(t.id, t.name, false)));
+  grid.appendChild(makeSwatch('custom', 'Custom', true));
+
+  if (typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+}
+
+function openThemeBuilder() {
+  const dlg = document.getElementById('theme-builder-dialog');
+  const body = document.getElementById('theme-builder-body');
+  const draft = getCustomTheme();
+  const prevTheme = localStorage.getItem(themeKey) || 'light';
+  let saved = false;
+  body.innerHTML = '';
+
+  const baseRow = document.createElement('label');
+  baseRow.className = 'tb-base-row';
+  baseRow.innerHTML =
+    '<span>Base mode</span>' +
+    '<select id="tb-base">' +
+      '<option value="light"' + (draft.dark ? '' : ' selected') + '>Light</option>' +
+      '<option value="dark"' + (draft.dark ? ' selected' : '') + '>Dark</option>' +
+    '</select>';
+  body.appendChild(baseRow);
+
+  const grid = document.createElement('div');
+  grid.className = 'tb-grid';
+  themeVars.forEach(v => {
+    const row = document.createElement('label');
+    row.className = 'tb-color-row';
+    row.innerHTML = '<input type="color" data-var="' + v.key + '" value="' + draft.vars[v.key] + '" /><span>' + v.label + '</span>';
+    grid.appendChild(row);
+  });
+  body.appendChild(grid);
+
+  const live = () => {
+    const next = { dark: document.getElementById('tb-base').value === 'dark', vars: {} };
+    body.querySelectorAll('input[type="color"]').forEach(inp => { next.vars[inp.dataset.var] = inp.value; });
+    applyCustomThemeStyle(next);
+    setTheme('custom');
+    return next;
+  };
+
+  body.querySelectorAll('input[type="color"]').forEach(inp => inp.addEventListener('input', live));
+  document.getElementById('tb-base').addEventListener('change', live);
+
+  document.getElementById('tb-save').onclick = () => {
+    const next = live();
+    localStorage.setItem(customThemeKey, JSON.stringify(next));
+    saved = true;
+    dlg.close();
+    showToast('Custom theme saved.');
+  };
+  document.getElementById('tb-reset').onclick = () => {
+    localStorage.removeItem(customThemeKey);
+    applyCustomThemeStyle(getCustomTheme());
+    openThemeBuilder();
+  };
+
+  dlg.onclose = () => {
+    if (!saved) {
+      applyCustomThemeStyle(getCustomTheme());
+      setTheme(prevTheme);
+    }
+  };
+
+  setTheme('custom');
+  if (typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
 }
 
 function isMobile() {
