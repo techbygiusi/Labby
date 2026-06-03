@@ -1667,6 +1667,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .rack-form-dialog-body {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 0;
 }
 .rack-form-btns {
