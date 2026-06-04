@@ -2,8 +2,10 @@
 
 # 🧪 Labby - Map Your Homelab
 
-Labby is a lightweight homelab inventory and topology tool with persistent, browser-independent storage.
-Track your infrastructure, visualize relationships, and keep everything organized.
+Labby is a lightweight homelab inventory, rack and topology tool with persistent, browser-independent storage.
+
+Track your hardware, VMs, LXCs, apps, networks, rack layouts and relationships in one clean dashboard.  
+Self-host it with Docker and keep your homelab map available from every browser and device.
 
 <p align="center">
   <a href="https://www.my-labby.com/" target="_blank" rel="noopener noreferrer">
@@ -20,18 +22,36 @@ Track your infrastructure, visualize relationships, and keep everything organize
 ## 📸 Screenshots
 
 ### Desktop
+
 <table>
   <tr>
-    <img width="3840" height="2160" alt="2" src="https://github.com/user-attachments/assets/9503a0df-fbf4-4093-8627-117e6098e369" />
+    <td align="center">
+      <img width="1920" height="1080" alt="Screenshot 2026-06-04 121522" src="https://github.com/user-attachments/assets/ce9f13f0-0fbf-418b-8897-fe25348daa69" />
+      <br/>
+      <sub><b>Dashboard</b></sub>
+    </td>
   </tr>
 </table>
 
 ### Mobile
+
 <table>
-  <tr >
-    <td width="33%" align="center"><img width="100%" src="https://github.com/user-attachments/assets/5429d9b7-b67c-470d-af13-6e10d2856eb0" /><br/><sub><b>Dashboard</b></sub></td>
-    <td width="33%" align="center"><img width="100%" src="https://github.com/user-attachments/assets/b6e9f0cb-9c4b-446b-b6fc-3188958c0921" /><br/><sub><b>IP View</b></sub></td>
-    <td width="33%" align="center"><img width="100%" src="https://github.com/user-attachments/assets/764cbc83-0ea4-4306-addd-59ae244583e9" /><br/><sub><b>Config View</b></sub></td>
+  <tr>
+    <td width="33%" align="center">
+      <img width="100%" src="https://github.com/user-attachments/assets/341270a2-fafa-44ff-b69a-339b530466f0" />
+      <br/>
+      <sub><b>Dashboard</b></sub>
+    </td>
+    <td width="33%" align="center">
+      <img width="100%" src="https://github.com/user-attachments/assets/6d05ed2a-091c-4606-8d56-56818e5c29ec" />
+      <br/>
+      <sub><b>IP View</b></sub>
+    </td>
+    <td width="33%" align="center">
+      <img width="100%" src="https://github.com/user-attachments/assets/76ede22a-9953-4e7e-ad38-2c04751b85a2" />
+      <br/>
+      <sub><b>Config View</b></sub>
+    </td>
   </tr>
 </table>
 
@@ -40,89 +60,211 @@ Track your infrastructure, visualize relationships, and keep everything organize
 ## ✨ Features
 
 ### Core
+
 - 🖥️ **Resource tracking** for Hardware, VMs, LXCs, Apps and Networks
 - 🌐 **Topology mapping** with Tree and Graph relationship views
-- 🎨 **Light & Dark mode**
+- 🗄️ **Rack View** with locations, racks, front/rear rack layouts and device linking
+- 🎨 **Theme system** with multiple built-in themes and custom theme editor
 - 🧠 **Automatic network matching** by IP/CIDR
-- 🗄️ **Persistent server-side storage** data saved in JSON on the backend, accessible from any browser or device
+- 🧭 **Config tutorial** built directly into the Config dialog
+- 🗄️ **Persistent server-side storage** saved in JSON on the backend and shared across browsers/devices
 
-<img width="3840" height="2160" alt="1" src="https://github.com/user-attachments/assets/e119b364-c3fe-408d-a37e-1ae3f30e8435" />
+<img width="3840" height="2160" alt="Labby" src="https://github.com/user-attachments/assets/8273d09a-2548-46c6-960e-9c30dc4db392" />
+
+---
 
 ### Resources & Metadata
-- 🔧 Rich metadata: OS, Manufacturer, CPU, RAM, Disks, Notes, Links
-- 💾 NAS/Backup: Shares and RAID group tracking
+
+- 🔧 Rich metadata: OS, Manufacturer, CPU, RAM, Disks, Notes and Links
+- 🧩 Hardware types: Server, Router/Gateway, Switch, Hypervisor, NAS, Backup, PC and more
+- 💾 NAS/Backup tracking for Shares and RAID groups
 - 🟢 **Status field** per resource: Online / Offline / Maintenance
+- 📡 Optional live checks for IP and URL status
 - 📋 **Copy-to-clipboard** for IPs and URLs directly on cards
-- 🔗 **Clickable web URLs** open apps directly from their card
+- 🔗 **Clickable web URLs** open apps and devices directly from their card
+- 🧷 Relationship metadata for hosted resources and connected devices
 
-<img width="3840" height="2160" alt="4" src="https://github.com/user-attachments/assets/16bd5002-06e5-455c-88eb-c54fe544f6a4" />
+<img width="1920" height="1080" alt="Screenshot 2026-06-04 121546" src="https://github.com/user-attachments/assets/3d7ee761-db8b-4da3-9700-3602c971d419" />
 
+---
+
+### Relationship Tree & Graph View
+
+- 🌳 **Tree View** groups infrastructure by type and hosting relationship
+- 🕸️ **Graph View** visualizes relationships as connected bubbles
+- 🔎 Graph View auto-zooms and centers on the main component cluster
+- 🏷️ Graph nodes show names permanently below the bubble
+- ✏️ Hovering a Graph node shows **Edit**
+- 🖱️ Clicking a Graph node opens that resource for editing
+- 📐 IP View, Tree View and Graph View use consistent dialog sizing
+
+---
+
+### Rack View
+
+- 🗄️ Create locations and racks
+- 📏 Configure rack height units and form factor
+- 🔁 Front and rear rack layout views
+- 🧲 Drag rack components into rack slots
+- 🔗 Link rack components to existing Labby resources
+- 🖥️ Supports servers, switches, routers, patch panels, cable management, UPS, PDU, KVM and blank panels
+- 🧰 Context menu for opening, editing and deleting racks
+- 💾 Rack data is included in import/export backups
+
+<img width="1920" height="1080" alt="Screenshot 2026-06-04 121558" src="https://github.com/user-attachments/assets/056a501e-fbe8-4504-b427-f61896576c03" />
+
+---
 
 ### IP View
+
 - 🌐 Dedicated IP View showing all used IP addresses
 - Sorted by subnet with network color coding
-- Port display for apps (e.g. `10.20.0.21:2283`)
-- Live search by IP, hostname, or port
+- Gateway and subnet awareness
+- Port display for apps, for example `192.168.20.21:2283`
+- Live search by IP, hostname or port
+- Works with imported legacy data and current server-side storage
+
+---
+
+### Themes & UI
+
+- 🎨 Built-in themes such as Light, Ocean, Forest, Rose, Solar, Dark, Midnight, Carbon, Nord and Grape
+- 🧪 Custom theme editor
+- 💾 Custom themes are stored and included in config export/import
+- 🧭 Saving a custom theme returns to the Themes tab
+- 🖼️ Theme picker and custom editor use a consistent dialog layout
+- 📦 Active theme is included in exported config and restored on import
+
+<img width="1920" height="1080" alt="Screenshot 2026-06-04 121533" src="https://github.com/user-attachments/assets/a1ba0df4-9a7c-457c-b060-487ec7b9e6a5" />
+
+---
 
 ### Navigation & UX
-- 📱 **Mobile & Tablet optimized** — full-screen views for each section via bottom navigation bar
-- 🖥️ **Desktop** — classic two-panel layout unchanged
-- Bottom nav: Topology / Add / IP View / Tree / Config
-- Add and Edit resources open as full-screen panels on mobile
 
-<img width="3840" height="2160" alt="5" src="https://github.com/user-attachments/assets/fe8a4c7e-cc30-4533-a5af-888c0b3148be" />
+- 📱 **Mobile & Tablet optimized** with full-screen views
+- 🖥️ **Desktop** keeps the classic two-panel layout
+- Bottom navigation on mobile/tablet:
+  - Topology
+  - Add
+  - IP View
+  - Tree
+  - Config
+- Add and Edit resources open as full-screen panels on mobile
+- Dialogs and overlays are tuned so hidden views do not block taps
+- Desktop quick buttons for IP View, Tree View and Rack View
+
+---
 
 ### Config & Data
-- **Export / Import JSON** for backups and migration
-- Data stored server-side
-- Old localStorage exports can be imported directly
+
+- 💾 **Export / Import JSON** for backups and migration
+- 🧩 Export includes:
+  - Resources
+  - Locations
+  - Racks
+  - Custom themes
+  - Active theme
+- 🔁 Import restores the full Labby setup
+- 🗄️ Data stored server-side in the main self-hosted version
+- 📦 Old localStorage exports can be imported directly
+
+<img width="1920" height="1080" alt="Screenshot 2026-06-04 121528" src="https://github.com/user-attachments/assets/966f673f-731f-46ae-89be-b9bf32a04008" />
 
 ---
 
 ## 🚀 Installation
 
 ### Requirements
+
 - Docker
 - Docker Compose
 
 ### Start
+
 ```bash
 docker compose up --build -d
 ```
 
-Open: [http://localhost:8080](http://localhost:8080)
+Open:
+
+```text
+http://localhost:8080
+```
 
 ### Stop
+
 ```bash
 docker compose down
 ```
 
-> Data is preserved in a Docker volume (`labby-data`) and survives container restarts.
+> Data is preserved in a Docker volume named `labby-data` and survives container restarts.
 
-### Change port
+---
+
+## 🔄 Update Existing Installation
+
+From your Labby folder:
+
+```bash
+cd ~/Labby
+git pull
+docker compose down
+docker compose up --build -d
+```
+
+Check running containers:
+
+```bash
+docker compose ps
+```
+
+Full clean rebuild:
+
+```bash
+cd ~/Labby
+git pull
+docker compose down --remove-orphans
+docker compose build --no-cache
+docker compose up -d
+```
+
+---
+
+## 🔌 Change Port
 
 Edit `docker-compose.yml`:
+
 ```yaml
 ports:
   - "9090:80"
 ```
 
 Then restart:
+
 ```bash
 docker compose up --build -d
+```
+
+Open:
+
+```text
+http://localhost:9090
 ```
 
 ---
 
 ## 🧭 Quick Start
 
-1. ➕ Add **Networks** first (subnet, gateway, color)
-2. 🖥️ Add **Hardware**, **VMs** and **LXCs**
-3. ⚙️ Add **Apps** with IP:Port and Web URL
-4. 🔗 Set hosting relationships (VM on Hardware, App on VM/LXC)
-5. 🌳 Open **Tree View** or **Graph** to visualize topology
-6. 🌐 Open **IP View** to see all used IPs sorted by subnet
-7. 💾 Use **Export Config** to back up your data
+1. ➕ Add **Networks** first with subnet, gateway and color
+2. 🖥️ Add **Hardware**, such as router, switch, hypervisor, NAS or backup server
+3. 🧱 Add **VMs** and **LXCs**
+4. ⚙️ Add **Apps** with IP:Port and Web URL
+5. 🔗 Set hosting relationships, for example VM on Hardware or App on VM/LXC
+6. 🌳 Open **Tree View** or **Graph View** to visualize topology
+7. 🗄️ Open **Rack View** and place devices in racks
+8. 🌐 Open **IP View** to see all used IPs sorted by subnet
+9. 🎨 Pick or create a theme
+10. 💾 Use **Export Config** to back up your full setup
 
 > **Tip:** Use custom emojis as icons for devices. Great resource: [semo.lol](https://semo.lol/)
 
@@ -133,15 +275,18 @@ docker compose up --build -d
 ```text
 app/
   index.html          # UI markup
-  styles.css          # Styling and layout
-  script.js           # App logic, rendering, mobile nav
+  styles.css          # Styling, themes, dialogs, mobile layout
+  script.js           # App logic, rendering, graph, rack view, mobile nav
+
 backend/
   server.js           # Express API + JSON file storage
   package.json
   Dockerfile
+
 nginx/
   default.conf        # Reverse proxy /api/* to backend
-Dockerfile            # Frontend (nginx)
+
+Dockerfile            # Frontend nginx container
 docker-compose.yml
 ```
 
@@ -149,9 +294,14 @@ docker-compose.yml
 
 ## 🗄️ Data & Backup
 
-All data is stored in a JSON file inside a named Docker volume (`labby-data`).
+All data is stored in a JSON file inside a named Docker volume:
 
-**Create a backup:**
+```text
+labby-data
+```
+
+### Create a Docker volume backup
+
 ```bash
 docker run --rm \
   -v labby-data:/data \
@@ -159,7 +309,8 @@ docker run --rm \
   alpine tar czf /backup/labby-backup.tar.gz /data
 ```
 
-**Restore from backup:**
+### Restore from backup
+
 ```bash
 docker run --rm \
   -v labby-data:/data \
@@ -167,13 +318,42 @@ docker run --rm \
   alpine tar xzf /backup/labby-backup.tar.gz -C /
 ```
 
+### App-level backup
+
+Inside Labby:
+
+```text
+Config → Export Config
+```
+
+This exports a JSON file containing resources, locations, racks, custom themes and the active theme.
+
+---
+
+## 🧪 Demo Site
+
+The public demo is available here:
+
+```text
+https://www.my-labby.com/
+```
+
+The demo version is intentionally different from the self-hosted main version:
+
+- Demo data is saved in the browser only
+- Demo entries are seeded automatically
+- The tutorial opens automatically on demo load
+- Self-hosting is required for permanent shared storage
+
 ---
 
 ## 📝 Notes
 
-- Data is stored server-side. All browsers and devices share the same data
-- Old localStorage exports (from pre-Next Gen versions) can be imported via Config → Import Config
-- For multi-user or team setups, consider running behind a reverse proxy with authentication
+- Main/self-hosted Labby stores data server-side
+- All browsers and devices connected to the same instance share the same data
+- Old localStorage exports from older Labby versions can be imported via **Config → Import Config**
+- For multi-user or team setups, run Labby behind a reverse proxy with authentication
+- Rack data, custom themes and active theme are included in JSON export/import
 
 ---
 
@@ -181,3 +361,4 @@ docker run --rm \
 
 MIT License  
 © [TechByGiusi](https://techbygiusi.com/)
+
