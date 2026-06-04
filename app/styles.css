@@ -2497,3 +2497,37 @@ dialog[open] {
 .graph-node-label {
   pointer-events: none !important;
 }
+
+
+/* Import Config button: keep the native file input fully hidden.
+   This prevents the browser's "no file selected" text from leaking into the button
+   and keeps the label looking/clicking like a normal Labby button. */
+.file-label {
+  position: relative;
+  overflow: hidden;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 36px;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.file-label input[type="file"] {
+  position: absolute !important;
+  inset: auto !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  pointer-events: none !important;
+}
+
+.file-label:focus-within {
+  outline: 3px solid color-mix(in srgb, var(--line) 68%, white);
+  outline-offset: 2px;
+}
