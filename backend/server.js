@@ -74,6 +74,54 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true });
 });
 
+// Ping endpoint - checks if an IP is reachable
+app.post('/api/ping', (req, res) => {
+  const { ip } = req.body;
+  if (!ip || typeof ip !== 'string') {
+    return res.status(400).json({ error: 'IP address required' });
+  }
+
+  const { exec } = require('child_process');
+  const isWindows = process.platform === 'win32';
+  const pingCmd = isWindows
+    ? `ping -n 1 -w 1000 ${ip}`
+    : `ping -c 1 -W 1000 ${ip}`;
+
+  exec(pingCmd, { timeout: 5000 }, (error) => {
+    if (error) {
+      return res.json({ status: 'offline', ip });
+    }
+    res.json({ status: 'online', ip });
+  });
+});
+
+// URL check endpoint - checks if a URL is reachable with HTTP
+app.post('/api/check-url', (req, res) => {
+  const { url } = req.body;
+  if (!url || typeof url !== 'string') {
+    return res.status(400).json({ error: 'URL required' });
+  }
+
+  const https = url.startsWith('https');
+  const http = require(https ? 'https' : 'http');
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+  const request = http.request(url, { method: 'HEAD', signal: controller.signal }, (response) => {
+    clearTimeout(timeoutId);
+    const isSuccess = response.statusCode >= 200 && response.statusCode < 400;
+    res.json({ status: isSuccess ? 'online' : 'offline', url, statusCode: response.statusCode });
+  });
+
+  request.on('error', () => {
+    clearTimeout(timeoutId);
+    res.json({ status: 'offline', url });
+  });
+
+  request.end();
+});
+
 app.listen(PORT, () => {
   console.log(`Labby backend running on port ${PORT}`);
 });

@@ -92,6 +92,28 @@
               <option value="maintenance">🟡 Maintenance</option>
             </select>
           </label>
+          <label>
+            <input id="live-monitoring" type="checkbox" />
+            Enable Live Monitoring (ping/URL check every 5s)
+          </label>
+          <label id="ip-status-wrap" class="hidden">
+            Live IP Status
+            <select id="ip-status">
+              <option value="">- Not set -</option>
+              <option value="online">🟢 Online</option>
+              <option value="offline">🔴 Offline</option>
+              <option value="maintenance">🟡 Maintenance</option>
+            </select>
+          </label>
+          <label id="url-status-wrap" class="hidden">
+            Live URL Status
+            <select id="url-status">
+              <option value="">- Not set -</option>
+              <option value="online">🟢 Online</option>
+              <option value="offline">🔴 Offline</option>
+              <option value="maintenance">🟡 Maintenance</option>
+            </select>
+          </label>
           <label id="notes-wrap">
             Notes
             <textarea id="notes" rows="3" placeholder="Any details, credentials location, maintenance info..."></textarea>
@@ -405,6 +427,7 @@
         </div>
         <p class="card-desc"></p>
         <span class="card-status"></span>
+        <p class="card-live-status"></p>
         <p class="card-notes"></p>
         <p class="card-ip"></p>
         <p class="card-app"></p>

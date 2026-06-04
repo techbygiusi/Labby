@@ -55,6 +55,11 @@ const hardwareWebUrlWrap = document.getElementById('hardware-web-url-wrap');
 const notesInput = document.getElementById('notes');
 const statusSelect = document.getElementById('status');
 const notesWrap = document.getElementById('notes-wrap');
+const liveMonitoringCheckbox = document.getElementById('live-monitoring');
+const ipStatusSelect = document.getElementById('ip-status');
+const ipStatusWrap = document.getElementById('ip-status-wrap');
+const urlStatusSelect = document.getElementById('url-status');
+const urlStatusWrap = document.getElementById('url-status-wrap');
 const subnetInput = document.getElementById('subnet');
 const gatewayInput = document.getElementById('gateway');
 const colorPicker = document.getElementById('network-color-picker');
@@ -83,6 +88,8 @@ let toastTimer = null;
 let treeViewMode = 'tree';
 let lastTypeSelection = typeSelect.value;
 let lastHardwareKindSelection = hardwareKindSelect.value;
+let pollingInterval = null;
+let pollingData = {}; // Store live status data { itemId: { ipStatus, urlStatus } }
 
 const API_BASE = (() => {
   const loc = window.location;
@@ -156,7 +163,55 @@ applyTypeVisibility();
   locations = loaded.locations || [];
   racks = loaded.racks || [];
   render();
+  startPolling();
 })();
+
+async function startPolling() {
+  if (pollingInterval) clearInterval(pollingInterval);
+  pollingInterval = setInterval(async () => {
+    await pollLiveStatus();
+  }, 5000);
+}
+
+async function pollLiveStatus() {
+  const toMonitor = items.filter((item) => item.liveMonitoring);
+
+  for (const item of toMonitor) {
+    if (item.ip && ['hardware', 'vm', 'lxc'].includes(item.type)) {
+      try {
+        const res = await fetch(`${API_BASE}/api/ping`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip: item.ip.split('/')[0].trim() }),
+        });
+        const data = await res.json();
+        if (!pollingData[item.id]) pollingData[item.id] = {};
+        pollingData[item.id].ipStatus = data.status;
+      } catch (err) {
+        if (!pollingData[item.id]) pollingData[item.id] = {};
+        pollingData[item.id].ipStatus = 'offline';
+      }
+    }
+
+    if (item.webUrl && (item.type === 'app' || item.type === 'hardware')) {
+      try {
+        const res = await fetch(`${API_BASE}/api/check-url`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: item.webUrl }),
+        });
+        const data = await res.json();
+        if (!pollingData[item.id]) pollingData[item.id] = {};
+        pollingData[item.id].urlStatus = data.status;
+      } catch (err) {
+        if (!pollingData[item.id]) pollingData[item.id] = {};
+        pollingData[item.id].urlStatus = 'offline';
+      }
+    }
+  }
+
+  render();
+}
 
 function cleanupDuplicateIds(ids) {
   ids.forEach((id) => {
@@ -183,6 +238,11 @@ function removeDuplicateLabels(matchFn) {
 
 typeSelect.addEventListener('change', applyTypeVisibility);
 hardwareKindSelect.addEventListener('change', applyTypeVisibility);
+liveMonitoringCheckbox.addEventListener('change', applyTypeVisibility);
+ipInput.addEventListener('input', applyTypeVisibility);
+webUrlInput.addEventListener('input', applyTypeVisibility);
+hardwareWebUrlInput.addEventListener('input', applyTypeVisibility);
+ipPortInput.addEventListener('input', applyTypeVisibility);
 addShareBtn.addEventListener('click', () => appendShareRow());
 addRamModuleBtn.addEventListener('click', () => appendRamModuleRow());
 addDiskBtn.addEventListener('click', () => appendDiskRow());
@@ -260,6 +320,9 @@ form.addEventListener('submit', async (event) => {
       : type === 'hardware' && hardwareKind === 'switch'
         ? [...selectedSwitchLinks, ...selectedSwitchDeviceLinks]
         : [],
+    liveMonitoring: liveMonitoringCheckbox.checked,
+    ipStatus: ipStatusSelect.value || '',
+    urlStatus: urlStatusSelect.value || '',
   };
 
   const wasEditing = Boolean(editingId);
@@ -282,6 +345,9 @@ form.addEventListener('submit', async (event) => {
   statusSelect.value = '';
   symbolInput.value = defaultSymbol('hardware', 'server');
   hardwareKindSelect.value = 'server';
+  liveMonitoringCheckbox.checked = false;
+  ipStatusSelect.value = '';
+  urlStatusSelect.value = '';
   resetDynamicHardwareFields();
   setMultiValues(routerSwitches, []);
   setMultiValues(switchLinks, []);
@@ -296,6 +362,9 @@ cancelEditBtn.addEventListener('click', () => {
   form.reset();
   symbolInput.value = defaultSymbol('hardware', 'server');
   hardwareKindSelect.value = 'server';
+  liveMonitoringCheckbox.checked = false;
+  ipStatusSelect.value = '';
+  urlStatusSelect.value = '';
   resetDynamicHardwareFields();
   setMultiValues(routerSwitches, []);
   setMultiValues(switchLinks, []);
@@ -711,6 +780,9 @@ function sanitizeItems(raw) {
       nasRaids: Array.isArray(item.nasRaids)
         ? item.nasRaids.map((raid) => ({ name: String(raid?.name || ''), level: String(raid?.level || 'RAID1'), size: String(raid?.size || '') })).filter((raid) => raid.name || raid.size)
         : [],
+      liveMonitoring: item.liveMonitoring === true,
+      ipStatus: ['', 'online', 'offline', 'maintenance'].includes(item.ipStatus) ? item.ipStatus : '',
+      urlStatus: ['', 'online', 'offline', 'maintenance'].includes(item.urlStatus) ? item.urlStatus : '',
     }));
   return normalizeList(normalized);
 }
@@ -788,6 +860,9 @@ function normalizeList(list) {
     }
     if (!['vm', 'lxc'].includes(next.type) || !hardwareIds.has(next.hostedOn)) next.hostedOn = '';
     if (next.type === 'app' && !hostableAppIds.has(next.appHostedOn)) next.appHostedOn = '';
+    if (!next.liveMonitoring) next.liveMonitoring = false;
+    if (!['', 'online', 'offline', 'maintenance'].includes(next.ipStatus)) next.ipStatus = '';
+    if (!['', 'online', 'offline', 'maintenance'].includes(next.urlStatus)) next.urlStatus = '';
     return next;
   });
 
@@ -895,6 +970,12 @@ function applyTypeVisibility() {
   hardwareWebUrlWrap.classList.toggle('hidden', !isHardware);
   notesWrap.classList.toggle('hidden', !supportsNotes(type));
 
+  const liveMonitoringEnabled = liveMonitoringCheckbox.checked;
+  const hasIp = ipInput.value.trim() || (type === 'app' && ipPortInput.value.trim());
+  const hasUrl = webUrlInput.value.trim() || hardwareWebUrlInput.value.trim();
+  ipStatusWrap.classList.toggle('hidden', !liveMonitoringEnabled || !hasIp);
+  urlStatusWrap.classList.toggle('hidden', !liveMonitoringEnabled || !hasUrl);
+
   subnetInput.required = isNetwork;
   gatewayInput.required = isNetwork;
   switchPortsInput.required = isSwitch;
@@ -976,6 +1057,10 @@ function cardNode(item) {
   setCardText(node, '.card-network', item.type === 'network' ? `Subnet: ${item.subnet} | Gateway: ${item.gateway}` : '');
   setCardText(node, '.card-hosting', hostingLabel(item));
   setCardText(node, '.card-links', connectionLabel(item));
+
+  // Live status display
+  const liveStatusText = buildLiveStatusText(item);
+  setCardText(node, '.card-live-status', liveStatusText);
 
   const badge = node.querySelector('.type-badge');
   if (badge) badge.className = `type-badge ${item.type}`;
@@ -1094,6 +1179,22 @@ function createCardShell() {
 function setCardText(node, selector, value) {
   const target = node.querySelector(selector);
   if (target) target.textContent = value || '';
+}
+
+function buildLiveStatusText(item) {
+  if (!item.liveMonitoring) return '';
+  const parts = [];
+  const liveData = pollingData[item.id] || {};
+  const statusMap = { online: '🟢 Online', offline: '🔴 Offline', maintenance: '🟡 Maintenance' };
+
+  if (item.ip && liveData.ipStatus) {
+    parts.push(`IP: ${statusMap[liveData.ipStatus] || liveData.ipStatus}`);
+  }
+  if (item.webUrl && liveData.urlStatus) {
+    parts.push(`URL: ${statusMap[liveData.urlStatus] || liveData.urlStatus}`);
+  }
+
+  return parts.length ? `Live Status: ${parts.join(' | ')}` : '';
 }
 
 function appDetails(item) {
@@ -1283,6 +1384,10 @@ function startEditing(id) {
 
   if (supportsStorageGroups(item.type, item.hardwareKind) && item.nasRaids?.length) item.nasRaids.forEach((raid) => appendRaidRow(raid));
   else appendRaidRow();
+
+  liveMonitoringCheckbox.checked = item.liveMonitoring || false;
+  ipStatusSelect.value = item.ipStatus || '';
+  urlStatusSelect.value = item.urlStatus || '';
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }

@@ -513,7 +513,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .view-switch { display: inline-flex; border: 2px solid var(--line); border-radius: 10px; padding: 2px; background: var(--panel); gap: 2px; }
 .view-switch .icon-btn { min-height: 30px; padding: 0.2rem 0.55rem; }
 .view-switch .icon-btn.active { background: var(--yellow); color: #111; }
-.tree-content { max-height: 60vh; overflow: auto; font: 600 0.85rem/1.4 'Space Mono', monospace; padding-right: var(--space-1); }
+.tree-content { max-height: min(72vh, 820px); overflow: auto; font: 600 0.85rem/1.4 'Space Mono', monospace; padding-right: var(--space-1); }
 .tree-content.graph-mode { padding-right: 0; overflow: hidden; max-height: min(72vh, 820px); }
 .tree-shell { border: 3px solid var(--line); border-radius: 14px; padding: 0.75rem; background: var(--panel); display: grid; gap: 0.8rem; }
 .tree-content.graph-mode .tree-shell { height: min(68vh, 760px); }
