@@ -2527,3 +2527,39 @@ header.topbar {
   background: transparent !important;
   color: var(--text) !important;
 }
+
+
+/* Fix bottom action position after mobile pointer repair.
+   The previous pointer-events helper accidentally made .bottom-actions relative,
+   which moved the desktop buttons to the lower left inside the page flow. */
+.bottom-actions {
+  position: fixed !important;
+  right: 18px !important;
+  left: auto !important;
+  bottom: 18px !important;
+  z-index: 150 !important;
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+@media (max-width: 1100px) {
+  .bottom-actions {
+    display: none !important;
+  }
+
+  .bottom-nav {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 160 !important;
+  }
+}
+
+@media (min-width: 1101px) {
+  .bottom-actions {
+    display: flex !important;
+  }
+}
