@@ -463,12 +463,17 @@ clearAll.addEventListener('click', async () => {
   if (typeof renderThemeLists === 'function') renderThemeLists();
 });
 
+let themePickerReturnToConfig = false;
+
 document.getElementById('theme-btn').addEventListener('click', () => {
+  themePickerReturnToConfig = true;
   configDialog.close();
-  openThemePicker();
+  openThemePicker({ returnToConfig: true });
 });
-document.getElementById('theme-btn-mobile').addEventListener('click', openThemePicker);
+document.getElementById('theme-btn-mobile').addEventListener('click', () => openThemePicker({ returnToConfig: false }));
 document.querySelectorAll('.theme-tab').forEach(b => b.addEventListener('click', () => switchThemeTab(b.dataset.tab)));
+const themePickerClose = document.getElementById('theme-picker-close');
+if (themePickerClose) themePickerClose.addEventListener('click', () => document.getElementById('theme-picker-dialog').close());
 
 exportBtn.addEventListener('click', () => {
   const config = { items, locations, racks, customThemes: getCustomThemes() };
@@ -2464,9 +2469,7 @@ function editCustomTheme(id) {
   switchThemeTab('customize');
   setTimeout(() => {
     const nameInput = document.getElementById('tb-name');
-    const base = document.getElementById('tb-base');
     if (nameInput) nameInput.value = theme.name || '';
-    if (base) base.value = theme.dark ? 'dark' : 'light';
     Object.entries(theme.vars || {}).forEach(([k,v]) => {
       const el = document.querySelector('[data-var="' + k + '"]');
       if (el) el.value = v;
@@ -2478,23 +2481,12 @@ function renderCustomizeTab() {
   const body = document.getElementById('theme-customize-body');
   if (!body) return;
   const start = currentResolvedVars();
-  const startDark = document.documentElement.hasAttribute('data-dark');
   body.innerHTML = '';
 
   const nameRow = document.createElement('label');
   nameRow.className = 'tb-base-row';
   nameRow.innerHTML = '<span>Name</span><input id="tb-name" type="text" maxlength="24" placeholder="My Theme" value="My Theme" />';
   body.appendChild(nameRow);
-
-  const baseRow = document.createElement('label');
-  baseRow.className = 'tb-base-row';
-  baseRow.innerHTML =
-    '<span>Base mode</span>' +
-    '<select id="tb-base">' +
-      '<option value="light"' + (startDark ? '' : ' selected') + '>Light</option>' +
-      '<option value="dark"' + (startDark ? ' selected' : '') + '>Dark</option>' +
-    '</select>';
-  body.appendChild(baseRow);
 
   const grid = document.createElement('div');
   grid.className = 'tb-grid';
@@ -2514,30 +2506,30 @@ function renderCustomizeTab() {
   const collect = () => {
     const vars = {};
     body.querySelectorAll('input[type="color"]').forEach(inp => { vars[inp.dataset.var] = inp.value; });
-    return { dark: document.getElementById('tb-base').value === 'dark', vars };
+    return { dark: false, vars };
   };
   const preview = () => { const d = collect(); applyPreviewTheme(d.dark, d.vars); };
 
   body.querySelectorAll('input[type="color"]').forEach(inp => inp.addEventListener('input', preview));
-  document.getElementById('tb-base').addEventListener('change', preview);
-
   document.getElementById('tb-save').onclick = () => {
     const d = collect();
     const name = (document.getElementById('tb-name').value || '').trim().slice(0, 24) || 'My Theme';
     const arr = getCustomThemes();
+    let savedThemeId = editingThemeId;
     if (editingThemeId) {
       const idx = arr.findIndex(t => t.id === editingThemeId);
-      if (idx !== -1) arr[idx] = { id: editingThemeId, name, dark: d.dark, vars: d.vars };
+      if (idx !== -1) arr[idx] = { id: editingThemeId, name, dark: false, vars: d.vars };
       editingThemeId = null;
     } else {
-      const theme = { id: 'custom-' + Date.now(), name, dark: d.dark, vars: d.vars };
+      savedThemeId = 'custom-' + Date.now();
+      const theme = { id: savedThemeId, name, dark: false, vars: d.vars };
       arr.push(theme);
     }
     saveCustomThemes(arr);
     themePreviewPrev = null;
     const pv = document.getElementById('preview-theme-style');
     if (pv) pv.textContent = '';
-    setTheme(theme.id);
+    setTheme(savedThemeId || 'light');
     switchThemeTab('themes');
     showToast('Theme saved.');
   };
@@ -2546,6 +2538,8 @@ function renderCustomizeTab() {
 }
 
 function switchThemeTab(tab) {
+  const themeDialog = document.getElementById('theme-picker-dialog');
+  if (themeDialog) themeDialog.classList.toggle('customize-active', tab === 'customize');
   document.querySelectorAll('.theme-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   const tt = document.getElementById('theme-tab-themes');
   const tc = document.getElementById('theme-tab-customize');
@@ -2555,10 +2549,20 @@ function switchThemeTab(tab) {
   else renderCustomizeTab();
 }
 
-function openThemePicker() {
+function openThemePicker(options) {
   const dlg = document.getElementById('theme-picker-dialog');
+  const opts = options || {};
+  themePickerReturnToConfig = !!opts.returnToConfig;
   switchThemeTab('themes');
-  dlg.onclose = () => { clearPreviewTheme(); };
+  dlg.onclose = () => {
+    clearPreviewTheme();
+    editingThemeId = null;
+    const shouldReturn = themePickerReturnToConfig;
+    themePickerReturnToConfig = false;
+    if (shouldReturn && configDialog && !configDialog.open) {
+      configDialog.showModal();
+    }
+  };
   if (typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
 }
 

@@ -503,10 +503,6 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   margin: auto;
   overflow: hidden;
 }
-
-/* Keep native <dialog> close behavior intact.
-   Do not set display:flex on the closed dialog, otherwise close() only
-   removes the open attribute while CSS keeps the popup visible/clickable. */
 .tree-dialog[open] {
   display: flex;
   flex-direction: column;
@@ -522,7 +518,8 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 }
 .tree-head h3 { margin: 0; }
 .tree-dialog .tree-head,
-.tree-dialog .ip-search-bar {
+.tree-dialog .ip-search-bar,
+.tree-dialog .theme-tabs {
   flex: 0 0 auto;
 }
 .tree-head-actions { display: inline-flex; align-items: center; gap: var(--space-2); justify-self: end; }
@@ -2137,4 +2134,20 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   .mobile-fullscreen-dialog::backdrop{
     background:rgba(0,0,0,.45);
   }
+}
+
+/* Theme picker layout fixes */
+.theme-picker-dialog .theme-tab-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+.theme-picker-dialog.customize-active .dialog-footer {
+  display: none;
+}
+.theme-picker-dialog.customize-active .theme-tab-panel {
+  padding-bottom: 0;
+}
+.theme-builder-body {
+  min-height: 0;
 }
