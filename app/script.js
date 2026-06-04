@@ -1,5 +1,7 @@
 const storageKey = 'labby-data-v8';
 const themeKey = 'labby-theme';
+const demoStorageVersionKey = 'labby-demo-storage-version';
+const demoStorageVersion = '2026-graph-demo-mobile-v1';
 const types = ['hardware', 'vm', 'lxc', 'app', 'network'];
 const networkPalette = ['#3b82f6', '#10b981', '#22c55e', '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#a855f7', '#14b8a6', '#84cc16', '#06b6d4', '#8b5cf6'];
 
@@ -141,23 +143,10 @@ symbolInput.value = defaultSymbol('hardware', 'server');
 applyTypeVisibility();
 
 (async () => {
-  const loaded = await loadItemsFromAPI();
-  if (loaded.items && loaded.items.length > 0) {
-    items = sanitizeItems(loaded.items);
-    locations = loaded.locations || [];
-    racks = loaded.racks || [];
-    migrateDemoDataTo192Subnets();
-    ensureDemoRackData();
-    await saveItems();
-  } else {
-    items = sanitizeItems(getDemoItems());
-    locations = getDemoLocations();
-    racks = getDemoRacks();
-    await saveItems();
-  }
+  await seedFullDemoData();
   render();
   startPolling();
-  openTutorial();
+  openDemoTutorialAfterLayout();
 })();
 
 
@@ -197,6 +186,53 @@ function ensureDemoRackData() {
   if (!hasRacks) {
     racks = getDemoRacks();
   }
+}
+
+
+function isDemoDataMissingOrStale(loaded) {
+  const version = localStorage.getItem(demoStorageVersionKey);
+  const loadedItems = Array.isArray(loaded?.items) ? loaded.items : [];
+  const loadedLocations = Array.isArray(loaded?.locations) ? loaded.locations : [];
+  const loadedRacks = Array.isArray(loaded?.racks) ? loaded.racks : [];
+
+  if (version !== demoStorageVersion) return true;
+  if (!loadedItems.length) return true;
+  if (!loadedItems.some((item) => item.id === 'hw-router' || item.id === 'hw-proxmox')) return true;
+  if (!loadedLocations.length) return true;
+  if (!loadedRacks.length) return true;
+  return false;
+}
+
+async function seedFullDemoData({ force = false } = {}) {
+  const loaded = await loadItemsFromAPI();
+
+  if (force || isDemoDataMissingOrStale(loaded)) {
+    items = sanitizeItems(getDemoItems());
+    locations = getDemoLocations();
+    racks = getDemoRacks();
+    migrateDemoDataTo192Subnets();
+    ensureDemoRackData();
+    localStorage.setItem(demoStorageVersionKey, demoStorageVersion);
+    await saveItems();
+    return;
+  }
+
+  items = sanitizeItems(loaded.items);
+  locations = loaded.locations || [];
+  racks = loaded.racks || [];
+  migrateDemoDataTo192Subnets();
+  ensureDemoRackData();
+  localStorage.setItem(demoStorageVersionKey, demoStorageVersion);
+  await saveItems();
+}
+
+function openDemoTutorialAfterLayout() {
+  const open = () => {
+    try {
+      if (typeof openTutorial === 'function') openTutorial();
+    } catch {}
+  };
+  requestAnimationFrame(() => requestAnimationFrame(open));
 }
 
 async function startPolling() {
@@ -499,15 +535,12 @@ clearAll.addEventListener('click', async () => {
 
 async function loadDemoData() {
   if (!confirm('Replace current browser demo data with the default demo entries?')) return;
-  items = sanitizeItems(getDemoItems());
-  locations = getDemoLocations();
-  racks = getDemoRacks();
-  migrateDemoDataTo192Subnets();
+  await seedFullDemoData({ force: true });
   stopEditing();
-  await saveItems();
   showToast('Demo data loaded with sample rack layouts.');
   render();
   if (typeof renderRackOverview === 'function') renderRackOverview();
+  openDemoTutorialAfterLayout();
 }
 
 seedDemo?.addEventListener('click', loadDemoData);
@@ -2906,9 +2939,13 @@ const tutorialSteps = [
 function openTutorial() {
   tutorialStep = 0;
   renderTutorialStep();
-  document.getElementById('welcome-overlay').classList.add('active');
-  document.getElementById('config-dialog').close();
-  hideMobileViews();
+  const overlay = document.getElementById('welcome-overlay');
+  if (overlay) overlay.classList.add('active');
+
+  const cfg = document.getElementById('config-dialog');
+  if (cfg?.open) cfg.close();
+
+  if (typeof hideMobileViews === 'function') hideMobileViews();
 }
 
 function renderTutorialStep() {

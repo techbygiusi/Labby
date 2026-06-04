@@ -2454,3 +2454,76 @@ header.topbar * {
   background: var(--panel) !important;
   color: var(--text) !important;
 }
+
+
+/* Demo mobile repair: hidden panels/overlays must not block taps. */
+.mobile-view:not(.active),
+.rack-overview.hidden,
+.rack-editor.hidden,
+#welcome-overlay:not(.active) {
+  pointer-events: none !important;
+}
+
+#welcome-overlay.active,
+.mobile-view.active,
+dialog[open] {
+  pointer-events: auto !important;
+}
+
+dialog:not([open]) {
+  pointer-events: none !important;
+}
+
+.bottom-nav,
+.bottom-actions,
+.topbar,
+.demo-banner {
+  pointer-events: auto;
+  position: relative;
+}
+
+.bottom-nav {
+  z-index: 160;
+}
+
+.bottom-actions {
+  z-index: 150;
+}
+
+.bottom-nav button,
+.bottom-actions button,
+.mobile-view button,
+.mobile-view a,
+.mobile-view input,
+.mobile-view select,
+.mobile-view textarea,
+.topbar button,
+.demo-banner a {
+  pointer-events: auto;
+  position: relative;
+  z-index: 2;
+}
+
+/* Keep the original split background intact while only the demo banner gets the accent-button color. */
+body {
+  background: var(--bg-bottom);
+}
+
+body::before {
+  background: var(--bg);
+}
+
+.demo-banner {
+  background: var(--yellow) !important;
+  color: #222 !important;
+}
+
+.demo-banner a {
+  color: #222 !important;
+}
+
+.topbar,
+header.topbar {
+  background: transparent !important;
+  color: var(--text) !important;
+}
