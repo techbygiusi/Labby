@@ -1051,8 +1051,10 @@ function cardNode(item) {
   setCardText(node, '.card-links', connectionLabel(item));
 
   // Live status display
-  const liveStatusText = buildLiveStatusText(item);
-  setCardText(node, '.card-live-status', liveStatusText);
+  const liveStatusEl = node.querySelector('.card-live-status');
+  if (liveStatusEl) {
+    liveStatusEl.innerHTML = buildLiveStatusHtml(item);
+  }
 
   const badge = node.querySelector('.type-badge');
   if (badge) badge.className = `type-badge ${item.type}`;
@@ -1173,17 +1175,20 @@ function setCardText(node, selector, value) {
   if (target) target.textContent = value || '';
 }
 
-function buildLiveStatusText(item) {
-  const statusMap = { '': '- Not set -', online: '🟢 Online', offline: '🔴 Offline', maintenance: '🟡 Maintenance', live: '📡 Live' };
+function buildLiveStatusHtml(item) {
+  const statusMap = { online: '🟢', offline: '🔴', maintenance: '🟡', live: '📡' };
+  const statusLabelMap = { online: 'Online', offline: 'Offline', maintenance: 'Maintenance', live: 'Live' };
   const parts = [];
 
   if (item.ipStatus) {
     if (item.ipStatus === 'live') {
       const liveData = liveStatusData[item.id] || {};
       const liveStatus = liveData.ipStatus ? (liveData.ipStatus === 'online' ? '🟢' : '🔴') : '⏳';
-      parts.push(`IP: ${liveStatus} Live`);
+      parts.push(`<span class="status-badge">IP: ${liveStatus} <strong>Live</strong></span>`);
     } else {
-      parts.push(`IP: ${statusMap[item.ipStatus]}`);
+      const icon = statusMap[item.ipStatus] || '⚪';
+      const label = statusLabelMap[item.ipStatus] || item.ipStatus;
+      parts.push(`<span class="status-badge">IP: ${icon} ${label}</span>`);
     }
   }
 
@@ -1191,13 +1196,15 @@ function buildLiveStatusText(item) {
     if (item.urlStatus === 'live') {
       const liveData = liveStatusData[item.id] || {};
       const liveStatus = liveData.urlStatus ? (liveData.urlStatus === 'online' ? '🟢' : '🔴') : '⏳';
-      parts.push(`URL: ${liveStatus} Live`);
+      parts.push(`<span class="status-badge">URL: ${liveStatus} <strong>Live</strong></span>`);
     } else {
-      parts.push(`URL: ${statusMap[item.urlStatus]}`);
+      const icon = statusMap[item.urlStatus] || '⚪';
+      const label = statusLabelMap[item.urlStatus] || item.urlStatus;
+      parts.push(`<span class="status-badge">URL: ${icon} ${label}</span>`);
     }
   }
 
-  return parts.length ? `Status: ${parts.join(' | ')}` : '';
+  return parts.join('');
 }
 
 function appDetails(item) {
