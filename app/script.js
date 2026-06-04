@@ -1747,12 +1747,20 @@ function buildGraphView() {
     node.type = 'button';
     node.className = `graph-node ${item.type}`;
     node.textContent = item.symbol || defaultSymbol(item.type, item.hardwareKind);
+    node.title = `Edit ${item.name}`;
+    node.setAttribute('aria-label', `Edit ${item.name}`);
     node.style.left = `${pos.x}px`;
     node.style.top = `${pos.y}px`;
     node.style.borderColor = networkBorderColor(item) || 'var(--line)';
 
+    const label = document.createElement('span');
+    label.className = 'graph-node-label';
+    label.textContent = item.name;
+    label.style.left = `${pos.x}px`;
+    label.style.top = `${pos.y}px`;
+
     node.addEventListener('mouseenter', (event) => {
-      hoverTip.textContent = item.name;
+      hoverTip.textContent = 'Edit';
       hoverTip.classList.remove('hidden');
       positionGraphTooltip(event, hoverTip, wrap);
     });
@@ -1768,6 +1776,7 @@ function buildGraphView() {
     });
 
     canvas.appendChild(node);
+    canvas.appendChild(label);
   });
 
   const graphBounds = getGraphBounds(positions, graphItems);
@@ -1798,6 +1807,17 @@ function getGraphBounds(positions, graphItems) {
 
   if (!Number.isFinite(minX)) return null;
 
+  const nodePadX = 112;
+  const nodePadTop = 58;
+  const nodePadBottom = 92;
+  minX -= nodePadX;
+  maxX += nodePadX;
+  minY -= nodePadTop;
+  maxY += nodePadBottom;
+
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+
   const xs = [];
   const ys = [];
   graphItems.forEach((item) => {
@@ -1812,7 +1832,7 @@ function getGraphBounds(positions, graphItems) {
   const medianX = xs.length % 2 ? xs[mid] : (xs[mid - 1] + xs[mid]) / 2;
   const medianY = ys.length % 2 ? ys[mid] : (ys[mid - 1] + ys[mid]) / 2;
 
-  return { minX, minY, maxX, maxY, medianX, medianY };
+  return { minX, minY, maxX, maxY, centerX, centerY, medianX, medianY };
 }
 
 function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
@@ -1828,8 +1848,11 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
   }
 
   function centerView() {
-    const defaultPanX = (wrap.clientWidth - width * scale) / 2;
-    const defaultPanY = (wrap.clientHeight - height * scale) / 2;
+    const viewportW = Math.max(1, wrap.clientWidth);
+    const viewportH = Math.max(1, wrap.clientHeight);
+    const defaultPanX = (viewportW - width * scale) / 2;
+    const defaultPanY = (viewportH - height * scale) / 2;
+
     if (!bounds) {
       panX = defaultPanX;
       panY = defaultPanY;
@@ -1837,11 +1860,19 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
       return;
     }
 
-    const focusCenterX = Number.isFinite(bounds.medianX) ? bounds.medianX : (bounds.minX + bounds.maxX) / 2;
-    const focusCenterY = Number.isFinite(bounds.medianY) ? bounds.medianY : (bounds.minY + bounds.maxY) / 2;
+    const graphW = Math.max(1, bounds.maxX - bounds.minX);
+    const graphH = Math.max(1, bounds.maxY - bounds.minY);
+    const fitPadding = 42;
+    const fitScaleX = (viewportW - fitPadding * 2) / graphW;
+    const fitScaleY = (viewportH - fitPadding * 2) / graphH;
 
-    panX = wrap.clientWidth / 2 - focusCenterX * scale;
-    panY = wrap.clientHeight / 2 - focusCenterY * scale;
+    scale = Math.max(0.28, Math.min(1, fitScaleX, fitScaleY));
+
+    const focusCenterX = Number.isFinite(bounds.centerX) ? bounds.centerX : (bounds.minX + bounds.maxX) / 2;
+    const focusCenterY = Number.isFinite(bounds.centerY) ? bounds.centerY : (bounds.minY + bounds.maxY) / 2;
+
+    panX = viewportW / 2 - focusCenterX * scale;
+    panY = viewportH / 2 - focusCenterY * scale;
 
     if (!Number.isFinite(panX)) panX = defaultPanX;
     if (!Number.isFinite(panY)) panY = defaultPanY;
@@ -1857,7 +1888,7 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
     const pointerY = event.clientY - rect.top;
 
     const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;
-    const nextScale = Math.max(0.5, Math.min(2.4, scale * zoomFactor));
+    const nextScale = Math.max(0.28, Math.min(2.4, scale * zoomFactor));
     if (nextScale === scale) return;
 
     const graphX = (pointerX - panX) / scale;

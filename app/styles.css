@@ -2410,3 +2410,39 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Graph View: show names permanently below bubbles and fit the initial view cleanly. */
+.graph-node {
+  z-index: 3;
+}
+
+.graph-node-label {
+  position: absolute;
+  transform: translate(-50%, 30px);
+  z-index: 2;
+  max-width: 150px;
+  color: var(--text);
+  font: 800 0.72rem/1.15 'Space Mono', monospace;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  text-shadow:
+    0 1px 0 var(--panel),
+    1px 0 0 var(--panel),
+    -1px 0 0 var(--panel),
+    0 -1px 0 var(--panel);
+}
+
+.graph-node:hover,
+.graph-node:focus-visible {
+  filter: brightness(0.97);
+  transform: translate(-50%, -50%) scale(1.06);
+}
+
+.graph-tooltip {
+  background: var(--yellow);
+  color: #222;
+  border-color: var(--line);
+}
