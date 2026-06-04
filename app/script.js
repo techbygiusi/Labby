@@ -1830,12 +1830,20 @@ function buildGraphView() {
     node.type = 'button';
     node.className = `graph-node ${item.type}`;
     node.textContent = item.symbol || defaultSymbol(item.type, item.hardwareKind);
+    node.title = `Edit ${item.name}`;
+    node.setAttribute('aria-label', `Edit ${item.name}`);
     node.style.left = `${pos.x}px`;
     node.style.top = `${pos.y}px`;
     node.style.borderColor = networkBorderColor(item) || 'var(--line)';
 
+    const label = document.createElement('span');
+    label.className = 'graph-node-label';
+    label.textContent = item.name;
+    label.style.left = `${pos.x}px`;
+    label.style.top = `${pos.y}px`;
+
     node.addEventListener('mouseenter', (event) => {
-      hoverTip.textContent = item.name;
+      hoverTip.textContent = 'Edit';
       hoverTip.classList.remove('hidden');
       positionGraphTooltip(event, hoverTip, wrap);
     });
@@ -1851,6 +1859,7 @@ function buildGraphView() {
     });
 
     canvas.appendChild(node);
+    canvas.appendChild(label);
   });
 
   const graphBounds = getGraphBounds(positions, graphItems);
@@ -1865,37 +1874,89 @@ function buildGraphView() {
 
 
 function getGraphBounds(positions, graphItems) {
+  const points = graphItems
+    .map((item) => {
+      const pos = positions.get(item.id);
+      if (!pos) return null;
+      return { id: item.id, x: pos.x, y: pos.y };
+    })
+    .filter(Boolean);
+
+  if (!points.length) return null;
+
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
 
-  graphItems.forEach((item) => {
-    const pos = positions.get(item.id);
-    if (!pos) return;
-    minX = Math.min(minX, pos.x);
-    minY = Math.min(minY, pos.y);
-    maxX = Math.max(maxX, pos.x);
-    maxY = Math.max(maxY, pos.y);
+  points.forEach((point) => {
+    minX = Math.min(minX, point.x);
+    minY = Math.min(minY, point.y);
+    maxX = Math.max(maxX, point.x);
+    maxY = Math.max(maxY, point.y);
   });
 
-  if (!Number.isFinite(minX)) return null;
+  const sortedX = points.map((point) => point.x).sort((a, b) => a - b);
+  const sortedY = points.map((point) => point.y).sort((a, b) => a - b);
+  const quantile = (values, q) => {
+    if (!values.length) return 0;
+    const idx = Math.min(values.length - 1, Math.max(0, Math.round((values.length - 1) * q)));
+    return values[idx];
+  };
 
-  const xs = [];
-  const ys = [];
-  graphItems.forEach((item) => {
-    const pos = positions.get(item.id);
-    if (!pos) return;
-    xs.push(pos.x);
-    ys.push(pos.y);
-  });
-  xs.sort((a, b) => a - b);
-  ys.sort((a, b) => a - b);
-  const mid = Math.floor(xs.length / 2);
-  const medianX = xs.length % 2 ? xs[mid] : (xs[mid - 1] + xs[mid]) / 2;
-  const medianY = ys.length % 2 ? ys[mid] : (ys[mid - 1] + ys[mid]) / 2;
+  const medianY = quantile(sortedY, 0.5);
 
-  return { minX, minY, maxX, maxY, medianX, medianY };
+  // Focus on the area where most components are, not on long outlier branches.
+  // The graph still stays pannable, but the initial viewport starts on the useful cluster.
+  const lowerOrEqualNodes = points.filter((point) => point.y >= medianY - 4);
+  const clusterCandidates = lowerOrEqualNodes.length >= Math.max(4, Math.floor(points.length * 0.35))
+    ? lowerOrEqualNodes
+    : points;
+
+  function densestWindow(nodes, ratio = 0.72) {
+    const sorted = [...nodes].sort((a, b) => a.x - b.x);
+    if (sorted.length <= 2) return sorted;
+    const count = Math.max(2, Math.ceil(sorted.length * ratio));
+    let bestStart = 0;
+    let bestSpan = Infinity;
+    for (let i = 0; i <= sorted.length - count; i++) {
+      const span = sorted[i + count - 1].x - sorted[i].x;
+      if (span < bestSpan) {
+        bestSpan = span;
+        bestStart = i;
+      }
+    }
+    return sorted.slice(bestStart, bestStart + count);
+  }
+
+  const denseCluster = densestWindow(clusterCandidates, 0.72);
+  const focusXs = denseCluster.map((point) => point.x).sort((a, b) => a - b);
+  const focusYs = denseCluster.map((point) => point.y).sort((a, b) => a - b);
+
+  const focusMinX = Math.min(...focusXs);
+  const focusMaxX = Math.max(...focusXs);
+  const focusMinY = Math.min(...focusYs);
+  const focusMaxY = Math.max(...focusYs);
+
+  const focusCenterX = (focusMinX + focusMaxX) / 2;
+  const focusCenterY = (focusMinY + focusMaxY) / 2;
+
+  const nodePadX = 132;
+  const nodePadTop = 84;
+  const nodePadBottom = 118;
+
+  return {
+    minX: minX - nodePadX,
+    minY: minY - nodePadTop,
+    maxX: maxX + nodePadX,
+    maxY: maxY + nodePadBottom,
+    focusMinX: focusMinX - nodePadX,
+    focusMinY: focusMinY - nodePadTop,
+    focusMaxX: focusMaxX + nodePadX,
+    focusMaxY: focusMaxY + nodePadBottom,
+    focusCenterX,
+    focusCenterY,
+  };
 }
 
 function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
@@ -1911,8 +1972,11 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
   }
 
   function centerView() {
-    const defaultPanX = (wrap.clientWidth - width * scale) / 2;
-    const defaultPanY = (wrap.clientHeight - height * scale) / 2;
+    const viewportW = Math.max(1, wrap.clientWidth);
+    const viewportH = Math.max(1, wrap.clientHeight);
+    const defaultPanX = (viewportW - width * scale) / 2;
+    const defaultPanY = (viewportH - height * scale) / 2;
+
     if (!bounds) {
       panX = defaultPanX;
       panY = defaultPanY;
@@ -1920,11 +1984,23 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
       return;
     }
 
-    const focusCenterX = Number.isFinite(bounds.medianX) ? bounds.medianX : (bounds.minX + bounds.maxX) / 2;
-    const focusCenterY = Number.isFinite(bounds.medianY) ? bounds.medianY : (bounds.minY + bounds.maxY) / 2;
+    const focusW = Math.max(1, (bounds.focusMaxX || bounds.maxX) - (bounds.focusMinX || bounds.minX));
+    const focusH = Math.max(1, (bounds.focusMaxY || bounds.maxY) - (bounds.focusMinY || bounds.minY));
+    const fitPadding = 64;
 
-    panX = wrap.clientWidth / 2 - focusCenterX * scale;
-    panY = wrap.clientHeight / 2 - focusCenterY * scale;
+    const fitScaleX = (viewportW - fitPadding * 2) / focusW;
+    const fitScaleY = (viewportH - fitPadding * 2) / focusH;
+    scale = Math.max(0.22, Math.min(1, fitScaleX, fitScaleY));
+
+    const focusCenterX = Number.isFinite(bounds.focusCenterX)
+      ? bounds.focusCenterX
+      : (bounds.minX + bounds.maxX) / 2;
+    const focusCenterY = Number.isFinite(bounds.focusCenterY)
+      ? bounds.focusCenterY
+      : (bounds.minY + bounds.maxY) / 2;
+
+    panX = viewportW / 2 - focusCenterX * scale;
+    panY = viewportH / 2 - focusCenterY * scale;
 
     if (!Number.isFinite(panX)) panX = defaultPanX;
     if (!Number.isFinite(panY)) panY = defaultPanY;
@@ -1932,6 +2008,13 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
   }
 
   centerView();
+  requestAnimationFrame(centerView);
+  if (window.ResizeObserver) {
+    const graphResizeObserver = new ResizeObserver(() => centerView());
+    graphResizeObserver.observe(wrap);
+  } else {
+    window.addEventListener('resize', centerView, { passive: true });
+  }
 
   wrap.addEventListener('wheel', (event) => {
     event.preventDefault();
@@ -1940,7 +2023,7 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
     const pointerY = event.clientY - rect.top;
 
     const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;
-    const nextScale = Math.max(0.5, Math.min(2.4, scale * zoomFactor));
+    const nextScale = Math.max(0.22, Math.min(2.4, scale * zoomFactor));
     if (nextScale === scale) return;
 
     const graphX = (pointerX - panX) / scale;

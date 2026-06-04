@@ -2597,3 +2597,96 @@ header.topbar {
   outline: 3px solid color-mix(in srgb, var(--line) 68%, white);
   outline-offset: 2px;
 }
+
+/* Graph View: show names permanently below bubbles and fit the initial view cleanly. */
+.graph-node {
+  z-index: 3;
+}
+
+.graph-node-label {
+  position: absolute;
+  transform: translate(-50%, 30px);
+  z-index: 2;
+  max-width: 150px;
+  color: var(--text);
+  font: 800 0.72rem/1.15 'Space Mono', monospace;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  text-shadow:
+    0 1px 0 var(--panel),
+    1px 0 0 var(--panel),
+    -1px 0 0 var(--panel),
+    0 -1px 0 var(--panel);
+}
+
+.graph-node:hover,
+.graph-node:focus-visible {
+  filter: brightness(0.97);
+  transform: translate(-50%, -50%) scale(1.06);
+}
+
+.graph-tooltip {
+  background: var(--yellow);
+  color: #222;
+  border-color: var(--line);
+}
+
+/* Mobile click safety: hidden views/overlays must not block buttons. */
+.mobile-view:not(.active),
+.rack-overview.hidden,
+.rack-editor.hidden,
+#welcome-overlay:not(.active) {
+  pointer-events: none !important;
+}
+
+.mobile-view.active {
+  pointer-events: auto;
+}
+
+.bottom-nav,
+.bottom-actions {
+  pointer-events: auto;
+  z-index: 120;
+}
+
+.bottom-nav button,
+.bottom-actions button,
+.mobile-view button,
+.mobile-view a,
+.mobile-view input,
+.mobile-view select,
+.mobile-view textarea {
+  pointer-events: auto;
+  position: relative;
+  z-index: 2;
+}
+
+dialog:not([open]) {
+  pointer-events: none !important;
+}
+
+dialog[open] {
+  pointer-events: auto;
+}
+
+
+/* Demo graph sync safety: match Main graph labels and mobile tap behavior. */
+.graph-node-label {
+  pointer-events: none !important;
+}
+
+dialog:not([open]),
+.mobile-view:not(.active),
+.rack-overview.hidden,
+.rack-editor.hidden,
+#welcome-overlay:not(.active) {
+  pointer-events: none !important;
+}
+
+dialog[open],
+.mobile-view.active,
+#welcome-overlay.active {
+  pointer-events: auto !important;
+}
