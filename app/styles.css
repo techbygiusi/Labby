@@ -2141,35 +2141,6 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 }
 
 
-/* Config dialog: use the full popup height instead of leaving a large empty area. */
-#config-dialog .note,
-#config-dialog .stack {
-  flex: 0 0 auto;
-}
-
-#config-dialog .stack {
-  gap: 0.7rem;
-}
-
-#config-dialog .legend {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  align-content: start;
-  gap: 0.65rem;
-  margin-top: 0.8rem;
-}
-
-#config-dialog .legend p {
-  min-height: 52px;
-  margin: 0;
-  padding: 0.55rem 0.65rem;
-  border: 2px solid var(--line);
-  border-radius: 10px;
-  background: var(--card);
-}
-
 /* Keep exactly five large theme cards per row on desktop. */
 .theme-picker-dialog #theme-tab-themes {
   padding-right: 0.2rem;
@@ -2308,6 +2279,134 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 
 @media (max-width: 560px) {
   .theme-color-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* Config dialog: fill empty space with inline tutorial content. */
+#config-dialog .note,
+#config-dialog .stack {
+  flex: 0 0 auto;
+}
+
+#config-dialog .stack {
+  gap: 0.7rem;
+}
+
+#config-dialog .config-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.85rem;
+  margin-top: 0.85rem;
+}
+
+#config-dialog .legend {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-content: start;
+  gap: 0.65rem;
+  margin: 0;
+}
+
+#config-dialog .legend p {
+  min-height: 52px;
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.config-tutorial {
+  min-height: 0;
+  border: 3px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  padding: 0.85rem;
+  overflow: auto;
+}
+
+.config-tutorial h4 {
+  margin: 0 0 0.75rem;
+  font: 900 1rem/1.2 'Space Mono', monospace;
+  color: var(--text);
+}
+
+.config-tutorial-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.config-tutorial article {
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.8rem;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+.config-tutorial strong {
+  font: 900 0.82rem/1.25 'Space Mono', monospace;
+  color: var(--text);
+}
+
+.config-tutorial span {
+  font: 700 0.74rem/1.45 'Space Mono', monospace;
+  color: var(--muted);
+}
+
+/* Theme dialog: keep the active tab scrollable and the Close button pinned to the bottom. */
+.theme-picker-dialog[open] {
+  overflow: hidden;
+}
+
+.theme-picker-dialog .theme-tab-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
+.theme-picker-dialog .dialog-footer {
+  margin-top: auto;
+}
+
+.theme-picker-dialog #theme-tab-themes {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
+/* Keep exactly five large theme cards per row on desktop. */
+.theme-picker-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+@media (max-width: 1100px) {
+  .config-tutorial-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .theme-picker-grid,
+  #config-dialog .legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .theme-picker-grid,
+  #config-dialog .legend,
+  .config-tutorial-grid {
     grid-template-columns: 1fr;
   }
 }

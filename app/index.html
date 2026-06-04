@@ -371,17 +371,41 @@
           <input id="import-file" type="file" accept="application/json" />
         </label>
         <button id="clear-all" class="button danger" type="button">Clear All</button>
-        <div class="config-btn-row">
-          <button id="theme-btn" class="button secondary" type="button">🎨 Themes</button>
-          <button id="show-tutorial-btn" class="button secondary" type="button">📖 Tutorial</button>
-        </div>
+        <button id="theme-btn" class="button secondary" type="button">🎨 Themes</button>
       </div>
-      <div class="legend">
-        <p><span class="dot hardware"></span> Hardware</p>
-        <p><span class="dot vm"></span> VM</p>
-        <p><span class="dot lxc"></span> LXC</p>
-        <p><span class="dot app"></span> App</p>
-        <p><span class="dot network"></span> Network</p>
+      <div class="config-content">
+        <div class="legend">
+          <p><span class="dot hardware"></span> Hardware</p>
+          <p><span class="dot vm"></span> VM</p>
+          <p><span class="dot lxc"></span> LXC</p>
+          <p><span class="dot app"></span> App</p>
+          <p><span class="dot network"></span> Network</p>
+        </div>
+        <section class="config-tutorial" aria-label="Quick tutorial">
+          <h4>Quick Tutorial</h4>
+          <div class="config-tutorial-grid">
+            <article>
+              <strong>1. Add resources</strong>
+              <span>Create hardware, VMs, LXCs, apps and networks from the form.</span>
+            </article>
+            <article>
+              <strong>2. Connect services</strong>
+              <span>Use hosted-on and connection fields to build your homelab map.</span>
+            </article>
+            <article>
+              <strong>3. Check IP View</strong>
+              <span>Find used IPs by subnet, hostname or port without digging through cards.</span>
+            </article>
+            <article>
+              <strong>4. Use Tree / Graph</strong>
+              <span>Visualize relationships between hardware, guests, apps and networks.</span>
+            </article>
+            <article>
+              <strong>5. Backup config</strong>
+              <span>Export and import JSON backups including the active theme.</span>
+            </article>
+          </div>
+        </section>
       </div>
       <div class="dialog-footer">
         <button class="button secondary" onclick="document.getElementById('config-dialog').close()">✕ Close</button>

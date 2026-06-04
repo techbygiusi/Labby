@@ -475,8 +475,35 @@ document.querySelectorAll('.theme-tab').forEach(b => b.addEventListener('click',
 const themePickerClose = document.getElementById('theme-picker-close');
 if (themePickerClose) themePickerClose.addEventListener('click', () => document.getElementById('theme-picker-dialog').close());
 
+function getActiveThemeId() {
+  return document.documentElement.dataset.theme || localStorage.getItem(themeKey) || 'light';
+}
+
+function buildConfigExport() {
+  return {
+    items,
+    locations,
+    racks,
+    customThemes: getCustomThemes(),
+    activeTheme: getActiveThemeId(),
+    theme: getActiveThemeId(),
+  };
+}
+
+function applyImportedThemeFromConfig(parsed) {
+  const importedTheme = parsed && (parsed.activeTheme || parsed.theme);
+  if (!importedTheme) return;
+  const validThemes = [
+    ...presetThemes.map(t => t.id),
+    ...getCustomThemes().map(t => t.id),
+  ];
+  if (validThemes.includes(importedTheme)) {
+    setTheme(importedTheme);
+  }
+}
+
 exportBtn.addEventListener('click', () => {
-  const config = { items, locations, racks, customThemes: getCustomThemes() };
+  const config = buildConfigExport();
   const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -501,6 +528,7 @@ importFile.addEventListener('change', async (event) => {
       locations = Array.isArray(parsed.locations) ? parsed.locations : [];
       racks     = Array.isArray(parsed.racks)     ? parsed.racks     : [];
       if (Array.isArray(parsed.customThemes)) importCustomThemes(parsed.customThemes);
+      applyImportedThemeFromConfig(parsed);
     }
     stopEditing();
     await saveItems();
@@ -2750,7 +2778,7 @@ function renderIPInto(container, query) {
 
 const exportBtnMobile = document.getElementById('export-btn-mobile');
 if (exportBtnMobile) exportBtnMobile.addEventListener('click', () => {
-  const config = { items, locations, racks, customThemes: getCustomThemes() };
+  const config = buildConfigExport();
   const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -2775,6 +2803,7 @@ if (importFileMobile) importFileMobile.addEventListener('change', async (event) 
       locations = Array.isArray(parsed.locations) ? parsed.locations : [];
       racks     = Array.isArray(parsed.racks)     ? parsed.racks     : [];
       if (Array.isArray(parsed.customThemes)) importCustomThemes(parsed.customThemes);
+      applyImportedThemeFromConfig(parsed);
     }
     stopEditing();
     await saveItems();
@@ -2873,8 +2902,8 @@ document.getElementById('welcome-overlay').addEventListener('click', (e) => {
   if (e.target === document.getElementById('welcome-overlay')) closeTutorial();
 });
 
-document.getElementById('show-tutorial-btn').addEventListener('click', openTutorial);
-document.getElementById('show-tutorial-btn-mobile').addEventListener('click', openTutorial);
+document.getElementById('show-tutorial-btn')?.addEventListener('click', openTutorial);
+document.getElementById('show-tutorial-btn-mobile')?.addEventListener('click', openTutorial);
 
 /* ================================================================
    RACK FEATURE
