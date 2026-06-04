@@ -503,6 +503,10 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   margin: auto;
   overflow: hidden;
 }
+
+/* Keep native <dialog> close behavior intact.
+   Do not set display:flex on the closed dialog, otherwise close() only
+   removes the open attribute while CSS keeps the popup visible/clickable. */
 .tree-dialog[open] {
   display: flex;
   flex-direction: column;
@@ -518,8 +522,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 }
 .tree-head h3 { margin: 0; }
 .tree-dialog .tree-head,
-.tree-dialog .ip-search-bar,
-.tree-dialog .theme-tabs {
+.tree-dialog .ip-search-bar {
   flex: 0 0 auto;
 }
 .tree-head-actions { display: inline-flex; align-items: center; gap: var(--space-2); justify-self: end; }
@@ -2013,16 +2016,17 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 
 .theme-picker-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
-  gap: 0.6rem;
-  margin-top: 0.4rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-top: 0.5rem;
 }
 .theme-swatch {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  padding: 0.45rem;
+  gap: 0.55rem;
+  padding: 0.65rem;
+  min-height: 92px;
   border: 2px solid var(--line);
   border-radius: 12px;
   background: var(--panel);
@@ -2037,16 +2041,16 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 46px;
+  height: 58px;
   border: 2px solid var(--line);
   border-radius: 8px;
 }
 .theme-swatch-preview .tsc {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   border-radius: 999px;
   border: 2px solid var(--line);
-  margin-left: -7px;
+  margin-left: -8px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 .theme-swatch-preview .tsc:first-child { margin-left: 0; }
@@ -2136,18 +2140,174 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   }
 }
 
-/* Theme picker layout fixes */
-.theme-picker-dialog .theme-tab-panel {
+
+/* Config dialog: use the full popup height instead of leaving a large empty area. */
+#config-dialog .note,
+#config-dialog .stack {
+  flex: 0 0 auto;
+}
+
+#config-dialog .stack {
+  gap: 0.7rem;
+}
+
+#config-dialog .legend {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-content: start;
+  gap: 0.65rem;
+  margin-top: 0.8rem;
 }
-.theme-picker-dialog.customize-active .dialog-footer {
-  display: none;
+
+#config-dialog .legend p {
+  min-height: 52px;
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
 }
-.theme-picker-dialog.customize-active .theme-tab-panel {
-  padding-bottom: 0;
+
+/* Keep exactly five large theme cards per row on desktop. */
+.theme-picker-dialog #theme-tab-themes {
+  padding-right: 0.2rem;
 }
-.theme-builder-body {
+
+@media (max-width: 900px) {
+  .theme-picker-grid,
+  #config-dialog .legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .theme-picker-grid,
+  #config-dialog .legend {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* Custom theme editor: fill the dialog with a balanced card layout. */
+.theme-custom-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-rows: auto 1fr;
+  gap: 1rem;
+  align-items: stretch;
   min-height: 0;
+  height: 100%;
+}
+
+.theme-custom-wrap .theme-name-field {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+}
+
+.theme-custom-wrap .theme-color-grid {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+}
+
+.theme-custom-wrap .theme-actions {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: start;
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.theme-custom-wrap .theme-actions::before {
+  content: "Preview";
+  font-weight: 900;
+  letter-spacing: 0.03em;
+}
+
+.theme-custom-wrap .theme-actions::after {
+  content: "";
+  display: block;
+  height: 120px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, var(--accent) 0 28%, transparent 28%),
+    linear-gradient(180deg, var(--panel) 0 52%, var(--info) 52% 100%);
+  box-shadow: inset 0 0 0 8px var(--bg);
+}
+
+.theme-color-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  gap: 0.85rem;
+  align-content: start;
+}
+
+.theme-color-field {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr);
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 72px;
+  padding: 0.65rem;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+.theme-color-field input[type="color"] {
+  width: 62px;
+  height: 48px;
+  padding: 3px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  cursor: pointer;
+}
+
+.theme-color-field span,
+.theme-color-field label,
+.theme-color-field .theme-color-label {
+  line-height: 1.2;
+}
+
+.theme-custom-wrap .theme-name-field input,
+.theme-custom-wrap .theme-actions .primary-btn {
+  width: 100%;
+}
+
+@media (min-width: 1200px) {
+  .theme-color-grid {
+    grid-template-columns: repeat(5, minmax(160px, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .theme-custom-wrap {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+
+  .theme-custom-wrap .theme-name-field,
+  .theme-custom-wrap .theme-color-grid,
+  .theme-custom-wrap .theme-actions {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .theme-color-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .theme-color-grid {
+    grid-template-columns: 1fr;
+  }
 }
