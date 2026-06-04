@@ -172,38 +172,72 @@ async function startPolling() {
   }, 5000);
 }
 
+function extractHostForLiveCheck(item) {
+  const raw = item?.type === 'app'
+    ? (item.ipPort || item.ip || item.webUrl || '')
+    : (item.ip || item.webUrl || '');
+
+  if (!raw || typeof raw !== 'string') return '';
+
+  const value = raw.trim();
+  if (!value) return '';
+
+  try {
+    const withProtocol = /^https?:\/\//i.test(value) ? value : `http://${value}`;
+    const parsed = new URL(withProtocol);
+    return parsed.hostname.replace(/^\[|\]$/g, '');
+  } catch {
+    return value
+      .replace(/^https?:\/\//i, '')
+      .replace(/^\[/, '')
+      .split(']')[0]
+      .split('/')[0]
+      .split(':')[0]
+      .trim();
+  }
+}
+
+function normalizeUrlForLiveCheck(value) {
+  if (!value || typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
+}
+
 async function pollLiveStatus() {
   const toMonitor = items.filter((item) => item.ipStatus === 'live' || item.urlStatus === 'live');
 
   for (const item of toMonitor) {
-    if (item.ipStatus === 'live' && item.ip && ['hardware', 'vm', 'lxc'].includes(item.type)) {
+    if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
+
+    const pingHost = extractHostForLiveCheck(item);
+
+    if (item.ipStatus === 'live' && pingHost && ['hardware', 'vm', 'lxc', 'app'].includes(item.type)) {
       try {
         const res = await fetch(`${API_BASE}/api/ping`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ip: item.ip.split('/')[0].trim() }),
+          body: JSON.stringify({ ip: pingHost }),
         });
         const data = await res.json();
-        if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
         liveStatusData[item.id].ipStatus = data.status;
       } catch (err) {
-        if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
         liveStatusData[item.id].ipStatus = 'offline';
       }
     }
 
-    if (item.urlStatus === 'live' && item.webUrl && (item.type === 'app' || item.type === 'hardware')) {
+    const urlToCheck = normalizeUrlForLiveCheck(item.webUrl || (item.type === 'app' ? item.ipPort : ''));
+
+    if (item.urlStatus === 'live' && urlToCheck && (item.type === 'app' || item.type === 'hardware')) {
       try {
         const res = await fetch(`${API_BASE}/api/check-url`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: item.webUrl }),
+          body: JSON.stringify({ url: urlToCheck }),
         });
         const data = await res.json();
-        if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
         liveStatusData[item.id].urlStatus = data.status;
       } catch (err) {
-        if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
         liveStatusData[item.id].urlStatus = 'offline';
       }
     }
