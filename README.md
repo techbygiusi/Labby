@@ -69,7 +69,7 @@ Self-host it with Docker and keep your homelab map available from every browser 
 - 🧭 **Config tutorial** built directly into the Config dialog
 - 🗄️ **Persistent server-side storage** saved in JSON on the backend and shared across browsers/devices
 
-<img width="3840" height="2160" alt="Labby" src="https://github.com/user-attachments/assets/8273d09a-2548-46c6-960e-9c30dc4db392" />
+<img width="3840" height="2160" alt="Labby" src="https://github.com/user-attachments/assets/00ac2519-b25b-447f-bc51-a2aab0a66cfe" />
 
 ---
 
