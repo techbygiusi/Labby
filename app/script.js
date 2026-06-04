@@ -373,6 +373,8 @@ searchInput.addEventListener('input', render);
 filterType.addEventListener('change', render);
 
 treeToggle.addEventListener('click', () => {
+  if (ipDialog.open) ipDialog.close();
+  if (configDialog.open) configDialog.close();
   setTreeMode(treeViewMode);
   treeDialog.showModal();
 });
@@ -384,6 +386,8 @@ const ipContent = document.getElementById('ip-content');
 const ipSearch = document.getElementById('ip-search');
 
 ipToggle.addEventListener('click', () => {
+  if (treeDialog.open) treeDialog.close();
+  if (configDialog.open) configDialog.close();
   renderIPView();
   ipDialog.showModal();
 });
@@ -442,7 +446,11 @@ function highlightMatch(text, query) {
 }
 
 
-configToggle.addEventListener('click', () => configDialog.showModal());
+configToggle.addEventListener('click', () => {
+  if (treeDialog.open) treeDialog.close();
+  if (ipDialog.open) ipDialog.close();
+  configDialog.showModal();
+});
 
 clearAll.addEventListener('click', async () => {
   if (!confirm('Delete all resources? This also clears all rack, location and custom theme data.')) return;
