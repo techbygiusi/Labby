@@ -2426,3 +2426,70 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+
+/* Demo banner/header: use the same colors as the accent buttons. */
+.demo-banner,
+.top-banner,
+.site-banner,
+.app-banner,
+.hero-banner,
+.page-banner,
+.header-banner,
+.nav-banner,
+.promo-banner,
+.demo-notice,
+.demo-header,
+.app-header,
+.main-header,
+.topbar,
+.top-bar,
+header[role="banner"] {
+  background: var(--accent) !important;
+  color: var(--accent-text, var(--text)) !important;
+  border-color: var(--line) !important;
+}
+
+.demo-banner *,
+.top-banner *,
+.site-banner *,
+.app-banner *,
+.hero-banner *,
+.page-banner *,
+.header-banner *,
+.nav-banner *,
+.promo-banner *,
+.demo-notice *,
+.demo-header *,
+.app-header *,
+.main-header *,
+.topbar *,
+.top-bar *,
+header[role="banner"] * {
+  color: inherit;
+}
+
+.demo-banner .button,
+.top-banner .button,
+.site-banner .button,
+.app-banner .button,
+.hero-banner .button,
+.page-banner .button,
+.header-banner .button,
+.nav-banner .button,
+.promo-banner .button,
+.demo-notice .button,
+.demo-header .button,
+.app-header .button,
+.main-header .button,
+.topbar .button,
+.top-bar .button,
+header[role="banner"] .button {
+  background: var(--accent) !important;
+  color: var(--accent-text, var(--text)) !important;
+}
+
+/* Fallback for the thin top strip if the banner is implemented as a body pseudo/header line. */
+body::before {
+  background: var(--accent);
+}

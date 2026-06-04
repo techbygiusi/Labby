@@ -146,6 +146,8 @@ applyTypeVisibility();
     items = sanitizeItems(loaded.items);
     locations = loaded.locations || [];
     racks = loaded.racks || [];
+    ensureDemoRackData();
+    await saveItems();
   } else {
     items = sanitizeItems(getDemoItems());
     locations = getDemoLocations();
@@ -156,6 +158,19 @@ applyTypeVisibility();
   startPolling();
   openTutorial();
 })();
+
+function ensureDemoRackData() {
+  const hasLocations = Array.isArray(locations) && locations.length > 0;
+  const hasRacks = Array.isArray(racks) && racks.length > 0;
+
+  if (!hasLocations) {
+    locations = getDemoLocations();
+  }
+
+  if (!hasRacks) {
+    racks = getDemoRacks();
+  }
+}
 
 async function startPolling() {
   if (pollingInterval) clearInterval(pollingInterval);
@@ -455,15 +470,16 @@ clearAll.addEventListener('click', async () => {
   if (typeof renderThemeLists === 'function') renderThemeLists();
 });
 
-function loadDemoData() {
+async function loadDemoData() {
   if (!confirm('Replace current browser demo data with the default demo entries?')) return;
   items = sanitizeItems(getDemoItems());
   locations = getDemoLocations();
   racks = getDemoRacks();
   stopEditing();
-  saveItems();
+  await saveItems();
   showToast('Demo data loaded with sample rack layouts.');
   render();
+  if (typeof renderRackOverview === 'function') renderRackOverview();
 }
 
 seedDemo?.addEventListener('click', loadDemoData);
@@ -2996,8 +3012,10 @@ function showRackOverlay(id) {
 
 // ---- Main toggle ----
 if (rackToggleBtn) {
-  rackToggleBtn.addEventListener('click', () => {
+  rackToggleBtn.addEventListener('click', async () => {
     if (isMobile()) { showToast('Rack View ist nur auf dem Desktop verfügbar.', 'error'); return; }
+    ensureDemoRackData();
+    await saveItems();
     renderRackOverview();
     showRackOverlay('rack-overview');
   });
