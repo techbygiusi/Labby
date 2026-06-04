@@ -2446,3 +2446,54 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   color: #222;
   border-color: var(--line);
 }
+
+
+/* Graph View: center around the dense component group and keep labels readable. */
+.graph-node-label {
+  max-width: 160px;
+  line-height: 1.15;
+}
+
+
+/* Mobile click safety: hidden views/overlays must not block buttons. */
+.mobile-view:not(.active),
+.rack-overview.hidden,
+.rack-editor.hidden,
+#welcome-overlay:not(.active) {
+  pointer-events: none !important;
+}
+
+.mobile-view.active {
+  pointer-events: auto;
+}
+
+.bottom-nav,
+.bottom-actions {
+  pointer-events: auto;
+  z-index: 120;
+}
+
+.bottom-nav button,
+.bottom-actions button,
+.mobile-view button,
+.mobile-view a,
+.mobile-view input,
+.mobile-view select,
+.mobile-view textarea {
+  pointer-events: auto;
+  position: relative;
+  z-index: 2;
+}
+
+dialog:not([open]) {
+  pointer-events: none !important;
+}
+
+dialog[open] {
+  pointer-events: auto;
+}
+
+/* Graph View: labels are visual only and the initial view centers on the dense node cluster. */
+.graph-node-label {
+  pointer-events: none !important;
+}
