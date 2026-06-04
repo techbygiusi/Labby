@@ -35,7 +35,6 @@
       </div>
       <div class="topbar-actions">
         <button id="config-toggle" class="button secondary" type="button">⚙️ Config</button>
-        <button id="theme-toggle" class="button secondary" aria-label="Toggle theme">🌙 Dark</button>
       </div>
     </header>
 
@@ -92,6 +91,26 @@
               <option value="online">🟢 Online</option>
               <option value="offline">🔴 Offline</option>
               <option value="maintenance">🟡 Maintenance</option>
+            </select>
+          </label>
+          <label id="ip-status-wrap" class="hidden">
+            IP Status
+            <select id="ip-status">
+              <option value="">- Not set -</option>
+              <option value="online">🟢 Online</option>
+              <option value="offline">🔴 Offline</option>
+              <option value="maintenance">🟡 Maintenance</option>
+              <option value="live">📡 Live (auto-ping)</option>
+            </select>
+          </label>
+          <label id="url-status-wrap" class="hidden">
+            URL Status
+            <select id="url-status">
+              <option value="">- Not set -</option>
+              <option value="online">🟢 Online</option>
+              <option value="offline">🔴 Offline</option>
+              <option value="maintenance">🟡 Maintenance</option>
+              <option value="live">📡 Live (auto-check)</option>
             </select>
           </label>
           <label id="notes-wrap">
@@ -195,7 +214,6 @@
       <section class="phone panel-center">
         <div class="panel-head">
           <h2>Topology</h2>
-          <button id="seed-demo" class="button secondary" type="button">Load Demo</button>
         </div>
         <div class="filters">
           <input id="search" type="search" placeholder="Search..." />
@@ -219,6 +237,7 @@
     <div class="bottom-actions">
       <button id="ip-toggle" class="ip-toggle" type="button">🌐 IP View</button>
       <button id="tree-toggle" class="tree-toggle" type="button">🌳 Tree View</button>
+      <button id="rack-toggle" class="rack-toggle" type="button">🗄️ Rack View</button>
     </div>
 
     <nav class="bottom-nav" aria-label="Mobile navigation">
@@ -288,6 +307,7 @@
         <h2>Config</h2>
       </div>
       <div class="mobile-view-body">
+        <button id="theme-btn-mobile" class="button secondary" type="button" style="width:100%;margin-bottom:1rem">🎨 Themes</button>
         <p class="note">Backup or move your full homelab map.</p>
         <div class="stack">
           <button id="export-btn-mobile" class="button secondary" type="button">Export Config</button>
@@ -296,6 +316,8 @@
             <input id="import-file-mobile" type="file" accept="application/json" />
           </label>
           <button id="clear-all-mobile" class="button danger" type="button">Clear All</button>
+          <button id="seed-demo-mobile" class="button secondary" type="button">Load Demo</button>
+          <button id="show-tutorial-btn-mobile" class="button secondary" type="button">📖 Tutorial</button>
         </div>
         <div class="legend" style="margin-top:1rem">
           <p><span class="dot hardware"></span> Hardware</p>
@@ -309,8 +331,6 @@
         <button class="button secondary" id="mobile-config-close">← Back to Topology</button>
       </div>
     </div>
-
-
 
     <dialog id="ip-dialog" class="tree-dialog">
       <div class="tree-head">
@@ -353,16 +373,68 @@
           <input id="import-file" type="file" accept="application/json" />
         </label>
         <button id="clear-all" class="button danger" type="button">Clear All</button>
+        <button id="seed-demo" class="button secondary" type="button">Load Demo</button>
+        <button id="theme-btn" class="button secondary" type="button">🎨 Themes</button>
       </div>
-      <div class="legend">
-        <p><span class="dot hardware"></span> Hardware</p>
-        <p><span class="dot vm"></span> VM</p>
-        <p><span class="dot lxc"></span> LXC</p>
-        <p><span class="dot app"></span> App</p>
-        <p><span class="dot network"></span> Network</p>
+      <div class="config-content">
+        <div class="legend">
+          <p><span class="dot hardware"></span> Hardware</p>
+          <p><span class="dot vm"></span> VM</p>
+          <p><span class="dot lxc"></span> LXC</p>
+          <p><span class="dot app"></span> App</p>
+          <p><span class="dot network"></span> Network</p>
+        </div>
+        <section class="config-tutorial" aria-label="Quick tutorial">
+          <h4>Quick Tutorial</h4>
+          <div class="config-tutorial-grid">
+            <article>
+              <strong>1. Add resources</strong>
+              <span>Create hardware, VMs, LXCs, apps and networks from the form.</span>
+            </article>
+            <article>
+              <strong>2. Connect services</strong>
+              <span>Use hosted-on and connection fields to build your homelab map.</span>
+            </article>
+            <article>
+              <strong>3. Check IP View</strong>
+              <span>Find used IPs by subnet, hostname or port without digging through cards.</span>
+            </article>
+            <article>
+              <strong>4. Use Tree / Graph</strong>
+              <span>Visualize relationships between hardware, guests, apps and networks.</span>
+            </article>
+            <article>
+              <strong>5. Backup config</strong>
+              <span>Export and import JSON backups including the active theme.</span>
+            </article>
+          </div>
+        </section>
       </div>
       <div class="dialog-footer">
         <button class="button secondary" onclick="document.getElementById('config-dialog').close()">✕ Close</button>
+      </div>
+    </dialog>
+
+    <dialog id="theme-picker-dialog" class="tree-dialog theme-picker-dialog mobile-fullscreen-dialog">
+      <div class="tree-head">
+        <h3>🎨 Theme</h3>
+      </div>
+      <div class="theme-tabs">
+        <button class="theme-tab active" data-tab="themes" type="button">Themes</button>
+        <button class="theme-tab" data-tab="customize" type="button">Customize</button>
+      </div>
+      <div id="theme-tab-themes" class="theme-tab-panel">
+        <h4 class="theme-section-title">Default Themes</h4>
+        <div id="theme-default-grid" class="theme-picker-grid"></div>
+        <h4 class="theme-section-title">Your Themes</h4>
+        <p id="theme-custom-empty" class="theme-empty-note">No custom themes yet — create one in the Customize tab.</p>
+        <div id="theme-custom-grid" class="theme-picker-grid"></div>
+      </div>
+      <div id="theme-tab-customize" class="theme-tab-panel" style="display:none">
+        <div id="theme-customize-body" class="theme-builder-body"></div>
+      </div>
+      <div class="dialog-footer">
+        <button id="theme-picker-close" class="button secondary" type="button">✕ Close</button>
       </div>
     </dialog>
 
@@ -380,6 +452,7 @@
         </div>
         <p class="card-desc"></p>
         <span class="card-status"></span>
+        <p class="card-live-status"></p>
         <p class="card-notes"></p>
         <p class="card-ip"></p>
         <p class="card-app"></p>
@@ -426,6 +499,45 @@
       </div>
     </div>
 
+    <!-- ===== RACK OVERVIEW ===== -->
+    <div id="rack-overview" class="rack-overlay hidden">
+      <div id="rack-overview-body" class="rack-overview-body"></div>
+    </div>
+
+    <!-- ===== RACK EDITOR ===== -->
+    <div id="rack-editor" class="rack-overlay hidden">
+      <div class="rack-overlay-head">
+        <div class="rack-editor-title-wrap">
+          <span id="rack-editor-name" contenteditable="true" class="rack-editor-name" spellcheck="false"></span>
+          <span id="rack-editor-location-badge" class="rack-location-badge"></span>
+        </div>
+        <div class="rack-editor-right-actions">
+          <button id="rack-editor-back" class="button secondary" type="button">← Rack Overview</button>
+        </div>
+      </div>
+      <div id="rack-editor-body" class="rack-editor-body">
+        <div class="rack-palette" id="rack-palette">
+          <h3 class="rack-palette-title">Components</h3>
+          <div id="rack-palette-items" class="rack-palette-items"></div>
+        </div>
+        <div class="rack-views-wrap">
+          <div class="rack-view-col">
+            <h3 class="rack-view-title">Front</h3>
+            <div class="rack-frame" id="rack-front"></div>
+          </div>
+          <div class="rack-view-col">
+            <h3 class="rack-view-title">Rear</h3>
+            <div class="rack-frame" id="rack-rear"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== RACK FORM DIALOG ===== -->
+    <dialog id="rack-form-dialog" class="tree-dialog rack-form-dialog">
+      <h2 id="rack-form-page-title" class="rack-form-dialog-title"></h2>
+      <div id="rack-form-page-body" class="rack-form-dialog-body"></div>
+    </dialog>
 
     <script src="script.js"></script>
   </body>

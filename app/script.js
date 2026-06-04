@@ -9,8 +9,8 @@ const form = document.getElementById('resource-form');
 const typeSelect = document.getElementById('type');
 const symbolInput = document.getElementById('symbol');
 const seedDemo = document.getElementById('seed-demo');
+const seedDemoMobile = document.getElementById('seed-demo-mobile');
 const clearAll = document.getElementById('clear-all');
-const themeToggle = document.getElementById('theme-toggle');
 const template = document.getElementById('item-template');
 const hostedOnSelect = document.getElementById('hosted-on');
 const hostedOnWrap = document.getElementById('hosted-on-wrap');
@@ -57,6 +57,10 @@ const hardwareWebUrlWrap = document.getElementById('hardware-web-url-wrap');
 const notesInput = document.getElementById('notes');
 const statusSelect = document.getElementById('status');
 const notesWrap = document.getElementById('notes-wrap');
+const ipStatusSelect = document.getElementById('ip-status');
+const ipStatusWrap = document.getElementById('ip-status-wrap');
+const urlStatusSelect = document.getElementById('url-status');
+const urlStatusWrap = document.getElementById('url-status-wrap');
 const subnetInput = document.getElementById('subnet');
 const gatewayInput = document.getElementById('gateway');
 const colorPicker = document.getElementById('network-color-picker');
@@ -79,25 +83,49 @@ const toast = document.getElementById('toast');
 let editingId = null;
 let selectedNetworkColor = networkPalette[0];
 let items = [];
+let locations = [];
+let racks = [];
 let toastTimer = null;
 let treeViewMode = 'tree';
 let lastTypeSelection = typeSelect.value;
 let lastHardwareKindSelection = hardwareKindSelect.value;
+let pollingInterval = null;
+let liveStatusData = {}; // Store live status data { itemId: { ipStatus: 'online'|'offline', urlStatus: 'online'|'offline' } }
 
-function loadItemsFromLocalStorage() {
+const API_BASE = (() => {
+  const loc = window.location;
+  return window.LABBY_API || (loc.hostname === 'localhost' && loc.port === '8080' ? 'http://localhost:3001' : '');
+})();
+
+async function loadItemsFromAPI() {
   try {
     const raw = localStorage.getItem(storageKey);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return { items: [], locations: [], racks: [] };
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return { items: parsed, locations: [], racks: [] };
+    }
+    return {
+      items: Array.isArray(parsed.items) ? parsed.items : [],
+      locations: Array.isArray(parsed.locations) ? parsed.locations : [],
+      racks: Array.isArray(parsed.racks) ? parsed.racks : [],
+    };
   } catch {
-    return null;
+    return { items: [], locations: [], racks: [] };
   }
 }
 
-function saveItemsToLocalStorage(itemList) {
+async function saveItemsToAPI(itemList) {
+  const payload = {
+    items: itemList,
+    locations,
+    racks,
+  };
   try {
-    localStorage.setItem(storageKey, JSON.stringify(itemList));
+    localStorage.setItem(storageKey, JSON.stringify(payload));
   } catch {}
 }
+
 
 cleanupDuplicateIds(['symbol-wrap', 'hardware-kind-wrap', 'manufacturer-wrap', 'os-wrap', 'symbol', 'hardware-kind', 'manufacturer', 'os']);
 cleanupDuplicateFieldLabels();
@@ -108,20 +136,73 @@ appendRamModuleRow();
 appendDiskRow();
 appendRaidRow();
 symbolInput.value = defaultSymbol('hardware', 'server');
-initTheme();
+// initTheme moved to end
+
 applyTypeVisibility();
 
 (async () => {
-  const stored = loadItemsFromLocalStorage();
-  if (stored && stored.length > 0) {
-    items = sanitizeItems(stored);
+  const loaded = await loadItemsFromAPI();
+  if (loaded.items && loaded.items.length > 0) {
+    items = sanitizeItems(loaded.items);
+    locations = loaded.locations || [];
+    racks = loaded.racks || [];
   } else {
     items = sanitizeItems(getDemoItems());
-    saveItemsToLocalStorage(items);
+    locations = getDemoLocations();
+    racks = getDemoRacks();
+    await saveItems();
   }
   render();
-  showWelcomePopup();
+  startPolling();
+  openTutorial();
 })();
+
+async function startPolling() {
+  if (pollingInterval) clearInterval(pollingInterval);
+  pollingInterval = setInterval(async () => {
+    await pollLiveStatus();
+  }, 5000);
+}
+
+async function pollLiveStatus() {
+  const toMonitor = items.filter((item) => item.ipStatus === 'live' || item.urlStatus === 'live');
+
+  for (const item of toMonitor) {
+    if (item.ipStatus === 'live' && item.ip && ['hardware', 'vm', 'lxc'].includes(item.type)) {
+      try {
+        const res = await fetch(`${API_BASE}/api/ping`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip: item.ip.split('/')[0].trim() }),
+        });
+        const data = await res.json();
+        if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
+        liveStatusData[item.id].ipStatus = data.status;
+      } catch (err) {
+        if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
+        liveStatusData[item.id].ipStatus = 'offline';
+      }
+    }
+
+    if (item.urlStatus === 'live' && item.webUrl && (item.type === 'app' || item.type === 'hardware')) {
+      try {
+        const res = await fetch(`${API_BASE}/api/check-url`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: item.webUrl }),
+        });
+        const data = await res.json();
+        if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
+        liveStatusData[item.id].urlStatus = data.status;
+      } catch (err) {
+        if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
+        liveStatusData[item.id].urlStatus = 'offline';
+      }
+    }
+  }
+
+  render();
+}
 
 function cleanupDuplicateIds(ids) {
   ids.forEach((id) => {
@@ -148,6 +229,10 @@ function removeDuplicateLabels(matchFn) {
 
 typeSelect.addEventListener('change', applyTypeVisibility);
 hardwareKindSelect.addEventListener('change', applyTypeVisibility);
+ipInput.addEventListener('input', applyTypeVisibility);
+webUrlInput.addEventListener('input', applyTypeVisibility);
+hardwareWebUrlInput.addEventListener('input', applyTypeVisibility);
+ipPortInput.addEventListener('input', applyTypeVisibility);
 addShareBtn.addEventListener('click', () => appendShareRow());
 addRamModuleBtn.addEventListener('click', () => appendRamModuleRow());
 addDiskBtn.addEventListener('click', () => appendDiskRow());
@@ -225,6 +310,8 @@ form.addEventListener('submit', async (event) => {
       : type === 'hardware' && hardwareKind === 'switch'
         ? [...selectedSwitchLinks, ...selectedSwitchDeviceLinks]
         : [],
+    ipStatus: ipStatusSelect.value || '',
+    urlStatus: urlStatusSelect.value || '',
   };
 
   const wasEditing = Boolean(editingId);
@@ -247,6 +334,8 @@ form.addEventListener('submit', async (event) => {
   statusSelect.value = '';
   symbolInput.value = defaultSymbol('hardware', 'server');
   hardwareKindSelect.value = 'server';
+  ipStatusSelect.value = '';
+  urlStatusSelect.value = '';
   resetDynamicHardwareFields();
   setMultiValues(routerSwitches, []);
   setMultiValues(switchLinks, []);
@@ -261,6 +350,8 @@ cancelEditBtn.addEventListener('click', () => {
   form.reset();
   symbolInput.value = defaultSymbol('hardware', 'server');
   hardwareKindSelect.value = 'server';
+  ipStatusSelect.value = '';
+  urlStatusSelect.value = '';
   resetDynamicHardwareFields();
   setMultiValues(routerSwitches, []);
   setMultiValues(switchLinks, []);
@@ -274,6 +365,8 @@ searchInput.addEventListener('input', render);
 filterType.addEventListener('change', render);
 
 treeToggle.addEventListener('click', () => {
+  if (ipDialog.open) ipDialog.close();
+  if (configDialog.open) configDialog.close();
   setTreeMode(treeViewMode);
   treeDialog.showModal();
 });
@@ -285,6 +378,8 @@ const ipContent = document.getElementById('ip-content');
 const ipSearch = document.getElementById('ip-search');
 
 ipToggle.addEventListener('click', () => {
+  if (treeDialog.open) treeDialog.close();
+  if (configDialog.open) configDialog.close();
   renderIPView();
   ipDialog.showModal();
 });
@@ -343,61 +438,79 @@ function highlightMatch(text, query) {
 }
 
 
-configToggle.addEventListener('click', () => configDialog.showModal());
-
-seedDemo.addEventListener('click', async () => {
-  items = [
-    { id: 'network-core', type: 'network', name: 'Core-LAN', description: 'Management and infra backbone', notes: 'Main rack and admin devices', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.10.0.0/24', gateway: '10.10.0.1', networkColor: '#10b981', hostedOn: '', appHostedOn: '' },
-    { id: 'network-services', type: 'network', name: 'Services', description: 'Private service VLAN', notes: 'Apps and internal APIs', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.20.0.0/24', gateway: '10.20.0.1', networkColor: '#3b82f6', hostedOn: '', appHostedOn: '' },
-    { id: 'network-edge', type: 'network', name: 'Edge', description: 'Ingress / DMZ zone', notes: 'Public endpoints and proxy', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.30.0.0/24', gateway: '10.30.0.1', networkColor: '#f97316', hostedOn: '', appHostedOn: '' },
-    { id: 'network-storage', type: 'network', name: 'Storage', description: 'Storage replication network', notes: 'NAS and backup traffic', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '10.40.0.0/24', gateway: '10.40.0.1', networkColor: '#8b5cf6', hostedOn: '', appHostedOn: '' },
-
-    { id: 'hardware-router-1', type: 'hardware', hardwareKind: 'router-gateway', manufacturer: 'MikroTik', os: 'RouterOS 7', symbol: '📡', name: 'EdgeRouter-1', description: 'Main internet gateway', notes: 'Fiber uplink', connections: ['hardware-switch-1'], ip: '10.10.0.1/24', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: [], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [], nasRaids: [] },
-    { id: 'hardware-switch-1', type: 'hardware', hardwareKind: 'switch', manufacturer: 'Ubiquiti', os: 'UniFi Network 8', symbol: '🔀', name: 'Switch-Core-24', description: 'Core 24-port switch', notes: 'Rack U1', connections: ['hardware-router-1', 'hardware-host-1', 'hardware-host-2', 'hardware-nas-1', 'hardware-backup-1'], ip: '10.10.0.2/24', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: [], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '24', nasShares: [], nasRaids: [] },
-
-    { id: 'hardware-host-1', type: 'hardware', hardwareKind: 'hypervisor', manufacturer: 'Dell', os: 'Proxmox VE 8.2', symbol: '📦', name: 'Hypervisor-A', description: 'Primary virtualization host', notes: 'Rack U2', connections: [], ip: '10.10.0.10/24', cpu: '16 cores', ram: '2 x 32 DDR5', disks: '2 x 2 TB NVMe', cpuCount: '16', ramModules: [{ size: '32', type: 'DDR5' }, { size: '32', type: 'DDR5' }], diskRows: [{ size: '2 TB', type: 'NVMe' }, { size: '2 TB', type: 'NVMe' }], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [], nasRaids: [] },
-    { id: 'hardware-host-2', type: 'hardware', hardwareKind: 'server', manufacturer: 'Lenovo', os: 'Debian 12', symbol: '🖥️', name: 'Compute-B', description: 'General compute server', notes: 'Rack U3', connections: [], ip: '10.10.0.11/24', cpu: '12 cores', ram: '4 x 16 DDR4', disks: '2 x 1 TB SSD, 2 x 4 TB HDD', cpuCount: '12', ramModules: [{ size: '16', type: 'DDR4' }, { size: '16', type: 'DDR4' }, { size: '16', type: 'DDR4' }, { size: '16', type: 'DDR4' }], diskRows: [{ size: '1 TB', type: 'SSD' }, { size: '1 TB', type: 'SSD' }, { size: '4 TB', type: 'HDD' }, { size: '4 TB', type: 'HDD' }], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [], nasRaids: [] },
-    { id: 'hardware-nas-1', type: 'hardware', hardwareKind: 'nas', manufacturer: 'Synology', os: 'DSM 7', symbol: '🗄️', name: 'NAS-Main', description: 'Primary shared storage', notes: 'Rack U4', connections: [], ip: '10.40.0.20/24', cpu: '8 cores', ram: '2 x 16 DDR4 ECC', disks: '4 x 12 TB HDD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }], diskRows: [{ size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [{ name: 'media', link: '/volume1/media' }, { name: 'vm-backups', link: '/volume1/vm-backups' }], nasRaids: [{ name: 'Array-A', level: 'RAID5', size: '36 TB' }] },
-    { id: 'hardware-backup-1', type: 'hardware', hardwareKind: 'backup', manufacturer: 'Supermicro', os: 'TrueNAS SCALE', symbol: '💾', name: 'Backup-Vault', description: 'Backup and archive node', notes: 'Immutable snapshots enabled', connections: [], ip: '10.40.0.30/24', cpu: '8 cores', ram: '4 x 16 DDR4 ECC', disks: '6 x 8 TB HDD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }], diskRows: [{ size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [{ name: 'offsite-sync', link: '/mnt/backup/offsite-sync' }, { name: 'monthly-archive', link: '/mnt/backup/monthly-archive' }], nasRaids: [{ name: 'Backup-Array', level: 'RAIDZ2', size: '32 TB' }] },
-
-    { id: 'vm-1', type: 'vm', name: 'vm-docker-01', description: 'Container stack host', notes: 'Compose workloads', connections: [], ip: '10.20.0.21/24', cpu: '6 vCPU', ram: '2 x 8 DDR5', disks: '2 x 120 GB SSD', cpuCount: '6', ramModules: [{ size: '8', type: 'DDR5' }, { size: '8', type: 'DDR5' }], diskRows: [{ size: '120 GB', type: 'SSD' }, { size: '120 GB', type: 'SSD' }], os: 'Ubuntu 24.04 LTS', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-host-1', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [] },
-    { id: 'vm-2', type: 'vm', name: 'vm-media-01', description: 'Media processing VM', notes: 'GPU passthrough', connections: [], ip: '10.20.0.22/24', cpu: '8 vCPU', ram: '2 x 16 DDR5', disks: '1 x 500 GB SSD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR5' }, { size: '16', type: 'DDR5' }], diskRows: [{ size: '500 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-host-2', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [] },
-    { id: 'vm-3', type: 'vm', name: 'vm-edge-01', description: 'Public ingress and auth', notes: 'Hardened profile', connections: [], ip: '10.30.0.30/24', cpu: '4 vCPU', ram: '2 x 4 DDR4', disks: '2 x 60 GB SSD', cpuCount: '4', ramModules: [{ size: '4', type: 'DDR4' }, { size: '4', type: 'DDR4' }], diskRows: [{ size: '60 GB', type: 'SSD' }, { size: '60 GB', type: 'SSD' }], os: 'AlmaLinux 9', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-host-1', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [] },
-
-    { id: 'lxc-1', type: 'lxc', name: 'lxc-dns-01', description: 'Recursive DNS resolver', notes: 'AdGuard + Unbound', connections: [], ip: '10.10.0.40/24', cpu: '2 vCPU', ram: '2 x 2 DDR4', disks: '1 x 20 GB SSD', cpuCount: '2', ramModules: [{ size: '2', type: 'DDR4' }, { size: '2', type: 'DDR4' }], diskRows: [{ size: '20 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-host-1', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [] },
-    { id: 'lxc-2', type: 'lxc', name: 'lxc-monitor-01', description: 'Metrics + alerting', notes: 'Prometheus stack', connections: [], ip: '10.20.0.41/24', cpu: '2 vCPU', ram: '2 x 4 DDR4', disks: '2 x 40 GB SSD', cpuCount: '2', ramModules: [{ size: '4', type: 'DDR4' }, { size: '4', type: 'DDR4' }], diskRows: [{ size: '40 GB', type: 'SSD' }, { size: '40 GB', type: 'SSD' }], os: 'Ubuntu 22.04 LTS', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-host-2', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [] },
-    { id: 'lxc-3', type: 'lxc', name: 'lxc-backup-agent-01', description: 'Backup transport agent', notes: 'Restic + rclone', connections: [], ip: '10.40.0.42/24', cpu: '2 vCPU', ram: '2 x 2 DDR4', disks: '1 x 30 GB SSD', cpuCount: '2', ramModules: [{ size: '2', type: 'DDR4' }, { size: '2', type: 'DDR4' }], diskRows: [{ size: '30 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hardware-host-2', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [] },
-
-    { id: 'app-1', type: 'app', name: 'PhotoVault', description: 'Photo management', notes: 'Daily sync job', connections: [], ip: '', ipPort: '10.20.0.21:2283', webUrl: 'https://photos.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-1' },
-    { id: 'app-2', type: 'app', name: 'StreamBox', description: 'Media server', notes: 'HW transcoding', connections: [], ip: '', ipPort: '10.20.0.22:8096', webUrl: 'https://media.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-2' },
-    { id: 'app-3', type: 'app', name: 'DocHub', description: 'Internal wiki', notes: 'Docs as code', connections: [], ip: '', ipPort: '10.20.0.22:3000', webUrl: 'https://docs.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-2' },
-    { id: 'app-4', type: 'app', name: 'ProxyGate', description: 'Reverse proxy dashboard', notes: '', connections: [], ip: '', ipPort: '10.30.0.30:443', webUrl: 'https://edge.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-3' },
-    { id: 'app-5', type: 'app', name: 'MetricsUI', description: 'Monitoring frontend', notes: '', connections: [], ip: '', ipPort: '10.20.0.41:3000', webUrl: 'https://metrics.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'lxc-2' },
-    { id: 'app-6', type: 'app', name: 'BackupPortal', description: 'Backup reports', notes: '', connections: [], ip: '', ipPort: '10.40.0.42:8080', webUrl: 'https://backup.lab.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'lxc-3' },
-  ];
-  stopEditing();
-  normalizeItems();
-  await saveItems();
-  showToast('Demo topology loaded.');
-  render();
+configToggle.addEventListener('click', () => {
+  if (treeDialog.open) treeDialog.close();
+  if (ipDialog.open) ipDialog.close();
+  configDialog.showModal();
 });
 
 clearAll.addEventListener('click', async () => {
-  if (!confirm('Delete all resources?')) return;
-  items = [];
+  if (!confirm('Delete all resources? This also clears all rack, location and custom theme data.')) return;
+  items = []; locations = []; racks = [];
+  localStorage.removeItem('labby-custom-themes');
   stopEditing();
   await saveItems();
-  showToast('All resources cleared.');
+  showToast('All resources and custom themes cleared.');
   render();
+  if (typeof renderThemeLists === 'function') renderThemeLists();
 });
 
-themeToggle.addEventListener('click', () => {
-  const current = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
-  setTheme(current === 'dark' ? 'light' : 'dark');
+function loadDemoData() {
+  if (!confirm('Replace current browser demo data with the default demo entries?')) return;
+  items = sanitizeItems(getDemoItems());
+  locations = getDemoLocations();
+  racks = getDemoRacks();
+  stopEditing();
+  saveItems();
+  showToast('Demo data loaded with sample rack layouts.');
+  render();
+}
+
+seedDemo?.addEventListener('click', loadDemoData);
+seedDemoMobile?.addEventListener('click', loadDemoData);
+
+let themePickerReturnToConfig = false;
+
+document.getElementById('theme-btn').addEventListener('click', () => {
+  themePickerReturnToConfig = true;
+  configDialog.close();
+  openThemePicker({ returnToConfig: true });
 });
+document.getElementById('theme-btn-mobile').addEventListener('click', () => openThemePicker({ returnToConfig: false }));
+document.querySelectorAll('.theme-tab').forEach(b => b.addEventListener('click', () => switchThemeTab(b.dataset.tab)));
+const themePickerClose = document.getElementById('theme-picker-close');
+if (themePickerClose) themePickerClose.addEventListener('click', () => document.getElementById('theme-picker-dialog').close());
+
+function getActiveThemeId() {
+  return document.documentElement.dataset.theme || localStorage.getItem(themeKey) || 'light';
+}
+
+function buildConfigExport() {
+  return {
+    items,
+    locations,
+    racks,
+    customThemes: getCustomThemes(),
+    activeTheme: getActiveThemeId(),
+    theme: getActiveThemeId(),
+  };
+}
+
+function applyImportedThemeFromConfig(parsed) {
+  const importedTheme = parsed && (parsed.activeTheme || parsed.theme);
+  if (!importedTheme) return;
+  const validThemes = [
+    ...presetThemes.map(t => t.id),
+    ...getCustomThemes().map(t => t.id),
+  ];
+  if (validThemes.includes(importedTheme)) {
+    setTheme(importedTheme);
+  }
+}
 
 exportBtn.addEventListener('click', () => {
-  const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
+  const config = buildConfigExport();
+  const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -412,7 +525,17 @@ importFile.addEventListener('change', async (event) => {
   if (!file) return;
   try {
     const text = await file.text();
-    items = sanitizeItems(JSON.parse(text));
+    const parsed = JSON.parse(text);
+    // Support both old bare-array format and new { items, locations, racks } format
+    if (Array.isArray(parsed)) {
+      items = sanitizeItems(parsed);
+    } else {
+      items     = sanitizeItems(parsed.items     || []);
+      locations = Array.isArray(parsed.locations) ? parsed.locations : [];
+      racks     = Array.isArray(parsed.racks)     ? parsed.racks     : [];
+      if (Array.isArray(parsed.customThemes)) importCustomThemes(parsed.customThemes);
+      applyImportedThemeFromConfig(parsed);
+    }
     stopEditing();
     await saveItems();
     showToast('Config imported successfully.');
@@ -631,7 +754,7 @@ function loadItems() {
 }
 
 async function saveItems() {
-  saveItemsToLocalStorage(items);
+  await saveItemsToAPI(items);
 }
 
 function supportsNotes(type) {
@@ -699,6 +822,8 @@ function sanitizeItems(raw) {
       nasRaids: Array.isArray(item.nasRaids)
         ? item.nasRaids.map((raid) => ({ name: String(raid?.name || ''), level: String(raid?.level || 'RAID1'), size: String(raid?.size || '') })).filter((raid) => raid.name || raid.size)
         : [],
+      ipStatus: ['', 'online', 'offline', 'maintenance', 'live'].includes(item.ipStatus) ? item.ipStatus : '',
+      urlStatus: ['', 'online', 'offline', 'maintenance', 'live'].includes(item.urlStatus) ? item.urlStatus : '',
     }));
   return normalizeList(normalized);
 }
@@ -776,6 +901,8 @@ function normalizeList(list) {
     }
     if (!['vm', 'lxc'].includes(next.type) || !hardwareIds.has(next.hostedOn)) next.hostedOn = '';
     if (next.type === 'app' && !hostableAppIds.has(next.appHostedOn)) next.appHostedOn = '';
+    if (!['', 'online', 'offline', 'maintenance', 'live'].includes(next.ipStatus)) next.ipStatus = '';
+    if (!['', 'online', 'offline', 'maintenance', 'live'].includes(next.urlStatus)) next.urlStatus = '';
     return next;
   });
 
@@ -883,6 +1010,11 @@ function applyTypeVisibility() {
   hardwareWebUrlWrap.classList.toggle('hidden', !isHardware);
   notesWrap.classList.toggle('hidden', !supportsNotes(type));
 
+  const canHaveIp = ['hardware', 'vm', 'lxc', 'app'].includes(type);
+  const canHaveUrl = isApp || isHardware;
+  ipStatusWrap.classList.toggle('hidden', !canHaveIp);
+  urlStatusWrap.classList.toggle('hidden', !canHaveUrl);
+
   subnetInput.required = isNetwork;
   gatewayInput.required = isNetwork;
   switchPortsInput.required = isSwitch;
@@ -964,6 +1096,12 @@ function cardNode(item) {
   setCardText(node, '.card-network', item.type === 'network' ? `Subnet: ${item.subnet} | Gateway: ${item.gateway}` : '');
   setCardText(node, '.card-hosting', hostingLabel(item));
   setCardText(node, '.card-links', connectionLabel(item));
+
+  // Live status display
+  const liveStatusEl = node.querySelector('.card-live-status');
+  if (liveStatusEl) {
+    liveStatusEl.innerHTML = buildLiveStatusHtml(item);
+  }
 
   const badge = node.querySelector('.type-badge');
   if (badge) badge.className = `type-badge ${item.type}`;
@@ -1082,6 +1220,38 @@ function createCardShell() {
 function setCardText(node, selector, value) {
   const target = node.querySelector(selector);
   if (target) target.textContent = value || '';
+}
+
+function buildLiveStatusHtml(item) {
+  const statusMap = { online: '🟢', offline: '🔴', maintenance: '🟡', live: '📡' };
+  const statusLabelMap = { online: 'Online', offline: 'Offline', maintenance: 'Maintenance', live: 'Live' };
+  const parts = [];
+
+  if (item.ipStatus) {
+    if (item.ipStatus === 'live') {
+      const liveData = liveStatusData[item.id] || {};
+      const liveStatus = liveData.ipStatus ? (liveData.ipStatus === 'online' ? '🟢' : '🔴') : '⏳';
+      parts.push(`<span class="status-badge">IP: ${liveStatus} <strong>Live</strong></span>`);
+    } else {
+      const icon = statusMap[item.ipStatus] || '⚪';
+      const label = statusLabelMap[item.ipStatus] || item.ipStatus;
+      parts.push(`<span class="status-badge">IP: ${icon} ${label}</span>`);
+    }
+  }
+
+  if (item.urlStatus) {
+    if (item.urlStatus === 'live') {
+      const liveData = liveStatusData[item.id] || {};
+      const liveStatus = liveData.urlStatus ? (liveData.urlStatus === 'online' ? '🟢' : '🔴') : '⏳';
+      parts.push(`<span class="status-badge">URL: ${liveStatus} <strong>Live</strong></span>`);
+    } else {
+      const icon = statusMap[item.urlStatus] || '⚪';
+      const label = statusLabelMap[item.urlStatus] || item.urlStatus;
+      parts.push(`<span class="status-badge">URL: ${icon} ${label}</span>`);
+    }
+  }
+
+  return parts.join('');
 }
 
 function appDetails(item) {
@@ -1271,6 +1441,9 @@ function startEditing(id) {
 
   if (supportsStorageGroups(item.type, item.hardwareKind) && item.nasRaids?.length) item.nasRaids.forEach((raid) => appendRaidRow(raid));
   else appendRaidRow();
+
+  ipStatusSelect.value = item.ipStatus || '';
+  urlStatusSelect.value = item.urlStatus || '';
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -2104,16 +2277,327 @@ function label(type) {
   return ({ hardware: 'Hardware', vm: 'VMs', lxc: 'LXCs', app: 'Apps', network: 'Networks' })[type] || type;
 }
 
+const customThemesKey = 'labby-custom-themes';
+let themePreviewPrev = null;
+let editingThemeId = null;
+const themeVars = [
+  { key: '--bg',          label: 'Background' },
+  { key: '--bg-bottom',   label: 'Background (bottom)' },
+  { key: '--phone',       label: 'Panel surface' },
+  { key: '--panel',       label: 'Card / input surface' },
+  { key: '--text',        label: 'Text' },
+  { key: '--muted',       label: 'Muted text' },
+  { key: '--line',        label: 'Borders' },
+  { key: '--yellow',      label: 'Accent (buttons)' },
+  { key: '--blue',        label: 'Info box' },
+  { key: '--mint',        label: 'Highlight' },
+  { key: '--danger',      label: 'Danger' },
+  { key: '--type-hardware', label: 'Hardware' },
+  { key: '--type-vm',       label: 'VM' },
+  { key: '--type-lxc',      label: 'LXC' },
+  { key: '--type-app',      label: 'App' },
+  { key: '--type-network',  label: 'Network' },
+];
+const presetThemes = [
+  { id: 'light',    name: 'Light',    dark: false, sw: ['#f5f1e7', '#2e2f36', '#b8d9ff', '#b8efca', '#f4d371'] },
+  { id: 'ocean',    name: 'Ocean',    dark: false, sw: ['#eef6fa', '#1d4456', '#bfe2f5', '#b4ecd9', '#ffd36b'] },
+  { id: 'forest',   name: 'Forest',   dark: false, sw: ['#f2f7ec', '#2d4429', '#cfe6d4', '#c2eabf', '#f2cf65'] },
+  { id: 'rose',     name: 'Rose',     dark: false, sw: ['#fbf0f3', '#4a2535', '#f2cdd9', '#d8ecd0', '#f6cf7d'] },
+  { id: 'solar',    name: 'Solar',    dark: false, sw: ['#fbf3e1', '#4a3a20', '#ffe2b3', '#d8e8b0', '#f3c441'] },
+  { id: 'dark',     name: 'Dark',     dark: true,  sw: ['#231d30', '#5c4d7a', '#352c4a', '#356f71', '#e8b4d8'] },
+  { id: 'midnight', name: 'Midnight', dark: true,  sw: ['#14253c', '#34557d', '#1f3a5c', '#1d5258', '#6cb6e8'] },
+  { id: 'carbon',   name: 'Carbon',   dark: true,  sw: ['#1e2125', '#444b54', '#283540', '#2a3a32', '#e0c060'] },
+  { id: 'nord',     name: 'Nord',     dark: true,  sw: ['#3b4252', '#5a6478', '#3e4a5e', '#3b4a44', '#ebcb8b'] },
+  { id: 'grape',    name: 'Grape',    dark: true,  sw: ['#241634', '#6b3fa0', '#3d2a5c', '#2f5868', '#d68ce8'] },
+];
+
+function defaultThemeVars() {
+  return {
+    '--bg': '#ece9df', '--bg-bottom': '#d6ccc2', '--phone': '#f5f1e7',
+    '--panel': '#ffffff', '--text': '#202126', '--muted': '#575a64',
+    '--line': '#2e2f36', '--yellow': '#f4d371', '--blue': '#b8d9ff',
+    '--mint': '#b8efca', '--danger': '#d84b4b',
+    '--type-hardware': '#b8d9ff', '--type-vm': '#d6f0ff', '--type-lxc': '#d0f7ef',
+    '--type-app': '#fce7d9', '--type-network': '#b8efca',
+  };
+}
+
+function getCustomThemes() {
+  try {
+    const raw = localStorage.getItem(customThemesKey);
+    const arr = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(arr)) return [];
+    return arr.map(t => ({
+      id: t.id || ('custom-' + Math.random().toString(36).slice(2)),
+      name: (t.name || 'Custom').toString().slice(0, 24),
+      dark: !!t.dark,
+      vars: { ...defaultThemeVars(), ...(t.vars || {}) },
+    }));
+  } catch { return []; }
+}
+
+function saveCustomThemes(arr) {
+  localStorage.setItem(customThemesKey, JSON.stringify(arr));
+  applyCustomThemeStyles(arr);
+}
+
+function importCustomThemes(imported) {
+  if (!Array.isArray(imported)) return;
+  const existing = getCustomThemes();
+  const byId = new Map(existing.map(t => [t.id, t]));
+  imported.forEach(t => {
+    if (!t || typeof t !== 'object') return;
+    const theme = {
+      id: t.id || ('custom-' + Date.now() + '-' + Math.random().toString(36).slice(2)),
+      name: (t.name || 'Custom').toString().slice(0, 24),
+      dark: !!t.dark,
+      vars: { ...defaultThemeVars(), ...(t.vars || {}) },
+    };
+    byId.set(theme.id, theme);
+  });
+  saveCustomThemes([...byId.values()]);
+}
+
+function customThemeById(id) {
+  return getCustomThemes().find(t => t.id === id) || null;
+}
+
+function themeStyleRule(id, dark, vars) {
+  const decls = themeVars.map(v => v.key + ': ' + (vars[v.key] || '') + ';').join(' ');
+  return ":root[data-theme='" + id + "'] { color-scheme: " + (dark ? 'dark' : 'light') + '; ' + decls + ' }';
+}
+
+function applyCustomThemeStyles(arr) {
+  let el = document.getElementById('custom-theme-style');
+  if (!el) {
+    el = document.createElement('style');
+    el.id = 'custom-theme-style';
+    document.head.appendChild(el);
+  }
+  el.textContent = arr.map(t => themeStyleRule(t.id, t.dark, t.vars)).join('\n');
+}
+
+function currentResolvedVars() {
+  const cs = getComputedStyle(document.documentElement);
+  const fallback = defaultThemeVars();
+  const out = {};
+  themeVars.forEach(v => {
+    let val = cs.getPropertyValue(v.key).trim();
+    if (!/^#[0-9a-fA-F]{6}$/.test(val)) val = fallback[v.key];
+    out[v.key] = val;
+  });
+  return out;
+}
+
+function applyPreviewTheme(dark, vars) {
+  let el = document.getElementById('preview-theme-style');
+  if (!el) {
+    el = document.createElement('style');
+    el.id = 'preview-theme-style';
+    document.head.appendChild(el);
+  }
+  el.textContent = themeStyleRule('__preview', dark, vars);
+  if (themePreviewPrev === null) themePreviewPrev = document.documentElement.dataset.theme || 'light';
+  document.documentElement.dataset.theme = '__preview';
+  if (dark) document.documentElement.setAttribute('data-dark', '');
+  else document.documentElement.removeAttribute('data-dark');
+}
+
+function clearPreviewTheme() {
+  const el = document.getElementById('preview-theme-style');
+  if (el) el.textContent = '';
+  if (themePreviewPrev !== null) {
+    const prev = themePreviewPrev;
+    themePreviewPrev = null;
+    setTheme(prev);
+  }
+}
+
 function initTheme() {
   const saved = localStorage.getItem(themeKey);
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  setTheme(saved || (prefersDark ? 'dark' : 'light'));
+  applyCustomThemeStyles(getCustomThemes());
+  const valid = [...presetThemes.map(t => t.id), ...getCustomThemes().map(t => t.id)];
+  setTheme(saved && valid.includes(saved) ? saved : (prefersDark ? 'dark' : 'light'));
+}
+
+function isDarkTheme(theme) {
+  const p = presetThemes.find(t => t.id === theme);
+  if (p) return p.dark;
+  const c = customThemeById(theme);
+  return c ? c.dark : false;
 }
 
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
+  if (isDarkTheme(theme)) document.documentElement.setAttribute('data-dark', '');
+  else document.documentElement.removeAttribute('data-dark');
   localStorage.setItem(themeKey, theme);
-  themeToggle.textContent = theme === 'dark' ? '☀️ Light' : '🌙 Dark';
+}
+
+function themePreviewColors(theme) {
+  const p = presetThemes.find(t => t.id === theme);
+  if (p) return { bg: p.sw[0], line: p.sw[1], a: p.sw[2], b: p.sw[3], c: p.sw[4] };
+  const c = customThemeById(theme);
+  const v = c ? c.vars : defaultThemeVars();
+  return { bg: v['--phone'], line: v['--line'], a: v['--type-hardware'], b: v['--type-network'], c: v['--yellow'] };
+}
+
+function makeThemeSwatch(theme, name, opts) {
+  opts = opts || {};
+  const current = document.documentElement.dataset.theme || 'light';
+  const pc = themePreviewColors(theme);
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'theme-swatch' + (current === theme ? ' active' : '');
+  btn.innerHTML =
+    (opts.deletable ? '<span class="theme-swatch-del" title="Delete">✕</span>' : '') +
+    '<span class="theme-swatch-preview" style="background:' + pc.bg + '">' +
+      '<span class="tsc" style="background:' + pc.line + '"></span>' +
+      '<span class="tsc" style="background:' + pc.a + '"></span>' +
+      '<span class="tsc" style="background:' + pc.b + '"></span>' +
+      '<span class="tsc" style="background:' + pc.c + '"></span>' +
+    '</span>' +
+    '<span class="theme-swatch-name">' + name + '</span>';
+  btn.addEventListener('click', () => { clearPreviewTheme(); setTheme(theme); renderThemeGrids(); });
+  if (opts.deletable) {
+    btn.querySelector('.theme-swatch-del').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const arr = getCustomThemes().filter(t => t.id !== theme);
+      saveCustomThemes(arr);
+      if ((document.documentElement.dataset.theme || '') === theme) setTheme('light');
+      renderThemeGrids();
+      showToast('Theme deleted.');
+    });
+  }
+  return btn;
+}
+
+function renderThemeGrids() {
+  const dg = document.getElementById('theme-default-grid');
+  const cg = document.getElementById('theme-custom-grid');
+  const empty = document.getElementById('theme-custom-empty');
+  if (!dg || !cg) return;
+  dg.innerHTML = '';
+  presetThemes.forEach(t => dg.appendChild(makeThemeSwatch(t.id, t.name, {})));
+  const customs = getCustomThemes();
+  cg.innerHTML = '';
+  customs.forEach(t => {
+    const el = makeThemeSwatch(t.id, t.name, { deletable: true });
+    const editBtn = document.createElement('button');
+    editBtn.className='theme-edit-btn';
+    editBtn.type='button';
+    editBtn.textContent='Edit';
+    editBtn.onclick=(e)=>{e.stopPropagation();editCustomTheme(t.id);};
+    el.appendChild(editBtn);
+    cg.appendChild(el);
+  });
+  if (empty) empty.style.display = customs.length ? 'none' : '';
+}
+
+
+function editCustomTheme(id) {
+  const theme = customThemeById(id);
+  if (!theme) return;
+  editingThemeId = id;
+  switchThemeTab('customize');
+  setTimeout(() => {
+    const nameInput = document.getElementById('tb-name');
+    if (nameInput) nameInput.value = theme.name || '';
+    Object.entries(theme.vars || {}).forEach(([k,v]) => {
+      const el = document.querySelector('[data-var="' + k + '"]');
+      if (el) el.value = v;
+    });
+  }, 0);
+}
+
+function renderCustomizeTab() {
+  const body = document.getElementById('theme-customize-body');
+  if (!body) return;
+  const start = currentResolvedVars();
+  body.innerHTML = '';
+
+  const nameRow = document.createElement('label');
+  nameRow.className = 'tb-base-row';
+  nameRow.innerHTML = '<span>Name</span><input id="tb-name" type="text" maxlength="24" placeholder="My Theme" value="My Theme" />';
+  body.appendChild(nameRow);
+
+  const grid = document.createElement('div');
+  grid.className = 'tb-grid';
+  themeVars.forEach(v => {
+    const row = document.createElement('label');
+    row.className = 'tb-color-row';
+    row.innerHTML = '<input type="color" data-var="' + v.key + '" value="' + start[v.key] + '" /><span>' + v.label + '</span>';
+    grid.appendChild(row);
+  });
+  body.appendChild(grid);
+
+  const actions = document.createElement('div');
+  actions.className = 'tb-actions';
+  actions.innerHTML = '<button id="tb-save" class="button" type="button">Save Theme</button>';
+  body.appendChild(actions);
+
+  const collect = () => {
+    const vars = {};
+    body.querySelectorAll('input[type="color"]').forEach(inp => { vars[inp.dataset.var] = inp.value; });
+    return { dark: false, vars };
+  };
+  const preview = () => { const d = collect(); applyPreviewTheme(d.dark, d.vars); };
+
+  body.querySelectorAll('input[type="color"]').forEach(inp => inp.addEventListener('input', preview));
+  document.getElementById('tb-save').onclick = () => {
+    const d = collect();
+    const name = (document.getElementById('tb-name').value || '').trim().slice(0, 24) || 'My Theme';
+    const arr = getCustomThemes();
+    let savedThemeId = editingThemeId;
+    if (editingThemeId) {
+      const idx = arr.findIndex(t => t.id === editingThemeId);
+      if (idx !== -1) arr[idx] = { id: editingThemeId, name, dark: false, vars: d.vars };
+      editingThemeId = null;
+    } else {
+      savedThemeId = 'custom-' + Date.now();
+      const theme = { id: savedThemeId, name, dark: false, vars: d.vars };
+      arr.push(theme);
+    }
+    saveCustomThemes(arr);
+    themePreviewPrev = null;
+    const pv = document.getElementById('preview-theme-style');
+    if (pv) pv.textContent = '';
+    setTheme(savedThemeId || 'light');
+    switchThemeTab('themes');
+    showToast('Theme saved.');
+  };
+
+  preview();
+}
+
+function switchThemeTab(tab) {
+  const themeDialog = document.getElementById('theme-picker-dialog');
+  if (themeDialog) themeDialog.classList.toggle('customize-active', tab === 'customize');
+  document.querySelectorAll('.theme-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  const tt = document.getElementById('theme-tab-themes');
+  const tc = document.getElementById('theme-tab-customize');
+  if (tt) tt.style.display = tab === 'themes' ? '' : 'none';
+  if (tc) tc.style.display = tab === 'customize' ? '' : 'none';
+  if (tab === 'themes') { clearPreviewTheme(); renderThemeGrids(); }
+  else renderCustomizeTab();
+}
+
+function openThemePicker(options) {
+  const dlg = document.getElementById('theme-picker-dialog');
+  const opts = options || {};
+  themePickerReturnToConfig = !!opts.returnToConfig;
+  switchThemeTab('themes');
+  dlg.onclose = () => {
+    clearPreviewTheme();
+    editingThemeId = null;
+    const shouldReturn = themePickerReturnToConfig;
+    themePickerReturnToConfig = false;
+    if (shouldReturn && configDialog && !configDialog.open) {
+      configDialog.showModal();
+    }
+  };
+  if (typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
 }
 
 function isMobile() {
@@ -2300,7 +2784,8 @@ function renderIPInto(container, query) {
 
 const exportBtnMobile = document.getElementById('export-btn-mobile');
 if (exportBtnMobile) exportBtnMobile.addEventListener('click', () => {
-  const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
+  const config = buildConfigExport();
+  const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -2316,7 +2801,16 @@ if (importFileMobile) importFileMobile.addEventListener('change', async (event) 
   if (!file) return;
   try {
     const text = await file.text();
-    items = sanitizeItems(JSON.parse(text));
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) {
+      items = sanitizeItems(parsed);
+    } else {
+      items     = sanitizeItems(parsed.items     || []);
+      locations = Array.isArray(parsed.locations) ? parsed.locations : [];
+      racks     = Array.isArray(parsed.racks)     ? parsed.racks     : [];
+      if (Array.isArray(parsed.customThemes)) importCustomThemes(parsed.customThemes);
+      applyImportedThemeFromConfig(parsed);
+    }
     stopEditing();
     await saveItems();
     showToast('Config imported successfully.');
@@ -2330,8 +2824,8 @@ if (importFileMobile) importFileMobile.addEventListener('change', async (event) 
 
 const clearAllMobile = document.getElementById('clear-all-mobile');
 if (clearAllMobile) clearAllMobile.addEventListener('click', async () => {
-  if (!confirm('Delete all resources?')) return;
-  items = [];
+  if (!confirm('Delete all resources? This also clears all rack and location data.')) return;
+  items = []; locations = []; racks = [];
   stopEditing();
   await saveItems();
   showToast('All resources cleared.');
@@ -2351,6 +2845,995 @@ window.startEditingMobile = function(id) {
     if (body && formEl && !body.contains(formEl)) body.appendChild(formEl);
   }
 };
+
+let tutorialStep = 0;
+const tutorialSteps = [
+  { title: 'Welcome to Labby! 👋', text: 'Labby helps you map your homelab. Track hardware, VMs, apps and networks, and visualize how everything connects.'},
+  { title: 'Your Topology', text: 'The main view shows all your resources grouped by type. Each card shows specs, IP, status and quick actions.', icon: '🗂️' },
+  { title: 'Add Resources', text: 'Use the form on the left (desktop) or tap ➕ Add (mobile) to create hardware, VMs, LXCs, apps or networks.', icon: '➕' },
+  { title: 'IP View', text: 'The IP View shows all used IPs sorted by subnet. Search by IP, hostname or port to find devices instantly.', icon: '🌐' },
+  { title: 'Relationship Tree', text: 'Tree and Graph views visualize how your infrastructure connects. Which VMs run on which hardware, which apps run on which VMs.', icon: '🌳' },
+  { title: 'Rack View', text: 'Open Rack View to see the sample locations, racks and front/rear rack layouts. The demo includes linked hardware, servers, switches, UPS and cable management.', icon: '🗄️' },
+  { title: 'Status Indicators', text: 'Mark devices as 🟢 Online, 🔴 Offline or 🟡 Maintenance. Offline cards are dimmed, maintenance cards get a dashed border.', icon: '🟢' },
+  { title: 'Copy & Open', text: 'Click any IP or URL on a card to copy it to clipboard. Apps with a web URL show an Open button to launch directly.', icon: '📋' },
+  { title: 'Config & Backup', text: 'Use Config → Export to back up your data as JSON. Import to restore or migrate to another instance.', icon: '💾' },
+];
+
+function openTutorial() {
+  tutorialStep = 0;
+  renderTutorialStep();
+  document.getElementById('welcome-overlay').classList.add('active');
+  document.getElementById('config-dialog').close();
+  hideMobileViews();
+}
+
+function renderTutorialStep() {
+  const step = tutorialSteps[tutorialStep];
+  document.getElementById('tutorial-icon').textContent = step.icon;
+  document.getElementById('tutorial-title').textContent = step.title;
+  document.getElementById('tutorial-text').textContent = step.text;
+  document.getElementById('tutorial-progress').textContent = `${tutorialStep + 1} / ${tutorialSteps.length}`;
+  document.getElementById('tutorial-prev').style.display = tutorialStep === 0 ? 'none' : 'block';
+  document.getElementById('tutorial-next').textContent = tutorialStep === tutorialSteps.length - 1 ? "Let's go! 🚀" : 'Next →';
+  const dots = document.getElementById('tutorial-dots');
+  dots.innerHTML = '';
+  tutorialSteps.forEach((_, i) => {
+    const dot = document.createElement('span');
+    dot.className = 'tutorial-dot' + (i === tutorialStep ? ' active' : '');
+    dot.addEventListener('click', () => { tutorialStep = i; renderTutorialStep(); });
+    dots.appendChild(dot);
+  });
+}
+
+function closeTutorial() {
+  document.getElementById('welcome-overlay').classList.remove('active');
+  localStorage.setItem('labby-tutorial-seen', '1');
+}
+
+document.getElementById('tutorial-next').addEventListener('click', () => {
+  if (tutorialStep < tutorialSteps.length - 1) {
+    tutorialStep++;
+    renderTutorialStep();
+  } else {
+    closeTutorial();
+  }
+});
+
+document.getElementById('tutorial-prev').addEventListener('click', () => {
+  if (tutorialStep > 0) { tutorialStep--; renderTutorialStep(); }
+});
+
+document.getElementById('tutorial-skip').addEventListener('click', closeTutorial);
+
+document.getElementById('welcome-overlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('welcome-overlay')) closeTutorial();
+});
+
+document.getElementById('show-tutorial-btn')?.addEventListener('click', openTutorial);
+document.getElementById('show-tutorial-btn-mobile')?.addEventListener('click', openTutorial);
+
+/* ================================================================
+   RACK FEATURE
+   ================================================================ */
+
+// ---- Palette component definitions ----
+const RACK_COMPONENTS = [
+  // ── Compute ─────────────────────────────────────────────────
+  { componentType: '1u-server',      heightU: 1, label: '1U Server',      category: 'compute' },
+  { componentType: '2u-server',      heightU: 2, label: '2U Server',      category: 'compute' },
+  { componentType: '4u-server',      heightU: 4, label: '4U Server',      category: 'compute' },
+  { componentType: '2pc-1u',         heightU: 1, label: '2× PC (1U)',     category: 'compute', multiDevice: 2 },
+  { componentType: '2pc-2u',         heightU: 2, label: '2× PC (2U)',     category: 'compute', multiDevice: 2 },
+  { componentType: '3pc-1u',         heightU: 1, label: '3× PC (1U)',     category: 'compute', multiDevice: 3 },
+  { componentType: '3pc-2u',         heightU: 2, label: '3× PC (2U)',     category: 'compute', multiDevice: 3 },
+  // ── Networking ──────────────────────────────────────────────
+  { componentType: '1u-router',      heightU: 1, label: '1U Router',      category: 'network' },
+  { componentType: '2u-router',      heightU: 2, label: '2U Router',      category: 'network' },
+  { componentType: '1u-switch',      heightU: 1, label: '1U Switch',      category: 'network' },
+  { componentType: '2u-switch',      heightU: 2, label: '2U Switch',      category: 'network' },
+  { componentType: '1u-patch-panel', heightU: 1, label: '1U Patch Panel', category: 'network' },
+  { componentType: '2u-patch-panel', heightU: 2, label: '2U Patch Panel', category: 'network' },
+  { componentType: '1u-cable-mgmt',  heightU: 1, label: '1U Cable Mgmt',  category: 'network', isPassive: true },
+  // ── Power ────────────────────────────────────────────────────
+  { componentType: '1u-ups',         heightU: 1, label: '1U UPS',         category: 'power' },
+  { componentType: '2u-ups',         heightU: 2, label: '2U UPS',         category: 'power' },
+  { componentType: '4u-ups',         heightU: 4, label: '4U UPS',         category: 'power' },
+  { componentType: '1u-pdu',         heightU: 1, label: '1U PDU',         category: 'power', isPDU: true },
+  { componentType: '2u-pdu',         heightU: 2, label: '2U PDU',         category: 'power', isPDU: true },
+  // ── Management ───────────────────────────────────────────────
+  { componentType: '1u-kvm',         heightU: 1, label: '1U KVM',         category: 'mgmt' },
+  // ── Filler ───────────────────────────────────────────────────
+  { componentType: '1u-blank',       heightU: 1, label: '1U Blank',       category: 'filler', isBlank: true },
+  { componentType: '2u-blank',       heightU: 2, label: '2U Blank',       category: 'filler', isBlank: true },
+  { componentType: '4u-blank',       heightU: 4, label: '4U Blank',       category: 'filler', isBlank: true },
+];
+
+// ---- State ----
+let rackEditorRackId = null;
+let rackDragComponent = null;
+let rackLinkPanelTarget = null;
+let rackFormMode = null;
+let rackFormPendingLocationId = null;
+
+// ---- DOM refs ----
+const rackOverview     = document.getElementById('rack-overview');
+const rackEditor       = document.getElementById('rack-editor');
+const rackFormDialog   = document.getElementById('rack-form-dialog');
+const rackFormPage     = rackFormDialog; // alias for compatibility
+const rackToggleBtn    = document.getElementById('rack-toggle');
+const rackCloseBtn     = document.getElementById('rack-close-btn');
+const rackAddLocBtn    = document.getElementById('rack-add-location-btn');
+const rackAddRackBtn   = document.getElementById('rack-add-rack-btn');
+const rackOverviewBody = document.getElementById('rack-overview-body');
+const rackEditorBack   = document.getElementById('rack-editor-back');
+const rackEditorSave   = document.getElementById('rack-editor-save');
+const rackEditorName   = document.getElementById('rack-editor-name');
+const rackEditorLocBadge = document.getElementById('rack-editor-location-badge');
+const rackFront        = document.getElementById('rack-front');
+const rackRear         = document.getElementById('rack-rear');
+const rackPaletteItems = document.getElementById('rack-palette-items');
+const rackFormPageTitle = document.getElementById('rack-form-page-title');
+const rackFormPageBody  = document.getElementById('rack-form-page-body');
+// rackFormBack removed — dialog now uses inline close buttons
+const phoneGrid         = document.querySelector('.phone-grid');
+
+// ---- Helpers ----
+function rackById(id)     { return racks.find(r => r.id === id); }
+function locationById(id) { return locations.find(l => l.id === id); }
+
+async function saveRackData() { await saveItemsToAPI(items); }
+
+function showRackOverlay(id) {
+  // Only toggle the full-screen overlays — never the form dialog
+  [rackOverview, rackEditor].forEach(el => el && el.classList.add('hidden'));
+  if (phoneGrid) phoneGrid.style.display = '';
+  if (id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('hidden');
+    if (phoneGrid) phoneGrid.style.display = 'none';
+  }
+}
+
+// ---- Main toggle ----
+if (rackToggleBtn) {
+  rackToggleBtn.addEventListener('click', () => {
+    if (isMobile()) { showToast('Rack View ist nur auf dem Desktop verfügbar.', 'error'); return; }
+    renderRackOverview();
+    showRackOverlay('rack-overview');
+  });
+}
+// Header buttons are now rendered dynamically inside renderRackOverview()
+
+// ---- Rack Overview ----
+function renderRackOverview() {
+  if (!rackOverviewBody) return;
+  rackOverviewBody.innerHTML = '';
+
+  // Inner wrapper — same max-width as dashboard
+  const inner = document.createElement('div');
+  inner.className = 'rack-overview-inner';
+  rackOverviewBody.appendChild(inner);
+
+  // ── Floating top bar (title + action buttons) ───────────────
+  const topBar = document.createElement('div');
+  topBar.className = 'rack-ov-topbar';
+  topBar.innerHTML = `
+    <h2 class="rack-ov-title">🗄️ Rack View</h2>
+    <div class="rack-ov-actions">
+      <button class="button rack-ov-btn-loc" id="rov-add-loc" type="button">+ Location</button>
+      <button class="button rack-ov-btn-rack" id="rov-add-rack" type="button">+ Rack</button>
+      <button class="button secondary rack-ov-btn-close" id="rov-close" type="button">✕ Close</button>
+    </div>
+  `;
+  inner.appendChild(topBar);
+  topBar.querySelector('#rov-add-loc').addEventListener('click', () => openLocationForm(null, null));
+  topBar.querySelector('#rov-add-rack').addEventListener('click', () => openRackForm(null, null));
+  topBar.querySelector('#rov-close').addEventListener('click', () => showRackOverlay(null));
+
+  // ── Rounded panel (like dashboard .phone) ───────────────────
+  const panel = document.createElement('div');
+  panel.className = 'rack-ov-panel';
+  inner.appendChild(panel);
+
+  if (locations.length === 0) {
+    const es = document.createElement('div');
+    es.className = 'rack-empty-state';
+    es.innerHTML = `
+      <div style="font-size:3rem">🗄️</div>
+      <h3>No Racks Yet</h3>
+      <p>Start by creating a location, then add your first rack.</p>
+      <button class="button" id="rack-create-first">+ Create your first Rack</button>
+    `;
+    panel.appendChild(es);
+    document.getElementById('rack-create-first').addEventListener('click', () => openLocationForm('create-flow', null));
+    return;
+  }
+
+  // Location selector row
+  const locBar = document.createElement('div');
+  locBar.className = 'rack-location-bar';
+
+  const locLabel = document.createElement('label');
+  locLabel.textContent = 'Location:';
+
+  const locSel = document.createElement('select');
+  locSel.id = 'rack-location-select';
+  locations.forEach(loc => {
+    const opt = document.createElement('option');
+    opt.value = loc.id;
+    opt.textContent = loc.name;
+    locSel.appendChild(opt);
+  });
+
+  // Edit location button
+  const editLocBtn = document.createElement('button');
+  editLocBtn.className = 'button secondary';
+  editLocBtn.textContent = '✏️ Edit';
+  editLocBtn.type = 'button';
+  editLocBtn.addEventListener('click', () => openLocationForm(null, locSel.value));
+
+  locBar.appendChild(locLabel);
+  locBar.appendChild(locSel);
+  locBar.appendChild(editLocBtn);
+  panel.appendChild(locBar);
+
+  const grid = document.createElement('div');
+  grid.className = 'rack-cards-grid';
+  panel.appendChild(grid);
+
+  function renderCards() {
+    grid.innerHTML = '';
+    const locationRacks = racks.filter(r => r.locationId === locSel.value);
+    if (locationRacks.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'color:var(--muted);font:0.8rem/1.4 Space Mono,monospace;padding:1rem 0;';
+      empty.textContent = 'No racks at this location.';
+      grid.appendChild(empty);
+    } else {
+      locationRacks.forEach(rack => {
+        const card = document.createElement('div');
+        card.className = 'rack-card';
+        card.innerHTML = `
+          <div class="rack-card-icon">🗄️</div>
+          <p class="rack-card-name">${escapeHtml(rack.name)}</p>
+          <p class="rack-card-meta">${rack.heightUnits}U · ${rack.formFactor === '10inch' ? '10″' : '19″'}</p>
+        `;
+        card.addEventListener('click', () => openRackEditor(rack.id));
+        // Right-click context menu
+        card.addEventListener('contextmenu', e => {
+          e.preventDefault();
+          showRackContextMenu(e.clientX, e.clientY, rack, renderCards);
+        });
+        grid.appendChild(card);
+      });
+    }
+  }
+
+  locSel.addEventListener('change', renderCards);
+  renderCards();
+}
+
+// ── Context menu ─────────────────────────────────────────────
+function closeContextMenu() {
+  const existing = document.getElementById('rack-ctx-menu');
+  if (existing) existing.remove();
+}
+
+function showRackContextMenu(x, y, rack, onDelete) {
+  closeContextMenu();
+  const menu = document.createElement('div');
+  menu.className = 'rack-ctx-menu';
+  menu.id = 'rack-ctx-menu';
+
+  menu.innerHTML = `
+    <div class="rack-ctx-item" id="ctx-open">📂 Open Editor</div>
+    <div class="rack-ctx-item" id="ctx-edit">✏️ Edit Rack</div>
+    <div class="rack-ctx-sep"></div>
+    <div class="rack-ctx-item danger" id="ctx-delete">🗑 Delete Rack</div>
+  `;
+
+  // Position — keep inside viewport
+  menu.style.left = Math.min(x, window.innerWidth  - 200) + 'px';
+  menu.style.top  = Math.min(y, window.innerHeight - 150) + 'px';
+  document.body.appendChild(menu);
+
+  menu.querySelector('#ctx-open').addEventListener('mousedown', e => e.stopPropagation());
+  menu.querySelector('#ctx-open').addEventListener('click', e => {
+    e.stopPropagation();
+    closeContextMenu();
+    openRackEditor(rack.id);
+  });
+  menu.querySelector('#ctx-edit').addEventListener('mousedown', e => e.stopPropagation());
+  menu.querySelector('#ctx-edit').addEventListener('click', e => {
+    e.stopPropagation();
+    closeContextMenu();
+    openRackForm(rack.id, null);
+  });
+  menu.querySelector('#ctx-delete').addEventListener('mousedown', e => e.stopPropagation());
+  menu.querySelector('#ctx-delete').addEventListener('click', e => {
+    e.stopPropagation();
+    closeContextMenu();
+    if (!confirm(`Delete rack "${rack.name}"? This cannot be undone.`)) return;
+    racks = racks.filter(r => r.id !== rack.id);
+    saveRackData();
+    renderRackOverview();
+    showToast('Rack deleted.');
+  });
+
+  // Close on outside mousedown (after this event cycle finishes)
+  const outsideHandler = e => {
+    if (!menu.contains(e.target)) {
+      closeContextMenu();
+      document.removeEventListener('mousedown', outsideHandler);
+    }
+  };
+  setTimeout(() => document.addEventListener('mousedown', outsideHandler), 50);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeContextMenu();
+});
+
+// ---- Location form ----
+function openLocationForm(mode, existingId) {
+  rackFormMode = mode === 'create-flow' ? 'location-flow' : (existingId ? 'editLocation' : 'location');
+  const existing = existingId ? locationById(existingId) : null;
+  rackFormPageTitle.textContent = existing ? 'Edit Location' : 'Create Location';
+  rackFormPageBody.innerHTML = '';
+
+  const inner = document.createElement('div');
+  inner.className = 'rack-form-inner';
+  inner.innerHTML = `
+    <label>Name *
+      <input id="rf-loc-name" type="text" placeholder="e.g. Server Room 1" value="${existing ? escapeHtml(existing.name) : ''}" />
+    </label>
+    <label>Address
+      <input id="rf-loc-address" type="text" placeholder="e.g. Basement, Rack Bay A" value="${existing ? escapeHtml(existing.address || '') : ''}" />
+    </label>
+    <label>Notes
+      <textarea id="rf-loc-notes" rows="3" placeholder="Any details...">${existing ? escapeHtml(existing.notes || '') : ''}</textarea>
+    </label>
+    ${existing ? `<button class="button rack-form-btn-danger" id="rf-loc-delete" type="button">🗑 Delete Location</button>` : ''}
+    <div class="rack-form-btns">
+      <button class="button rack-form-btn-primary" id="rf-loc-submit" type="button">${mode === 'create-flow' ? 'Next: Create Rack →' : (existing ? 'Save Location' : 'Add Location')}</button>
+      <button class="button secondary rack-form-btn-close" id="rf-loc-close" type="button">✕ Close</button>
+    </div>
+  `;
+  rackFormPageBody.appendChild(inner);
+
+  document.getElementById('rf-loc-submit').addEventListener('click', () => {
+    const name = document.getElementById('rf-loc-name').value.trim();
+    if (!name) { showToast('Location name is required.', 'error'); return; }
+    if (existing) {
+      existing.name    = name;
+      existing.address = document.getElementById('rf-loc-address').value.trim();
+      existing.notes   = document.getElementById('rf-loc-notes').value.trim();
+    } else {
+      const loc = {
+        id: 'location-' + Date.now(),
+        name,
+        address: document.getElementById('rf-loc-address').value.trim(),
+        notes:   document.getElementById('rf-loc-notes').value.trim(),
+      };
+      locations.push(loc);
+      rackFormPendingLocationId = loc.id;
+    }
+    saveRackData();
+    if (mode === 'create-flow') {
+      openRackForm(null, rackFormPendingLocationId);
+    } else {
+      renderRackOverview();
+      showRackOverlay('rack-overview');
+      showToast(existing ? 'Location updated.' : 'Location added.');
+    }
+  });
+
+  if (existing) {
+    document.getElementById('rf-loc-delete').addEventListener('click', () => {
+      if (!confirm(`Delete location "${existing.name}"? All racks there will also be deleted.`)) return;
+      racks = racks.filter(r => r.locationId !== existing.id);
+      locations = locations.filter(l => l.id !== existing.id);
+      saveRackData();
+      renderRackOverview();
+      showRackOverlay('rack-overview');
+      showToast('Location deleted.');
+    });
+  }
+
+  rackFormDialog.showModal();
+  const rfLocClose = document.getElementById('rf-loc-close');
+  if (rfLocClose) rfLocClose.addEventListener('click', () => rackFormDialog.close());
+}
+
+// ---- Rack form ----
+function openRackForm(existingId, preselectedLocationId) {
+  const existing = existingId ? rackById(existingId) : null;
+  rackFormPageTitle.textContent = existing ? 'Edit Rack' : 'Create Rack';
+  rackFormPageBody.innerHTML = '';
+
+  const inner = document.createElement('div');
+  inner.className = 'rack-form-inner';
+
+  const locOpts = locations.map(loc =>
+    `<option value="${loc.id}" ${(preselectedLocationId || existing?.locationId) === loc.id ? 'selected' : ''}>${escapeHtml(loc.name)}</option>`
+  ).join('');
+
+  inner.innerHTML = `
+    <label>Name *
+      <input id="rf-rack-name" type="text" placeholder="e.g. Main Rack" value="${existing ? escapeHtml(existing.name) : ''}" />
+    </label>
+    <label>Notes
+      <textarea id="rf-rack-notes" rows="3" placeholder="Any details...">${existing ? escapeHtml(existing.notes || '') : ''}</textarea>
+    </label>
+    <label>Height Units
+      <input id="rf-rack-hu" type="number" min="1" max="100" placeholder="e.g. 42" value="${existing ? existing.heightUnits : 42}" />
+    </label>
+    <label>Form Factor
+      <select id="rf-rack-ff">
+        <option value="19inch" ${(!existing || existing.formFactor === '19inch') ? 'selected' : ''}>19 inch</option>
+        <option value="10inch" ${existing?.formFactor === '10inch' ? 'selected' : ''}>10 inch</option>
+      </select>
+    </label>
+    <label>Location
+      <select id="rf-rack-loc">${locOpts}</select>
+    </label>
+    <div class="rack-form-btns">
+      <button class="button rack-form-btn-primary" id="rf-rack-submit" type="button">${existing ? 'Save Rack' : 'Create Rack & Open Editor'}</button>
+      <button class="button secondary rack-form-btn-close" id="rf-rack-close" type="button">✕ Close</button>
+    </div>
+  `;
+  rackFormPageBody.appendChild(inner);
+
+  document.getElementById('rf-rack-submit').addEventListener('click', () => {
+    const name  = document.getElementById('rf-rack-name').value.trim();
+    if (!name) { showToast('Rack name is required.', 'error'); return; }
+    const hu    = parseInt(document.getElementById('rf-rack-hu').value, 10) || 42;
+    const ff    = document.getElementById('rf-rack-ff').value;
+    const locId = document.getElementById('rf-rack-loc').value;
+    if (existing) {
+      existing.name = name;
+      existing.notes = document.getElementById('rf-rack-notes').value.trim();
+      existing.heightUnits = hu;
+      existing.formFactor = ff;
+      existing.locationId = locId;
+      saveRackData();
+      showToast('Rack updated.');
+      renderRackOverview();
+      showRackOverlay('rack-overview');
+    } else {
+      const rack = { id: 'rack-' + Date.now(), name, notes: document.getElementById('rf-rack-notes').value.trim(), heightUnits: hu, formFactor: ff, locationId: locId, slots: {} };
+      racks.push(rack);
+      saveRackData();
+      openRackEditor(rack.id);
+    }
+  });
+
+  rackFormDialog.showModal();
+  const rfRackClose = document.getElementById('rf-rack-close');
+  if (rfRackClose) rfRackClose.addEventListener('click', () => rackFormDialog.close());
+}
+
+// ---- Rack Editor ----
+function openRackEditor(rackId) {
+  rackEditorRackId = rackId;
+  const rack = rackById(rackId);
+  if (!rack) return;
+  const loc = locationById(rack.locationId);
+  rackEditorName.textContent = rack.name;
+  rackEditorLocBadge.textContent = loc ? `📍 ${loc.name}` : '';
+  renderPalette();
+  renderRackDiagram('front');
+  renderRackDiagram('rear');
+  equaliseRackHeights();
+  showRackOverlay('rack-editor');
+}
+
+if (rackEditorBack) {
+  rackEditorBack.addEventListener('click', () => {
+    autoSaveRack();
+    renderRackOverview();
+    showRackOverlay('rack-overview');
+  });
+}
+
+
+function autoSaveRack() {
+  const rack = rackById(rackEditorRackId);
+  if (!rack) return;
+  rack.name = rackEditorName.textContent.trim() || rack.name;
+  saveRackData();
+}
+
+// ---- Palette ----
+const CATEGORY_META = {
+  compute: { label: 'Compute',    icon: '🖥' },
+  network: { label: 'Network',    icon: '🔌' },
+  power:   { label: 'Power',      icon: '⚡' },
+  mgmt:    { label: 'Management', icon: '🖱' },
+  filler:  { label: 'Filler',     icon: '▭'  },
+};
+
+function renderPalette() {
+  if (!rackPaletteItems) return;
+  rackPaletteItems.innerHTML = '';
+  let lastCategory = null;
+  RACK_COMPONENTS.forEach(comp => {
+    // Section header when category changes
+    if (comp.category !== lastCategory) {
+      lastCategory = comp.category;
+      const meta = CATEGORY_META[comp.category] || { label: comp.category, icon: '' };
+      const hdr = document.createElement('div');
+      hdr.className = 'rack-palette-section';
+      hdr.innerHTML = `<span>${meta.icon}</span><span>${meta.label}</span>`;
+      rackPaletteItems.appendChild(hdr);
+    }
+    const el = document.createElement('div');
+    el.className = `rack-palette-item cat-${comp.category}`;
+    el.draggable = true;
+    el.dataset.componentType = comp.componentType;
+    el.dataset.heightU = comp.heightU;
+    el.dataset.label   = comp.label;
+    el.innerHTML = `<span class="rack-palette-drag">⠿</span><span class="rack-palette-label">${comp.label}</span><span class="rack-palette-hu">${comp.heightU}U</span>`;
+    el.addEventListener('dragstart', e => {
+      rackDragComponent = { componentType: comp.componentType, heightU: comp.heightU, label: comp.label, category: comp.category || 'compute', multiDevice: comp.multiDevice || null, isPDU: comp.isPDU || false, isBlank: comp.isBlank || false, isPassive: comp.isPassive || false, source: 'palette' };
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+    el.addEventListener('dragend', () => { rackDragComponent = null; });
+    rackPaletteItems.appendChild(el);
+  });
+}
+
+// ---- Rack diagram ----
+function renderRackDiagram(side) {
+  const container = side === 'front' ? rackFront : rackRear;
+  if (!container) return;
+  container.innerHTML = '';
+  const rack = rackById(rackEditorRackId);
+  if (!rack) return;
+
+  const hu = rack.heightUnits || 42;
+  const occupiedMap = {};
+  Object.entries(rack.slots || {}).forEach(([key, comp]) => {
+    if (!key.startsWith(side + '-')) return;
+    const u = parseInt(key.split('-')[1], 10);
+    for (let i = 0; i < comp.heightU; i++) occupiedMap[u + i] = { comp, startU: u, key };
+  });
+
+  let u = 1;
+  while (u <= hu) {
+    const info = occupiedMap[u];
+    if (info && info.startU === u) {
+      container.appendChild(createOccupiedSlot(side, u, info.comp, info.key, rack));
+      u += info.comp.heightU;
+    } else if (info) {
+      u++;
+    } else {
+      container.appendChild(createEmptySlot(side, u, rack));
+      u++;
+    }
+  }
+  // Re-equalise after every diagram render (requestAnimationFrame so DOM has updated)
+  requestAnimationFrame(equaliseRackHeights);
+}
+
+function createEmptySlot(side, u, rack) {
+  const el = document.createElement('div');
+  el.className = 'rack-slot empty';
+  el.dataset.u    = u;
+  el.dataset.side = side;
+  el.innerHTML = `<span class="rack-slot-num">${u}</span><div class="rack-slot-content"><span class="rack-slot-label">— empty —</span></div>`;
+
+  el.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!rackDragComponent) return;
+    const fits = canFit(side, u, rackDragComponent.heightU, rack, rackDragComponent.fromSlot);
+    el.classList.toggle('drag-over',   fits);
+    el.classList.toggle('drag-invalid', !fits);
+  });
+  el.addEventListener('dragleave', () => el.classList.remove('drag-over', 'drag-invalid'));
+  el.addEventListener('drop', e => {
+    e.preventDefault();
+    el.classList.remove('drag-over', 'drag-invalid');
+    if (!rackDragComponent) return;
+    const fits = canFit(side, u, rackDragComponent.heightU, rack, rackDragComponent.fromSlot);
+    if (!fits) { showToast('Not enough space.', 'error'); return; }
+    if (rackDragComponent.fromSlot) delete rack.slots[rackDragComponent.fromSlot];
+    const slotKey = `${side}-${u}`;
+    rack.slots[slotKey] = {
+      componentType: rackDragComponent.componentType,
+      heightU: rackDragComponent.heightU,
+      label: rackDragComponent.label,
+      category: rackDragComponent.category || 'compute',
+      linkedDeviceId: rackDragComponent.linkedDeviceId || null,
+      multiDevice: rackDragComponent.multiDevice || null,
+      linkedDevices: rackDragComponent.linkedDevices || null,
+      isPDU: rackDragComponent.isPDU || false,
+      pduPorts: rackDragComponent.pduPorts || null,
+      pduLinks: rackDragComponent.pduLinks || null,
+      isBlank: rackDragComponent.isBlank || false,
+      isPassive: rackDragComponent.isPassive || false,
+    };
+    saveRackData();
+    renderRackDiagram(side);
+    // Blanks and cable management have no hardware to link
+    if (!rackDragComponent.isBlank && !rackDragComponent.isPassive) {
+      showLinkPanel(slotKey, side);
+    }
+    rackDragComponent = null;
+  });
+  return el;
+}
+
+function createOccupiedSlot(side, u, comp, slotKey, rack) {
+  const el = document.createElement('div');
+  const cat = comp.category || (comp.isBlank ? 'filler' : 'compute');
+  el.className = `rack-slot occupied cat-${cat}`;
+  el.dataset.u    = u;
+  el.dataset.side = side;
+  el.draggable    = true;
+  // Match the CSS --rack-u-height variable exactly
+  const uPx = Math.max(28, Math.min(42, window.innerHeight * 0.018));
+  const totalH = comp.heightU * uPx;
+  el.style.height    = totalH + 'px';
+  el.style.minHeight = totalH + 'px';
+  el.style.maxHeight = totalH + 'px';
+
+  // Build device label(s) — consistent plain-text style for all types
+  let deviceHtml = '';
+  if (comp.multiDevice && comp.linkedDevices) {
+    // Same plain style as single-device, each PC on its own .rack-slot-device line
+    const lines = comp.linkedDevices.map((id, i) => {
+      const dev = id ? findById(id) : null;
+      const name = dev ? escapeHtml((dev.symbol || '') + ' ' + dev.name) : '—';
+      return `<span class="rack-slot-device"><span class="rack-slot-device-idx">${i + 1}.</span> ${name}</span>`;
+    }).join('');
+    deviceHtml = `<div class="rack-multi-lines">${lines}</div>`;
+  } else if (comp.linkedDeviceId) {
+    const dev = findById(comp.linkedDeviceId);
+    if (dev) deviceHtml = `<span class="rack-slot-device">${escapeHtml((dev.symbol || '') + ' ' + dev.name)}</span>`;
+  } else if (comp.isPDU && comp.pduPorts) {
+    deviceHtml = `<span class="rack-slot-device">${comp.pduPorts} ports</span>`;
+  }
+
+  el.innerHTML = `
+    <span class="rack-slot-num">${u}</span>
+    <div class="rack-slot-content">
+      <span class="rack-slot-label">${escapeHtml(comp.label)}</span>
+      ${deviceHtml}
+    </div>
+    <button class="rack-slot-remove" title="Remove" data-key="${slotKey}" data-side="${side}">✕</button>
+  `;
+
+  el.addEventListener('click', e => {
+    if (e.target.classList.contains('rack-slot-remove')) return;
+    if (comp.isBlank || comp.isPassive) return;
+    showLinkPanel(slotKey, side);
+  });
+  el.querySelector('.rack-slot-remove').addEventListener('click', e => {
+    e.stopPropagation();
+    delete rack.slots[slotKey];
+    saveRackData();
+    renderRackDiagram(side);
+  });
+  el.addEventListener('dragstart', e => {
+    rackDragComponent = { componentType: comp.componentType, heightU: comp.heightU, label: comp.label, category: comp.category || 'compute', linkedDeviceId: comp.linkedDeviceId || null, multiDevice: comp.multiDevice || null, linkedDevices: comp.linkedDevices || null, isPDU: comp.isPDU || false, pduPorts: comp.pduPorts || null, pduLinks: comp.pduLinks || null, isBlank: comp.isBlank || false, isPassive: comp.isPassive || false, fromSlot: slotKey, source: 'rack' };
+    e.dataTransfer.effectAllowed = 'move';
+    setTimeout(() => el.style.opacity = '0.4', 0);
+  });
+  el.addEventListener('dragend', () => { el.style.opacity = ''; rackDragComponent = null; });
+  el.addEventListener('dragover', e => { if (!rackDragComponent || rackDragComponent.fromSlot === slotKey) return; e.preventDefault(); });
+  el.addEventListener('drop', e => {
+    e.preventDefault();
+    if (!rackDragComponent || rackDragComponent.fromSlot === slotKey) return;
+    showToast('Slot is occupied. Remove it first.', 'error');
+    rackDragComponent = null;
+  });
+  return el;
+}
+
+function canFit(side, startU, heightU, rack, excludeSlot) {
+  const hu = rack.heightUnits || 42;
+  if (startU + heightU - 1 > hu) return false;
+  for (let u = startU; u < startU + heightU; u++) {
+    const key = `${side}-${u}`;
+    if (rack.slots[key] && key !== excludeSlot) return false;
+    const occupied = Object.entries(rack.slots).find(([k, c]) => {
+      if (k === excludeSlot || !k.startsWith(side + '-')) return false;
+      const slotU = parseInt(k.split('-')[1], 10);
+      return u > slotU && u < slotU + c.heightU;
+    });
+    if (occupied) return false;
+  }
+  return true;
+}
+
+// ---- Link panel ----
+// ---- Link panel ----
+// The panel is rendered as a FIXED overlay appended to body so it never
+// gets clipped by overflow:hidden ancestors (rack-frame, rack-editor-body).
+// Closing: only via OK / Skip / Escape — NO outside-click-to-close, because
+// that interferes with native <select> dropdowns on every platform.
+
+function showLinkPanel(slotKey, side) {
+  closeLinkPanel();
+  const rack = rackById(rackEditorRackId);
+  if (!rack || !rack.slots[slotKey]) return;
+  const comp = rack.slots[slotKey];
+
+  const container = side === 'front' ? rackFront : rackRear;
+  const u = parseInt(slotKey.split('-')[1], 10);
+  const slotEl = container.querySelector(`[data-u="${u}"][data-side="${side}"]`);
+  if (!slotEl) return;
+
+  // Measure where the slot is on screen so we can anchor the panel
+  const slotRect  = slotEl.getBoundingClientRect();
+  const frameRect = container.getBoundingClientRect();
+
+  const panel = document.createElement('div');
+  panel.className = 'rack-link-panel';
+  panel.id = 'rack-link-panel-active';
+
+  // Position: fixed, left-aligned to the rack frame, top just below the slot
+  // Width matches the rack frame exactly
+  panel.style.position = 'fixed';
+  panel.style.left     = frameRect.left + 'px';
+  panel.style.width    = frameRect.width + 'px';
+  panel.style.top      = (slotRect.bottom) + 'px';
+  panel.style.zIndex   = '200';
+
+  const hardwareItems = items.filter(i => i.type === 'hardware');
+
+  function buildHwOpts(selectedId) {
+    return hardwareItems.map(itm =>
+      `<option value="${itm.id}" ${selectedId === itm.id ? 'selected' : ''}>${escapeHtml((itm.symbol || '') + ' ' + itm.name)}</option>`
+    ).join('');
+  }
+
+  // ── Multi-device (2× PC / 3× PC) ──────────────────────────────────────
+  if (comp.multiDevice) {
+    const count = comp.multiDevice;
+    const devs  = comp.linkedDevices || Array(count).fill(null);
+    let rows = '';
+    for (let i = 0; i < count; i++) {
+      rows += `
+        <div class="rack-link-row">
+          <span class="rack-link-row-label">PC ${i + 1}:</span>
+          <select class="rack-link-multi" data-idx="${i}">
+            <option value="">— none —</option>${buildHwOpts(devs[i])}
+          </select>
+        </div>`;
+    }
+    panel.innerHTML = `
+      <div class="rack-link-multi-wrap">
+        ${rows}
+        <div class="rack-link-actions">
+          <button class="button" id="rack-link-ok" type="button">✓ OK</button>
+          <button class="button secondary" id="rack-link-skip" type="button">Skip</button>
+        </div>
+      </div>`;
+    document.body.appendChild(panel);
+    rackLinkPanelTarget = { slotKey, side };
+
+    panel.querySelector('#rack-link-ok').addEventListener('click', () => {
+      const selects = panel.querySelectorAll('.rack-link-multi');
+      comp.linkedDevices  = Array.from(selects).map(s => s.value || null);
+      comp.linkedDeviceId = comp.linkedDevices[0];
+      saveRackData(); closeLinkPanel(); renderRackDiagram(side);
+    });
+    panel.querySelector('#rack-link-skip').addEventListener('click', () => closeLinkPanel());
+    return;
+  }
+
+  // ── PDU ───────────────────────────────────────────────────────────────
+  if (comp.isPDU) {
+    const currentPorts = comp.pduPorts || 8;
+    const portCounts   = [4, 6, 8, 10, 12, 16, 20, 24];
+    const pduLinks     = comp.pduLinks || {};
+
+    function buildPortRows(n) {
+      return Array.from({ length: n }, (_, i) => `
+        <div class="rack-link-row">
+          <span class="rack-link-row-label">Port ${i + 1}:</span>
+          <select class="rack-pdu-port" data-port="${i}">
+            <option value="">— empty —</option>${buildHwOpts(pduLinks[i] || null)}
+          </select>
+        </div>`).join('');
+    }
+
+    panel.innerHTML = `
+      <div class="rack-link-multi-wrap">
+        <div class="rack-link-row">
+          <span class="rack-link-row-label">Ports:</span>
+          <select id="rack-pdu-count">
+            ${portCounts.map(n => `<option value="${n}" ${currentPorts === n ? 'selected' : ''}>${n} ports</option>`).join('')}
+          </select>
+        </div>
+        <div id="rack-pdu-port-rows">${buildPortRows(currentPorts)}</div>
+        <div class="rack-link-actions">
+          <button class="button" id="rack-link-ok" type="button">✓ OK</button>
+          <button class="button secondary" id="rack-link-skip" type="button">Skip</button>
+        </div>
+      </div>`;
+    document.body.appendChild(panel);
+    rackLinkPanelTarget = { slotKey, side };
+
+    panel.querySelector('#rack-pdu-count').addEventListener('change', function() {
+      panel.querySelector('#rack-pdu-port-rows').innerHTML = buildPortRows(parseInt(this.value, 10));
+    });
+    panel.querySelector('#rack-link-ok').addEventListener('click', () => {
+      comp.pduPorts = parseInt(panel.querySelector('#rack-pdu-count').value, 10);
+      comp.pduLinks = {};
+      panel.querySelectorAll('.rack-pdu-port').forEach(s => {
+        comp.pduLinks[parseInt(s.dataset.port)] = s.value || null;
+      });
+      saveRackData(); closeLinkPanel(); renderRackDiagram(side);
+    });
+    panel.querySelector('#rack-link-skip').addEventListener('click', () => closeLinkPanel());
+    return;
+  }
+
+  // ── Standard single-device link ───────────────────────────────────────
+  panel.innerHTML = `
+    <div class="rack-link-multi-wrap">
+      <div class="rack-link-row">
+        <span class="rack-link-row-label">Gerät:</span>
+        <select id="rack-link-select">
+          <option value="">— none —</option>${buildHwOpts(comp.linkedDeviceId)}
+        </select>
+      </div>
+      <div class="rack-link-actions">
+        <button class="button" id="rack-link-ok" type="button">✓ OK</button>
+        <button class="button secondary" id="rack-link-skip" type="button">Skip</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(panel);
+  rackLinkPanelTarget = { slotKey, side };
+
+  panel.querySelector('#rack-link-ok').addEventListener('click', () => {
+    comp.linkedDeviceId = panel.querySelector('#rack-link-select').value || null;
+    saveRackData(); closeLinkPanel(); renderRackDiagram(side);
+  });
+  panel.querySelector('#rack-link-skip').addEventListener('click', () => closeLinkPanel());
+}
+
+function closeLinkPanel() {
+  const existing = document.getElementById('rack-link-panel-active');
+  if (existing) existing.remove();
+  rackLinkPanelTarget = null;
+}
+
+// Close panel with Escape key only — no outside-click, no mousedown tricks
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && rackLinkPanelTarget) closeLinkPanel();
+});
+
+// ---- Utility ----
+
+// Make front and rear rack frames the same height.
+// Strategy: set minHeight on the shorter frame so it matches the taller one,
+// and distribute the extra space evenly among its empty slots.
+function equaliseRackHeights() {
+  if (!rackFront || !rackRear) return;
+
+  // 1. Reset any previous overrides so we measure natural height
+  [rackFront, rackRear].forEach(f => {
+    f.style.minHeight = '';
+    f.querySelectorAll('.rack-slot.empty').forEach(s => s.style.minHeight = '');
+  });
+
+  const hFront = rackFront.scrollHeight;
+  const hRear  = rackRear.scrollHeight;
+  if (hFront === hRear) return;
+
+  const [shorter, taller, targetH] = hFront < hRear
+    ? [rackFront, rackRear, hRear]
+    : [rackRear, rackFront, hFront];
+
+  const diff = targetH - shorter.scrollHeight;
+  const emptySlots = shorter.querySelectorAll('.rack-slot.empty');
+  if (emptySlots.length === 0) {
+    // No empty slots to expand — just set minHeight on the frame
+    shorter.style.minHeight = targetH + 'px';
+    return;
+  }
+
+  // Distribute extra pixels evenly across empty slots (integer math, last slot absorbs remainder)
+  const extra = Math.floor(diff / emptySlots.length);
+  const baseU = Math.max(28, Math.min(42, window.innerHeight * 0.018));
+  emptySlots.forEach((slot, i) => {
+    const add = i === emptySlots.length - 1 ? diff - extra * i : extra;
+    const h = (baseU + add) + 'px';
+    slot.style.height    = h;
+    slot.style.minHeight = h;
+    slot.style.maxHeight = h;
+  });
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+
+// Theme initialization moved after definitions
+try { initTheme(); } catch(e){ console.error(e); }
+
+
+
+function getDemoLocations() {
+  return [
+    {
+      id: 'loc-home-lab',
+      name: 'Home Lab',
+      notes: 'Primary demo location with the main network and compute rack.',
+    },
+    {
+      id: 'loc-backup-room',
+      name: 'Backup Room',
+      notes: 'Secondary demo location for storage and backup equipment.',
+    },
+  ];
+}
+
+function rackSlot(componentType, heightU, label, category, extra = {}) {
+  return {
+    componentType,
+    heightU,
+    label,
+    category,
+    ...extra,
+  };
+}
+
+function getDemoRacks() {
+  return [
+    {
+      id: 'rack-main-42u',
+      locationId: 'loc-home-lab',
+      name: 'Main Rack 42U',
+      notes: 'Core networking, virtualization and service hosts.',
+      heightUnits: 42,
+      formFactor: '19inch',
+      slots: {
+        'front-1': rackSlot('1u-patch-panel', 1, 'Patch Panel', 'network', { isPassive: true }),
+        'front-2': rackSlot('1u-switch', 1, 'Core Switch', 'network', { linkedDeviceId: 'hw-switch' }),
+        'front-3': rackSlot('1u-router', 1, 'Gateway Router', 'network', { linkedDeviceId: 'hw-router' }),
+        'front-4': rackSlot('1u-cable-mgmt', 1, 'Cable Management', 'network', { isPassive: true }),
+        'front-6': rackSlot('2u-server', 2, 'Proxmox Host', 'compute', { linkedDeviceId: 'hw-proxmox' }),
+        'front-9': rackSlot('2pc-2u', 2, 'Service VMs', 'compute', { multiDevice: 2, linkedDevices: ['vm-docker', 'vm-monitoring'] }),
+        'front-12': rackSlot('2pc-2u', 2, 'Media + DNS', 'compute', { multiDevice: 2, linkedDevices: ['vm-media', 'lxc-dns'] }),
+        'front-16': rackSlot('1u-server', 1, 'Reverse Proxy LXC', 'compute', { linkedDeviceId: 'lxc-proxy' }),
+        'front-20': rackSlot('2u-ups', 2, 'Rack UPS', 'power'),
+        'front-24': rackSlot('1u-blank', 1, 'Blank Panel', 'filler', { isBlank: true }),
+        'front-25': rackSlot('2u-blank', 2, 'Blank Panel', 'filler', { isBlank: true }),
+        'rear-1': rackSlot('1u-pdu', 1, 'Rear PDU A', 'power', { isPDU: true, pduPorts: 12 }),
+        'rear-3': rackSlot('1u-pdu', 1, 'Rear PDU B', 'power', { isPDU: true, pduPorts: 12 }),
+        'rear-5': rackSlot('1u-cable-mgmt', 1, 'Rear Cable Management', 'network', { isPassive: true }),
+        'rear-8': rackSlot('1u-kvm', 1, 'Rack KVM', 'mgmt'),
+      },
+    },
+    {
+      id: 'rack-storage-24u',
+      locationId: 'loc-backup-room',
+      name: 'Storage Rack 24U',
+      notes: 'NAS, backup vault and storage networking.',
+      heightUnits: 24,
+      formFactor: '19inch',
+      slots: {
+        'front-1': rackSlot('1u-patch-panel', 1, 'Storage Patch Panel', 'network', { isPassive: true }),
+        'front-2': rackSlot('1u-switch', 1, 'Storage Switch', 'network'),
+        'front-5': rackSlot('4u-server', 4, 'NAS Main', 'compute', { linkedDeviceId: 'hw-nas' }),
+        'front-10': rackSlot('4u-server', 4, 'Backup Vault', 'compute', { linkedDeviceId: 'hw-backup' }),
+        'front-16': rackSlot('2u-ups', 2, 'Storage UPS', 'power'),
+        'front-20': rackSlot('2u-blank', 2, 'Blank Panel', 'filler', { isBlank: true }),
+        'rear-1': rackSlot('1u-pdu', 1, 'Rear PDU', 'power', { isPDU: true, pduPorts: 8 }),
+        'rear-4': rackSlot('1u-cable-mgmt', 1, 'Rear Cable Management', 'network', { isPassive: true }),
+      },
+    },
+  ];
+}
+
 
 function getDemoItems() {
   return [
@@ -2378,68 +3861,4 @@ function getDemoItems() {
     { id: 'app-npm', type: 'app', name: 'Nginx Proxy Manager', description: 'Reverse proxy UI', notes: 'SSL termination for all services', connections: [], ip: '', ipPort: '10.20.0.50:81', webUrl: 'https://proxy.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'lxc-proxy', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online', symbol: '🔒', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
   ];
 }
-
-let tutorialStep = 0;
-const tutorialSteps = [
-  { title: 'Welcome to Labby! 👋', text: 'Labby helps you map your homelab. Track hardware, VMs, apps and networks, and visualize how everything connects.', icon: '🧪' },
-  { title: 'Your Topology', text: 'The main view shows all your resources grouped by type. Each card shows specs, IP, status and quick actions.', icon: '🗂️' },
-  { title: 'Add Resources', text: 'Tap ➕ Add to create new hardware, VMs, LXCs, apps or networks. Fill in as much or as little as you like.', icon: '➕' },
-  { title: 'IP View 🌐', text: 'The IP View shows all used IPs sorted by subnet. Search by IP, hostname or port to find devices instantly.', icon: '🌐' },
-  { title: 'Relationship Tree 🌳', text: 'The Tree and Graph views visualize how your infrastructure connects. Which VMs run on which hardware, which apps run on which VMs.', icon: '🌳' },
-  { title: 'Status Indicators', text: 'Mark devices as 🟢 Online, 🔴 Offline or 🟡 Maintenance. Offline cards are dimmed, maintenance cards get a dashed border.', icon: '🟢' },
-  { title: 'Demo Mode 🎭', text: 'This is a live demo. Changes are saved to your browser only and reset on first visit. Self-host Labby to keep your data permanently.', icon: '🎭' },
-];
-
-function showWelcomePopup() {
-  const seen = localStorage.getItem('labby-welcome-seen');
-  if (seen) return;
-  tutorialStep = 0;
-  renderTutorialStep();
-  document.getElementById('welcome-overlay').classList.add('active');
-}
-
-function renderTutorialStep() {
-  const step = tutorialSteps[tutorialStep];
-  document.getElementById('tutorial-icon').textContent = step.icon;
-  document.getElementById('tutorial-title').textContent = step.title;
-  document.getElementById('tutorial-text').textContent = step.text;
-  document.getElementById('tutorial-progress').textContent = `${tutorialStep + 1} / ${tutorialSteps.length}`;
-  document.getElementById('tutorial-prev').style.display = tutorialStep === 0 ? 'none' : 'block';
-  document.getElementById('tutorial-next').textContent = tutorialStep === tutorialSteps.length - 1 ? "Let's go! 🚀" : 'Next →';
-  const dots = document.getElementById('tutorial-dots');
-  dots.innerHTML = '';
-  tutorialSteps.forEach((_, i) => {
-    const dot = document.createElement('span');
-    dot.className = 'tutorial-dot' + (i === tutorialStep ? ' active' : '');
-    dot.addEventListener('click', () => { tutorialStep = i; renderTutorialStep(); });
-    dots.appendChild(dot);
-  });
-}
-
-document.getElementById('tutorial-next').addEventListener('click', () => {
-  if (tutorialStep < tutorialSteps.length - 1) {
-    tutorialStep++;
-    renderTutorialStep();
-  } else {
-    closeTutorial();
-  }
-});
-
-document.getElementById('tutorial-prev').addEventListener('click', () => {
-  if (tutorialStep > 0) {
-    tutorialStep--;
-    renderTutorialStep();
-  }
-});
-
-document.getElementById('tutorial-skip').addEventListener('click', closeTutorial);
-document.getElementById('welcome-overlay').addEventListener('click', (e) => {
-  if (e.target === document.getElementById('welcome-overlay')) closeTutorial();
-});
-
-function closeTutorial() {
-  document.getElementById('welcome-overlay').classList.remove('active');
-  localStorage.setItem('labby-welcome-seen', '1');
-}
-
 
