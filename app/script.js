@@ -55,7 +55,6 @@ const hardwareWebUrlWrap = document.getElementById('hardware-web-url-wrap');
 const notesInput = document.getElementById('notes');
 const statusSelect = document.getElementById('status');
 const notesWrap = document.getElementById('notes-wrap');
-const liveMonitoringCheckbox = document.getElementById('live-monitoring');
 const ipStatusSelect = document.getElementById('ip-status');
 const ipStatusWrap = document.getElementById('ip-status-wrap');
 const urlStatusSelect = document.getElementById('url-status');
@@ -89,7 +88,7 @@ let treeViewMode = 'tree';
 let lastTypeSelection = typeSelect.value;
 let lastHardwareKindSelection = hardwareKindSelect.value;
 let pollingInterval = null;
-let pollingData = {}; // Store live status data { itemId: { ipStatus, urlStatus } }
+let liveStatusData = {}; // Store live status data { itemId: { ipStatus: 'online'|'offline', urlStatus: 'online'|'offline' } }
 
 const API_BASE = (() => {
   const loc = window.location;
@@ -174,10 +173,10 @@ async function startPolling() {
 }
 
 async function pollLiveStatus() {
-  const toMonitor = items.filter((item) => item.liveMonitoring);
+  const toMonitor = items.filter((item) => item.ipStatus === 'live' || item.urlStatus === 'live');
 
   for (const item of toMonitor) {
-    if (item.ip && ['hardware', 'vm', 'lxc'].includes(item.type)) {
+    if (item.ipStatus === 'live' && item.ip && ['hardware', 'vm', 'lxc'].includes(item.type)) {
       try {
         const res = await fetch(`${API_BASE}/api/ping`, {
           method: 'POST',
@@ -185,15 +184,15 @@ async function pollLiveStatus() {
           body: JSON.stringify({ ip: item.ip.split('/')[0].trim() }),
         });
         const data = await res.json();
-        if (!pollingData[item.id]) pollingData[item.id] = {};
-        pollingData[item.id].ipStatus = data.status;
+        if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
+        liveStatusData[item.id].ipStatus = data.status;
       } catch (err) {
-        if (!pollingData[item.id]) pollingData[item.id] = {};
-        pollingData[item.id].ipStatus = 'offline';
+        if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
+        liveStatusData[item.id].ipStatus = 'offline';
       }
     }
 
-    if (item.webUrl && (item.type === 'app' || item.type === 'hardware')) {
+    if (item.urlStatus === 'live' && item.webUrl && (item.type === 'app' || item.type === 'hardware')) {
       try {
         const res = await fetch(`${API_BASE}/api/check-url`, {
           method: 'POST',
@@ -201,11 +200,11 @@ async function pollLiveStatus() {
           body: JSON.stringify({ url: item.webUrl }),
         });
         const data = await res.json();
-        if (!pollingData[item.id]) pollingData[item.id] = {};
-        pollingData[item.id].urlStatus = data.status;
+        if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
+        liveStatusData[item.id].urlStatus = data.status;
       } catch (err) {
-        if (!pollingData[item.id]) pollingData[item.id] = {};
-        pollingData[item.id].urlStatus = 'offline';
+        if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
+        liveStatusData[item.id].urlStatus = 'offline';
       }
     }
   }
@@ -238,7 +237,6 @@ function removeDuplicateLabels(matchFn) {
 
 typeSelect.addEventListener('change', applyTypeVisibility);
 hardwareKindSelect.addEventListener('change', applyTypeVisibility);
-liveMonitoringCheckbox.addEventListener('change', applyTypeVisibility);
 ipInput.addEventListener('input', applyTypeVisibility);
 webUrlInput.addEventListener('input', applyTypeVisibility);
 hardwareWebUrlInput.addEventListener('input', applyTypeVisibility);
@@ -320,7 +318,6 @@ form.addEventListener('submit', async (event) => {
       : type === 'hardware' && hardwareKind === 'switch'
         ? [...selectedSwitchLinks, ...selectedSwitchDeviceLinks]
         : [],
-    liveMonitoring: liveMonitoringCheckbox.checked,
     ipStatus: ipStatusSelect.value || '',
     urlStatus: urlStatusSelect.value || '',
   };
@@ -345,7 +342,6 @@ form.addEventListener('submit', async (event) => {
   statusSelect.value = '';
   symbolInput.value = defaultSymbol('hardware', 'server');
   hardwareKindSelect.value = 'server';
-  liveMonitoringCheckbox.checked = false;
   ipStatusSelect.value = '';
   urlStatusSelect.value = '';
   resetDynamicHardwareFields();
@@ -362,7 +358,6 @@ cancelEditBtn.addEventListener('click', () => {
   form.reset();
   symbolInput.value = defaultSymbol('hardware', 'server');
   hardwareKindSelect.value = 'server';
-  liveMonitoringCheckbox.checked = false;
   ipStatusSelect.value = '';
   urlStatusSelect.value = '';
   resetDynamicHardwareFields();
@@ -780,9 +775,8 @@ function sanitizeItems(raw) {
       nasRaids: Array.isArray(item.nasRaids)
         ? item.nasRaids.map((raid) => ({ name: String(raid?.name || ''), level: String(raid?.level || 'RAID1'), size: String(raid?.size || '') })).filter((raid) => raid.name || raid.size)
         : [],
-      liveMonitoring: item.liveMonitoring === true,
-      ipStatus: ['', 'online', 'offline', 'maintenance'].includes(item.ipStatus) ? item.ipStatus : '',
-      urlStatus: ['', 'online', 'offline', 'maintenance'].includes(item.urlStatus) ? item.urlStatus : '',
+      ipStatus: ['', 'online', 'offline', 'maintenance', 'live'].includes(item.ipStatus) ? item.ipStatus : '',
+      urlStatus: ['', 'online', 'offline', 'maintenance', 'live'].includes(item.urlStatus) ? item.urlStatus : '',
     }));
   return normalizeList(normalized);
 }
@@ -860,9 +854,8 @@ function normalizeList(list) {
     }
     if (!['vm', 'lxc'].includes(next.type) || !hardwareIds.has(next.hostedOn)) next.hostedOn = '';
     if (next.type === 'app' && !hostableAppIds.has(next.appHostedOn)) next.appHostedOn = '';
-    if (!next.liveMonitoring) next.liveMonitoring = false;
-    if (!['', 'online', 'offline', 'maintenance'].includes(next.ipStatus)) next.ipStatus = '';
-    if (!['', 'online', 'offline', 'maintenance'].includes(next.urlStatus)) next.urlStatus = '';
+    if (!['', 'online', 'offline', 'maintenance', 'live'].includes(next.ipStatus)) next.ipStatus = '';
+    if (!['', 'online', 'offline', 'maintenance', 'live'].includes(next.urlStatus)) next.urlStatus = '';
     return next;
   });
 
@@ -970,11 +963,10 @@ function applyTypeVisibility() {
   hardwareWebUrlWrap.classList.toggle('hidden', !isHardware);
   notesWrap.classList.toggle('hidden', !supportsNotes(type));
 
-  const liveMonitoringEnabled = liveMonitoringCheckbox.checked;
-  const hasIp = ipInput.value.trim() || (type === 'app' && ipPortInput.value.trim());
-  const hasUrl = webUrlInput.value.trim() || hardwareWebUrlInput.value.trim();
-  ipStatusWrap.classList.toggle('hidden', !liveMonitoringEnabled || !hasIp);
-  urlStatusWrap.classList.toggle('hidden', !liveMonitoringEnabled || !hasUrl);
+  const canHaveIp = ['hardware', 'vm', 'lxc', 'app'].includes(type);
+  const canHaveUrl = isApp || isHardware;
+  ipStatusWrap.classList.toggle('hidden', !canHaveIp);
+  urlStatusWrap.classList.toggle('hidden', !canHaveUrl);
 
   subnetInput.required = isNetwork;
   gatewayInput.required = isNetwork;
@@ -1182,19 +1174,30 @@ function setCardText(node, selector, value) {
 }
 
 function buildLiveStatusText(item) {
-  if (!item.liveMonitoring) return '';
+  const statusMap = { '': '- Not set -', online: '🟢 Online', offline: '🔴 Offline', maintenance: '🟡 Maintenance', live: '📡 Live' };
   const parts = [];
-  const liveData = pollingData[item.id] || {};
-  const statusMap = { online: '🟢 Online', offline: '🔴 Offline', maintenance: '🟡 Maintenance' };
 
-  if (item.ip && liveData.ipStatus) {
-    parts.push(`IP: ${statusMap[liveData.ipStatus] || liveData.ipStatus}`);
-  }
-  if (item.webUrl && liveData.urlStatus) {
-    parts.push(`URL: ${statusMap[liveData.urlStatus] || liveData.urlStatus}`);
+  if (item.ipStatus) {
+    if (item.ipStatus === 'live') {
+      const liveData = liveStatusData[item.id] || {};
+      const liveStatus = liveData.ipStatus ? (liveData.ipStatus === 'online' ? '🟢' : '🔴') : '⏳';
+      parts.push(`IP: ${liveStatus} Live`);
+    } else {
+      parts.push(`IP: ${statusMap[item.ipStatus]}`);
+    }
   }
 
-  return parts.length ? `Live Status: ${parts.join(' | ')}` : '';
+  if (item.urlStatus) {
+    if (item.urlStatus === 'live') {
+      const liveData = liveStatusData[item.id] || {};
+      const liveStatus = liveData.urlStatus ? (liveData.urlStatus === 'online' ? '🟢' : '🔴') : '⏳';
+      parts.push(`URL: ${liveStatus} Live`);
+    } else {
+      parts.push(`URL: ${statusMap[item.urlStatus]}`);
+    }
+  }
+
+  return parts.length ? `Status: ${parts.join(' | ')}` : '';
 }
 
 function appDetails(item) {
@@ -1385,7 +1388,6 @@ function startEditing(id) {
   if (supportsStorageGroups(item.type, item.hardwareKind) && item.nasRaids?.length) item.nasRaids.forEach((raid) => appendRaidRow(raid));
   else appendRaidRow();
 
-  liveMonitoringCheckbox.checked = item.liveMonitoring || false;
   ipStatusSelect.value = item.ipStatus || '';
   urlStatusSelect.value = item.urlStatus || '';
 
