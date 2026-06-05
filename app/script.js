@@ -601,6 +601,7 @@ configToggle.addEventListener('click', () => {
 const mobileAgentApiBody = document.getElementById('mobile-agent-api-body');
 const agentApiDialogPlaceholder = document.createComment('agent-api-dialog-placeholder');
 let agentApiContentInMobile = false;
+let agentApiReturnToConfig = false;
 
 function moveAgentApiToMobile() {
   const dlg = agentApiDialog || document.getElementById('agent-api-dialog');
@@ -630,8 +631,32 @@ function closeMobileAgentApiView() {
   restoreAgentApiToDialog();
 }
 
-function openAgentApiDialog() {
+function returnFromAgentApi() {
+  clearAgentTokenBox();
+  const shouldReturn = agentApiReturnToConfig;
+  agentApiReturnToConfig = false;
+
+  if (isMobile()) {
+    if (agentApiContentInMobile) {
+      if (shouldReturn) {
+        showMobileView('mobile-config');
+        setActiveMobileNav('nav-more');
+      } else {
+        hideMobileViews();
+      }
+      return;
+    }
+  }
+
+  if (shouldReturn && configDialog && !configDialog.open) {
+    configDialog.showModal();
+  }
+}
+
+function openAgentApiDialog(options) {
   if (!agentApiDialog) return;
+  const opts = options || {};
+  agentApiReturnToConfig = !!opts.returnToConfig;
   if (configDialog?.open) configDialog.close();
   if (typeof closeMobileMoreSheet === 'function') closeMobileMoreSheet();
   if (typeof renderAgentKeyLists === 'function') renderAgentKeyLists();
@@ -644,13 +669,14 @@ function openAgentApiDialog() {
     return;
   }
   restoreAgentApiToDialog();
+  agentApiDialog.onclose = returnFromAgentApi;
   if (typeof agentApiDialog.showModal === 'function' && !agentApiDialog.open) agentApiDialog.showModal();
 }
 
-document.getElementById('agent-api-btn')?.addEventListener('click', openAgentApiDialog);
-document.getElementById('agent-api-btn-mobile')?.addEventListener('click', openAgentApiDialog);
+document.getElementById('agent-api-btn')?.addEventListener('click', () => openAgentApiDialog({ returnToConfig: true }));
+document.getElementById('agent-api-btn-mobile')?.addEventListener('click', () => openAgentApiDialog({ returnToConfig: true }));
 document.getElementById('agent-api-close')?.addEventListener('click', () => {
-  if (isMobile() && agentApiContentInMobile) { hideMobileViews(); return; }
+  if (isMobile() && agentApiContentInMobile) { returnFromAgentApi(); return; }
   clearAgentTokenBox();
   agentApiDialog?.close();
 });
