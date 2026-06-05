@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="../app/images/logo.svg" />
+  <link rel="apple-touch-icon" href="../app/images/logo.svg" />
   <title>Labby Wiki</title>
   <meta name="description" content="Labby documentation -installation, features, rack view, IP view, themes and more." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -292,6 +294,93 @@
       .wiki-content pre { padding: .8rem .9rem; }
     }
 
+
+
+    /* ── architecture diagram ── */
+    .arch-diagram {
+      margin: 1rem 0 1.25rem;
+      display: grid;
+      gap: .85rem;
+    }
+    .arch-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: .75rem;
+      align-items: stretch;
+    }
+    .arch-card {
+      border: 2px solid var(--line);
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--phone) 88%, white);
+      padding: .9rem;
+      min-height: 108px;
+      box-shadow: 0 6px 14px rgba(0,0,0,.08);
+    }
+    .arch-card strong {
+      display: block;
+      font: 700 .78rem/1.25 'Space Mono', monospace;
+      margin-bottom: .35rem;
+    }
+    .arch-card span {
+      display: block;
+      color: var(--muted);
+      font-size: .78rem;
+      line-height: 1.45;
+    }
+    .arch-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font: 700 .78rem/1 'Space Mono', monospace;
+      min-height: 28px;
+      text-align: center;
+    }
+    .arch-flow {
+      border: 2px dashed color-mix(in srgb, var(--line) 50%, transparent);
+      border-radius: 14px;
+      padding: .75rem .9rem;
+      background: color-mix(in srgb, var(--yellow) 18%, transparent);
+      font: 700 .76rem/1.55 'Space Mono', monospace;
+      overflow-wrap: anywhere;
+    }
+    .arch-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: .75rem;
+      margin: .85rem 0 1rem;
+    }
+    .arch-list > div {
+      border: 2px solid color-mix(in srgb, var(--line) 60%, transparent);
+      border-radius: 12px;
+      padding: .75rem;
+      background: color-mix(in srgb, var(--panel) 88%, var(--phone));
+    }
+    .arch-list strong {
+      display: block;
+      font: 700 .75rem/1.25 'Space Mono', monospace;
+      margin-bottom: .25rem;
+    }
+    .arch-list p {
+      margin: 0;
+      color: var(--muted);
+      font-size: .8rem;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 760px) {
+      .arch-row,
+      .arch-list {
+        grid-template-columns: 1fr;
+      }
+      .arch-card {
+        min-height: auto;
+      }
+      .arch-arrow {
+        min-height: 20px;
+      }
+    }
+
     /* ── mobile FAB menu ── */
     .wiki-fab { display: none; }
     .wiki-drawer { display: none; }
@@ -459,6 +548,7 @@
             <a class="wiki-nav-link" href="#" data-page="installation">Installation</a>
             <a class="wiki-nav-link" href="#" data-page="quickstart">Quick Start</a>
             <a class="wiki-nav-link" href="#" data-page="demomode">Demo Mode</a>
+            <a class="wiki-nav-link" href="#" data-page="architecture">Technical Structure</a>
           </div>
           <div class="wiki-nav-group">
             <p class="wiki-nav-heading">Features</p>
@@ -517,6 +607,7 @@ btn.addEventListener('click', () => {
         <li>🗄️ Rack View with locations, racks, front/rear layouts and linked resources</li>
         <li>🎨 Built-in themes, custom theme editor and the Matrix theme</li>
         <li>📱 Mobile bottom navigation: Boards, Add, Rack, IP and More</li>
+        <li>🧱 Technical Structure page with architecture overview and file layout</li>
         <li>💾 Export / Import JSON backups including resources, racks, locations, custom themes and active theme</li>
         <li>🧪 Demo mode with browser-only storage and Load Demo seed data</li>
       </ul>
@@ -607,6 +698,87 @@ Hosted on: docker-01</pre>
       <h2>Difference to Self-Hosted Labby</h2>
       <p>The self-hosted version stores data server-side. The demo stores data locally in the browser only.</p>
     `},
+
+    architecture:{title:'🧱 Technical Structure',content:`
+      <p>Labby is built as a small self-hosted web application. The frontend is plain HTML, CSS and JavaScript. The optional backend provides API endpoints and persists the inventory data as JSON.</p>
+      <h2>Architecture Overview</h2>
+      <div class="arch-diagram" aria-label="Labby architecture diagram">
+        <div class="arch-row">
+          <div class="arch-card">
+            <strong>Browser</strong>
+            <span>Runs the Labby user interface, renders cards, rack views, themes and mobile pages.</span>
+          </div>
+          <div class="arch-card">
+            <strong>Static App Files</strong>
+            <span><code>index.html</code>, <code>styles.css</code> and <code>script.js</code> contain the app shell, styling and client-side logic.</span>
+          </div>
+          <div class="arch-card">
+            <strong>Backend API</strong>
+            <span>Serves and saves inventory data for the self-hosted version.</span>
+          </div>
+        </div>
+        <div class="arch-arrow">Browser ⇄ Frontend ⇄ API ⇄ JSON data</div>
+        <div class="arch-row">
+          <div class="arch-card">
+            <strong>Demo Storage</strong>
+            <span>The demo stores changes in the browser so visitors can test Labby without a server-side account.</span>
+          </div>
+          <div class="arch-card">
+            <strong>Docker / Nginx</strong>
+            <span>The deployment serves the website, demo app and backend through the provided container setup.</span>
+          </div>
+          <div class="arch-card">
+            <strong>Config Export</strong>
+            <span>Inventory, racks, locations and themes can be exported as a portable JSON backup.</span>
+          </div>
+        </div>
+      </div>
+      <h2>Request Flow</h2>
+      <div class="arch-flow">Open Labby → load frontend files → fetch inventory data → render views → save changes through API or demo browser storage</div>
+      <h2>Main Parts</h2>
+      <div class="arch-list">
+        <div>
+          <strong>Frontend</strong>
+          <p>Contains the complete UI: Topology, Add/Edit forms, Rack View, IP View, Tree View, Config, Themes and mobile navigation.</p>
+        </div>
+        <div>
+          <strong>Backend</strong>
+          <p>Provides simple data endpoints for loading and saving the inventory in the self-hosted version.</p>
+        </div>
+        <div>
+          <strong>Website</strong>
+          <p>Contains the landing page, screenshots and wiki documentation for users.</p>
+        </div>
+        <div>
+          <strong>Demo</strong>
+          <p>Uses the same app UI with demo-specific storage and seed data so users can try the app immediately.</p>
+        </div>
+      </div>
+      <h2>File Layout</h2>
+      <pre>app/
+  index.html
+  styles.css
+  script.js
+  images/logo.svg
+backend/
+  server.js
+website/
+  index.html
+  wiki.html
+  images/
+nginx/
+  default.conf
+docker-compose.yml</pre>
+      <h2>Data Model</h2>
+      <p>The inventory is represented as JSON. Resources, locations, racks, rack placements, custom themes and the active theme are part of the portable config export.</p>
+      <h2>Technology Choices</h2>
+      <ul>
+        <li>No frontend framework</li>
+        <li>No build step for the app frontend</li>
+        <li>Plain browser APIs for rendering and interaction</li>
+        <li>Docker-based self-hosting for simple deployment</li>
+      </ul>
+    `},
     features:{title:'✨ Features',content:`
       <h2>Core</h2>
       <ul>
@@ -622,9 +794,9 @@ Hosted on: docker-01</pre>
       <h2>Resource Metadata</h2>
       <p>Labby can store OS, manufacturer, CPU, RAM, disks, notes, links, URLs, live status, hosted-on relationships and connected devices.</p>
       <h2>Live Status</h2>
-      <p>Manual statuses include Online, Offline and Maintenance. Optional live checks can ping an IP or check a URL. Empty live/action areas are hidden when nothing is configured, so cards stay clean.</p>
+      <p>Manual statuses include Online, Offline and Maintenance. Optional live checks can ping an IP or check a URL when those fields are configured on a resource.</p>
       <h2>Responsive UX</h2>
-      <p>Desktop keeps a traditional workspace layout. Mobile uses full-screen pages, large tap targets, bottom navigation and sheets instead of cramped dialogs.</p>
+      <p>Desktop provides a wide workspace layout for fast editing and overview. Mobile provides full-screen pages, large tap targets, bottom navigation and focused sheets for secondary actions.</p>
     `},
     mobileux:{title:'📱 Mobile UX',content:`
       <p>Mobile is designed as its own app-like flow, not a shrunken desktop layout.</p>
@@ -653,7 +825,7 @@ Hosted on: docker-01</pre>
         <li>Buttons remain large enough for touch</li>
       </ul>
       <h2>Mobile Graph View</h2>
-      <p>Graph View is disabled on mobile because dense graphs became difficult to read. Mobile Relationship view uses Tree only. Desktop Graph remains available.</p>
+      <p>Mobile Graph View is currently in development. Mobile Relationship view uses Tree View, while Desktop Graph remains available on larger screens.</p>
     `},
     topologycards:{title:'🧩 Topology Cards',content:`
       <p>Topology cards are the main way to browse, edit and understand your homelab resources.</p>
@@ -673,7 +845,7 @@ Hosted on: docker-01</pre>
         <li>Use visible Copy/Open buttons for IPs and URLs</li>
       </ul>
       <h2>Live and Action Areas</h2>
-      <p>If no Live Ping or Live URL check is configured, Labby hides the empty placeholder. If a card has no actions, the empty action container is hidden as well. This keeps the board calm and avoids empty bordered boxes.</p>
+      <p>Live status controls appear for resources that have Live Ping or Live URL checks configured. IP and URL actions appear when the resource contains values that can be copied or opened.</p>
       <h2>Copy and Open Buttons</h2>
       <p>IP and URL actions are shown as real buttons with consistent height, padding and rounded corners. On mobile, they stay touch-friendly.</p>
       <h2>Relationships Shown on Cards</h2>
@@ -703,7 +875,7 @@ Connected devices are listed on hardware cards</pre>
       <ul>
         <li>Rack has its own bottom-nav tab</li>
         <li>Front and Rear are switched with tabs</li>
-        <li>The component palette opens from a floating button instead of staying in the way</li>
+        <li>Open the component palette from the floating rack button</li>
         <li>Tap a component, then tap an empty rack slot to place it</li>
         <li>Use the selected-component pill to clear the current selection</li>
         <li>Vertical scrolling works directly over the rack area</li>
@@ -731,7 +903,7 @@ Connected devices are listed on hardware cards</pre>
         <li>Clicking or selecting a node can open details or editing depending on the current UI state</li>
       </ul>
       <h2>Mobile Graph Status</h2>
-      <p>Graph View is intentionally hidden on mobile. Dense topology graphs were not readable enough on small screens, so mobile uses the clearer Tree view.</p>
+      <p>Mobile Graph View is currently in development. Mobile uses Tree View for relationship browsing while the mobile graph experience is being refined.</p>
       <h2>Relationship Examples</h2>
       <pre>Router → Switch → Hypervisor → VM → App</pre>
       <pre>NAS → Backup Server</pre>
@@ -760,7 +932,7 @@ Connected devices are listed on hardware cards</pre>
         <li>Dark, Midnight, Carbon, Nord, Matrix</li>
       </ul>
       <h2>Matrix Theme</h2>
-      <p>The previous Grape preset is now the visible <strong>Matrix</strong> theme: black base colors with neon-green accents. The internal ID stays compatible with older saved selections.</p>
+      <p><strong>Matrix</strong> provides black base colors with neon-green accents for a terminal-inspired look.</p>
       <h2>Theme Selection</h2>
       <p>Open <strong>Themes</strong> from Config or from the mobile More sheet. Select a preset card to apply it.</p>
       <h2>Custom Themes</h2>
@@ -787,11 +959,11 @@ Connected devices are listed on hardware cards</pre>
       </ul>
       <h2>Import Config</h2>
       <pre>Config → Import Config</pre>
-      <p>Import uses one shared logic path on desktop and mobile. Current full JSON exports and older localStorage-style exports are supported.</p>
+      <p>Import restores Labby JSON backups on both desktop and mobile. Full config exports include resources, locations, racks and themes.</p>
       <h2>Clear All</h2>
       <p><strong>Clear All</strong> removes the current inventory and should only be used after exporting a backup.</p>
       <h2>Tutorial</h2>
-      <p>The tutorial opens as its own popup from Config instead of filling the Config screen with help text.</p>
+      <p>Open <strong>Tutorial</strong> from Config to view the guided quick-start help.</p>
     `},
     backup:{title:'🗄️ Data and Backup',content:`
       <p>The self-hosted version stores data server-side in a JSON file inside Docker volume <code>labby-data</code>.</p>
