@@ -1576,11 +1576,11 @@ function buildGraphView() {
   const viewportWidth = Math.max(isMobile() ? 320 : 760, (graphHost?.clientWidth || treeContent.clientWidth || window.innerWidth) - 30);
   const viewportHeight = Math.max(isMobile() ? 560 : 460, (graphHost?.clientHeight || treeContent.clientHeight || window.innerHeight * 0.65) - 34);
   const minWidthForItems = isMobile()
-    ? Math.max(viewportWidth, Math.min(1280, graphItems.length * 58))
-    : Math.max(680, graphItems.length * 84);
+    ? Math.max(viewportWidth, graphItems.length * 230, 1100)
+    : Math.max(1100, graphItems.length * 190);
   const minHeightForItems = isMobile()
-    ? Math.max(620, Math.ceil(graphItems.length / 6) * 138)
-    : Math.max(460, Math.ceil(graphItems.length / 8) * 180);
+    ? Math.max(720, Math.ceil(graphItems.length / 5) * 150)
+    : Math.max(560, Math.ceil(graphItems.length / 7) * 172);
   const width = Math.max(viewportWidth, minWidthForItems);
   const height = Math.max(viewportHeight, minHeightForItems);
   canvas.style.setProperty('--graph-width', `${width}px`);
@@ -1627,7 +1627,7 @@ function buildGraphView() {
 
   const parentById = new Map();
   const childrenById = new Map(graphItems.map((item) => [item.id, []]));
-  const graphNodeRadius = 23;
+  const graphNodeRadius = isMobile() ? 31 : 23;
   graphItems.forEach((item) => {
     const candidateParentId = parentIdFor(item);
     const parentId = candidateParentId && candidateParentId !== item.id ? candidateParentId : '';
@@ -1647,7 +1647,7 @@ function buildGraphView() {
 
   const rawX = new Map();
   let cursor = 0;
-  const horizontalStep = isMobile() ? 132 : 108;
+  const horizontalStep = isMobile() ? 188 : 156;
 
   function assignX(nodeId, trail = new Set()) {
     if (rawX.has(nodeId)) return rawX.get(nodeId);
@@ -1708,15 +1708,15 @@ function buildGraphView() {
     const minRawX = Math.min(...allRawX);
     const maxRawX = Math.max(...allRawX);
     const rawSpan = Math.max(1, maxRawX - minRawX);
-    const horizontalPadding = isMobile() ? 82 : 46;
+    const horizontalPadding = isMobile() ? 120 : 80;
     const usableWidth = Math.max(240, width - horizontalPadding * 2);
-    const compress = rawSpan > usableWidth ? usableWidth / rawSpan : 1;
+    const compress = 1;
     const finalSpan = rawSpan * compress;
     const startX = (width - finalSpan) / 2;
 
     const topPadding = isMobile() ? 76 : 44;
     const maxDepth = Math.max(1, Math.max(...depthValues));
-    const layerGap = isMobile() ? Math.max(130, Math.round((height - topPadding - 90) / maxDepth)) : Math.max(54, Math.round((height - topPadding - 30) / maxDepth));
+    const layerGap = isMobile() ? Math.max(165, Math.round((height - topPadding - 120) / maxDepth)) : Math.max(116, Math.round((height - topPadding - 60) / maxDepth));
 
     graphItems.forEach((item) => {
       const x = startX + (rawX.get(item.id) - minRawX) * compress;
@@ -1936,9 +1936,9 @@ function getGraphBounds(positions, graphItems) {
   const focusCenterX = (focusMinX + focusMaxX) / 2;
   const focusCenterY = (focusMinY + focusMaxY) / 2;
 
-  const nodePadX = 132;
-  const nodePadTop = 84;
-  const nodePadBottom = 118;
+  const nodePadX = isMobile() ? 190 : 150;
+  const nodePadTop = isMobile() ? 120 : 92;
+  const nodePadBottom = isMobile() ? 170 : 130;
 
   return {
     minX: minX - nodePadX,
@@ -1956,8 +1956,8 @@ function getGraphBounds(positions, graphItems) {
 
 function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
   const mobileGraph = isMobile();
-  const minGraphScale = mobileGraph ? 0.68 : 0.22;
-  const maxGraphScale = mobileGraph ? 3.2 : 2.4;
+  const minGraphScale = mobileGraph ? 0.14 : 0.18;
+  const maxGraphScale = mobileGraph ? 3.4 : 2.4;
   let scale = 1;
   let panX = 0;
   let panY = 0;
@@ -1984,11 +1984,11 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
 
     const focusW = Math.max(1, (bounds.focusMaxX || bounds.maxX) - (bounds.focusMinX || bounds.minX));
     const focusH = Math.max(1, (bounds.focusMaxY || bounds.maxY) - (bounds.focusMinY || bounds.minY));
-    const fitPadding = 64;
+    const fitPadding = mobileGraph ? 28 : 64;
 
     const fitScaleX = (viewportW - fitPadding * 2) / focusW;
     const fitScaleY = (viewportH - fitPadding * 2) / focusH;
-    scale = Math.max(minGraphScale, Math.min(1, fitScaleX, fitScaleY));
+    scale = Math.max(minGraphScale, Math.min(mobileGraph ? 0.82 : 1, fitScaleX, fitScaleY));
 
     const focusCenterX = Number.isFinite(bounds.focusCenterX)
       ? bounds.focusCenterX
@@ -2792,6 +2792,7 @@ function openThemePicker(options) {
   const dlg = document.getElementById('theme-picker-dialog');
   const opts = options || {};
   themePickerReturnToConfig = !!opts.returnToConfig;
+  if (isMobile()) dlg?.querySelector(':scope > .sheet-handle')?.remove();
   switchThemeTab('themes');
   dlg.onclose = () => {
     clearPreviewTheme();
@@ -4188,7 +4189,7 @@ function initMobileRackControls() {
 }
 
 function initMobileDialogSheets() {
-  document.querySelectorAll('dialog.tree-dialog, dialog.rack-form-dialog').forEach((dlg) => {
+  document.querySelectorAll('dialog.tree-dialog:not(.theme-picker-dialog), dialog.rack-form-dialog').forEach((dlg) => {
     if (dlg.querySelector(':scope > .sheet-handle')) return;
     const handle = document.createElement('button');
     handle.type = 'button';
