@@ -5074,3 +5074,31 @@ dialog.rack-form-dialog:not([open]) {
 @media (max-width: 520px) {
   .agent-scope-grid { grid-template-columns: 1fr; }
 }
+
+
+/* v30/v38: Agent API Access uses its own dialog so Config stays compact. */
+.agent-api-dialog {
+  width: min(1040px, calc(100vw - 96px));
+  height: min(780px, calc(100dvh - 96px));
+}
+.agent-api-dialog .agent-dialog-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 0.15rem;
+  overscroll-behavior: contain;
+}
+.agent-api-dialog .agent-api-panel {
+  margin-top: 0;
+}
+#agent-api-btn {
+  margin-top: 0;
+}
+@media (max-width: 1100px) {
+  .agent-api-dialog {
+    height: 100dvh !important;
+  }
+  .agent-api-dialog .agent-dialog-body {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+}

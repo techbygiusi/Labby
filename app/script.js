@@ -76,6 +76,7 @@ const treeModeTree = document.getElementById('tree-mode-tree');
 const treeModeGraph = document.getElementById('tree-mode-graph');
 const configToggle = document.getElementById('config-toggle');
 const configDialog = document.getElementById('config-dialog');
+const agentApiDialog = document.getElementById('agent-api-dialog');
 const toast = document.getElementById('toast');
 
 const mobileProgress = document.getElementById('mobile-progress');
@@ -514,6 +515,18 @@ configToggle.addEventListener('click', () => {
   if (ipDialog.open) ipDialog.close();
   configDialog.showModal();
 });
+
+function openAgentApiDialog() {
+  if (!agentApiDialog) return;
+  if (configDialog?.open) configDialog.close();
+  if (typeof closeMobileMoreSheet === 'function') closeMobileMoreSheet();
+  if (typeof renderAgentKeyLists === 'function') renderAgentKeyLists();
+  if (typeof agentApiDialog.showModal === 'function' && !agentApiDialog.open) agentApiDialog.showModal();
+}
+
+document.getElementById('agent-api-btn')?.addEventListener('click', openAgentApiDialog);
+document.getElementById('agent-api-btn-mobile')?.addEventListener('click', openAgentApiDialog);
+document.getElementById('agent-api-close')?.addEventListener('click', () => agentApiDialog?.close());
 
 clearAll.addEventListener('click', async () => {
   if (!confirm('Delete all resources? This also clears all rack, location and custom theme data.')) return;
