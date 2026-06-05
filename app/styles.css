@@ -4863,3 +4863,36 @@ dialog.rack-form-dialog:not([open]) {
     border-radius: 16px;
   }
 }
+
+/* ================================================================
+   v25: desktop Theme save spacing and mobile Tree bottom clearance.
+   ================================================================ */
+@media (min-width: 1101px) {
+  .theme-picker-dialog #theme-customize-body .tb-actions {
+    padding: 0.65rem 0 1.1rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-actions #tb-save,
+  .theme-picker-dialog #theme-customize-body .tb-actions .button {
+    min-height: 58px !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  #mobile-tree-content {
+    padding-bottom: calc(112px + env(safe-area-inset-bottom)) !important;
+    scroll-padding-bottom: calc(112px + env(safe-area-inset-bottom)) !important;
+  }
+
+  #mobile-tree-content .tree-shell,
+  #mobile-tree-content .tree-groups,
+  #mobile-tree-content .tree-category:last-child,
+  #mobile-tree-content .tree-card:last-child {
+    margin-bottom: calc(1.5rem + env(safe-area-inset-bottom)) !important;
+  }
+
+  #mobile-tree {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important;
+  }
+}
