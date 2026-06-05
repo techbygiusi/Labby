@@ -3798,3 +3798,224 @@ dialog[open] {
     border-radius: 12px !important;
   }
 }
+
+/* ================================================================
+   v12: remove stray desktop rack dialog, make rack desktop native,
+   and improve mobile custom theme editing.
+   ================================================================ */
+
+/* Safety: closed dialogs must never render as empty boxes. */
+dialog.rack-form-dialog:not([open]) {
+  display: none !important;
+}
+
+@media (min-width: 1101px) {
+  /* Only content-size the rack/location form when it is actually open. */
+  dialog.rack-form-dialog[open] {
+    display: block !important;
+    position: fixed !important;
+    inset: 50% auto auto 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: min(540px, calc(100vw - 96px)) !important;
+    height: fit-content !important;
+    min-height: 0 !important;
+    max-height: calc(100dvh - 96px) !important;
+    max-width: calc(100vw - 96px) !important;
+    margin: 0 !important;
+    overflow: auto !important;
+    padding: 1rem 1.15rem 1.1rem !important;
+    border-radius: 18px !important;
+  }
+
+  /* Sheet handles belong to mobile sheets, not desktop dialogs. */
+  dialog.rack-form-dialog .sheet-handle,
+  #rack-palette > .sheet-handle {
+    display: none !important;
+  }
+
+  /* Desktop Rack View / Editor are now native workspaces, not modal windows. */
+  #rack-overview.rack-overlay,
+  #rack-editor.rack-overlay {
+    position: fixed !important;
+    inset: 44px 0 0 0 !important;
+    transform: none !important;
+    width: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: var(--bg) !important;
+    overflow: hidden !important;
+  }
+
+  #rack-overview.rack-overlay::before,
+  #rack-editor.rack-overlay::before {
+    display: none !important;
+  }
+
+  #rack-overview .rack-overview-body {
+    height: 100% !important;
+    max-height: none !important;
+    overflow: auto !important;
+    padding: clamp(1rem, 1.4vw, 1.6rem) clamp(1.2rem, 4vw, 4.5rem) !important;
+  }
+
+  #rack-overview .rack-overview-inner {
+    width: min(1480px, 100%) !important;
+    max-width: none !important;
+    margin: 0 auto !important;
+    flex: 0 0 auto !important;
+    gap: 1rem !important;
+  }
+
+  #rack-overview .rack-ov-topbar {
+    padding: 0 0 0.9rem !important;
+    border-bottom: 0 !important;
+  }
+
+  #rack-overview .rack-ov-panel {
+    border: 3px solid var(--line) !important;
+    border-radius: 18px !important;
+    box-shadow: var(--shadow) !important;
+    padding: 1rem !important;
+    background: color-mix(in srgb, var(--phone) 96%, white) !important;
+  }
+
+  #rack-overview .rack-cards-grid {
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)) !important;
+    gap: 0.8rem !important;
+  }
+
+  #rack-editor .rack-overlay-head {
+    flex: 0 0 50px !important;
+    min-height: 50px !important;
+    padding: 0.55rem clamp(1rem, 2vw, 2rem) !important;
+    border-bottom: 3px solid var(--line) !important;
+    background: var(--phone) !important;
+  }
+
+  #rack-editor .rack-editor-body {
+    height: calc(100dvh - 94px) !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    background: var(--bg) !important;
+  }
+
+  #rack-editor .rack-palette {
+    width: clamp(190px, 12vw, 250px) !important;
+    border-right: 3px solid var(--line) !important;
+    background: var(--phone) !important;
+  }
+
+  #rack-editor .rack-views-wrap {
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    padding: clamp(0.9rem, 1.4vw, 1.5rem) clamp(1rem, 2.4vw, 2.5rem) !important;
+    justify-content: center !important;
+    align-items: flex-start !important;
+    gap: clamp(1.2rem, 2.2vw, 2.4rem) !important;
+    overflow: auto !important;
+  }
+
+  #rack-editor .rack-view-col {
+    flex: 1 1 0 !important;
+    min-width: min(520px, 42vw) !important;
+    max-width: 820px !important;
+  }
+
+  #rack-editor .rack-frame {
+    border: 3px solid var(--line) !important;
+    border-radius: 14px !important;
+    background: var(--panel) !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  /* Mobile customizer: use the full screen calmly and avoid desktop sidebars. */
+  #mobile-theme-body .theme-custom-wrap {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1rem !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  #mobile-theme-body .theme-custom-wrap .theme-name-field {
+    order: 0 !important;
+    width: 100% !important;
+  }
+
+  #mobile-theme-body .theme-custom-wrap .theme-name-field input {
+    width: 100% !important;
+    min-height: 52px !important;
+    font-size: 16px !important;
+    border-radius: 16px !important;
+    padding: 0.65rem 0.8rem !important;
+  }
+
+  #mobile-theme-body .theme-color-grid {
+    order: 1 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.7rem !important;
+    width: 100% !important;
+  }
+
+  #mobile-theme-body .theme-color-field {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.45rem !important;
+    min-height: 106px !important;
+    padding: 0.65rem !important;
+    border-radius: 18px !important;
+    background: var(--panel) !important;
+  }
+
+  #mobile-theme-body .theme-color-field input[type="color"] {
+    width: 100% !important;
+    height: 48px !important;
+    border-radius: 12px !important;
+  }
+
+  #mobile-theme-body .theme-color-field span,
+  #mobile-theme-body .theme-color-field label,
+  #mobile-theme-body .theme-color-field .theme-color-label {
+    font-size: 0.78rem !important;
+    line-height: 1.15 !important;
+    color: var(--muted) !important;
+  }
+
+  #mobile-theme-body .theme-custom-wrap .theme-actions {
+    order: 2 !important;
+    position: sticky !important;
+    bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+    display: block !important;
+    padding: 0.65rem !important;
+    border: 3px solid var(--line) !important;
+    border-radius: 20px !important;
+    background: color-mix(in srgb, var(--phone) 94%, white) !important;
+    box-shadow: 0 14px 35px rgba(0,0,0,0.18) !important;
+  }
+
+  #mobile-theme-body .theme-custom-wrap .theme-actions::before,
+  #mobile-theme-body .theme-custom-wrap .theme-actions::after {
+    display: none !important;
+  }
+
+  #mobile-theme-body .theme-custom-wrap .theme-actions .button,
+  #mobile-theme-body .theme-custom-wrap .theme-actions .primary-btn {
+    width: 100% !important;
+    min-height: 52px !important;
+    border-radius: 18px !important;
+    font-size: 0.95rem !important;
+  }
+}
+
+@media (max-width: 520px) {
+  #mobile-theme-body .theme-color-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
