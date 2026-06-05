@@ -4558,3 +4558,140 @@ dialog.rack-form-dialog:not([open]) {
     grid-template-columns: repeat(7, minmax(140px, 1fr));
   }
 }
+
+/* ================================================================
+   v17: compact mobile headers and restore mobile scrolling.
+   ================================================================ */
+@media (max-width: 1100px) {
+  :root { --mobile-tab-head-h: calc(58px + env(safe-area-inset-top)); }
+
+  /* Avoid the old split/wave background peeking through above mobile headers. */
+  body::before { display: none !important; }
+  body,
+  .app,
+  .phone-grid,
+  .panel-center,
+  .mobile-view,
+  .rack-overlay {
+    background: var(--phone) !important;
+  }
+
+  /* Mobile views already include safe-area inside the header; no extra strip above it. */
+  .mobile-view {
+    padding-top: 0 !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    overflow: hidden !important;
+  }
+
+  .panel-center > .panel-head,
+  .mobile-view-head,
+  .rack-ov-topbar,
+  .rack-overlay-head {
+    height: var(--mobile-tab-head-h) !important;
+    min-height: var(--mobile-tab-head-h) !important;
+    max-height: var(--mobile-tab-head-h) !important;
+    padding: env(safe-area-inset-top) max(0.75rem, env(safe-area-inset-right)) 0 max(0.75rem, env(safe-area-inset-left)) !important;
+    border-bottom-width: 2px !important;
+  }
+
+  .panel-center > .panel-head h2,
+  .mobile-view-head h2,
+  .rack-ov-title,
+  .rack-editor-name {
+    font-size: 0.95rem !important;
+    line-height: 1.1 !important;
+  }
+
+  .mobile-view-head .view-switch,
+  .rack-ov-actions,
+  .rack-editor-right-actions {
+    min-height: 0 !important;
+    gap: 0.35rem !important;
+  }
+
+  .mobile-view-head .icon-btn,
+  .rack-ov-actions .button,
+  .rack-editor-right-actions .button {
+    min-height: 40px !important;
+    padding-block: 0.35rem !important;
+    padding-inline: 0.55rem !important;
+  }
+
+  /* Topology is the main mobile tab, not a dialog: let the whole page scroll. */
+  .phone-grid {
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    overflow: hidden !important;
+    padding-top: 0 !important;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .panel-center {
+    height: calc(100dvh - 72px - env(safe-area-inset-bottom)) !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+  }
+
+  .panel-center > .filters,
+  .panel-center > .stats,
+  .panel-center > .boards {
+    flex: 0 0 auto !important;
+  }
+
+  .panel-center > .boards {
+    overflow: visible !important;
+    padding-bottom: 1.25rem !important;
+  }
+
+  /* Relationship Tree / Graph content must scroll inside its view. */
+  #mobile-tree-content {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+  }
+
+  #mobile-tree-content .tree-shell,
+  #mobile-tree-content .graph-wrap {
+    min-height: calc(100dvh - var(--mobile-tab-head-h) - 84px - env(safe-area-inset-bottom)) !important;
+  }
+
+  /* Rack editor: scroll the editor body and keep the selected side usable on touch. */
+  #rack-editor.rack-overlay {
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    padding: 0 0 calc(72px + env(safe-area-inset-bottom)) 0 !important;
+    overflow: hidden !important;
+  }
+
+  #rack-editor .rack-editor-body {
+    height: auto !important;
+    min-height: 0 !important;
+    flex: 1 1 auto !important;
+    display: block !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+  }
+
+  #rack-editor .rack-views-wrap {
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding-bottom: 2rem !important;
+  }
+
+  #rack-editor .rack-frame {
+    max-width: min(100%, 560px) !important;
+  }
+}
