@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/svg+xml" href="../app/images/logo.svg" />
   <link rel="apple-touch-icon" href="../app/images/logo.svg" />
-  <title>Labby -Map Your Homelab</title>
+  <title>Labby - Map Your Homelab</title>
   <meta name="description" content="Labby is a lightweight homelab inventory, rack and topology tool. Track hardware, VMs, LXCs, apps and networks. Self-host with Docker." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -176,6 +176,17 @@
       letter-spacing: -.01em;
     }
     .hero h1 span { color: #3B82F6; }
+    .hero-rotator {
+      display: inline-block;
+      min-width: 8.5ch;
+      text-align: left;
+      transition: opacity .22s ease, transform .22s ease;
+      will-change: opacity, transform;
+    }
+    .hero-rotator.is-changing {
+      opacity: 0;
+      transform: translateY(.18em);
+    }
     .hero-sub {
       font-size: clamp(.95rem, 2vw, 1.1rem);
       color: var(--muted);
@@ -638,6 +649,7 @@
     @media (max-width: 640px) {
       .hero { padding: 2.5rem 0 2rem; }
       .hero h1 { font-size: 1.75rem; }
+      .hero-rotator { min-width: 0; text-align: center; }
       .hero-sub { font-size: .9rem; }
       .hero-btns .btn { width: 100%; justify-content: center; font-size: .82rem; }
       .hero-btns { flex-direction: column; align-items: stretch; max-width: 320px; margin: 0 auto; }
@@ -661,6 +673,7 @@
   </style>
 </head>
 <body>
+<!-- Website landing page. Keep marketing copy, demo links and wiki links here. -->
 
 <!-- ── nav ── -->
 <nav>
@@ -688,7 +701,7 @@
 <!-- ── hero ── -->
 <div class="wrap">
   <div class="hero">
-    <h1>Map Your <span>Homelab</span></h1>
+    <h1>Map Your <span class="hero-rotator" id="hero-rotator" aria-live="polite">Homelab</span></h1>
     <p class="hero-sub">
       Lightweight inventory, rack and topology tool for homelabbers.
       Track hardware, VMs, LXCs, apps and networks -self-hosted with Docker.
@@ -910,6 +923,22 @@ docker compose up --build -d</pre>
   const icon  = document.getElementById('toggle-icon');
   const label = document.getElementById('toggle-label');
   const html  = document.documentElement;
+
+  // Hero word rotator. The phrase stays stable while the highlighted word
+  // cycles through the main inventory areas Labby can map.
+  const heroRotator = document.getElementById('hero-rotator');
+  const heroWords = ['Homelab', 'Server', 'VMs', 'Hardware', 'Racks', 'Networks'];
+  let heroWordIndex = 0;
+  if (heroRotator) {
+    window.setInterval(() => {
+      heroWordIndex = (heroWordIndex + 1) % heroWords.length;
+      heroRotator.classList.add('is-changing');
+      window.setTimeout(() => {
+        heroRotator.textContent = heroWords[heroWordIndex];
+        heroRotator.classList.remove('is-changing');
+      }, 220);
+    }, 1800);
+  }
 
   const MOON = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
   const SUN  = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';

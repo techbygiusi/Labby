@@ -1,3 +1,20 @@
+/*
+ * Labby Frontend Controller
+ * -----------------------------------------------------------------------------
+ * Contributor map:
+ *  1. DOM references and shared state live at the top of this file.
+ *  2. Data helpers normalize imported / legacy data before rendering.
+ *  3. Render functions update one UI surface only: boards, tree, rack, config, etc.
+ *  4. Event handlers stay close to the feature they control.
+ *  5. Mobile-only behavior is guarded by isMobile() or matching CSS media rules.
+ *
+ * Style guide for future changes:
+ *  - Keep vanilla JavaScript; no build step and no framework assumptions.
+ *  - Prefer small pure helper functions before touching large render functions.
+ *  - Add comments above non-obvious decisions, not above every line.
+ *  - Preserve existing fields when writing imported or agent-provided inventory data.
+ */
+
 const storageKey = 'labby-data-v8';
 const themeKey = 'labby-theme';
 const demoStorageVersionKey = 'labby-demo-storage-version';
