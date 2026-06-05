@@ -1734,43 +1734,53 @@ function buildGraphView() {
   const canUseHierarchy = allRawX.length && depthValues.length;
 
   if (isMobile() && canUseHierarchy) {
-    const layerMap = new Map();
-    graphItems.forEach((item) => {
-      const depth = Math.max(0, depthFor(item.id));
-      if (!layerMap.has(depth)) layerMap.set(depth, []);
-      layerMap.get(depth).push(item);
-    });
-    layerMap.forEach((layerItems, depth) => {
-      layerItems.sort((a, b) => {
-        const pa = parentById.get(a.id) || '';
-        const pb = parentById.get(b.id) || '';
-        if (pa !== pb) return pa.localeCompare(pb);
-        return nodeOrder(a, b);
-      });
-    });
-    const maxLayerSize = Math.max(1, ...[...layerMap.values()].map(layer => layer.length));
-    const mobileXGap = 172;
-    const mobileYGap = 178;
-    const mobilePaddingX = 110;
-    const mobileTop = 94;
-    const layoutWidth = Math.max(width, mobilePaddingX * 2 + Math.max(0, maxLayerSize - 1) * mobileXGap);
-    const layoutHeight = Math.max(height, mobileTop + Math.max(1, layerMap.size) * mobileYGap + 220);
-    if (layoutWidth !== width || layoutHeight !== height) {
-      width = layoutWidth;
-      height = layoutHeight;
-      canvas.style.setProperty('--graph-width', `${layoutWidth}px`);
-      canvas.style.setProperty('--graph-height', `${layoutHeight}px`);
-      canvas.style.width = `${layoutWidth}px`;
-      canvas.style.height = `${layoutHeight}px`;
+    // Mobile needs readability more than a wide desktop tree. Use a vertical,
+    // scroll/pan friendly hierarchy: one node per row, depth as the horizontal lane.
+    // This avoids the old failure mode where dozens of siblings were squeezed into
+    // one horizontal line and all links crossed over each other.
+    canvas.dataset.mobileGraphLayout = 'vertical';
+    const ordered = [];
+    const seen = new Set();
+    let maxDepthUsed = 0;
+
+    function walk(nodeId, depth = 0) {
+      if (!nodeId || seen.has(nodeId)) return;
+      const item = graphById[nodeId];
+      if (!item) return;
+      seen.add(nodeId);
+      maxDepthUsed = Math.max(maxDepthUsed, depth);
+      ordered.push({ item, depth });
+      const children = (childrenById.get(nodeId) || [])
+        .filter(childId => graphById[childId] && !seen.has(childId))
+        .sort((aId, bId) => nodeOrder(graphById[aId], graphById[bId]));
+      children.forEach(childId => walk(childId, depth + 1));
     }
-    [...layerMap.entries()].sort((a, b) => a[0] - b[0]).forEach(([depth, layerItems]) => {
-      const layerWidth = Math.max(0, (layerItems.length - 1) * mobileXGap);
-      const startX = Math.max(mobilePaddingX, (layoutWidth - layerWidth) / 2);
-      layerItems.forEach((item, idx) => {
-        positions.set(item.id, {
-          x: Math.round(startX + idx * mobileXGap),
-          y: Math.round(mobileTop + depth * mobileYGap),
-        });
+
+    const rootList = roots.length ? roots : graphItems.sort(nodeOrder).map(item => item.id);
+    rootList.forEach(rootId => walk(rootId, 0));
+    graphItems.sort(nodeOrder).forEach(item => {
+      if (!seen.has(item.id)) walk(item.id, 0);
+    });
+
+    const laneGap = 126;
+    const rowGap = 104;
+    const topPad = 88;
+    const leftPad = 88;
+    const rightLabelSpace = 230;
+    const layoutWidth = Math.max(viewportWidth + 180, leftPad + maxDepthUsed * laneGap + rightLabelSpace);
+    const layoutHeight = Math.max(viewportHeight + 140, topPad + ordered.length * rowGap + 170);
+
+    width = layoutWidth;
+    height = layoutHeight;
+    canvas.style.setProperty('--graph-width', `${layoutWidth}px`);
+    canvas.style.setProperty('--graph-height', `${layoutHeight}px`);
+    canvas.style.width = `${layoutWidth}px`;
+    canvas.style.height = `${layoutHeight}px`;
+
+    ordered.forEach(({ item, depth }, idx) => {
+      positions.set(item.id, {
+        x: Math.round(leftPad + depth * laneGap),
+        y: Math.round(topPad + idx * rowGap),
       });
     });
   }
@@ -2051,6 +2061,7 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
       return;
     }
 
+    const isVerticalMobileGraph = mobileGraph && canvas.dataset.mobileGraphLayout === 'vertical';
     const focusW = mobileGraph
       ? Math.max(1, bounds.maxX - bounds.minX)
       : Math.max(1, (bounds.focusMaxX || bounds.maxX) - (bounds.focusMinX || bounds.minX));
@@ -2061,6 +2072,17 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
 
     const fitScaleX = (viewportW - fitPadding * 2) / focusW;
     const fitScaleY = (viewportH - fitPadding * 2) / focusH;
+
+    if (isVerticalMobileGraph) {
+      // Fit width only. Do not fit the full tall graph height, otherwise large
+      // inventories become unreadably tiny. Users can pan down through the graph.
+      scale = Math.max(0.58, Math.min(0.96, fitScaleX));
+      panX = Math.max(8, (viewportW - width * scale) / 2);
+      panY = 18 - bounds.minY * scale;
+      applyTransform();
+      return;
+    }
+
     scale = Math.max(minGraphScale, Math.min(mobileGraph ? 0.72 : 1, fitScaleX, fitScaleY));
 
     const focusCenterX = mobileGraph
@@ -4263,7 +4285,42 @@ function closeRackPaletteSheet() {
   rackPaletteBackdrop?.classList.remove('open');
 }
 
+function initMobileRackScrollOverDiagram() {
+  const scroller = document.querySelector('#rack-editor .rack-views-wrap');
+  if (!scroller || scroller.dataset.mobileRackScrollReady === '1') return;
+  scroller.dataset.mobileRackScrollReady = '1';
+  let startX = 0;
+  let startY = 0;
+  let lastY = 0;
+  let manualScroll = false;
+
+  scroller.addEventListener('touchstart', (event) => {
+    if (!isMobile() || event.touches.length !== 1) return;
+    if (event.target.closest('.rack-slot-remove, button, select, input, textarea')) return;
+    startX = event.touches[0].clientX;
+    startY = event.touches[0].clientY;
+    lastY = startY;
+    manualScroll = false;
+  }, { passive: true });
+
+  scroller.addEventListener('touchmove', (event) => {
+    if (!isMobile() || event.touches.length !== 1) return;
+    if (event.target.closest('.rack-slot-remove, button, select, input, textarea')) return;
+    const touch = event.touches[0];
+    const dx = touch.clientX - startX;
+    const dyFromStart = touch.clientY - startY;
+    if (!manualScroll && Math.abs(dyFromStart) > 8 && Math.abs(dyFromStart) > Math.abs(dx) * 1.15) {
+      manualScroll = true;
+    }
+    if (!manualScroll) return;
+    event.preventDefault();
+    scroller.scrollTop += lastY - touch.clientY;
+    lastY = touch.clientY;
+  }, { passive: false });
+}
+
 function initMobileRackControls() {
+  initMobileRackScrollOverDiagram();
   document.getElementById('rack-mobile-front')?.addEventListener('click', () => updateRackMobileSide('front'));
   document.getElementById('rack-mobile-rear')?.addEventListener('click', () => updateRackMobileSide('rear'));
   document.getElementById('rack-mobile-palette-toggle')?.addEventListener('click', openRackPaletteSheet);
