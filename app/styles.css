@@ -4695,3 +4695,112 @@ dialog.rack-form-dialog:not([open]) {
     max-width: min(100%, 560px) !important;
   }
 }
+
+
+/* ================================================================
+   v18: clean mobile bottom edge, colorful nav icons, rack scroll on slots.
+   ================================================================ */
+@media (max-width: 1100px) {
+  /* Only one divider above the mobile nav. */
+  .bottom-nav {
+    border-top: 2px solid var(--line) !important;
+    box-shadow: 0 -8px 20px rgba(0,0,0,0.08) !important;
+  }
+
+  .panel-center,
+  .panel-center.phone,
+  .mobile-view,
+  .mobile-view-body,
+  .phone-grid,
+  .boards {
+    border-bottom: 0 !important;
+  }
+
+  .panel-center::after,
+  .phone-grid::after,
+  .mobile-view::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  .panel-center > .boards {
+    margin-bottom: 0 !important;
+    border-bottom: 0 !important;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+  }
+
+  /* Bring back the more colorful mobile nav feel. */
+  .bottom-nav-icon {
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif !important;
+    font-size: 1.48rem !important;
+    line-height: 1 !important;
+    filter: none !important;
+  }
+
+  .bottom-nav-item {
+    color: var(--text) !important;
+  }
+
+  .bottom-nav-item.active .bottom-nav-icon {
+    transform: translateY(-1px) scale(1.04);
+  }
+
+  /* Vertical swipes on the rack itself should scroll the editor. */
+  #rack-editor .rack-editor-body,
+  #rack-editor .rack-views-wrap,
+  #rack-editor .rack-view-col,
+  #rack-editor .rack-frame,
+  #rack-editor .rack-slot,
+  #rack-editor .rack-slot-content,
+  #rack-editor .rack-slot-label,
+  #rack-editor .rack-slot-device {
+    touch-action: pan-y !important;
+  }
+
+  #rack-editor .rack-slot,
+  #rack-editor .rack-slot * {
+    -webkit-user-drag: none !important;
+  }
+
+  #rack-editor .rack-slot-remove {
+    touch-action: manipulation !important;
+  }
+}
+
+/* v19: reliable mobile graph links and edit sheet interaction */
+.graph-links {
+  left: 0;
+  top: 0;
+  overflow: visible;
+  z-index: 0;
+}
+.graph-link {
+  vector-effect: non-scaling-stroke;
+}
+.graph-node,
+.graph-node-label {
+  z-index: 2;
+}
+.graph-info-panel {
+  pointer-events: auto;
+}
+.graph-info-edit {
+  width: 100%;
+  margin-top: 0.45rem;
+}
+@media (max-width: 1100px) {
+  #mobile-tree-content .graph-wrap {
+    min-height: calc(100dvh - var(--mobile-tab-head-h) - 92px - env(safe-area-inset-bottom)) !important;
+  }
+  #mobile-tree-content .graph-canvas {
+    overflow: visible !important;
+  }
+  #mobile-tree-content .graph-links {
+    display: block !important;
+    opacity: 1 !important;
+  }
+  #mobile-tree-content .graph-link {
+    stroke-width: 3px;
+    stroke-opacity: 0.92;
+  }
+}

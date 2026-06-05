@@ -1588,8 +1588,8 @@ function buildGraphView() {
   const minHeightForItems = isMobile()
     ? Math.max(720, Math.ceil(graphItems.length / 5) * 150)
     : Math.max(560, Math.ceil(graphItems.length / 7) * 172);
-  const width = Math.max(viewportWidth, minWidthForItems);
-  const height = Math.max(viewportHeight, minHeightForItems);
+  let width = Math.max(viewportWidth, minWidthForItems);
+  let height = Math.max(viewportHeight, minHeightForItems);
   canvas.style.setProperty('--graph-width', `${width}px`);
   canvas.style.setProperty('--graph-height', `${height}px`);
   canvas.style.width = `${width}px`;
@@ -1600,6 +1600,28 @@ function buildGraphView() {
 
   const hardware = graphItems.filter((item) => item.type === 'hardware');
   const graphById = Object.fromEntries(graphItems.map((item) => [item.id, item]));
+  const graphEdges = [];
+  const graphEdgeSeen = new Set();
+
+  function addGraphEdge(sourceId, targetId) {
+    const source = graphById[sourceId];
+    const target = graphById[targetId];
+    if (!source || !target || sourceId === targetId) return;
+    const key = [sourceId, targetId].sort().join('::');
+    if (graphEdgeSeen.has(key)) return;
+    graphEdgeSeen.add(key);
+    graphEdges.push({ sourceId, targetId });
+  }
+
+  graphItems.forEach((item) => {
+    if ((item.type === 'vm' || item.type === 'lxc') && item.hostedOn) addGraphEdge(item.hostedOn, item.id);
+    if (item.type === 'app' && item.appHostedOn) addGraphEdge(item.appHostedOn, item.id);
+    if (Array.isArray(item.connections)) {
+      item.connections.forEach((targetId) => {
+        if (graphById[targetId]) addGraphEdge(item.id, targetId);
+      });
+    }
+  });
 
   function linkedHardware(from, filterFn) {
     const peers = hardware.filter((candidate) => candidate.id !== from.id && filterFn(candidate));
@@ -1711,7 +1733,49 @@ function buildGraphView() {
   const depthValues = [...depthCache.values()].filter((value) => Number.isFinite(value));
   const canUseHierarchy = allRawX.length && depthValues.length;
 
-  if (canUseHierarchy) {
+  if (isMobile() && canUseHierarchy) {
+    const layerMap = new Map();
+    graphItems.forEach((item) => {
+      const depth = Math.max(0, depthFor(item.id));
+      if (!layerMap.has(depth)) layerMap.set(depth, []);
+      layerMap.get(depth).push(item);
+    });
+    layerMap.forEach((layerItems, depth) => {
+      layerItems.sort((a, b) => {
+        const pa = parentById.get(a.id) || '';
+        const pb = parentById.get(b.id) || '';
+        if (pa !== pb) return pa.localeCompare(pb);
+        return nodeOrder(a, b);
+      });
+    });
+    const maxLayerSize = Math.max(1, ...[...layerMap.values()].map(layer => layer.length));
+    const mobileXGap = 172;
+    const mobileYGap = 178;
+    const mobilePaddingX = 110;
+    const mobileTop = 94;
+    const layoutWidth = Math.max(width, mobilePaddingX * 2 + Math.max(0, maxLayerSize - 1) * mobileXGap);
+    const layoutHeight = Math.max(height, mobileTop + Math.max(1, layerMap.size) * mobileYGap + 220);
+    if (layoutWidth !== width || layoutHeight !== height) {
+      width = layoutWidth;
+      height = layoutHeight;
+      canvas.style.setProperty('--graph-width', `${layoutWidth}px`);
+      canvas.style.setProperty('--graph-height', `${layoutHeight}px`);
+      canvas.style.width = `${layoutWidth}px`;
+      canvas.style.height = `${layoutHeight}px`;
+    }
+    [...layerMap.entries()].sort((a, b) => a[0] - b[0]).forEach(([depth, layerItems]) => {
+      const layerWidth = Math.max(0, (layerItems.length - 1) * mobileXGap);
+      const startX = Math.max(mobilePaddingX, (layoutWidth - layerWidth) / 2);
+      layerItems.forEach((item, idx) => {
+        positions.set(item.id, {
+          x: Math.round(startX + idx * mobileXGap),
+          y: Math.round(mobileTop + depth * mobileYGap),
+        });
+      });
+    });
+  }
+
+  if (!isMobile() && canUseHierarchy) {
     const minRawX = Math.min(...allRawX);
     const maxRawX = Math.max(...allRawX);
     const rawSpan = Math.max(1, maxRawX - minRawX);
@@ -1751,52 +1815,44 @@ function buildGraphView() {
   const links = document.createElementNS(svgNS, 'svg');
   links.setAttribute('class', 'graph-links');
   links.setAttribute('viewBox', `0 0 ${width} ${height}`);
-  const seen = new Set();
-  graphItems.forEach((item) => {
-    const from = positions.get(item.id);
-    if (!from) return;
-    const graphConnections = new Set();
+  links.setAttribute('width', String(width));
+  links.setAttribute('height', String(height));
+  links.style.width = `${width}px`;
+  links.style.height = `${height}px`;
 
-    if ((item.type === 'vm' || item.type === 'lxc') && item.hostedOn) graphConnections.add(item.hostedOn);
-    if (item.type === 'app' && item.appHostedOn) graphConnections.add(item.appHostedOn);
-    if (item.type === 'hardware' && Array.isArray(item.connections)) {
-      item.connections.forEach((targetId) => {
-        const target = byId[targetId];
-        if (target?.type === 'hardware') graphConnections.add(targetId);
-      });
-    }
+  graphEdges.forEach(({ sourceId, targetId }) => {
+    const from = positions.get(sourceId);
+    const to = positions.get(targetId);
+    if (!from || !to) return;
 
-    [...graphConnections].forEach((targetId) => {
-      const targetPos = positions.get(targetId);
-      if (!targetPos) return;
-      const key = [item.id, targetId].sort().join('::');
-      if (seen.has(key)) return;
-      seen.add(key);
+    const drawDownward = from.y <= to.y;
+    const source = drawDownward ? from : to;
+    const target = drawDownward ? to : from;
+    const startX = source.x;
+    const startY = source.y + graphNodeRadius;
+    const endX = target.x;
+    const endY = target.y - graphNodeRadius;
 
-      const drawDownward = from.y <= targetPos.y;
-      const source = drawDownward ? from : targetPos;
-      const target = drawDownward ? targetPos : from;
-
-      const startX = source.x;
-      const startY = source.y + graphNodeRadius;
-      const endX = target.x;
-      const endY = target.y - graphNodeRadius;
-
-      const curve = document.createElementNS(svgNS, 'path');
-      const yGap = Math.max(26, endY - startY);
-      const bend = Math.min(96, Math.round(yGap * 0.45));
+    const curve = document.createElementNS(svgNS, 'path');
+    if (Math.abs(endY - startY) < 28) {
+      const midY = startY + (isMobile() ? 48 : 34);
+      curve.setAttribute('d', `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`);
+    } else {
+      const yGap = Math.max(26, Math.abs(endY - startY));
+      const bend = Math.min(isMobile() ? 86 : 96, Math.round(yGap * 0.44));
       const c1x = startX;
       const c1y = startY + bend;
       const c2x = endX;
       const c2y = endY - bend;
       curve.setAttribute('d', `M ${startX} ${startY} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${endX} ${endY}`);
-      curve.setAttribute('stroke', '#6ca4ff');
-      curve.setAttribute('stroke-width', '2');
-      curve.setAttribute('stroke-opacity', '0.78');
-      curve.setAttribute('fill', 'none');
-      curve.setAttribute('stroke-linecap', 'round');
-      links.appendChild(curve);
-    });
+    }
+    curve.setAttribute('class', 'graph-link');
+    curve.setAttribute('stroke', '#6ca4ff');
+    curve.setAttribute('stroke-width', isMobile() ? '3' : '2');
+    curve.setAttribute('stroke-opacity', isMobile() ? '0.92' : '0.78');
+    curve.setAttribute('fill', 'none');
+    curve.setAttribute('stroke-linecap', 'round');
+    links.appendChild(curve);
   });
 
   canvas.appendChild(links);
@@ -1833,6 +1889,12 @@ function buildGraphView() {
     node.addEventListener('click', () => {
       if (isMobile()) {
         tip.innerHTML = graphInfoHtml(item);
+        const editBtn = tip.querySelector('[data-graph-edit-id]');
+        if (editBtn) editBtn.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          window.startEditingMobile(item.id);
+        });
         tip.classList.add('active');
         wrap.classList.add('node-selected');
         return;
@@ -1871,7 +1933,7 @@ function graphInfoHtml(item) {
     <strong>${escapeHtml((item.symbol || '') + ' ' + item.name)}</strong>
     <span class="tree-meta">${escapeHtml(label(item.type))}</span>
     ${bits.map(bit => `<p>${escapeHtml(bit)}</p>`).join('')}
-    <button class="button secondary" type="button" onclick="window.startEditingMobile('${item.id}')">Edit</button>
+    <button class="button secondary graph-info-edit" type="button" data-graph-edit-id="${escapeHtml(item.id)}">Edit</button>
   `;
 }
 
@@ -1989,20 +2051,24 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
       return;
     }
 
-    const focusW = Math.max(1, (bounds.focusMaxX || bounds.maxX) - (bounds.focusMinX || bounds.minX));
-    const focusH = Math.max(1, (bounds.focusMaxY || bounds.maxY) - (bounds.focusMinY || bounds.minY));
-    const fitPadding = mobileGraph ? 28 : 64;
+    const focusW = mobileGraph
+      ? Math.max(1, bounds.maxX - bounds.minX)
+      : Math.max(1, (bounds.focusMaxX || bounds.maxX) - (bounds.focusMinX || bounds.minX));
+    const focusH = mobileGraph
+      ? Math.max(1, bounds.maxY - bounds.minY)
+      : Math.max(1, (bounds.focusMaxY || bounds.maxY) - (bounds.focusMinY || bounds.minY));
+    const fitPadding = mobileGraph ? 34 : 64;
 
     const fitScaleX = (viewportW - fitPadding * 2) / focusW;
     const fitScaleY = (viewportH - fitPadding * 2) / focusH;
-    scale = Math.max(minGraphScale, Math.min(mobileGraph ? 0.82 : 1, fitScaleX, fitScaleY));
+    scale = Math.max(minGraphScale, Math.min(mobileGraph ? 0.72 : 1, fitScaleX, fitScaleY));
 
-    const focusCenterX = Number.isFinite(bounds.focusCenterX)
-      ? bounds.focusCenterX
-      : (bounds.minX + bounds.maxX) / 2;
-    const focusCenterY = Number.isFinite(bounds.focusCenterY)
-      ? bounds.focusCenterY
-      : (bounds.minY + bounds.maxY) / 2;
+    const focusCenterX = mobileGraph
+      ? (bounds.minX + bounds.maxX) / 2
+      : (Number.isFinite(bounds.focusCenterX) ? bounds.focusCenterX : (bounds.minX + bounds.maxX) / 2);
+    const focusCenterY = mobileGraph
+      ? (bounds.minY + bounds.maxY) / 2
+      : (Number.isFinite(bounds.focusCenterY) ? bounds.focusCenterY : (bounds.minY + bounds.maxY) / 2);
 
     panX = viewportW / 2 - focusCenterX * scale;
     panY = viewportH / 2 - focusCenterY * scale;
@@ -2042,7 +2108,7 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
 
   wrap.addEventListener('pointerdown', (event) => {
     const target = event.target;
-    if (target.closest('.graph-node')) return;
+    if (target.closest('.graph-node, .graph-info-panel, button, a, input, select, textarea')) return;
     dragging = true;
     dragStartX = event.clientX - panX;
     dragStartY = event.clientY - panY;
@@ -3705,7 +3771,7 @@ function renderPalette() {
     }
     const el = document.createElement('div');
     el.className = `rack-palette-item cat-${comp.category}`;
-    el.draggable = true;
+    el.draggable = !isMobile();
     el.dataset.componentType = comp.componentType;
     el.dataset.heightU = comp.heightU;
     el.dataset.label   = comp.label;
@@ -3813,7 +3879,7 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
   el.className = `rack-slot occupied cat-${cat}`;
   el.dataset.u    = u;
   el.dataset.side = side;
-  el.draggable    = true;
+  el.draggable    = !isMobile();
   // Match the CSS --rack-u-height variable exactly
   const uPx = Math.max(28, Math.min(42, window.innerHeight * 0.018));
   const totalH = comp.heightU * uPx;
