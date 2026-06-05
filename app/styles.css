@@ -3353,3 +3353,158 @@ dialog[open] {
     grid-template-columns: 1fr !important;
   }
 }
+
+
+/* ================================================================
+   Mobile tab alignment v8: use one header/body pattern everywhere.
+   ================================================================ */
+@media (max-width: 1100px) {
+  .panel-center {
+    border-top: 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    background: var(--phone) !important;
+  }
+
+  .panel-center > .panel-head,
+  .mobile-view-head,
+  .rack-ov-topbar,
+  .rack-overlay-head {
+    min-height: 74px;
+    box-sizing: border-box;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.75rem;
+    padding: calc(1rem + env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) 0.8rem max(1rem, env(safe-area-inset-left)) !important;
+    border-top: 0 !important;
+    border-bottom: 3px solid var(--line) !important;
+    background: var(--phone) !important;
+    flex-shrink: 0;
+  }
+
+  .panel-center > .panel-head h2,
+  .mobile-view-head h2,
+  .rack-ov-title,
+  .rack-editor-name {
+    margin: 0 !important;
+    font-size: 1rem !important;
+    line-height: 1.2 !important;
+  }
+
+  .panel-center > .filters,
+  .panel-center > .stats,
+  .panel-center > .boards {
+    margin-left: max(1rem, env(safe-area-inset-left));
+    margin-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  .panel-center > .filters {
+    position: static !important;
+    top: auto !important;
+    padding-top: 1rem !important;
+    border-top: 0 !important;
+  }
+
+  .mobile-view {
+    background: var(--phone) !important;
+    padding-top: 0 !important;
+  }
+
+  .mobile-view-body {
+    padding: 1rem max(1rem, env(safe-area-inset-right)) calc(88px + env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)) !important;
+  }
+
+  .mobile-view-footer {
+    display: none !important;
+  }
+
+  #mobile-theme .theme-tabs {
+    margin: 0 0 1rem !important;
+    padding: 0 !important;
+    border-bottom: 3px solid var(--line) !important;
+  }
+
+  #mobile-theme .theme-tab-panel {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  #mobile-theme .theme-picker-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  #mobile-theme .theme-swatch {
+    min-height: 92px;
+    border-radius: 18px;
+    padding: 0.75rem;
+  }
+
+  #mobile-theme .theme-swatch-preview {
+    height: 56px;
+    border-radius: 12px;
+  }
+
+  #mobile-theme .dialog-footer,
+  #mobile-theme .tree-head,
+  #mobile-theme > .sheet-handle,
+  #mobile-theme .sheet-handle {
+    display: none !important;
+  }
+
+  .rack-overlay {
+    padding: 0 0 calc(78px + env(safe-area-inset-bottom)) 0 !important;
+    border-top: 0 !important;
+    background: var(--phone) !important;
+  }
+
+  .rack-overview-body,
+  .rack-overview-inner {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .rack-overview-body {
+    padding: 0 !important;
+    overflow-y: auto !important;
+  }
+
+  .rack-ov-topbar {
+    margin: 0 !important;
+  }
+
+  .rack-ov-actions {
+    flex-wrap: nowrap !important;
+    gap: 0.5rem !important;
+  }
+
+  .rack-ov-actions .button {
+    min-height: 44px;
+    padding-inline: 0.8rem !important;
+  }
+
+  .rack-ov-panel {
+    padding: 1rem max(1rem, env(safe-area-inset-right)) calc(88px + env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)) !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: var(--phone) !important;
+    box-shadow: none !important;
+  }
+
+  .rack-overlay-head {
+    min-height: 74px !important;
+  }
+
+  .rack-editor-title-wrap {
+    min-width: 0;
+  }
+
+  .rack-editor-right-actions .button {
+    min-height: 44px;
+  }
+}

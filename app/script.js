@@ -512,6 +512,10 @@ clearAll.addEventListener('click', async () => {
 });
 
 let themePickerReturnToConfig = false;
+const themePickerDialog = document.getElementById('theme-picker-dialog');
+const mobileThemeBody = document.getElementById('mobile-theme-body');
+const themeDialogPlaceholder = document.createComment('theme-dialog-placeholder');
+let themeContentInMobile = false;
 
 document.getElementById('theme-btn').addEventListener('click', () => {
   themePickerReturnToConfig = true;
@@ -521,7 +525,10 @@ document.getElementById('theme-btn').addEventListener('click', () => {
 document.getElementById('theme-btn-mobile').addEventListener('click', () => openThemePicker({ returnToConfig: false }));
 document.querySelectorAll('.theme-tab').forEach(b => b.addEventListener('click', () => switchThemeTab(b.dataset.tab)));
 const themePickerClose = document.getElementById('theme-picker-close');
-if (themePickerClose) themePickerClose.addEventListener('click', () => document.getElementById('theme-picker-dialog').close());
+if (themePickerClose) themePickerClose.addEventListener('click', () => {
+  if (isMobile() && themeContentInMobile) { hideMobileViews(); return; }
+  document.getElementById('theme-picker-dialog').close();
+});
 
 function getActiveThemeId() {
   return document.documentElement.dataset.theme || localStorage.getItem(themeKey) || 'light';
@@ -2776,6 +2783,32 @@ function renderCustomizeTab() {
   preview();
 }
 
+
+function moveThemePickerToMobile() {
+  const dlg = themePickerDialog || document.getElementById('theme-picker-dialog');
+  const body = mobileThemeBody || document.getElementById('mobile-theme-body');
+  if (!dlg || !body || themeContentInMobile) return;
+  if (!themeDialogPlaceholder.parentNode) dlg.parentNode.insertBefore(themeDialogPlaceholder, dlg.firstChild);
+  while (dlg.firstChild) body.appendChild(dlg.firstChild);
+  themeContentInMobile = true;
+}
+
+function restoreThemePickerToDialog() {
+  const dlg = themePickerDialog || document.getElementById('theme-picker-dialog');
+  const body = mobileThemeBody || document.getElementById('mobile-theme-body');
+  if (!dlg || !body || !themeContentInMobile) return;
+  while (body.firstChild) dlg.appendChild(body.firstChild);
+  if (themeDialogPlaceholder.parentNode) themeDialogPlaceholder.remove();
+  themeContentInMobile = false;
+}
+
+function closeMobileThemeView() {
+  if (!themeContentInMobile) return;
+  clearPreviewTheme();
+  editingThemeId = null;
+  restoreThemePickerToDialog();
+}
+
 function switchThemeTab(tab) {
   const themeDialog = document.getElementById('theme-picker-dialog');
   if (themeDialog) themeDialog.classList.toggle('customize-active', tab === 'customize');
@@ -2792,8 +2825,17 @@ function openThemePicker(options) {
   const dlg = document.getElementById('theme-picker-dialog');
   const opts = options || {};
   themePickerReturnToConfig = !!opts.returnToConfig;
-  if (isMobile()) dlg?.querySelector(':scope > .sheet-handle')?.remove();
   switchThemeTab('themes');
+
+  if (isMobile()) {
+    if (dlg?.open) dlg.close();
+    moveThemePickerToMobile();
+    showMobileView('mobile-theme');
+    setActiveMobileNav('nav-more');
+    return;
+  }
+
+  restoreThemePickerToDialog();
   dlg.onclose = () => {
     clearPreviewTheme();
     editingThemeId = null;
@@ -2833,6 +2875,7 @@ function openMobileMoreSheet() {
 }
 
 function showMobileView(id) {
+  if (id !== 'mobile-theme') closeMobileThemeView();
   closeMobileMoreSheet();
   showRackOverlay(null);
   closeRackPaletteSheet();
@@ -2842,6 +2885,7 @@ function showMobileView(id) {
 }
 
 function hideMobileViews() {
+  closeMobileThemeView();
   closeMobileMoreSheet();
   showRackOverlay(null);
   closeRackPaletteSheet();
@@ -2882,6 +2926,7 @@ if (navIp) navIp.addEventListener('click', () => {
 });
 
 if (navRack) navRack.addEventListener('click', () => {
+  closeMobileThemeView();
   closeMobileMoreSheet();
   document.querySelectorAll('.mobile-view').forEach(v => v.classList.remove('active'));
   renderRackOverview();
