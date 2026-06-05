@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Labby - Map Your Homelab</title>
     <meta name="description" content="Labby is a lightweight homelab inventory and topology tool. Track hardware, VMs, LXCs, apps and networks - visualize relationships with tree and graph views." />
     <meta name="keywords" content="homelab, network inventory, infrastructure map, proxmox, self-hosted, docker, topology, IP management" />
@@ -25,7 +25,7 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="demo-banner">🎭 Demo mode - changes are saved in your browser only. <a href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener noreferrer">Self-host Labby</a> for permanent storage.</div>
+    <div class="demo-banner">🎭 Demo mode - changes are saved in your browser only. <a href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener noreferrer">Self-host Labby on GitHub</a></div>
     <header class="topbar">
       <div class="brand-wrap">
         <img src="logo.svg" alt="Labby logo" class="logo" />
@@ -232,6 +232,7 @@
 
     </main>
 
+    <div id="mobile-progress" class="mobile-progress" aria-hidden="true"><span></span></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <div class="bottom-actions">
@@ -242,26 +243,38 @@
 
     <nav class="bottom-nav" aria-label="Mobile navigation">
       <button class="bottom-nav-item" id="nav-topology" type="button">
-        <span class="bottom-nav-icon">🗂️</span>
-        <span class="bottom-nav-label">Topology</span>
+        <span class="bottom-nav-icon">📁</span>
+        <span class="bottom-nav-label">Boards</span>
       </button>
       <button class="bottom-nav-item" id="nav-add" type="button">
         <span class="bottom-nav-icon">➕</span>
         <span class="bottom-nav-label">Add</span>
       </button>
+      <button class="bottom-nav-item" id="nav-rack" type="button">
+        <span class="bottom-nav-icon">🗄️</span>
+        <span class="bottom-nav-label">Rack</span>
+      </button>
       <button class="bottom-nav-item" id="nav-ip" type="button">
         <span class="bottom-nav-icon">🌐</span>
-        <span class="bottom-nav-label">IP View</span>
+        <span class="bottom-nav-label">IP</span>
       </button>
-      <button class="bottom-nav-item" id="nav-tree" type="button">
-        <span class="bottom-nav-icon">🌳</span>
-        <span class="bottom-nav-label">Tree</span>
-      </button>
-      <button class="bottom-nav-item" id="nav-config" type="button">
-        <span class="bottom-nav-icon">⚙️</span>
-        <span class="bottom-nav-label">Config</span>
+      <button class="bottom-nav-item" id="nav-more" type="button" aria-expanded="false" aria-controls="mobile-more-sheet">
+        <span class="bottom-nav-icon">•••</span>
+        <span class="bottom-nav-label">More</span>
       </button>
     </nav>
+
+    <div id="mobile-more-sheet" class="mobile-sheet mobile-more-sheet" aria-hidden="true">
+      <div class="mobile-sheet-backdrop" data-sheet-close="mobile-more-sheet"></div>
+      <section class="mobile-sheet-panel" role="dialog" aria-modal="true" aria-label="More">
+        <button class="sheet-handle" type="button" data-sheet-close="mobile-more-sheet" aria-label="Close More menu"></button>
+        <div class="more-grid">
+          <button class="more-item" id="nav-tree" type="button"><span>🌳</span><strong>Tree</strong></button>
+          <button class="more-item" id="nav-config" type="button"><span>⚙️</span><strong>Config</strong></button>
+          <button class="more-item" id="nav-theme" type="button"><span>🎨</span><strong>Themes</strong></button>
+        </div>
+      </section>
+    </div>
 
     <div class="mobile-view" id="mobile-add">
       <div class="mobile-view-head">
@@ -293,7 +306,6 @@
         <h2>Relationship Tree</h2>
         <div class="view-switch" role="tablist">
           <button id="mobile-tree-mode-tree" class="icon-btn active" type="button">Tree</button>
-          <button id="mobile-tree-mode-graph" class="icon-btn" type="button">Graph</button>
         </div>
       </div>
       <div class="mobile-view-body" id="mobile-tree-content"></div>
@@ -330,6 +342,13 @@
       <div class="mobile-view-footer">
         <button class="button secondary" id="mobile-config-close">← Back to Topology</button>
       </div>
+    </div>
+
+    <div class="mobile-view" id="mobile-theme">
+      <div class="mobile-view-head">
+        <h2>🎨 Themes</h2>
+      </div>
+      <div class="mobile-view-body" id="mobile-theme-body"></div>
     </div>
 
     <dialog id="ip-dialog" class="tree-dialog">
@@ -375,6 +394,7 @@
         <button id="clear-all" class="button danger" type="button">Clear All</button>
         <button id="seed-demo" class="button secondary" type="button">Load Demo</button>
         <button id="theme-btn" class="button secondary" type="button">🎨 Themes</button>
+        <button id="show-tutorial-btn" class="button secondary" type="button">📖 Tutorial</button>
       </div>
       <div class="config-content">
         <div class="legend">
@@ -384,31 +404,6 @@
           <p><span class="dot app"></span> App</p>
           <p><span class="dot network"></span> Network</p>
         </div>
-        <section class="config-tutorial" aria-label="Quick tutorial">
-          <h4>Quick Tutorial</h4>
-          <div class="config-tutorial-grid">
-            <article>
-              <strong>1. Add resources</strong>
-              <span>Create hardware, VMs, LXCs, apps and networks from the form.</span>
-            </article>
-            <article>
-              <strong>2. Connect services</strong>
-              <span>Use hosted-on and connection fields to build your homelab map.</span>
-            </article>
-            <article>
-              <strong>3. Check IP View</strong>
-              <span>Find used IPs by subnet, hostname or port without digging through cards.</span>
-            </article>
-            <article>
-              <strong>4. Use Tree / Graph</strong>
-              <span>Visualize relationships between hardware, guests, apps and networks.</span>
-            </article>
-            <article>
-              <strong>5. Backup config</strong>
-              <span>Export and import JSON backups including the active theme.</span>
-            </article>
-          </div>
-        </section>
       </div>
       <div class="dialog-footer">
         <button class="button secondary" onclick="document.getElementById('config-dialog').close()">✕ Close</button>
@@ -417,7 +412,7 @@
 
     <dialog id="theme-picker-dialog" class="tree-dialog theme-picker-dialog mobile-fullscreen-dialog">
       <div class="tree-head">
-        <h3>🎨 Theme</h3>
+        <h3>🎨 Themes</h3>
       </div>
       <div class="theme-tabs">
         <button class="theme-tab active" data-tab="themes" type="button">Themes</button>
@@ -515,11 +510,25 @@
           <button id="rack-editor-back" class="button secondary" type="button">← Rack Overview</button>
         </div>
       </div>
+      <div class="rack-mobile-toolbar" aria-label="Rack mobile controls">
+        <div class="rack-side-tabs" role="tablist" aria-label="Rack side">
+          <button id="rack-mobile-front" class="icon-btn active" type="button">Front</button>
+          <button id="rack-mobile-rear" class="icon-btn" type="button">Rear</button>
+        </div>
+        <button id="rack-mobile-palette-toggle" class="button" type="button">+ Add Component</button>
+      </div>
+      <div id="rack-selected-component-pill" class="rack-selected-component-pill hidden" aria-live="polite">
+        <span id="rack-selected-component-text" class="rack-selected-component-text"></span>
+        <button id="rack-selected-component-clear" class="icon-btn rack-selected-component-clear" type="button" aria-label="Clear selected component">✕</button>
+      </div>
       <div id="rack-editor-body" class="rack-editor-body">
+        <div id="rack-palette-backdrop" class="rack-palette-backdrop"></div>
         <div class="rack-palette" id="rack-palette">
+          <button id="rack-palette-close" class="sheet-handle" type="button" aria-label="Close component palette"></button>
           <h3 class="rack-palette-title">Components</h3>
           <div id="rack-palette-items" class="rack-palette-items"></div>
         </div>
+        <button id="rack-mobile-palette-fab" class="rack-mobile-palette-fab" type="button" aria-label="Open component list">≡</button>
         <div class="rack-views-wrap">
           <div class="rack-view-col">
             <h3 class="rack-view-title">Front</h3>

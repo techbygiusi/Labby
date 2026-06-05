@@ -1,7 +1,7 @@
 const storageKey = 'labby-data-v8';
-const themeKey = 'labby-theme';
 const demoStorageVersionKey = 'labby-demo-storage-version';
-const demoStorageVersion = '2026-graph-demo-mobile-v1';
+const demoStorageVersion = '2026-mobile-overhaul-v28';
+const themeKey = 'labby-theme';
 const types = ['hardware', 'vm', 'lxc', 'app', 'network'];
 const networkPalette = ['#3b82f6', '#10b981', '#22c55e', '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#a855f7', '#14b8a6', '#84cc16', '#06b6d4', '#8b5cf6'];
 
@@ -82,6 +82,20 @@ const configToggle = document.getElementById('config-toggle');
 const configDialog = document.getElementById('config-dialog');
 const toast = document.getElementById('toast');
 
+const mobileProgress = document.getElementById('mobile-progress');
+let mobileProgressCount = 0;
+const nativeFetch = window.fetch.bind(window);
+window.fetch = async (...args) => {
+  mobileProgressCount += 1;
+  mobileProgress?.classList.add('active');
+  try {
+    return await nativeFetch(...args);
+  } finally {
+    mobileProgressCount = Math.max(0, mobileProgressCount - 1);
+    if (!mobileProgressCount) setTimeout(() => mobileProgress?.classList.remove('active'), 180);
+  }
+};
+
 let editingId = null;
 let selectedNetworkColor = networkPalette[0];
 let items = [];
@@ -97,56 +111,6 @@ let liveStatusData = {}; // Store live status data { itemId: { ipStatus: 'online
 const API_BASE = (() => {
   const loc = window.location;
   return window.LABBY_API || (loc.hostname === 'localhost' && loc.port === '8080' ? 'http://localhost:3001' : '');
-})();
-
-async function loadItemsFromAPI() {
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return { items: [], locations: [], racks: [] };
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return { items: parsed, locations: [], racks: [] };
-    }
-    return {
-      items: Array.isArray(parsed.items) ? parsed.items : [],
-      locations: Array.isArray(parsed.locations) ? parsed.locations : [],
-      racks: Array.isArray(parsed.racks) ? parsed.racks : [],
-    };
-  } catch {
-    return { items: [], locations: [], racks: [] };
-  }
-}
-
-async function saveItemsToAPI(itemList) {
-  const payload = {
-    items: itemList,
-    locations,
-    racks,
-  };
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(payload));
-  } catch {}
-}
-
-
-cleanupDuplicateIds(['symbol-wrap', 'hardware-kind-wrap', 'manufacturer-wrap', 'os-wrap', 'symbol', 'hardware-kind', 'manufacturer', 'os']);
-cleanupDuplicateFieldLabels();
-
-initColorPicker();
-appendShareRow();
-appendRamModuleRow();
-appendDiskRow();
-appendRaidRow();
-symbolInput.value = defaultSymbol('hardware', 'server');
-// initTheme moved to end
-
-applyTypeVisibility();
-
-(async () => {
-  await seedFullDemoData();
-  render();
-  startPolling();
-  openDemoTutorialAfterLayout();
 })();
 
 
@@ -235,6 +199,68 @@ function openDemoTutorialAfterLayout() {
   requestAnimationFrame(() => requestAnimationFrame(open));
 }
 
+async function loadDemoData() {
+  if (!confirm('Replace current browser demo data with the default demo entries?')) return;
+  await seedFullDemoData({ force: true });
+  stopEditing();
+  showToast('Demo data loaded with sample rack layouts.');
+  render();
+  if (typeof renderRackOverview === 'function') renderRackOverview();
+  openDemoTutorialAfterLayout();
+}
+
+seedDemo?.addEventListener('click', loadDemoData);
+seedDemoMobile?.addEventListener('click', loadDemoData);
+
+async function loadItemsFromAPI() {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return { items: [], locations: [], racks: [] };
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return { items: parsed, locations: [], racks: [] };
+    }
+    return {
+      items: Array.isArray(parsed.items) ? parsed.items : [],
+      locations: Array.isArray(parsed.locations) ? parsed.locations : [],
+      racks: Array.isArray(parsed.racks) ? parsed.racks : [],
+    };
+  } catch {
+    return { items: [], locations: [], racks: [] };
+  }
+}
+
+async function saveItemsToAPI(itemList) {
+  const payload = {
+    items: itemList,
+    locations,
+    racks,
+  };
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(payload));
+  } catch {}
+}
+
+cleanupDuplicateIds(['symbol-wrap', 'hardware-kind-wrap', 'manufacturer-wrap', 'os-wrap', 'symbol', 'hardware-kind', 'manufacturer', 'os']);
+cleanupDuplicateFieldLabels();
+
+initColorPicker();
+appendShareRow();
+appendRamModuleRow();
+appendDiskRow();
+appendRaidRow();
+symbolInput.value = defaultSymbol('hardware', 'server');
+// initTheme moved to end
+
+applyTypeVisibility();
+
+(async () => {
+  await seedFullDemoData();
+  render();
+  startPolling();
+  openDemoTutorialAfterLayout();
+})();
+
 async function startPolling() {
   if (pollingInterval) clearInterval(pollingInterval);
   pollingInterval = setInterval(async () => {
@@ -242,38 +268,72 @@ async function startPolling() {
   }, 5000);
 }
 
+function extractHostForLiveCheck(item) {
+  const raw = item?.type === 'app'
+    ? (item.ipPort || item.ip || item.webUrl || '')
+    : (item.ip || item.webUrl || '');
+
+  if (!raw || typeof raw !== 'string') return '';
+
+  const value = raw.trim();
+  if (!value) return '';
+
+  try {
+    const withProtocol = /^https?:\/\//i.test(value) ? value : `http://${value}`;
+    const parsed = new URL(withProtocol);
+    return parsed.hostname.replace(/^\[|\]$/g, '');
+  } catch {
+    return value
+      .replace(/^https?:\/\//i, '')
+      .replace(/^\[/, '')
+      .split(']')[0]
+      .split('/')[0]
+      .split(':')[0]
+      .trim();
+  }
+}
+
+function normalizeUrlForLiveCheck(value) {
+  if (!value || typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
+}
+
 async function pollLiveStatus() {
   const toMonitor = items.filter((item) => item.ipStatus === 'live' || item.urlStatus === 'live');
 
   for (const item of toMonitor) {
-    if (item.ipStatus === 'live' && item.ip && ['hardware', 'vm', 'lxc'].includes(item.type)) {
+    if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
+
+    const pingHost = extractHostForLiveCheck(item);
+
+    if (item.ipStatus === 'live' && pingHost && ['hardware', 'vm', 'lxc', 'app'].includes(item.type)) {
       try {
         const res = await fetch(`${API_BASE}/api/ping`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ip: item.ip.split('/')[0].trim() }),
+          body: JSON.stringify({ ip: pingHost }),
         });
         const data = await res.json();
-        if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
         liveStatusData[item.id].ipStatus = data.status;
       } catch (err) {
-        if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
         liveStatusData[item.id].ipStatus = 'offline';
       }
     }
 
-    if (item.urlStatus === 'live' && item.webUrl && (item.type === 'app' || item.type === 'hardware')) {
+    const urlToCheck = normalizeUrlForLiveCheck(item.webUrl || (item.type === 'app' ? item.ipPort : ''));
+
+    if (item.urlStatus === 'live' && urlToCheck && (item.type === 'app' || item.type === 'hardware')) {
       try {
         const res = await fetch(`${API_BASE}/api/check-url`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: item.webUrl }),
+          body: JSON.stringify({ url: urlToCheck }),
         });
         const data = await res.json();
-        if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
         liveStatusData[item.id].urlStatus = data.status;
       } catch (err) {
-        if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
         liveStatusData[item.id].urlStatus = 'offline';
       }
     }
@@ -533,20 +593,11 @@ clearAll.addEventListener('click', async () => {
   if (typeof renderThemeLists === 'function') renderThemeLists();
 });
 
-async function loadDemoData() {
-  if (!confirm('Replace current browser demo data with the default demo entries?')) return;
-  await seedFullDemoData({ force: true });
-  stopEditing();
-  showToast('Demo data loaded with sample rack layouts.');
-  render();
-  if (typeof renderRackOverview === 'function') renderRackOverview();
-  openDemoTutorialAfterLayout();
-}
-
-seedDemo?.addEventListener('click', loadDemoData);
-seedDemoMobile?.addEventListener('click', loadDemoData);
-
 let themePickerReturnToConfig = false;
+const themePickerDialog = document.getElementById('theme-picker-dialog');
+const mobileThemeBody = document.getElementById('mobile-theme-body');
+const themeDialogPlaceholder = document.createComment('theme-dialog-placeholder');
+let themeContentInMobile = false;
 
 document.getElementById('theme-btn').addEventListener('click', () => {
   themePickerReturnToConfig = true;
@@ -556,20 +607,29 @@ document.getElementById('theme-btn').addEventListener('click', () => {
 document.getElementById('theme-btn-mobile').addEventListener('click', () => openThemePicker({ returnToConfig: false }));
 document.querySelectorAll('.theme-tab').forEach(b => b.addEventListener('click', () => switchThemeTab(b.dataset.tab)));
 const themePickerClose = document.getElementById('theme-picker-close');
-if (themePickerClose) themePickerClose.addEventListener('click', () => document.getElementById('theme-picker-dialog').close());
+if (themePickerClose) themePickerClose.addEventListener('click', () => {
+  if (isMobile() && themeContentInMobile) { hideMobileViews(); return; }
+  document.getElementById('theme-picker-dialog').close();
+});
 
 function getActiveThemeId() {
   return document.documentElement.dataset.theme || localStorage.getItem(themeKey) || 'light';
 }
 
 function buildConfigExport() {
+  const activeTheme = getActiveThemeId();
   return {
+    schemaVersion: 2,
+    app: 'Labby',
+    exportedAt: new Date().toISOString(),
     items,
     locations,
     racks,
     customThemes: getCustomThemes(),
-    activeTheme: getActiveThemeId(),
-    theme: getActiveThemeId(),
+    activeTheme,
+    // Kept for older imports that only looked for `theme`.
+    theme: activeTheme,
+    tutorialSeen: localStorage.getItem('labby-tutorial-seen') === '1',
   };
 }
 
@@ -582,6 +642,33 @@ function applyImportedThemeFromConfig(parsed) {
   ];
   if (validThemes.includes(importedTheme)) {
     setTheme(importedTheme);
+  }
+}
+
+function applyImportedConfig(parsed) {
+  // Legacy export support: old Labby exports were a bare items array.
+  if (Array.isArray(parsed)) {
+    items = sanitizeItems(parsed);
+    locations = [];
+    racks = [];
+    return;
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('Invalid Labby config');
+  }
+
+  items     = sanitizeItems(parsed.items || []);
+  locations = Array.isArray(parsed.locations) ? parsed.locations : [];
+  racks     = Array.isArray(parsed.racks) ? parsed.racks : [];
+
+  if (Array.isArray(parsed.customThemes)) importCustomThemes(parsed.customThemes);
+  applyImportedThemeFromConfig(parsed);
+
+  if (parsed.tutorialSeen === true) {
+    localStorage.setItem('labby-tutorial-seen', '1');
+  } else if (parsed.tutorialSeen === false) {
+    localStorage.removeItem('labby-tutorial-seen');
   }
 }
 
@@ -603,16 +690,7 @@ importFile.addEventListener('change', async (event) => {
   try {
     const text = await file.text();
     const parsed = JSON.parse(text);
-    // Support both old bare-array format and new { items, locations, racks } format
-    if (Array.isArray(parsed)) {
-      items = sanitizeItems(parsed);
-    } else {
-      items     = sanitizeItems(parsed.items     || []);
-      locations = Array.isArray(parsed.locations) ? parsed.locations : [];
-      racks     = Array.isArray(parsed.racks)     ? parsed.racks     : [];
-      if (Array.isArray(parsed.customThemes)) importCustomThemes(parsed.customThemes);
-      applyImportedThemeFromConfig(parsed);
-    }
+    applyImportedConfig(parsed);
     stopEditing();
     await saveItems();
     showToast('Config imported successfully.');
@@ -1210,6 +1288,7 @@ function cardNode(item) {
 
   const deleteButton = node.querySelector('.delete-btn');
   if (deleteButton) deleteButton.addEventListener('click', () => removeItem(item.id));
+  enhanceMobileCard(node, item);
   return node;
 }
 
@@ -1606,12 +1685,17 @@ function buildGraphView() {
     return wrap;
   }
 
-  const viewportWidth = Math.max(760, treeContent.clientWidth - 30);
-  const viewportHeight = Math.max(460, treeContent.clientHeight - 34);
-  const minWidthForItems = Math.max(680, graphItems.length * 84);
-  const minHeightForItems = Math.max(460, Math.ceil(graphItems.length / 8) * 180);
-  const width = Math.max(viewportWidth, minWidthForItems);
-  const height = Math.max(viewportHeight, minHeightForItems);
+  const graphHost = isMobile() ? (document.getElementById('mobile-tree-content') || treeContent) : treeContent;
+  const viewportWidth = Math.max(isMobile() ? 320 : 760, (graphHost?.clientWidth || treeContent.clientWidth || window.innerWidth) - 30);
+  const viewportHeight = Math.max(isMobile() ? 560 : 460, (graphHost?.clientHeight || treeContent.clientHeight || window.innerHeight * 0.65) - 34);
+  const minWidthForItems = isMobile()
+    ? Math.max(viewportWidth, graphItems.length * 230, 1100)
+    : Math.max(1100, graphItems.length * 190);
+  const minHeightForItems = isMobile()
+    ? Math.max(720, Math.ceil(graphItems.length / 5) * 150)
+    : Math.max(560, Math.ceil(graphItems.length / 7) * 172);
+  let width = Math.max(viewportWidth, minWidthForItems);
+  let height = Math.max(viewportHeight, minHeightForItems);
   canvas.style.setProperty('--graph-width', `${width}px`);
   canvas.style.setProperty('--graph-height', `${height}px`);
   canvas.style.width = `${width}px`;
@@ -1622,6 +1706,28 @@ function buildGraphView() {
 
   const hardware = graphItems.filter((item) => item.type === 'hardware');
   const graphById = Object.fromEntries(graphItems.map((item) => [item.id, item]));
+  const graphEdges = [];
+  const graphEdgeSeen = new Set();
+
+  function addGraphEdge(sourceId, targetId) {
+    const source = graphById[sourceId];
+    const target = graphById[targetId];
+    if (!source || !target || sourceId === targetId) return;
+    const key = [sourceId, targetId].sort().join('::');
+    if (graphEdgeSeen.has(key)) return;
+    graphEdgeSeen.add(key);
+    graphEdges.push({ sourceId, targetId });
+  }
+
+  graphItems.forEach((item) => {
+    if ((item.type === 'vm' || item.type === 'lxc') && item.hostedOn) addGraphEdge(item.hostedOn, item.id);
+    if (item.type === 'app' && item.appHostedOn) addGraphEdge(item.appHostedOn, item.id);
+    if (Array.isArray(item.connections)) {
+      item.connections.forEach((targetId) => {
+        if (graphById[targetId]) addGraphEdge(item.id, targetId);
+      });
+    }
+  });
 
   function linkedHardware(from, filterFn) {
     const peers = hardware.filter((candidate) => candidate.id !== from.id && filterFn(candidate));
@@ -1656,7 +1762,7 @@ function buildGraphView() {
 
   const parentById = new Map();
   const childrenById = new Map(graphItems.map((item) => [item.id, []]));
-  const graphNodeRadius = 23;
+  const graphNodeRadius = isMobile() ? 31 : 23;
   graphItems.forEach((item) => {
     const candidateParentId = parentIdFor(item);
     const parentId = candidateParentId && candidateParentId !== item.id ? candidateParentId : '';
@@ -1676,7 +1782,7 @@ function buildGraphView() {
 
   const rawX = new Map();
   let cursor = 0;
-  const horizontalStep = 108;
+  const horizontalStep = isMobile() ? 188 : 156;
 
   function assignX(nodeId, trail = new Set()) {
     if (rawX.has(nodeId)) return rawX.get(nodeId);
@@ -1733,19 +1839,71 @@ function buildGraphView() {
   const depthValues = [...depthCache.values()].filter((value) => Number.isFinite(value));
   const canUseHierarchy = allRawX.length && depthValues.length;
 
-  if (canUseHierarchy) {
+  if (isMobile() && canUseHierarchy) {
+    // Mobile needs readability more than a wide desktop tree. Use a vertical,
+    // scroll/pan friendly hierarchy: one node per row, depth as the horizontal lane.
+    // This avoids the old failure mode where dozens of siblings were squeezed into
+    // one horizontal line and all links crossed over each other.
+    canvas.dataset.mobileGraphLayout = 'vertical';
+    const ordered = [];
+    const seen = new Set();
+    let maxDepthUsed = 0;
+
+    function walk(nodeId, depth = 0) {
+      if (!nodeId || seen.has(nodeId)) return;
+      const item = graphById[nodeId];
+      if (!item) return;
+      seen.add(nodeId);
+      maxDepthUsed = Math.max(maxDepthUsed, depth);
+      ordered.push({ item, depth });
+      const children = (childrenById.get(nodeId) || [])
+        .filter(childId => graphById[childId] && !seen.has(childId))
+        .sort((aId, bId) => nodeOrder(graphById[aId], graphById[bId]));
+      children.forEach(childId => walk(childId, depth + 1));
+    }
+
+    const rootList = roots.length ? roots : graphItems.sort(nodeOrder).map(item => item.id);
+    rootList.forEach(rootId => walk(rootId, 0));
+    graphItems.sort(nodeOrder).forEach(item => {
+      if (!seen.has(item.id)) walk(item.id, 0);
+    });
+
+    const laneGap = 126;
+    const rowGap = 104;
+    const topPad = 88;
+    const leftPad = 88;
+    const rightLabelSpace = 230;
+    const layoutWidth = Math.max(viewportWidth + 180, leftPad + maxDepthUsed * laneGap + rightLabelSpace);
+    const layoutHeight = Math.max(viewportHeight + 140, topPad + ordered.length * rowGap + 170);
+
+    width = layoutWidth;
+    height = layoutHeight;
+    canvas.style.setProperty('--graph-width', `${layoutWidth}px`);
+    canvas.style.setProperty('--graph-height', `${layoutHeight}px`);
+    canvas.style.width = `${layoutWidth}px`;
+    canvas.style.height = `${layoutHeight}px`;
+
+    ordered.forEach(({ item, depth }, idx) => {
+      positions.set(item.id, {
+        x: Math.round(leftPad + depth * laneGap),
+        y: Math.round(topPad + idx * rowGap),
+      });
+    });
+  }
+
+  if (!isMobile() && canUseHierarchy) {
     const minRawX = Math.min(...allRawX);
     const maxRawX = Math.max(...allRawX);
     const rawSpan = Math.max(1, maxRawX - minRawX);
-    const horizontalPadding = 46;
+    const horizontalPadding = isMobile() ? 120 : 80;
     const usableWidth = Math.max(240, width - horizontalPadding * 2);
-    const compress = rawSpan > usableWidth ? usableWidth / rawSpan : 1;
+    const compress = 1;
     const finalSpan = rawSpan * compress;
     const startX = (width - finalSpan) / 2;
 
-    const topPadding = 44;
+    const topPadding = isMobile() ? 76 : 44;
     const maxDepth = Math.max(1, Math.max(...depthValues));
-    const layerGap = Math.max(54, Math.round((height - topPadding - 30) / maxDepth));
+    const layerGap = isMobile() ? Math.max(165, Math.round((height - topPadding - 120) / maxDepth)) : Math.max(116, Math.round((height - topPadding - 60) / maxDepth));
 
     graphItems.forEach((item) => {
       const x = startX + (rawX.get(item.id) - minRawX) * compress;
@@ -1773,52 +1931,44 @@ function buildGraphView() {
   const links = document.createElementNS(svgNS, 'svg');
   links.setAttribute('class', 'graph-links');
   links.setAttribute('viewBox', `0 0 ${width} ${height}`);
-  const seen = new Set();
-  graphItems.forEach((item) => {
-    const from = positions.get(item.id);
-    if (!from) return;
-    const graphConnections = new Set();
+  links.setAttribute('width', String(width));
+  links.setAttribute('height', String(height));
+  links.style.width = `${width}px`;
+  links.style.height = `${height}px`;
 
-    if ((item.type === 'vm' || item.type === 'lxc') && item.hostedOn) graphConnections.add(item.hostedOn);
-    if (item.type === 'app' && item.appHostedOn) graphConnections.add(item.appHostedOn);
-    if (item.type === 'hardware' && Array.isArray(item.connections)) {
-      item.connections.forEach((targetId) => {
-        const target = byId[targetId];
-        if (target?.type === 'hardware') graphConnections.add(targetId);
-      });
-    }
+  graphEdges.forEach(({ sourceId, targetId }) => {
+    const from = positions.get(sourceId);
+    const to = positions.get(targetId);
+    if (!from || !to) return;
 
-    [...graphConnections].forEach((targetId) => {
-      const targetPos = positions.get(targetId);
-      if (!targetPos) return;
-      const key = [item.id, targetId].sort().join('::');
-      if (seen.has(key)) return;
-      seen.add(key);
+    const drawDownward = from.y <= to.y;
+    const source = drawDownward ? from : to;
+    const target = drawDownward ? to : from;
+    const startX = source.x;
+    const startY = source.y + graphNodeRadius;
+    const endX = target.x;
+    const endY = target.y - graphNodeRadius;
 
-      const drawDownward = from.y <= targetPos.y;
-      const source = drawDownward ? from : targetPos;
-      const target = drawDownward ? targetPos : from;
-
-      const startX = source.x;
-      const startY = source.y + graphNodeRadius;
-      const endX = target.x;
-      const endY = target.y - graphNodeRadius;
-
-      const curve = document.createElementNS(svgNS, 'path');
-      const yGap = Math.max(26, endY - startY);
-      const bend = Math.min(96, Math.round(yGap * 0.45));
+    const curve = document.createElementNS(svgNS, 'path');
+    if (Math.abs(endY - startY) < 28) {
+      const midY = startY + (isMobile() ? 48 : 34);
+      curve.setAttribute('d', `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`);
+    } else {
+      const yGap = Math.max(26, Math.abs(endY - startY));
+      const bend = Math.min(isMobile() ? 86 : 96, Math.round(yGap * 0.44));
       const c1x = startX;
       const c1y = startY + bend;
       const c2x = endX;
       const c2y = endY - bend;
       curve.setAttribute('d', `M ${startX} ${startY} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${endX} ${endY}`);
-      curve.setAttribute('stroke', '#6ca4ff');
-      curve.setAttribute('stroke-width', '2');
-      curve.setAttribute('stroke-opacity', '0.78');
-      curve.setAttribute('fill', 'none');
-      curve.setAttribute('stroke-linecap', 'round');
-      links.appendChild(curve);
-    });
+    }
+    curve.setAttribute('class', 'graph-link');
+    curve.setAttribute('stroke', '#6ca4ff');
+    curve.setAttribute('stroke-width', isMobile() ? '3' : '2');
+    curve.setAttribute('stroke-opacity', isMobile() ? '0.92' : '0.78');
+    curve.setAttribute('fill', 'none');
+    curve.setAttribute('stroke-linecap', 'round');
+    links.appendChild(curve);
   });
 
   canvas.appendChild(links);
@@ -1853,6 +2003,18 @@ function buildGraphView() {
       hoverTip.textContent = '';
     });
     node.addEventListener('click', () => {
+      if (isMobile()) {
+        tip.innerHTML = graphInfoHtml(item);
+        const editBtn = tip.querySelector('[data-graph-edit-id]');
+        if (editBtn) editBtn.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          window.startEditingMobile(item.id);
+        });
+        tip.classList.add('active');
+        wrap.classList.add('node-selected');
+        return;
+      }
       startEditing(item.id);
       treeDialog.close();
       showToast(`Editing ${item.name}`);
@@ -1872,6 +2034,24 @@ function buildGraphView() {
 
 
 
+
+function graphInfoHtml(item) {
+  const bits = [
+    item.description,
+    item.ip ? `IP: ${item.ip}` : '',
+    item.type === 'app' ? appDetails(item) : '',
+    hardwareDetailsLabel(item) || specsLabel(item),
+    hostingLabel(item),
+    connectionLabel(item),
+  ].filter(Boolean);
+  return `
+    <div class="graph-info-grabber"></div>
+    <strong>${escapeHtml((item.symbol || '') + ' ' + item.name)}</strong>
+    <span class="tree-meta">${escapeHtml(label(item.type))}</span>
+    ${bits.map(bit => `<p>${escapeHtml(bit)}</p>`).join('')}
+    <button class="button secondary graph-info-edit" type="button" data-graph-edit-id="${escapeHtml(item.id)}">Edit</button>
+  `;
+}
 
 function getGraphBounds(positions, graphItems) {
   const points = graphItems
@@ -1941,9 +2121,9 @@ function getGraphBounds(positions, graphItems) {
   const focusCenterX = (focusMinX + focusMaxX) / 2;
   const focusCenterY = (focusMinY + focusMaxY) / 2;
 
-  const nodePadX = 132;
-  const nodePadTop = 84;
-  const nodePadBottom = 118;
+  const nodePadX = isMobile() ? 190 : 150;
+  const nodePadTop = isMobile() ? 120 : 92;
+  const nodePadBottom = isMobile() ? 170 : 130;
 
   return {
     minX: minX - nodePadX,
@@ -1960,6 +2140,9 @@ function getGraphBounds(positions, graphItems) {
 }
 
 function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
+  const mobileGraph = isMobile();
+  const minGraphScale = mobileGraph ? 0.14 : 0.18;
+  const maxGraphScale = mobileGraph ? 3.4 : 2.4;
   let scale = 1;
   let panX = 0;
   let panY = 0;
@@ -1984,20 +2167,36 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
       return;
     }
 
-    const focusW = Math.max(1, (bounds.focusMaxX || bounds.maxX) - (bounds.focusMinX || bounds.minX));
-    const focusH = Math.max(1, (bounds.focusMaxY || bounds.maxY) - (bounds.focusMinY || bounds.minY));
-    const fitPadding = 64;
+    const isVerticalMobileGraph = mobileGraph && canvas.dataset.mobileGraphLayout === 'vertical';
+    const focusW = mobileGraph
+      ? Math.max(1, bounds.maxX - bounds.minX)
+      : Math.max(1, (bounds.focusMaxX || bounds.maxX) - (bounds.focusMinX || bounds.minX));
+    const focusH = mobileGraph
+      ? Math.max(1, bounds.maxY - bounds.minY)
+      : Math.max(1, (bounds.focusMaxY || bounds.maxY) - (bounds.focusMinY || bounds.minY));
+    const fitPadding = mobileGraph ? 34 : 64;
 
     const fitScaleX = (viewportW - fitPadding * 2) / focusW;
     const fitScaleY = (viewportH - fitPadding * 2) / focusH;
-    scale = Math.max(0.22, Math.min(1, fitScaleX, fitScaleY));
 
-    const focusCenterX = Number.isFinite(bounds.focusCenterX)
-      ? bounds.focusCenterX
-      : (bounds.minX + bounds.maxX) / 2;
-    const focusCenterY = Number.isFinite(bounds.focusCenterY)
-      ? bounds.focusCenterY
-      : (bounds.minY + bounds.maxY) / 2;
+    if (isVerticalMobileGraph) {
+      // Fit width only. Do not fit the full tall graph height, otherwise large
+      // inventories become unreadably tiny. Users can pan down through the graph.
+      scale = Math.max(0.58, Math.min(0.96, fitScaleX));
+      panX = Math.max(8, (viewportW - width * scale) / 2);
+      panY = 18 - bounds.minY * scale;
+      applyTransform();
+      return;
+    }
+
+    scale = Math.max(minGraphScale, Math.min(mobileGraph ? 0.72 : 1, fitScaleX, fitScaleY));
+
+    const focusCenterX = mobileGraph
+      ? (bounds.minX + bounds.maxX) / 2
+      : (Number.isFinite(bounds.focusCenterX) ? bounds.focusCenterX : (bounds.minX + bounds.maxX) / 2);
+    const focusCenterY = mobileGraph
+      ? (bounds.minY + bounds.maxY) / 2
+      : (Number.isFinite(bounds.focusCenterY) ? bounds.focusCenterY : (bounds.minY + bounds.maxY) / 2);
 
     panX = viewportW / 2 - focusCenterX * scale;
     panY = viewportH / 2 - focusCenterY * scale;
@@ -2023,7 +2222,7 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
     const pointerY = event.clientY - rect.top;
 
     const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;
-    const nextScale = Math.max(0.22, Math.min(2.4, scale * zoomFactor));
+    const nextScale = Math.max(minGraphScale, Math.min(maxGraphScale, scale * zoomFactor));
     if (nextScale === scale) return;
 
     const graphX = (pointerX - panX) / scale;
@@ -2037,7 +2236,7 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
 
   wrap.addEventListener('pointerdown', (event) => {
     const target = event.target;
-    if (target.closest('.graph-node')) return;
+    if (target.closest('.graph-node, .graph-info-panel, button, a, input, select, textarea')) return;
     dragging = true;
     dragStartX = event.clientX - panX;
     dragStartY = event.clientY - panY;
@@ -2061,6 +2260,53 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
 
   wrap.addEventListener('pointerup', stopDrag);
   wrap.addEventListener('pointercancel', stopDrag);
+
+  let pinchStartDistance = 0;
+  let pinchStartScale = 1;
+  let pinchCenterGraph = null;
+
+  function touchDistance(touches) {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.hypot(dx, dy);
+  }
+
+  function touchCenter(touches, rect) {
+    return {
+      x: ((touches[0].clientX + touches[1].clientX) / 2) - rect.left,
+      y: ((touches[0].clientY + touches[1].clientY) / 2) - rect.top,
+    };
+  }
+
+  wrap.addEventListener('touchstart', (event) => {
+    if (event.touches.length !== 2) return;
+    event.preventDefault();
+    const rect = wrap.getBoundingClientRect();
+    const center = touchCenter(event.touches, rect);
+    pinchStartDistance = touchDistance(event.touches);
+    pinchStartScale = scale;
+    pinchCenterGraph = { x: (center.x - panX) / scale, y: (center.y - panY) / scale };
+  }, { passive: false });
+
+  wrap.addEventListener('touchmove', (event) => {
+    if (event.touches.length !== 2 || !pinchCenterGraph || !pinchStartDistance) return;
+    event.preventDefault();
+    const rect = wrap.getBoundingClientRect();
+    const center = touchCenter(event.touches, rect);
+    const ratio = touchDistance(event.touches) / pinchStartDistance;
+    scale = Math.max(minGraphScale, Math.min(maxGraphScale, pinchStartScale * ratio));
+    panX = center.x - pinchCenterGraph.x * scale;
+    panY = center.y - pinchCenterGraph.y * scale;
+    applyTransform();
+  }, { passive: false });
+
+  wrap.addEventListener('touchend', (event) => {
+    if (event.touches.length !== 2) {
+      pinchStartDistance = 0;
+      pinchCenterGraph = null;
+    }
+  }, { passive: true });
+
   wrap.style.cursor = 'grab';
 }
 
@@ -2468,7 +2714,7 @@ const presetThemes = [
   { id: 'midnight', name: 'Midnight', dark: true,  sw: ['#14253c', '#34557d', '#1f3a5c', '#1d5258', '#6cb6e8'] },
   { id: 'carbon',   name: 'Carbon',   dark: true,  sw: ['#1e2125', '#444b54', '#283540', '#2a3a32', '#e0c060'] },
   { id: 'nord',     name: 'Nord',     dark: true,  sw: ['#3b4252', '#5a6478', '#3e4a5e', '#3b4a44', '#ebcb8b'] },
-  { id: 'grape',    name: 'Grape',    dark: true,  sw: ['#241634', '#6b3fa0', '#3d2a5c', '#2f5868', '#d68ce8'] },
+  { id: 'grape',    name: 'Matrix',   dark: true,  sw: ['#000000', '#00ff66', '#07120a', '#0f4d24', '#39ff14'] },
 ];
 
 function defaultThemeVars() {
@@ -2731,6 +2977,41 @@ function renderCustomizeTab() {
   preview();
 }
 
+
+function moveThemePickerToMobile() {
+  const dlg = themePickerDialog || document.getElementById('theme-picker-dialog');
+  const body = mobileThemeBody || document.getElementById('mobile-theme-body');
+  if (!dlg || !body || themeContentInMobile) return;
+
+  // Keep a marker inside the dialog and move only the real dialog content.
+  // v8 used the dialog parent with a dialog child as reference, which throws
+  // and prevented Theme from opening on mobile.
+  if (!themeDialogPlaceholder.parentNode) dlg.insertBefore(themeDialogPlaceholder, dlg.firstChild);
+  let node = themeDialogPlaceholder.nextSibling;
+  while (node) {
+    const next = node.nextSibling;
+    body.appendChild(node);
+    node = next;
+  }
+  themeContentInMobile = true;
+}
+
+function restoreThemePickerToDialog() {
+  const dlg = themePickerDialog || document.getElementById('theme-picker-dialog');
+  const body = mobileThemeBody || document.getElementById('mobile-theme-body');
+  if (!dlg || !body || !themeContentInMobile) return;
+  while (body.firstChild) dlg.insertBefore(body.firstChild, themeDialogPlaceholder.nextSibling);
+  if (themeDialogPlaceholder.parentNode) themeDialogPlaceholder.remove();
+  themeContentInMobile = false;
+}
+
+function closeMobileThemeView() {
+  if (!themeContentInMobile) return;
+  clearPreviewTheme();
+  editingThemeId = null;
+  restoreThemePickerToDialog();
+}
+
 function switchThemeTab(tab) {
   const themeDialog = document.getElementById('theme-picker-dialog');
   if (themeDialog) themeDialog.classList.toggle('customize-active', tab === 'customize');
@@ -2748,6 +3029,16 @@ function openThemePicker(options) {
   const opts = options || {};
   themePickerReturnToConfig = !!opts.returnToConfig;
   switchThemeTab('themes');
+
+  if (isMobile()) {
+    if (dlg?.open) dlg.close();
+    moveThemePickerToMobile();
+    showMobileView('mobile-theme');
+    setActiveMobileNav('nav-more');
+    return;
+  }
+
+  restoreThemePickerToDialog();
   dlg.onclose = () => {
     clearPreviewTheme();
     editingThemeId = null;
@@ -2764,59 +3055,112 @@ function isMobile() {
   return window.innerWidth <= 1100;
 }
 
+function setActiveMobileNav(id) {
+  document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.toggle('active', b.id === id));
+}
+
+function closeMobileMoreSheet() {
+  const sheet = document.getElementById('mobile-more-sheet');
+  const more = document.getElementById('nav-more');
+  if (!sheet) return;
+  sheet.classList.remove('open');
+  sheet.setAttribute('aria-hidden', 'true');
+  more?.setAttribute('aria-expanded', 'false');
+}
+
+function openMobileMoreSheet() {
+  const sheet = document.getElementById('mobile-more-sheet');
+  const more = document.getElementById('nav-more');
+  if (!sheet) return;
+  sheet.classList.add('open');
+  sheet.setAttribute('aria-hidden', 'false');
+  more?.setAttribute('aria-expanded', 'true');
+}
+
 function showMobileView(id) {
+  if (id !== 'mobile-theme') closeMobileThemeView();
+  closeMobileMoreSheet();
+  showRackOverlay(null);
+  closeRackPaletteSheet();
   document.querySelectorAll('.mobile-view').forEach(v => v.classList.remove('active'));
-  document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
   const view = document.getElementById(id);
   if (view) view.classList.add('active');
 }
 
 function hideMobileViews() {
+  closeMobileThemeView();
+  closeMobileMoreSheet();
+  showRackOverlay(null);
+  closeRackPaletteSheet();
   document.querySelectorAll('.mobile-view').forEach(v => v.classList.remove('active'));
-  document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
-  const topo = document.getElementById('nav-topology');
-  if (topo) topo.classList.add('active');
+  setActiveMobileNav('nav-topology');
 }
 
 const navTopology = document.getElementById('nav-topology');
 const navAdd = document.getElementById('nav-add');
+const navRack = document.getElementById('nav-rack');
 const navIp = document.getElementById('nav-ip');
+const navMore = document.getElementById('nav-more');
 const navTree = document.getElementById('nav-tree');
 const navConfig = document.getElementById('nav-config');
+const navTheme = document.getElementById('nav-theme');
 
 if (navTopology) {
   navTopology.classList.add('active');
   navTopology.addEventListener('click', () => {
     hideMobileViews();
-    navTopology.classList.add('active');
   });
 }
 
 if (navAdd) navAdd.addEventListener('click', () => {
   showMobileView('mobile-add');
-  navAdd.classList.add('active');
+  setActiveMobileNav('nav-add');
   document.getElementById('mobile-form-title').textContent = 'Add Resource';
   const body = document.getElementById('mobile-form-body');
   const formEl = document.getElementById('resource-form');
   if (body && formEl && !body.contains(formEl)) body.appendChild(formEl);
-  setTimeout(() => document.getElementById('name').focus(), 50);
+  if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur();
 });
 
 if (navIp) navIp.addEventListener('click', () => {
   showMobileView('mobile-ip');
-  navIp.classList.add('active');
+  setActiveMobileNav('nav-ip');
   renderIPViewMobile();
+});
+
+if (navRack) navRack.addEventListener('click', () => {
+  closeMobileThemeView();
+  closeMobileMoreSheet();
+  document.querySelectorAll('.mobile-view').forEach(v => v.classList.remove('active'));
+  renderRackOverview();
+  showRackOverlay('rack-overview');
+  setActiveMobileNav('nav-rack');
+});
+
+if (navMore) navMore.addEventListener('click', () => {
+  const sheet = document.getElementById('mobile-more-sheet');
+  sheet?.classList.contains('open') ? closeMobileMoreSheet() : openMobileMoreSheet();
+});
+
+document.querySelectorAll('[data-sheet-close]').forEach(btn => {
+  btn.addEventListener('click', () => closeMobileMoreSheet());
 });
 
 if (navTree) navTree.addEventListener('click', () => {
   showMobileView('mobile-tree');
-  navTree.classList.add('active');
+  setActiveMobileNav('nav-more');
   renderMobileTree();
 });
 
 if (navConfig) navConfig.addEventListener('click', () => {
   showMobileView('mobile-config');
-  navConfig.classList.add('active');
+  setActiveMobileNav('nav-more');
+});
+
+if (navTheme) navTheme.addEventListener('click', () => {
+  closeMobileMoreSheet();
+  setActiveMobileNav('nav-more');
+  openThemePicker({ returnToConfig: false });
 });
 
 const mobileFormClose = document.getElementById('mobile-form-close');
@@ -2846,6 +3190,7 @@ if (mobileConfigClose) mobileConfigClose.addEventListener('click', hideMobileVie
 
 const mobileTreeModeTree = document.getElementById('mobile-tree-mode-tree');
 const mobileTreeModeGraph = document.getElementById('mobile-tree-mode-graph');
+if (mobileTreeModeGraph) mobileTreeModeGraph.hidden = true;
 if (mobileTreeModeTree) mobileTreeModeTree.addEventListener('click', () => {
   treeViewMode = 'tree';
   mobileTreeModeTree.classList.add('active');
@@ -2853,19 +3198,24 @@ if (mobileTreeModeTree) mobileTreeModeTree.addEventListener('click', () => {
   renderMobileTree();
 });
 if (mobileTreeModeGraph) mobileTreeModeGraph.addEventListener('click', () => {
-  treeViewMode = 'graph';
-  mobileTreeModeGraph.classList.add('active');
-  mobileTreeModeTree.classList.remove('active');
+  // Graph view is intentionally disabled on mobile. Keep Tree as the only mobile relationship view.
+  treeViewMode = 'tree';
+  mobileTreeModeTree?.classList.add('active');
+  mobileTreeModeGraph.classList.remove('active');
   renderMobileTree();
 });
 
 function renderMobileTree() {
   const container = document.getElementById('mobile-tree-content');
   if (!container) return;
+  // Mobile Graph is disabled for now; always render the reliable Tree view.
+  if (isMobile()) treeViewMode = 'tree';
+  mobileTreeModeTree?.classList.add('active');
+  mobileTreeModeGraph?.classList.remove('active');
   container.innerHTML = '';
   const shell = document.createElement('div');
   shell.className = 'tree-shell';
-  shell.appendChild(treeViewMode === 'graph' ? buildGraphView() : buildInfrastructureTree());
+  shell.appendChild(buildInfrastructureTree());
   container.appendChild(shell);
 }
 
@@ -2962,15 +3312,7 @@ if (importFileMobile) importFileMobile.addEventListener('change', async (event) 
   try {
     const text = await file.text();
     const parsed = JSON.parse(text);
-    if (Array.isArray(parsed)) {
-      items = sanitizeItems(parsed);
-    } else {
-      items     = sanitizeItems(parsed.items     || []);
-      locations = Array.isArray(parsed.locations) ? parsed.locations : [];
-      racks     = Array.isArray(parsed.racks)     ? parsed.racks     : [];
-      if (Array.isArray(parsed.customThemes)) importCustomThemes(parsed.customThemes);
-      applyImportedThemeFromConfig(parsed);
-    }
+    applyImportedConfig(parsed);
     stopEditing();
     await saveItems();
     showToast('Config imported successfully.');
@@ -2998,7 +3340,7 @@ window.startEditingMobile = function(id) {
   startEditing(id);
   if (isMobile()) {
     showMobileView('mobile-add');
-    navAdd.classList.add('active');
+    setActiveMobileNav('nav-add');
     document.getElementById('mobile-form-title').textContent = 'Edit Resource';
     const body = document.getElementById('mobile-form-body');
     const formEl = document.getElementById('resource-form');
@@ -3022,13 +3364,9 @@ const tutorialSteps = [
 function openTutorial() {
   tutorialStep = 0;
   renderTutorialStep();
-  const overlay = document.getElementById('welcome-overlay');
-  if (overlay) overlay.classList.add('active');
-
-  const cfg = document.getElementById('config-dialog');
-  if (cfg?.open) cfg.close();
-
-  if (typeof hideMobileViews === 'function') hideMobileViews();
+  document.getElementById('welcome-overlay').classList.add('active');
+  document.getElementById('config-dialog').close();
+  hideMobileViews();
 }
 
 function renderTutorialStep() {
@@ -3138,6 +3476,12 @@ const rackRear         = document.getElementById('rack-rear');
 const rackPaletteItems = document.getElementById('rack-palette-items');
 const rackFormPageTitle = document.getElementById('rack-form-page-title');
 const rackFormPageBody  = document.getElementById('rack-form-page-body');
+const rackPalette = document.getElementById('rack-palette');
+const rackPaletteBackdrop = document.getElementById('rack-palette-backdrop');
+const rackMobilePaletteFab = document.getElementById('rack-mobile-palette-fab');
+const rackSelectedComponentPill = document.getElementById('rack-selected-component-pill');
+const rackSelectedComponentText = document.getElementById('rack-selected-component-text');
+const rackSelectedComponentClear = document.getElementById('rack-selected-component-clear');
 // rackFormBack removed — dialog now uses inline close buttons
 const phoneGrid         = document.querySelector('.phone-grid');
 
@@ -3150,6 +3494,7 @@ async function saveRackData() { await saveItemsToAPI(items); }
 function showRackOverlay(id) {
   // Only toggle the full-screen overlays — never the form dialog
   [rackOverview, rackEditor].forEach(el => el && el.classList.add('hidden'));
+  if (id !== 'rack-editor') closeRackPaletteSheet();
   if (phoneGrid) phoneGrid.style.display = '';
   if (id) {
     const el = document.getElementById(id);
@@ -3160,12 +3505,10 @@ function showRackOverlay(id) {
 
 // ---- Main toggle ----
 if (rackToggleBtn) {
-  rackToggleBtn.addEventListener('click', async () => {
-    if (isMobile()) { showToast('Rack View ist nur auf dem Desktop verfügbar.', 'error'); return; }
-    ensureDemoRackData();
-    await saveItems();
+  rackToggleBtn.addEventListener('click', () => {
     renderRackOverview();
     showRackOverlay('rack-overview');
+    if (isMobile()) setActiveMobileNav('nav-rack');
   });
 }
 // Header buttons are now rendered dynamically inside renderRackOverview()
@@ -3490,6 +3833,9 @@ function openRackEditor(rackId) {
   renderPalette();
   renderRackDiagram('front');
   renderRackDiagram('rear');
+  updateRackMobileSide(currentRackMobileSide || 'front');
+  closeRackPaletteSheet();
+  clearRackComponentSelection();
   equaliseRackHeights();
   showRackOverlay('rack-editor');
 }
@@ -3508,6 +3854,23 @@ function autoSaveRack() {
   if (!rack) return;
   rack.name = rackEditorName.textContent.trim() || rack.name;
   saveRackData();
+}
+
+function clearRackComponentSelection() {
+  rackDragComponent = null;
+  document.querySelectorAll('.rack-palette-item.selected').forEach(el => el.classList.remove('selected'));
+  updateRackSelectedComponentUI();
+}
+
+function updateRackSelectedComponentUI() {
+  if (!rackSelectedComponentPill || !rackSelectedComponentText) return;
+  if (!isMobile() || !rackDragComponent || rackDragComponent.fromSlot) {
+    rackSelectedComponentPill.classList.add('hidden');
+    rackSelectedComponentText.textContent = '';
+    return;
+  }
+  rackSelectedComponentPill.classList.remove('hidden');
+  rackSelectedComponentText.textContent = `${rackDragComponent.label} selected · tap an empty rack slot to place it.`;
 }
 
 // ---- Palette ----
@@ -3535,7 +3898,7 @@ function renderPalette() {
     }
     const el = document.createElement('div');
     el.className = `rack-palette-item cat-${comp.category}`;
-    el.draggable = true;
+    el.draggable = !isMobile();
     el.dataset.componentType = comp.componentType;
     el.dataset.heightU = comp.heightU;
     el.dataset.label   = comp.label;
@@ -3582,6 +3945,34 @@ function renderRackDiagram(side) {
   requestAnimationFrame(equaliseRackHeights);
 }
 
+function placeRackComponentAt(side, u, rack) {
+  if (!rackDragComponent) return;
+  const fits = canFit(side, u, rackDragComponent.heightU, rack, rackDragComponent.fromSlot);
+  if (!fits) { showToast('Not enough space.', 'error'); return; }
+  if (rackDragComponent.fromSlot) delete rack.slots[rackDragComponent.fromSlot];
+  const slotKey = `${side}-${u}`;
+  rack.slots[slotKey] = {
+    componentType: rackDragComponent.componentType,
+    heightU: rackDragComponent.heightU,
+    label: rackDragComponent.label,
+    category: rackDragComponent.category || 'compute',
+    linkedDeviceId: rackDragComponent.linkedDeviceId || null,
+    multiDevice: rackDragComponent.multiDevice || null,
+    linkedDevices: rackDragComponent.linkedDevices || null,
+    isPDU: rackDragComponent.isPDU || false,
+    pduPorts: rackDragComponent.pduPorts || null,
+    pduLinks: rackDragComponent.pduLinks || null,
+    isBlank: rackDragComponent.isBlank || false,
+    isPassive: rackDragComponent.isPassive || false,
+  };
+  const placed = rackDragComponent;
+  saveRackData();
+  renderRackDiagram(side);
+  if (!placed.isBlank && !placed.isPassive) showLinkPanel(slotKey, side);
+  clearRackComponentSelection();
+  closeRackPaletteSheet();
+}
+
 function createEmptySlot(side, u, rack) {
   const el = document.createElement('div');
   el.className = 'rack-slot empty';
@@ -3600,32 +3991,11 @@ function createEmptySlot(side, u, rack) {
   el.addEventListener('drop', e => {
     e.preventDefault();
     el.classList.remove('drag-over', 'drag-invalid');
-    if (!rackDragComponent) return;
-    const fits = canFit(side, u, rackDragComponent.heightU, rack, rackDragComponent.fromSlot);
-    if (!fits) { showToast('Not enough space.', 'error'); return; }
-    if (rackDragComponent.fromSlot) delete rack.slots[rackDragComponent.fromSlot];
-    const slotKey = `${side}-${u}`;
-    rack.slots[slotKey] = {
-      componentType: rackDragComponent.componentType,
-      heightU: rackDragComponent.heightU,
-      label: rackDragComponent.label,
-      category: rackDragComponent.category || 'compute',
-      linkedDeviceId: rackDragComponent.linkedDeviceId || null,
-      multiDevice: rackDragComponent.multiDevice || null,
-      linkedDevices: rackDragComponent.linkedDevices || null,
-      isPDU: rackDragComponent.isPDU || false,
-      pduPorts: rackDragComponent.pduPorts || null,
-      pduLinks: rackDragComponent.pduLinks || null,
-      isBlank: rackDragComponent.isBlank || false,
-      isPassive: rackDragComponent.isPassive || false,
-    };
-    saveRackData();
-    renderRackDiagram(side);
-    // Blanks and cable management have no hardware to link
-    if (!rackDragComponent.isBlank && !rackDragComponent.isPassive) {
-      showLinkPanel(slotKey, side);
-    }
-    rackDragComponent = null;
+    placeRackComponentAt(side, u, rack);
+  });
+  el.addEventListener('click', () => {
+    if (!isMobile() || !rackDragComponent) return;
+    placeRackComponentAt(side, u, rack);
   });
   return el;
 }
@@ -3636,7 +4006,7 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
   el.className = `rack-slot occupied cat-${cat}`;
   el.dataset.u    = u;
   el.dataset.side = side;
-  el.draggable    = true;
+  el.draggable    = !isMobile();
   // Match the CSS --rack-u-height variable exactly
   const uPx = Math.max(28, Math.min(42, window.innerHeight * 0.018));
   const totalH = comp.heightU * uPx;
@@ -3746,6 +4116,13 @@ function showLinkPanel(slotKey, side) {
   panel.style.width    = frameRect.width + 'px';
   panel.style.top      = (slotRect.bottom) + 'px';
   panel.style.zIndex   = '200';
+  if (isMobile()) {
+    panel.style.left = 'max(10px, env(safe-area-inset-left))';
+    panel.style.right = 'max(10px, env(safe-area-inset-right))';
+    panel.style.width = 'auto';
+    panel.style.top = 'auto';
+    panel.style.bottom = 'max(12px, env(safe-area-inset-bottom))';
+  }
 
   const hardwareItems = items.filter(i => i.type === 'hardware');
 
@@ -3922,10 +4299,214 @@ function escapeHtml(str) {
 }
 
 
+/* ================================================================
+   Mobile UX helpers
+   ================================================================ */
+let currentRackMobileSide = 'front';
+
+function enhanceMobileCard(node, item) {
+  let startX = 0;
+  let startY = 0;
+  let swiping = false;
+
+  node.addEventListener('click', (event) => {
+    if (!isMobile()) return;
+    if (event.target.closest('button,a,.card-controls')) return;
+    node.classList.toggle('mobile-expanded');
+  });
+
+  node.addEventListener('touchstart', (event) => {
+    if (!isMobile() || event.touches.length !== 1) return;
+    startX = event.touches[0].clientX;
+    startY = event.touches[0].clientY;
+    swiping = true;
+  }, { passive: true });
+
+  node.addEventListener('touchmove', (event) => {
+    if (!swiping || !isMobile() || event.touches.length !== 1) return;
+    const dx = event.touches[0].clientX - startX;
+    const dy = event.touches[0].clientY - startY;
+    if (Math.abs(dx) < 18 || Math.abs(dx) < Math.abs(dy) * 1.3) return;
+    node.classList.toggle('swipe-edit', dx > 42);
+    node.classList.toggle('swipe-delete', dx < -42);
+  }, { passive: true });
+
+  node.addEventListener('touchend', (event) => {
+    if (!swiping || !isMobile()) return;
+    swiping = false;
+    const dx = (event.changedTouches?.[0]?.clientX || startX) - startX;
+    node.classList.remove('swipe-edit', 'swipe-delete');
+    if (Math.abs(dx) < 88) return;
+    if (dx > 0) window.startEditingMobile(item.id);
+    else removeItem(item.id);
+  }, { passive: true });
+}
+
+function initMobileFormComfort() {
+  const sectionFields = [computeFields, networkFields, ramModulesWrap, diskListWrap, nasSharesWrap, nasRaidsWrap].filter(Boolean);
+  sectionFields.forEach((field) => {
+    if (field.querySelector('.mobile-section-toggle')) return;
+    const legend = field.querySelector('legend');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'button secondary mobile-section-toggle';
+    btn.textContent = 'Show details';
+    btn.addEventListener('click', () => {
+      const collapsed = field.classList.toggle('mobile-collapsed');
+      btn.textContent = collapsed ? 'Show details' : 'Hide details';
+    });
+    if (legend) legend.insertAdjacentElement('afterend', btn); else field.prepend(btn);
+    if (field !== networkFields) field.classList.add('mobile-collapsed');
+  });
+
+  form?.addEventListener('focusin', (event) => {
+    if (!isMobile()) return;
+    const target = event.target;
+    if (!target.matches('input, select, textarea')) return;
+    setTimeout(() => target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 160);
+  });
+}
+
+function updateRackMobileSide(side) {
+  currentRackMobileSide = side;
+  const frontBtn = document.getElementById('rack-mobile-front');
+  const rearBtn = document.getElementById('rack-mobile-rear');
+  frontBtn?.classList.toggle('active', side === 'front');
+  rearBtn?.classList.toggle('active', side === 'rear');
+  document.querySelectorAll('.rack-view-col').forEach((col) => {
+    const title = col.querySelector('.rack-view-title')?.textContent?.trim().toLowerCase();
+    col.classList.toggle('mobile-active', title === side);
+  });
+}
+
+function openRackPaletteSheet() {
+  if (!isMobile()) return;
+  rackPalette?.classList.add('open');
+  rackPaletteBackdrop?.classList.add('open');
+}
+
+function closeRackPaletteSheet() {
+  rackPalette?.classList.remove('open');
+  rackPaletteBackdrop?.classList.remove('open');
+}
+
+function initMobileRackScrollOverDiagram() {
+  const editor = document.getElementById('rack-editor');
+  const body = document.querySelector('#rack-editor .rack-editor-body');
+  if (!editor || !body || editor.dataset.mobileRackScrollReady === '1') return;
+  editor.dataset.mobileRackScrollReady = '1';
+
+  let startX = 0;
+  let startY = 0;
+  let lastY = 0;
+  let manualScroll = false;
+  let startedOnRack = false;
+
+  const isInteractive = (target) => !!target.closest('.rack-slot-remove, .rack-mobile-palette-fab, .rack-palette, button, select, input, textarea, a');
+  const isRackSurface = (target) => !!target.closest('.rack-frame, .rack-slot, .rack-view-col, .rack-views-wrap');
+
+  editor.addEventListener('touchstart', (event) => {
+    if (!isMobile() || event.touches.length !== 1) return;
+    if (isInteractive(event.target)) {
+      startedOnRack = false;
+      return;
+    }
+    startedOnRack = isRackSurface(event.target);
+    if (!startedOnRack) return;
+    startX = event.touches[0].clientX;
+    startY = event.touches[0].clientY;
+    lastY = startY;
+    manualScroll = false;
+  }, { passive: true, capture: true });
+
+  editor.addEventListener('touchmove', (event) => {
+    if (!isMobile() || event.touches.length !== 1 || !startedOnRack) return;
+    if (isInteractive(event.target)) return;
+    const touch = event.touches[0];
+    const dx = touch.clientX - startX;
+    const dyFromStart = touch.clientY - startY;
+
+    if (!manualScroll && Math.abs(dyFromStart) > 6 && Math.abs(dyFromStart) > Math.abs(dx) * 1.05) {
+      manualScroll = true;
+    }
+    if (!manualScroll) return;
+
+    event.preventDefault();
+    body.scrollTop += lastY - touch.clientY;
+    lastY = touch.clientY;
+  }, { passive: false, capture: true });
+
+  editor.addEventListener('touchend', () => {
+    startedOnRack = false;
+    manualScroll = false;
+  }, { passive: true, capture: true });
+}
+
+function initMobileRackControls() {
+  initMobileRackScrollOverDiagram();
+  document.getElementById('rack-mobile-front')?.addEventListener('click', () => updateRackMobileSide('front'));
+  document.getElementById('rack-mobile-rear')?.addEventListener('click', () => updateRackMobileSide('rear'));
+  document.getElementById('rack-mobile-palette-toggle')?.addEventListener('click', openRackPaletteSheet);
+  rackMobilePaletteFab?.addEventListener('click', openRackPaletteSheet);
+  document.getElementById('rack-palette-close')?.addEventListener('click', closeRackPaletteSheet);
+  rackPaletteBackdrop?.addEventListener('click', closeRackPaletteSheet);
+  rackSelectedComponentClear?.addEventListener('click', clearRackComponentSelection);
+
+  rackPalette?.addEventListener('click', (event) => {
+    const item = event.target.closest('.rack-palette-item');
+    if (!item || !isMobile()) return;
+    const def = RACK_COMPONENTS.find(c => c.componentType === item.dataset.componentType) || {};
+    rackDragComponent = {
+      componentType: item.dataset.componentType,
+      heightU: parseInt(item.dataset.heightU || def.heightU || '1', 10),
+      label: item.dataset.label || def.label || 'Component',
+      category: def.category || 'compute',
+      multiDevice: def.multiDevice || null,
+      isPDU: !!def.isPDU,
+      isBlank: !!def.isBlank,
+      isPassive: !!def.isPassive,
+      source: 'palette',
+    };
+    rackPalette.querySelectorAll('.rack-palette-item.selected').forEach(el => el.classList.remove('selected'));
+    item.classList.add('selected');
+    updateRackSelectedComponentUI();
+    showToast('Component selected. Tap an empty rack slot to place it.');
+    closeRackPaletteSheet();
+  });
+
+  let sideTouchX = 0;
+  const rackViews = document.querySelector('.rack-views-wrap');
+  rackViews?.addEventListener('touchstart', (event) => {
+    if (!isMobile() || event.touches.length !== 1) return;
+    sideTouchX = event.touches[0].clientX;
+  }, { passive: true });
+  rackViews?.addEventListener('touchend', (event) => {
+    if (!isMobile()) return;
+    const dx = (event.changedTouches?.[0]?.clientX || sideTouchX) - sideTouchX;
+    if (Math.abs(dx) < 72) return;
+    updateRackMobileSide(dx < 0 ? 'rear' : 'front');
+  }, { passive: true });
+}
+
+function initMobileDialogSheets() {
+  document.querySelectorAll('dialog.tree-dialog:not(.theme-picker-dialog), dialog.rack-form-dialog').forEach((dlg) => {
+    if (dlg.querySelector(':scope > .sheet-handle')) return;
+    const handle = document.createElement('button');
+    handle.type = 'button';
+    handle.className = 'sheet-handle';
+    handle.setAttribute('aria-label', 'Close sheet');
+    handle.addEventListener('click', () => dlg.close());
+    dlg.prepend(handle);
+  });
+}
+
+initMobileFormComfort();
+initMobileRackControls();
+initMobileDialogSheets();
+updateRackSelectedComponentUI();
+
 // Theme initialization moved after definitions
 try { initTheme(); } catch(e){ console.error(e); }
-
-
 
 function getDemoLocations() {
   return [
@@ -4027,4 +4608,3 @@ function getDemoItems() {
     { id: 'app-npm', type: 'app', name: 'Nginx Proxy Manager', description: 'Reverse proxy UI', notes: 'SSL termination for all services', connections: [], ip: '', ipPort: '192.168.20.50:81', webUrl: 'https://proxy.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'lxc-proxy', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online', symbol: '🔒', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
   ];
 }
-
