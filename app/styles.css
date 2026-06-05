@@ -3508,3 +3508,293 @@ dialog[open] {
     min-height: 44px;
   }
 }
+
+
+/* ================================================================
+   v9: restore mobile Theme view and standardize all mobile topbars.
+   ================================================================ */
+@media (max-width: 1100px) {
+  :root { --mobile-tab-head-h: calc(76px + env(safe-area-inset-top)); }
+
+  .panel-center > .panel-head,
+  .mobile-view-head,
+  .rack-ov-topbar,
+  .rack-overlay-head {
+    height: var(--mobile-tab-head-h) !important;
+    min-height: var(--mobile-tab-head-h) !important;
+    max-height: var(--mobile-tab-head-h) !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.75rem !important;
+    padding: env(safe-area-inset-top) max(1rem, env(safe-area-inset-right)) 0 max(1rem, env(safe-area-inset-left)) !important;
+    border-top: 0 !important;
+    border-bottom: 3px solid var(--line) !important;
+    background: var(--phone) !important;
+    flex: 0 0 var(--mobile-tab-head-h) !important;
+  }
+
+  .panel-center > .panel-head h2,
+  .mobile-view-head h2,
+  .rack-ov-title,
+  .rack-editor-name {
+    margin: 0 !important;
+    font-size: 1rem !important;
+    line-height: 1.2 !important;
+  }
+
+  .rack-ov-topbar .rack-ov-actions,
+  .rack-overlay-head .rack-editor-right-actions {
+    align-items: center !important;
+  }
+
+  #mobile-theme.active {
+    display: flex !important;
+    z-index: 80 !important;
+    pointer-events: auto !important;
+  }
+
+  #mobile-theme-body {
+    display: block !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding: 1rem max(1rem, env(safe-area-inset-right)) calc(88px + env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)) !important;
+  }
+
+  #mobile-theme-body .tree-head,
+  #mobile-theme-body .dialog-footer,
+  #mobile-theme-body > .sheet-handle,
+  #mobile-theme-body .sheet-handle {
+    display: none !important;
+  }
+
+  #mobile-theme-body .theme-tabs {
+    margin: 0 0 1rem !important;
+    padding: 0 !important;
+    border-bottom: 3px solid var(--line) !important;
+    background: var(--phone) !important;
+  }
+
+  #mobile-theme-body .theme-tab-panel {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  #mobile-theme-body .theme-picker-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  #mobile-theme-body .theme-swatch {
+    min-height: 92px !important;
+    border-radius: 18px !important;
+    padding: 0.75rem !important;
+  }
+
+  #mobile-theme-body .theme-swatch-preview {
+    height: 56px !important;
+    border-radius: 12px !important;
+  }
+}
+
+
+/* v10: align desktop Config footer with Themes and use consistent Themes title spacing. */
+#config-dialog[open] {
+  overflow: hidden;
+}
+#config-dialog .dialog-footer {
+  margin-top: auto !important;
+  flex: 0 0 auto;
+}
+#config-dialog .config-content {
+  margin-bottom: 0.85rem;
+}
+
+@media (max-width: 1100px) {
+  #mobile-theme .mobile-view-head h2,
+  #mobile-theme-body .tree-head h3 {
+    text-transform: none;
+  }
+}
+
+/* ================================================================
+   v11: compact desktop rack dialogs and rack workspace.
+   ================================================================ */
+@media (min-width: 1101px) {
+  /* Rack/Location forms are true content-sized dialogs, not Tree-sized panels. */
+  dialog.rack-form-dialog,
+  dialog.rack-form-dialog[open] {
+    display: block !important;
+    position: fixed !important;
+    inset: 50% auto auto 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: min(540px, calc(100vw - 96px)) !important;
+    height: fit-content !important;
+    min-height: 0 !important;
+    max-height: calc(100dvh - 96px) !important;
+    max-width: calc(100vw - 96px) !important;
+    margin: 0 !important;
+    overflow: auto !important;
+    padding: 1rem 1.15rem 1.1rem !important;
+    border-radius: 18px !important;
+  }
+
+  dialog.rack-form-dialog .sheet-handle {
+    margin: 0 auto 0.85rem !important;
+  }
+
+  dialog.rack-form-dialog .rack-form-dialog-title {
+    margin: 0 0 0.75rem !important;
+  }
+
+  dialog.rack-form-dialog .rack-form-dialog-body,
+  dialog.rack-form-dialog .rack-form-inner {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  dialog.rack-form-dialog .rack-form-inner label {
+    margin-bottom: 0.55rem !important;
+  }
+
+  dialog.rack-form-dialog .rack-form-inner textarea {
+    min-height: 84px !important;
+    max-height: 140px !important;
+  }
+
+  dialog.rack-form-dialog .rack-form-btns {
+    margin-top: 0.8rem !important;
+  }
+
+  /* Desktop Rack View becomes a compact workspace instead of a full empty page. */
+  #rack-overview.rack-overlay,
+  #rack-editor.rack-overlay {
+    inset: 50% auto auto 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: min(1500px, calc(100vw - 96px)) !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: calc(100dvh - 84px) !important;
+    border: 3px solid var(--line) !important;
+    border-radius: 22px !important;
+    background: var(--phone) !important;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28) !important;
+    overflow: hidden !important;
+  }
+
+  #rack-overview.rack-overlay::before,
+  #rack-editor.rack-overlay::before {
+    display: none !important;
+  }
+
+  #rack-overview .rack-overview-body {
+    flex: 0 1 auto !important;
+    max-height: calc(100dvh - 84px) !important;
+    overflow: auto !important;
+    padding: 1rem 1.15rem 1.15rem !important;
+  }
+
+  #rack-overview .rack-overview-inner {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    flex: 0 0 auto !important;
+    gap: 0.8rem !important;
+  }
+
+  #rack-overview .rack-ov-topbar {
+    padding: 0 0 0.75rem !important;
+    border-bottom: 2px solid var(--line) !important;
+  }
+
+  #rack-overview .rack-ov-panel {
+    box-shadow: none !important;
+    border-width: 2px !important;
+    border-radius: 18px !important;
+    padding: 0.9rem !important;
+    gap: 0.8rem !important;
+    min-height: 0 !important;
+  }
+
+  #rack-overview .rack-cards-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+    gap: 0.7rem !important;
+  }
+
+  #rack-overview .rack-card {
+    padding: 0.75rem 0.8rem !important;
+    border-radius: 14px !important;
+    box-shadow: none !important;
+  }
+
+  #rack-overview .rack-card-icon {
+    margin-bottom: 0.25rem !important;
+  }
+
+  /* Editor: palette + racks are one compact workbench with less empty space. */
+  #rack-editor.rack-overlay {
+    width: min(1680px, calc(100vw - 64px)) !important;
+  }
+
+  #rack-editor .rack-overlay-head {
+    min-height: 48px !important;
+    padding: 0.55rem 0.9rem !important;
+    border-bottom-width: 2px !important;
+  }
+
+  #rack-editor .rack-editor-body {
+    flex: 0 1 auto !important;
+    min-height: 0 !important;
+    max-height: calc(100dvh - 136px) !important;
+    overflow: hidden !important;
+  }
+
+  #rack-editor .rack-palette {
+    width: clamp(170px, 11vw, 220px) !important;
+    border-right-width: 2px !important;
+  }
+
+  #rack-editor .rack-palette-title {
+    padding: 0.55rem 0.65rem 0.4rem !important;
+    border-bottom-width: 2px !important;
+  }
+
+  #rack-editor .rack-palette-items {
+    padding: 0.4rem !important;
+    gap: 0.22rem !important;
+  }
+
+  #rack-editor .rack-palette-item {
+    padding: 0.28rem 0.42rem !important;
+    font-size: 0.7rem !important;
+  }
+
+  #rack-editor .rack-views-wrap {
+    justify-content: stretch !important;
+    align-items: flex-start !important;
+    gap: 1rem !important;
+    padding: 0.75rem 0.9rem 0.95rem !important;
+    overflow: auto !important;
+  }
+
+  #rack-editor .rack-view-col {
+    flex: 1 1 0 !important;
+    min-width: 360px !important;
+    max-width: none !important;
+  }
+
+  #rack-editor .rack-view-title {
+    margin-bottom: 0.15rem !important;
+  }
+
+  #rack-editor .rack-frame {
+    border-width: 2px !important;
+    border-radius: 12px !important;
+  }
+}

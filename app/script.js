@@ -2788,8 +2788,17 @@ function moveThemePickerToMobile() {
   const dlg = themePickerDialog || document.getElementById('theme-picker-dialog');
   const body = mobileThemeBody || document.getElementById('mobile-theme-body');
   if (!dlg || !body || themeContentInMobile) return;
-  if (!themeDialogPlaceholder.parentNode) dlg.parentNode.insertBefore(themeDialogPlaceholder, dlg.firstChild);
-  while (dlg.firstChild) body.appendChild(dlg.firstChild);
+
+  // Keep a marker inside the dialog and move only the real dialog content.
+  // v8 used the dialog parent with a dialog child as reference, which throws
+  // and prevented Theme from opening on mobile.
+  if (!themeDialogPlaceholder.parentNode) dlg.insertBefore(themeDialogPlaceholder, dlg.firstChild);
+  let node = themeDialogPlaceholder.nextSibling;
+  while (node) {
+    const next = node.nextSibling;
+    body.appendChild(node);
+    node = next;
+  }
   themeContentInMobile = true;
 }
 
@@ -2797,7 +2806,7 @@ function restoreThemePickerToDialog() {
   const dlg = themePickerDialog || document.getElementById('theme-picker-dialog');
   const body = mobileThemeBody || document.getElementById('mobile-theme-body');
   if (!dlg || !body || !themeContentInMobile) return;
-  while (body.firstChild) dlg.appendChild(body.firstChild);
+  while (body.firstChild) dlg.insertBefore(body.firstChild, themeDialogPlaceholder.nextSibling);
   if (themeDialogPlaceholder.parentNode) themeDialogPlaceholder.remove();
   themeContentInMobile = false;
 }
