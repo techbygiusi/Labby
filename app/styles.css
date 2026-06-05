@@ -5539,3 +5539,125 @@ dialog.rack-form-dialog:not([open]) {
     height: auto;
   }
 }
+
+
+/* v46: desktop theme customizer matches the compact demo layout.
+   Desktop uses grouped sections with simple color rows; mobile keeps large tap targets. */
+@media (min-width: 1101px) {
+  .theme-picker-dialog #theme-customize-body.theme-builder-body {
+    padding-top: 0 !important;
+    overflow-y: auto !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-layout {
+    gap: 1.05rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-name-row {
+    grid-template-columns: 112px minmax(320px, 520px) !important;
+    align-items: center !important;
+    gap: 0.85rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-name-row input[type='text'],
+  .theme-picker-dialog #theme-customize-body #tb-name {
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0.45rem 0.75rem !important;
+    border-radius: 10px !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-grid {
+    display: grid !important;
+    grid-template-columns: minmax(660px, 2.35fr) minmax(330px, 1fr) !important;
+    gap: 1rem !important;
+    align-items: start !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section {
+    gap: 0.8rem !important;
+    padding: 1rem 1.05rem !important;
+    border: 2px solid var(--line) !important;
+    border-radius: 16px !important;
+    background: color-mix(in srgb, var(--panel) 82%, var(--phone)) !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-title {
+    padding-bottom: 0.65rem !important;
+    margin-bottom: 0.15rem !important;
+    border-bottom: 2px solid color-mix(in srgb, var(--line) 16%, transparent) !important;
+    font-size: 0.98rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-core .tb-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(128px, 1fr)) !important;
+    gap: 0.78rem 1rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-types .tb-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(120px, 1fr)) !important;
+    gap: 0.78rem 1rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-color-row {
+    display: grid !important;
+    grid-template-columns: 46px minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 0.58rem !important;
+    min-height: 42px !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 0.78rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-color-row input[type='color'] {
+    width: 46px !important;
+    height: 32px !important;
+    min-width: 46px !important;
+    min-height: 32px !important;
+    padding: 3px !important;
+    border: 2px solid var(--line) !important;
+    border-radius: 8px !important;
+    background: var(--panel) !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-color-row span {
+    font-size: 0.76rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-actions {
+    display: flex !important;
+    justify-content: flex-end !important;
+    margin-top: 0.35rem !important;
+    padding: 0 !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-actions #tb-save,
+  .theme-picker-dialog #theme-customize-body .tb-actions .button {
+    width: auto !important;
+    min-width: 220px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0.5rem 1.1rem !important;
+    border-radius: 12px !important;
+    font-size: 0.84rem !important;
+  }
+}
+
+@media (min-width: 1101px) and (max-width: 1450px) {
+  .theme-picker-dialog #theme-customize-body .tb-section-grid {
+    grid-template-columns: minmax(560px, 1.9fr) minmax(300px, 1fr) !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-core .tb-grid {
+    grid-template-columns: repeat(3, minmax(130px, 1fr)) !important;
+  }
+}
