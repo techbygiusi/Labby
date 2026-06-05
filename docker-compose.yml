@@ -1,16 +1,18 @@
 services:
 
+  # ── Frontend (nginx: website + demo + app) ──────────────────
   labby-frontend:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..                               # parent Labby/ directory
+      dockerfile: "Labby Neue Webseite/Dockerfile"
     container_name: labby-frontend
     ports:
       - "80:80"
     depends_on:
       - labby-backend
-    restart: unless-stopped
+    restart: always
 
+  # ── Backend (Node.js API) ────────────────────────────────────
   labby-backend:
     build:
       context: ./backend
@@ -18,13 +20,46 @@ services:
     container_name: labby-backend
     environment:
       - DATA_DIR=/data
+
+      # ── SSO settings ────────────────────────────────────────
+      # Set AUTH_ENABLED=true to require authentication for all API calls.
+      # When enabled the backend expects one of:
+      #   • X-Auth-Request-User header  (oauth2-proxy / Authentik / Authelia)
+      #   • Authorization: Bearer <jwt> (Keycloak / any OIDC provider)
       - AUTH_ENABLED=false
-      - AUTH_USER_HEADER=x-auth-request-user
+
+      # Name of the header carrying the authenticated username (default shown)
+      - AUTH_USER_HEADER=X-Auth-Request-User
+
+      # Optional: comma-separated list of allowed users (empty = allow all)
       - AUTH_ALLOWED_USERS=
+
     volumes:
       - labby-data:/data
-    restart: unless-stopped
+    restart: always
 
 volumes:
   labby-data:
     driver: local
+
+# ══════════════════════════════════════════════════════════════
+#  SSO QUICK-START (oauth2-proxy example)
+#  Add this service and set AUTH_ENABLED=true on labby-backend.
+# ══════════════════════════════════════════════════════════════
+#
+#  oauth2-proxy:
+#    image: quay.io/oauth2-proxy/oauth2-proxy:latest
+#    container_name: oauth2-proxy
+#    command:
+#      - --provider=oidc
+#      - --oidc-issuer-url=https://auth.example.com/realms/myrealm
+#      - --client-id=labby
+#      - --client-secret=<your-secret>
+#      - --cookie-secret=<32-byte-random-string>
+#      - --upstream=http://labby-frontend
+#      - --http-address=0.0.0.0:4180
+#      - --email-domain=*
+#      - --set-xauthrequest=true
+#    ports:
+#      - "4180:4180"
+#    restart: 
