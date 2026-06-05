@@ -343,19 +343,7 @@
           <p><span class="dot app"></span> App</p>
           <p><span class="dot network"></span> Network</p>
         </div>
-        <section class="agent-api-panel" aria-label="Agent API Access">
-          <h3>🤖 Agent API Access</h3>
-          <p class="note">Create API keys for trusted automation agents. Keys are shown once when created.</p>
-          <form id="agent-key-form-mobile" class="agent-key-form">
-            <label>Agent name
-              <input id="agent-key-name-mobile" type="text" placeholder="e.g. Hermes" autocomplete="off" />
-            </label>
-            <div class="agent-scope-grid" data-agent-scopes="mobile"></div>
-            <button class="button" type="submit">Create API Key</button>
-          </form>
-          <div id="agent-token-mobile" class="agent-token-box" hidden></div>
-          <div id="agent-key-list-mobile" class="agent-key-list"></div>
-        </section>
+        <button id="agent-api-btn-mobile" class="button secondary" type="button" style="width:100%;margin-top:1rem">🤖 Agent API Access</button>
 
       </div>
       <div class="mobile-view-footer">
@@ -368,6 +356,13 @@
         <h2>🎨 Themes</h2>
       </div>
       <div class="mobile-view-body" id="mobile-theme-body"></div>
+    </div>
+
+    <div class="mobile-view" id="mobile-agent-api">
+      <div class="mobile-view-head">
+        <h2>🤖 Agent API Access</h2>
+      </div>
+      <div class="mobile-view-body" id="mobile-agent-api-body"></div>
     </div>
 
     <dialog id="ip-dialog" class="tree-dialog">
@@ -423,12 +418,33 @@
           <p><span class="dot app"></span> App</p>
           <p><span class="dot network"></span> Network</p>
         </div>
+        <button id="agent-api-btn" class="button secondary" type="button">🤖 Agent API Access</button>
+
+      </div>
+      <div class="dialog-footer">
+        <button class="button secondary" onclick="document.getElementById('config-dialog').close()">✕ Close</button>
+      </div>
+    </dialog>
+
+
+    <dialog id="agent-api-dialog" class="tree-dialog agent-api-dialog mobile-fullscreen-dialog">
+      <div class="tree-head">
+        <h3>🤖 Agent API Access</h3>
+      </div>
+      <div class="agent-dialog-body">
         <section class="agent-api-panel" aria-label="Agent API Access">
-          <h4>🤖 Agent API Access</h4>
           <p class="note">Create API keys for trusted automation agents. Keys are shown once when created.</p>
           <form id="agent-key-form" class="agent-key-form">
             <label>Agent name
               <input id="agent-key-name" type="text" placeholder="e.g. Hermes" autocomplete="off" />
+            </label>
+            <label>Expiration
+              <select id="agent-key-expiry">
+                <option value="1d">1 day</option>
+                <option value="1w">1 week</option>
+                <option value="1m" selected>1 month</option>
+                <option value="1y">1 year</option>
+              </select>
             </label>
             <div class="agent-scope-grid" data-agent-scopes="desktop"></div>
             <button class="button" type="submit">Create API Key</button>
@@ -436,10 +452,9 @@
           <div id="agent-token" class="agent-token-box" hidden></div>
           <div id="agent-key-list" class="agent-key-list"></div>
         </section>
-
       </div>
       <div class="dialog-footer">
-        <button class="button secondary" onclick="document.getElementById('config-dialog').close()">✕ Close</button>
+        <button id="agent-api-close" class="button secondary" type="button">✕ Close</button>
       </div>
     </dialog>
 

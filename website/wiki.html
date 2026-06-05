@@ -869,12 +869,14 @@ Connected devices are listed on hardware cards</pre>
       </ul>
       <h2>Creating an API Key</h2>
       <ol>
-        <li>Open <strong>Config</strong>.</li>
-        <li>Go to <strong>Agent API Access</strong>.</li>
+        <li>Open <strong>Config</strong> and choose <strong>API Keys</strong>.</li>
         <li>Enter a descriptive agent name, for example <code>Hermes</code> or <code>OpenKClaw</code>.</li>
         <li>Select the required scopes.</li>
-        <li>Create the key and copy it immediately. The token is only shown once.</li>
+        <li>Select an expiration: <strong>1 day</strong>, <strong>1 week</strong>, <strong>1 month</strong> or <strong>1 year</strong>.</li>
+        <li>Create the key and copy it immediately. The token is only shown once and cannot be recovered later.</li>
       </ol>
+      <h2>Expiration</h2>
+      <p>Every API key has an expiration date. The longest supported lifetime is one year. Expired keys are rejected by the backend and should be revoked or replaced.</p>
       <h2>Scopes</h2>
       <table>
         <thead><tr><th>Scope</th><th>Purpose</th></tr></thead>
@@ -909,14 +911,33 @@ Content-Type: application/json
   "urlStatus": "offline",
   "message": "Checked by monitoring agent"
 }</pre>
+      <h2>Example Agent Prompt</h2>
+      <p>The following prompt can be given to an automation agent so it understands how to use Labby's API safely.</p>
+      <pre>You are an automation agent for my Labby homelab inventory.
+
+Labby base URL: https://your-labby.example.com
+API key: &lt;paste the one-time Labby API key here&gt;
+
+Use the API key only in this header:
+Authorization: Bearer &lt;API key&gt;
+
+First call GET /api/agent/inventory to read the current inventory.
+When creating or updating inventory, preserve existing fields that you do not need to change.
+Use PUT /api/agent/inventory only when the key has inventory:write.
+Use POST /api/agent/status to update live status when the key has status:write.
+Use POST /api/agent/ping only when the key has ping:run.
+
+Never print the API key in logs, messages or reports.
+Do not make destructive changes unless I explicitly approve them.
+Summarize all planned changes before writing them.</pre>
       <h2>Architecture</h2>
       <div class="arch-diagram" aria-label="Agent API architecture diagram">
         <div class="arch-row">
           <div class="arch-card"><strong>Agent</strong><span>Hermes, OpenKClaw, monitoring script or custom automation.</span></div>
-          <div class="arch-card"><strong>API Key</strong><span>Bearer token with selected scopes.</span></div>
-          <div class="arch-card"><strong>Labby Backend</strong><span>Validates the token and applies the requested action.</span></div>
+          <div class="arch-card"><strong>API Key</strong><span>Bearer token with selected scopes and expiration.</span></div>
+          <div class="arch-card"><strong>Labby Backend</strong><span>Validates the token, expiration and requested scope.</span></div>
         </div>
-        <div class="arch-arrow">Agent → Authorization Header → Scope Check → Inventory / Status / Ping</div>
+        <div class="arch-arrow">Agent → Authorization Header → Expiration Check → Scope Check → Inventory / Status / Ping</div>
       </div>
       <h2>Demo Mode</h2>
       <p>In the public demo, API key management is shown for evaluation. External network access is intended for the self-hosted backend.</p>
@@ -924,7 +945,8 @@ Content-Type: application/json
       <ul>
         <li>Use one key per agent.</li>
         <li>Grant only the scopes that the agent needs.</li>
-        <li>Revoke unused keys.</li>
+        <li>Use the shortest practical expiration.</li>
+        <li>Revoke unused or expired keys.</li>
         <li>Store tokens outside of source code and public repositories.</li>
       </ul>
     `},
