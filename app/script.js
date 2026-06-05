@@ -535,13 +535,19 @@ function getActiveThemeId() {
 }
 
 function buildConfigExport() {
+  const activeTheme = getActiveThemeId();
   return {
+    schemaVersion: 2,
+    app: 'Labby',
+    exportedAt: new Date().toISOString(),
     items,
     locations,
     racks,
     customThemes: getCustomThemes(),
-    activeTheme: getActiveThemeId(),
-    theme: getActiveThemeId(),
+    activeTheme,
+    // Kept for older imports that only looked for `theme`.
+    theme: activeTheme,
+    tutorialSeen: localStorage.getItem('labby-tutorial-seen') === '1',
   };
 }
 
@@ -554,6 +560,33 @@ function applyImportedThemeFromConfig(parsed) {
   ];
   if (validThemes.includes(importedTheme)) {
     setTheme(importedTheme);
+  }
+}
+
+function applyImportedConfig(parsed) {
+  // Legacy export support: old Labby exports were a bare items array.
+  if (Array.isArray(parsed)) {
+    items = sanitizeItems(parsed);
+    locations = [];
+    racks = [];
+    return;
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('Invalid Labby config');
+  }
+
+  items     = sanitizeItems(parsed.items || []);
+  locations = Array.isArray(parsed.locations) ? parsed.locations : [];
+  racks     = Array.isArray(parsed.racks) ? parsed.racks : [];
+
+  if (Array.isArray(parsed.customThemes)) importCustomThemes(parsed.customThemes);
+  applyImportedThemeFromConfig(parsed);
+
+  if (parsed.tutorialSeen === true) {
+    localStorage.setItem('labby-tutorial-seen', '1');
+  } else if (parsed.tutorialSeen === false) {
+    localStorage.removeItem('labby-tutorial-seen');
   }
 }
 
@@ -575,16 +608,7 @@ importFile.addEventListener('change', async (event) => {
   try {
     const text = await file.text();
     const parsed = JSON.parse(text);
-    // Support both old bare-array format and new { items, locations, racks } format
-    if (Array.isArray(parsed)) {
-      items = sanitizeItems(parsed);
-    } else {
-      items     = sanitizeItems(parsed.items     || []);
-      locations = Array.isArray(parsed.locations) ? parsed.locations : [];
-      racks     = Array.isArray(parsed.racks)     ? parsed.racks     : [];
-      if (Array.isArray(parsed.customThemes)) importCustomThemes(parsed.customThemes);
-      applyImportedThemeFromConfig(parsed);
-    }
+    applyImportedConfig(parsed);
     stopEditing();
     await saveItems();
     showToast('Config imported successfully.');
@@ -2608,7 +2632,7 @@ const presetThemes = [
   { id: 'midnight', name: 'Midnight', dark: true,  sw: ['#14253c', '#34557d', '#1f3a5c', '#1d5258', '#6cb6e8'] },
   { id: 'carbon',   name: 'Carbon',   dark: true,  sw: ['#1e2125', '#444b54', '#283540', '#2a3a32', '#e0c060'] },
   { id: 'nord',     name: 'Nord',     dark: true,  sw: ['#3b4252', '#5a6478', '#3e4a5e', '#3b4a44', '#ebcb8b'] },
-  { id: 'grape',    name: 'Grape',    dark: true,  sw: ['#241634', '#6b3fa0', '#3d2a5c', '#2f5868', '#d68ce8'] },
+  { id: 'grape',    name: 'Matrix',   dark: true,  sw: ['#000000', '#00ff66', '#07120a', '#0f4d24', '#39ff14'] },
 ];
 
 function defaultThemeVars() {
@@ -3084,6 +3108,7 @@ if (mobileConfigClose) mobileConfigClose.addEventListener('click', hideMobileVie
 
 const mobileTreeModeTree = document.getElementById('mobile-tree-mode-tree');
 const mobileTreeModeGraph = document.getElementById('mobile-tree-mode-graph');
+if (mobileTreeModeGraph) mobileTreeModeGraph.hidden = true;
 if (mobileTreeModeTree) mobileTreeModeTree.addEventListener('click', () => {
   treeViewMode = 'tree';
   mobileTreeModeTree.classList.add('active');
@@ -3091,19 +3116,24 @@ if (mobileTreeModeTree) mobileTreeModeTree.addEventListener('click', () => {
   renderMobileTree();
 });
 if (mobileTreeModeGraph) mobileTreeModeGraph.addEventListener('click', () => {
-  treeViewMode = 'graph';
-  mobileTreeModeGraph.classList.add('active');
-  mobileTreeModeTree.classList.remove('active');
+  // Graph view is intentionally disabled on mobile. Keep Tree as the only mobile relationship view.
+  treeViewMode = 'tree';
+  mobileTreeModeTree?.classList.add('active');
+  mobileTreeModeGraph.classList.remove('active');
   renderMobileTree();
 });
 
 function renderMobileTree() {
   const container = document.getElementById('mobile-tree-content');
   if (!container) return;
+  // Mobile Graph is disabled for now; always render the reliable Tree view.
+  if (isMobile()) treeViewMode = 'tree';
+  mobileTreeModeTree?.classList.add('active');
+  mobileTreeModeGraph?.classList.remove('active');
   container.innerHTML = '';
   const shell = document.createElement('div');
   shell.className = 'tree-shell';
-  shell.appendChild(treeViewMode === 'graph' ? buildGraphView() : buildInfrastructureTree());
+  shell.appendChild(buildInfrastructureTree());
   container.appendChild(shell);
 }
 
@@ -3200,15 +3230,7 @@ if (importFileMobile) importFileMobile.addEventListener('change', async (event) 
   try {
     const text = await file.text();
     const parsed = JSON.parse(text);
-    if (Array.isArray(parsed)) {
-      items = sanitizeItems(parsed);
-    } else {
-      items     = sanitizeItems(parsed.items     || []);
-      locations = Array.isArray(parsed.locations) ? parsed.locations : [];
-      racks     = Array.isArray(parsed.racks)     ? parsed.racks     : [];
-      if (Array.isArray(parsed.customThemes)) importCustomThemes(parsed.customThemes);
-      applyImportedThemeFromConfig(parsed);
-    }
+    applyImportedConfig(parsed);
     stopEditing();
     await saveItems();
     showToast('Config imported successfully.');
@@ -4286,37 +4308,55 @@ function closeRackPaletteSheet() {
 }
 
 function initMobileRackScrollOverDiagram() {
-  const scroller = document.querySelector('#rack-editor .rack-views-wrap');
-  if (!scroller || scroller.dataset.mobileRackScrollReady === '1') return;
-  scroller.dataset.mobileRackScrollReady = '1';
+  const editor = document.getElementById('rack-editor');
+  const body = document.querySelector('#rack-editor .rack-editor-body');
+  if (!editor || !body || editor.dataset.mobileRackScrollReady === '1') return;
+  editor.dataset.mobileRackScrollReady = '1';
+
   let startX = 0;
   let startY = 0;
   let lastY = 0;
   let manualScroll = false;
+  let startedOnRack = false;
 
-  scroller.addEventListener('touchstart', (event) => {
+  const isInteractive = (target) => !!target.closest('.rack-slot-remove, .rack-mobile-palette-fab, .rack-palette, button, select, input, textarea, a');
+  const isRackSurface = (target) => !!target.closest('.rack-frame, .rack-slot, .rack-view-col, .rack-views-wrap');
+
+  editor.addEventListener('touchstart', (event) => {
     if (!isMobile() || event.touches.length !== 1) return;
-    if (event.target.closest('.rack-slot-remove, button, select, input, textarea')) return;
+    if (isInteractive(event.target)) {
+      startedOnRack = false;
+      return;
+    }
+    startedOnRack = isRackSurface(event.target);
+    if (!startedOnRack) return;
     startX = event.touches[0].clientX;
     startY = event.touches[0].clientY;
     lastY = startY;
     manualScroll = false;
-  }, { passive: true });
+  }, { passive: true, capture: true });
 
-  scroller.addEventListener('touchmove', (event) => {
-    if (!isMobile() || event.touches.length !== 1) return;
-    if (event.target.closest('.rack-slot-remove, button, select, input, textarea')) return;
+  editor.addEventListener('touchmove', (event) => {
+    if (!isMobile() || event.touches.length !== 1 || !startedOnRack) return;
+    if (isInteractive(event.target)) return;
     const touch = event.touches[0];
     const dx = touch.clientX - startX;
     const dyFromStart = touch.clientY - startY;
-    if (!manualScroll && Math.abs(dyFromStart) > 8 && Math.abs(dyFromStart) > Math.abs(dx) * 1.15) {
+
+    if (!manualScroll && Math.abs(dyFromStart) > 6 && Math.abs(dyFromStart) > Math.abs(dx) * 1.05) {
       manualScroll = true;
     }
     if (!manualScroll) return;
+
     event.preventDefault();
-    scroller.scrollTop += lastY - touch.clientY;
+    body.scrollTop += lastY - touch.clientY;
     lastY = touch.clientY;
-  }, { passive: false });
+  }, { passive: false, capture: true });
+
+  editor.addEventListener('touchend', () => {
+    startedOnRack = false;
+    manualScroll = false;
+  }, { passive: true, capture: true });
 }
 
 function initMobileRackControls() {

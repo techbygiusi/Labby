@@ -232,27 +232,27 @@
 
 :root[data-theme='grape'] {
   color-scheme: dark;
-  --bg: #1a0f24;
-  --bg-bottom: #110817;
-  --wave: #1a0f24;
-  --phone: #241634;
-  --panel: #321f47;
-  --text: #f0e4fa;
-  --muted: #b596d0;
-  --line: #6b3fa0;
-  --yellow: #d68ce8;
-  --mint: #3a2a52;
-  --blue: #2e2148;
-  --danger: #e88aa8;
-  --type-hardware: #3d2a5c;
-  --type-vm: #34255a;
-  --type-lxc: #2f4a6e;
-  --type-app: #4a2f6e;
-  --type-network: #2f5868;
-  --shadow: 0 16px 34px rgba(8, 2, 16, 0.7);
-  --scroll-track: #160c20;
-  --scroll-thumb: #6b3fa0;
-  --scroll-thumb-hover: #8b5fc0;
+  --bg: #020804;
+  --bg-bottom: #000000;
+  --wave: #031407;
+  --phone: #050b07;
+  --panel: #07120a;
+  --text: #d9ffe2;
+  --muted: #7cff9c;
+  --line: #00ff66;
+  --yellow: #39ff14;
+  --mint: #063b18;
+  --blue: #07351a;
+  --danger: #ff3b5f;
+  --type-hardware: #0b2f16;
+  --type-vm: #092713;
+  --type-lxc: #063b22;
+  --type-app: #102414;
+  --type-network: #0f4d24;
+  --shadow: 0 18px 38px rgba(0, 255, 102, 0.18);
+  --scroll-track: #020804;
+  --scroll-thumb: #00b84a;
+  --scroll-thumb-hover: #39ff14;
 }
 
 :root[data-theme='custom'] {
@@ -4802,5 +4802,64 @@ dialog.rack-form-dialog:not([open]) {
   #mobile-tree-content .graph-link {
     stroke-width: 3px;
     stroke-opacity: 0.92;
+  }
+}
+
+
+/* ================================================================
+   v21: remove mobile Graph view, restore More ellipsis, robust rack scrolling.
+   ================================================================ */
+@media (max-width: 1100px) {
+  #mobile-tree-mode-graph { display: none !important; }
+  #mobile-tree .view-switch { display: none !important; }
+
+  #nav-more .bottom-nav-icon {
+    font-family: inherit !important;
+    font-size: 1.85rem !important;
+    letter-spacing: 0.08em;
+    line-height: 0.8 !important;
+  }
+
+  #rack-editor .rack-editor-body {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+  }
+
+  #rack-editor .rack-views-wrap,
+  #rack-editor .rack-view-col,
+  #rack-editor .rack-frame,
+  #rack-editor .rack-slot,
+  #rack-editor .rack-slot-content,
+  #rack-editor .rack-slot-label,
+  #rack-editor .rack-slot-device {
+    touch-action: none !important;
+  }
+
+  #rack-editor .rack-slot-remove,
+  #rack-editor button,
+  #rack-editor select,
+  #rack-editor input,
+  #rack-editor textarea {
+    touch-action: manipulation !important;
+  }
+}
+
+/* ================================================================
+   v22: make desktop Theme Customize save action full width.
+   ================================================================ */
+@media (min-width: 1101px) {
+  .theme-picker-dialog #theme-customize-body .tb-actions {
+    display: block;
+    width: 100%;
+    padding: 0.35rem 0 0;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-actions #tb-save,
+  .theme-picker-dialog #theme-customize-body .tb-actions .button {
+    width: 100%;
+    min-width: 0;
+    min-height: 54px;
+    border-radius: 16px;
   }
 }
