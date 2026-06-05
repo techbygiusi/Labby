@@ -329,28 +329,25 @@
       <div class="mobile-view-head">
         <h2>Config</h2>
       </div>
-      <div class="mobile-view-body">
-        <button id="theme-btn-mobile" class="button secondary" type="button" style="width:100%;margin-bottom:1rem">🎨 Themes</button>
-        <p class="note">Backup or move your full homelab map.</p>
-        <div class="stack">
-          <button id="export-btn-mobile" class="button secondary" type="button">Export Config</button>
-          <label class="button secondary file-label">
-            Import Config
-            <input id="import-file-mobile" type="file" accept="application/json" />
-          </label>
-          <button id="clear-all-mobile" class="button danger" type="button">Clear All</button>
-          <button id="seed-demo-mobile" class="button secondary" type="button">Load Demo</button>
-          <button id="show-tutorial-btn-mobile" class="button secondary" type="button">📖 Tutorial</button>
+      <div class="mobile-view-body mobile-config-menu">
+        <div class="config-menu-grid">
+          <p class="note config-intro">Backup or move your full homelab map.</p>
+          <div class="config-menu-row config-menu-row-two">
+            <button id="export-btn-mobile" class="button secondary" type="button">Export Config</button>
+            <label class="button secondary file-label">
+              Import Config
+              <input id="import-file-mobile" type="file" accept="application/json" />
+            </label>
+          </div>
+          <button id="clear-all-mobile" class="button danger config-wide-action" type="button">Clear All</button>
+          <button id="seed-demo-mobile" class="button secondary config-wide-action" type="button">Load Demo</button>
+          <div class="config-section-title">Customization</div>
+          <div class="config-menu-row config-menu-row-two">
+            <button id="theme-btn-mobile" class="button secondary" type="button">🎨 Themes</button>
+            <button id="agent-api-btn-mobile" class="button secondary" type="button">🤖 API Keys</button>
+          </div>
+          <button id="show-tutorial-btn-mobile" class="button secondary config-wide-action" type="button">📖 Tutorial</button>
         </div>
-        <div class="legend" style="margin-top:1rem">
-          <p><span class="dot hardware"></span> Hardware</p>
-          <p><span class="dot vm"></span> VM</p>
-          <p><span class="dot lxc"></span> LXC</p>
-          <p><span class="dot app"></span> App</p>
-          <p><span class="dot network"></span> Network</p>
-        </div>
-        <button id="agent-api-btn-mobile" class="button secondary" type="button" style="width:100%;margin-top:1rem">🤖 Agent API Access</button>
-
       </div>
       <div class="mobile-view-footer">
         <button class="button secondary" id="mobile-config-close">← Back to Topology</button>
@@ -366,7 +363,7 @@
 
     <div class="mobile-view" id="mobile-agent-api">
       <div class="mobile-view-head">
-        <h2>🤖 Agent API Access</h2>
+        <h2>🤖 API Keys</h2>
       </div>
       <div class="mobile-view-body" id="mobile-agent-api-body"></div>
     </div>

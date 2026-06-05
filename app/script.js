@@ -603,11 +603,18 @@ const agentApiDialogPlaceholder = document.createComment('agent-api-dialog-place
 let agentApiContentInMobile = false;
 let agentApiReturnToConfig = false;
 
+function getAgentApiDialogBody() {
+  return agentApiDialog?.querySelector('.agent-dialog-body') || document.querySelector('#agent-api-dialog .agent-dialog-body');
+}
+
 function moveAgentApiToMobile() {
-  const dlg = agentApiDialog || document.getElementById('agent-api-dialog');
+  const dialogBody = getAgentApiDialogBody();
   const body = mobileAgentApiBody || document.getElementById('mobile-agent-api-body');
-  if (!dlg || !body || agentApiContentInMobile) return;
-  if (!agentApiDialogPlaceholder.parentNode) dlg.insertBefore(agentApiDialogPlaceholder, dlg.firstChild);
+  if (!dialogBody || !body || agentApiContentInMobile) return;
+
+  // Mobile already has its own page header. Move only the content area,
+  // not the desktop dialog title/footer, so the heading is not duplicated.
+  if (!agentApiDialogPlaceholder.parentNode) dialogBody.insertBefore(agentApiDialogPlaceholder, dialogBody.firstChild);
   let node = agentApiDialogPlaceholder.nextSibling;
   while (node) {
     const next = node.nextSibling;
@@ -618,10 +625,10 @@ function moveAgentApiToMobile() {
 }
 
 function restoreAgentApiToDialog() {
-  const dlg = agentApiDialog || document.getElementById('agent-api-dialog');
+  const dialogBody = getAgentApiDialogBody();
   const body = mobileAgentApiBody || document.getElementById('mobile-agent-api-body');
-  if (!dlg || !body || !agentApiContentInMobile) return;
-  while (body.firstChild) dlg.insertBefore(body.firstChild, agentApiDialogPlaceholder.nextSibling);
+  if (!dialogBody || !body || !agentApiContentInMobile) return;
+  while (body.firstChild) dialogBody.insertBefore(body.firstChild, agentApiDialogPlaceholder.nextSibling);
   if (agentApiDialogPlaceholder.parentNode) agentApiDialogPlaceholder.remove();
   agentApiContentInMobile = false;
 }
