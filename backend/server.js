@@ -247,7 +247,7 @@ app.post('/api/data', (req, res) => {
       items: Array.isArray(body.items) ? body.items : [],
       locations: Array.isArray(body.locations) ? body.locations : [],
       racks: Array.isArray(body.racks) ? body.racks : [],
-      agentKeys: Array.isArray(body.agentKeys) ? body.agentKeys : (readDb().agentKeys || []),
+      agentKeys: readDb().agentKeys || [],
       agentStatus: body.agentStatus && typeof body.agentStatus === 'object' ? body.agentStatus : (readDb().agentStatus || {}),
     };
   } else {

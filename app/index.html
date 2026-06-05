@@ -391,27 +391,23 @@
       <div class="tree-head">
         <h3>Config</h3>
       </div>
-      <p class="note">Backup or move your full homelab map.</p>
-      <div class="stack">
-        <button id="export-btn" class="button secondary" type="button">Export Config</button>
-        <label class="button secondary file-label">
-          Import Config
-          <input id="import-file" type="file" accept="application/json" />
-        </label>
-        <button id="clear-all" class="button danger" type="button">Clear All</button>
-        <button id="theme-btn" class="button secondary" type="button">🎨 Themes</button>
-        <button id="show-tutorial-btn" class="button secondary" type="button">📖 Tutorial</button>
-      </div>
-      <div class="config-content">
-        <div class="legend">
-          <p><span class="dot hardware"></span> Hardware</p>
-          <p><span class="dot vm"></span> VM</p>
-          <p><span class="dot lxc"></span> LXC</p>
-          <p><span class="dot app"></span> App</p>
-          <p><span class="dot network"></span> Network</p>
+      <div class="config-menu-grid">
+        <p class="note config-intro">Backup or move your full homelab map.</p>
+        <div class="config-menu-row config-menu-row-two">
+          <button id="export-btn" class="button secondary" type="button">Export Config</button>
+          <label class="button secondary file-label">
+            Import Config
+            <input id="import-file" type="file" accept="application/json" />
+          </label>
         </div>
-        <button id="agent-api-btn" class="button secondary" type="button">🤖 Agent API Access</button>
+        <button id="clear-all" class="button danger config-wide-action" type="button">Clear All</button>
 
+        <div class="config-section-title">Customization</div>
+        <div class="config-menu-row config-menu-row-two">
+          <button id="theme-btn" class="button secondary" type="button">Themes</button>
+          <button id="agent-api-btn" class="button secondary" type="button">API Keys</button>
+        </div>
+        <button id="show-tutorial-btn" class="button secondary config-wide-action" type="button">Tutorial</button>
       </div>
       <div class="dialog-footer">
         <button class="button secondary" onclick="document.getElementById('config-dialog').close()">✕ Close</button>
@@ -425,7 +421,7 @@
       </div>
       <div class="agent-dialog-body">
         <section class="agent-api-panel" aria-label="Agent API Access">
-          <p class="note">Create API keys for trusted automation agents. Keys are shown once when created.</p>
+          <p class="note">Create API keys for trusted automation agents. Keys are shown once when created. API keys are never included in config exports and cannot be imported.</p>
           <form id="agent-key-form" class="agent-key-form">
             <label>Agent name
               <input id="agent-key-name" type="text" placeholder="e.g. Hermes" autocomplete="off" />

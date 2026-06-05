@@ -627,6 +627,7 @@ function buildConfigExport() {
     locations,
     racks,
     agentStatus: liveStatusData,
+    secretsExcluded: ['agentKeys'],
     customThemes: getCustomThemes(),
     activeTheme,
     // Kept for older imports that only looked for `theme`.
@@ -903,7 +904,7 @@ importFile.addEventListener('change', async (event) => {
     applyImportedConfig(parsed);
     stopEditing();
     await saveItems();
-    showToast('Config imported successfully.');
+    showToast('Config imported successfully. API keys are not imported.');
     render();
     if (typeof renderAgentKeyLists === 'function') renderAgentKeyLists();
   } catch {
@@ -3539,7 +3540,7 @@ if (importFileMobile) importFileMobile.addEventListener('change', async (event) 
     applyImportedConfig(parsed);
     stopEditing();
     await saveItems();
-    showToast('Config imported successfully.');
+    showToast('Config imported successfully. API keys are not imported.');
     render();
     if (typeof renderAgentKeyLists === 'function') renderAgentKeyLists();
   } catch {
