@@ -4938,33 +4938,53 @@ dialog.rack-form-dialog:not([open]) {
   }
 }
 
-/* Demo site banner */
+
+/* Demo site banner and browser-only demo shell */
 .demo-banner {
   width: 100%;
   padding: 0.55rem 1rem;
   border-bottom: 3px solid var(--line);
-  background: var(--yellow);
-  color: #222;
+  background: var(--yellow) !important;
+  color: #222 !important;
   text-align: center;
   font: 800 0.82rem/1.35 'Space Mono', monospace;
-  pointer-events: auto;
   position: relative;
-  z-index: 20;
+  z-index: 1000;
 }
 .demo-banner a {
-  color: #222;
+  color: #222 !important;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
-/* Demo keeps the split public-page background while the app stays unchanged. */
+/* Demo keeps the normal split background; only the banner is accented. */
 .topbar,
 header.topbar {
   background: transparent !important;
 }
 
+/* Demo click safety: hidden layers must never block mobile nav or dialogs. */
+.mobile-view:not(.active),
+.rack-overview.hidden,
+.rack-editor.hidden,
+#welcome-overlay:not(.active),
+dialog:not([open]) {
+  pointer-events: none !important;
+}
+.mobile-view.active,
+#welcome-overlay.active,
+dialog[open] {
+  pointer-events: auto !important;
+}
+.bottom-nav,
+.bottom-actions,
+.demo-banner {
+  pointer-events: auto;
+}
+
 @media (max-width: 1100px) {
   .demo-banner {
-    display: none;
+    padding-top: max(0.45rem, env(safe-area-inset-top));
+    font-size: 0.72rem;
   }
 }

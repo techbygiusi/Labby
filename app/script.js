@@ -1,7 +1,7 @@
 const storageKey = 'labby-data-v8';
-const demoStorageVersionKey = 'labby-demo-storage-version';
-const demoStorageVersion = '2026-mobile-overhaul-v28';
 const themeKey = 'labby-theme';
+const demoStorageVersionKey = 'labby-demo-storage-version';
+const demoStorageVersion = '2026-main-sync-v29';
 const types = ['hardware', 'vm', 'lxc', 'app', 'network'];
 const networkPalette = ['#3b82f6', '#10b981', '#22c55e', '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#a855f7', '#14b8a6', '#84cc16', '#06b6d4', '#8b5cf6'];
 
@@ -10,9 +10,9 @@ const stats = document.getElementById('stats');
 const form = document.getElementById('resource-form');
 const typeSelect = document.getElementById('type');
 const symbolInput = document.getElementById('symbol');
+const clearAll = document.getElementById('clear-all');
 const seedDemo = document.getElementById('seed-demo');
 const seedDemoMobile = document.getElementById('seed-demo-mobile');
-const clearAll = document.getElementById('clear-all');
 const template = document.getElementById('item-template');
 const hostedOnSelect = document.getElementById('hosted-on');
 const hostedOnWrap = document.getElementById('hosted-on-wrap');
@@ -113,113 +113,12 @@ const API_BASE = (() => {
   return window.LABBY_API || (loc.hostname === 'localhost' && loc.port === '8080' ? 'http://localhost:3001' : '');
 })();
 
-
-function migrateDemoDataTo192Subnets() {
-  const replaceValue = (value) => {
-    if (typeof value !== 'string') return value;
-    return value
-      .replaceAll('10.10.0.', '192.168.10.')
-      .replaceAll('10.20.0.', '192.168.20.')
-      .replaceAll('10.40.0.', '192.168.40.');
-  };
-
-  const walk = (value) => {
-    if (Array.isArray(value)) return value.map(walk);
-    if (value && typeof value === 'object') {
-      Object.keys(value).forEach((key) => {
-        value[key] = walk(value[key]);
-      });
-      return value;
-    }
-    return replaceValue(value);
-  };
-
-  items = walk(items);
-  locations = walk(locations);
-  racks = walk(racks);
-}
-
-function ensureDemoRackData() {
-  const hasLocations = Array.isArray(locations) && locations.length > 0;
-  const hasRacks = Array.isArray(racks) && racks.length > 0;
-
-  if (!hasLocations) {
-    locations = getDemoLocations();
-  }
-
-  if (!hasRacks) {
-    racks = getDemoRacks();
-  }
-}
-
-
-function isDemoDataMissingOrStale(loaded) {
-  const version = localStorage.getItem(demoStorageVersionKey);
-  const loadedItems = Array.isArray(loaded?.items) ? loaded.items : [];
-  const loadedLocations = Array.isArray(loaded?.locations) ? loaded.locations : [];
-  const loadedRacks = Array.isArray(loaded?.racks) ? loaded.racks : [];
-
-  if (version !== demoStorageVersion) return true;
-  if (!loadedItems.length) return true;
-  if (!loadedItems.some((item) => item.id === 'hw-router' || item.id === 'hw-proxmox')) return true;
-  if (!loadedLocations.length) return true;
-  if (!loadedRacks.length) return true;
-  return false;
-}
-
-async function seedFullDemoData({ force = false } = {}) {
-  const loaded = await loadItemsFromAPI();
-
-  if (force || isDemoDataMissingOrStale(loaded)) {
-    items = sanitizeItems(getDemoItems());
-    locations = getDemoLocations();
-    racks = getDemoRacks();
-    migrateDemoDataTo192Subnets();
-    ensureDemoRackData();
-    localStorage.setItem(demoStorageVersionKey, demoStorageVersion);
-    await saveItems();
-    return;
-  }
-
-  items = sanitizeItems(loaded.items);
-  locations = loaded.locations || [];
-  racks = loaded.racks || [];
-  migrateDemoDataTo192Subnets();
-  ensureDemoRackData();
-  localStorage.setItem(demoStorageVersionKey, demoStorageVersion);
-  await saveItems();
-}
-
-function openDemoTutorialAfterLayout() {
-  const open = () => {
-    try {
-      if (typeof openTutorial === 'function') openTutorial();
-    } catch {}
-  };
-  requestAnimationFrame(() => requestAnimationFrame(open));
-}
-
-async function loadDemoData() {
-  if (!confirm('Replace current browser demo data with the default demo entries?')) return;
-  await seedFullDemoData({ force: true });
-  stopEditing();
-  showToast('Demo data loaded with sample rack layouts.');
-  render();
-  if (typeof renderRackOverview === 'function') renderRackOverview();
-  openDemoTutorialAfterLayout();
-}
-
-seedDemo?.addEventListener('click', loadDemoData);
-seedDemoMobile?.addEventListener('click', loadDemoData);
-
 async function loadItemsFromAPI() {
   try {
     const raw = localStorage.getItem(storageKey);
     if (!raw) return { items: [], locations: [], racks: [] };
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return { items: parsed, locations: [], racks: [] };
-    }
+    if (Array.isArray(parsed)) return { items: parsed, locations: [], racks: [] };
     return {
       items: Array.isArray(parsed.items) ? parsed.items : [],
       locations: Array.isArray(parsed.locations) ? parsed.locations : [],
@@ -231,14 +130,8 @@ async function loadItemsFromAPI() {
 }
 
 async function saveItemsToAPI(itemList) {
-  const payload = {
-    items: itemList,
-    locations,
-    racks,
-  };
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(payload));
-  } catch {}
+  const payload = { items: itemList, locations, racks };
+  try { localStorage.setItem(storageKey, JSON.stringify(payload)); } catch {}
 }
 
 cleanupDuplicateIds(['symbol-wrap', 'hardware-kind-wrap', 'manufacturer-wrap', 'os-wrap', 'symbol', 'hardware-kind', 'manufacturer', 'os']);
@@ -260,6 +153,86 @@ applyTypeVisibility();
   startPolling();
   openDemoTutorialAfterLayout();
 })();
+
+function migrateDemoDataTo192Subnets() {
+  const replaceValue = (value) => {
+    if (typeof value !== 'string') return value;
+    return value
+      .replaceAll('10.10.0.', '192.168.10.')
+      .replaceAll('10.20.0.', '192.168.20.')
+      .replaceAll('10.40.0.', '192.168.40.');
+  };
+  const walk = (value) => {
+    if (Array.isArray(value)) return value.map(walk);
+    if (value && typeof value === 'object') {
+      Object.keys(value).forEach((key) => { value[key] = walk(value[key]); });
+      return value;
+    }
+    return replaceValue(value);
+  };
+  items = walk(items);
+  locations = walk(locations);
+  racks = walk(racks);
+}
+
+function ensureDemoRackData() {
+  if (!Array.isArray(locations) || !locations.length) locations = getDemoLocations();
+  if (!Array.isArray(racks) || !racks.length) racks = getDemoRacks();
+}
+
+function isDemoDataMissingOrStale(loaded) {
+  const version = localStorage.getItem(demoStorageVersionKey);
+  const loadedItems = Array.isArray(loaded?.items) ? loaded.items : [];
+  const loadedLocations = Array.isArray(loaded?.locations) ? loaded.locations : [];
+  const loadedRacks = Array.isArray(loaded?.racks) ? loaded.racks : [];
+  if (version !== demoStorageVersion) return true;
+  if (!loadedItems.length) return true;
+  if (!loadedItems.some((item) => item.id === 'hw-router' || item.id === 'hw-proxmox')) return true;
+  if (!loadedLocations.length) return true;
+  if (!loadedRacks.length) return true;
+  return false;
+}
+
+async function seedFullDemoData({ force = false } = {}) {
+  const loaded = await loadItemsFromAPI();
+  if (force || isDemoDataMissingOrStale(loaded)) {
+    items = sanitizeItems(getDemoItems());
+    locations = getDemoLocations();
+    racks = getDemoRacks();
+    migrateDemoDataTo192Subnets();
+    ensureDemoRackData();
+    localStorage.setItem(demoStorageVersionKey, demoStorageVersion);
+    await saveItems();
+    return;
+  }
+  items = sanitizeItems(loaded.items);
+  locations = loaded.locations || [];
+  racks = loaded.racks || [];
+  migrateDemoDataTo192Subnets();
+  ensureDemoRackData();
+  localStorage.setItem(demoStorageVersionKey, demoStorageVersion);
+  await saveItems();
+}
+
+function openDemoTutorialAfterLayout() {
+  const open = () => {
+    try { if (typeof openTutorial === 'function') openTutorial(); } catch {}
+  };
+  requestAnimationFrame(() => requestAnimationFrame(open));
+}
+
+async function loadDemoData() {
+  if (!confirm('Replace current browser demo data with the default demo entries?')) return;
+  await seedFullDemoData({ force: true });
+  stopEditing();
+  showToast('Demo data loaded with sample rack layouts.');
+  render();
+  if (typeof renderRackOverview === 'function') renderRackOverview();
+  openDemoTutorialAfterLayout();
+}
+
+seedDemo?.addEventListener('click', loadDemoData);
+seedDemoMobile?.addEventListener('click', loadDemoData);
 
 async function startPolling() {
   if (pollingInterval) clearInterval(pollingInterval);
@@ -3355,7 +3328,6 @@ const tutorialSteps = [
   { title: 'Add Resources', text: 'Use the form on the left (desktop) or tap ➕ Add (mobile) to create hardware, VMs, LXCs, apps or networks.', icon: '➕' },
   { title: 'IP View', text: 'The IP View shows all used IPs sorted by subnet. Search by IP, hostname or port to find devices instantly.', icon: '🌐' },
   { title: 'Relationship Tree', text: 'Tree and Graph views visualize how your infrastructure connects. Which VMs run on which hardware, which apps run on which VMs.', icon: '🌳' },
-  { title: 'Rack View', text: 'Open Rack View to see the sample locations, racks and front/rear rack layouts. The demo includes linked hardware, servers, switches, UPS and cable management.', icon: '🗄️' },
   { title: 'Status Indicators', text: 'Mark devices as 🟢 Online, 🔴 Offline or 🟡 Maintenance. Offline cards are dimmed, maintenance cards get a dashed border.', icon: '🟢' },
   { title: 'Copy & Open', text: 'Click any IP or URL on a card to copy it to clipboard. Apps with a web URL show an Open button to launch directly.', icon: '📋' },
   { title: 'Config & Backup', text: 'Use Config → Export to back up your data as JSON. Import to restore or migrate to another instance.', icon: '💾' },
@@ -4505,9 +4477,6 @@ initMobileRackControls();
 initMobileDialogSheets();
 updateRackSelectedComponentUI();
 
-// Theme initialization moved after definitions
-try { initTheme(); } catch(e){ console.error(e); }
-
 function getDemoLocations() {
   return [
     {
@@ -4608,3 +4577,10 @@ function getDemoItems() {
     { id: 'app-npm', type: 'app', name: 'Nginx Proxy Manager', description: 'Reverse proxy UI', notes: 'SSL termination for all services', connections: [], ip: '', ipPort: '192.168.20.50:81', webUrl: 'https://proxy.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'lxc-proxy', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online', symbol: '🔒', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
   ];
 }
+
+
+
+// Theme initialization moved after definitions
+try { initTheme(); } catch(e){ console.error(e); }
+
+
