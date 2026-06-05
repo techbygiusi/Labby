@@ -3194,25 +3194,55 @@ function renderCustomizeTab() {
   const start = currentResolvedVars();
   body.innerHTML = '';
 
-  const nameRow = document.createElement('label');
-  nameRow.className = 'tb-base-row';
-  nameRow.innerHTML = '<span>Name</span><input id="tb-name" type="text" maxlength="24" placeholder="My Theme" value="My Theme" />';
-  body.appendChild(nameRow);
+  const interfaceVars = [
+    '--bg', '--bg-bottom', '--phone', '--panel', '--text', '--muted', '--line', '--yellow', '--blue', '--mint', '--danger'
+  ];
+  const resourceVars = ['--type-hardware', '--type-vm', '--type-lxc', '--type-app', '--type-network'];
+  const byKey = new Map(themeVars.map(v => [v.key, v]));
 
-  const grid = document.createElement('div');
-  grid.className = 'tb-grid';
-  themeVars.forEach(v => {
-    const row = document.createElement('label');
-    row.className = 'tb-color-row';
-    row.innerHTML = '<input type="color" data-var="' + v.key + '" value="' + start[v.key] + '" /><span>' + v.label + '</span>';
-    grid.appendChild(row);
-  });
-  body.appendChild(grid);
+  const root = document.createElement('div');
+  root.className = 'tb-layout';
+  body.appendChild(root);
+
+  const nameRow = document.createElement('label');
+  nameRow.className = 'tb-base-row tb-name-row';
+  nameRow.innerHTML = '<span>Name</span><input id="tb-name" type="text" maxlength="24" placeholder="My Theme" value="My Theme" />';
+  root.appendChild(nameRow);
+
+  const sections = document.createElement('div');
+  sections.className = 'tb-section-grid';
+  root.appendChild(sections);
+
+  function buildSection(title, keys, extraClass) {
+    const section = document.createElement('section');
+    section.className = 'tb-section' + (extraClass ? ' ' + extraClass : '');
+
+    const heading = document.createElement('div');
+    heading.className = 'tb-section-title';
+    heading.textContent = title;
+    section.appendChild(heading);
+
+    const grid = document.createElement('div');
+    grid.className = 'tb-grid';
+    keys.forEach(key => {
+      const item = byKey.get(key);
+      if (!item) return;
+      const row = document.createElement('label');
+      row.className = 'tb-color-row';
+      row.innerHTML = '<input type="color" data-var="' + item.key + '" value="' + start[item.key] + '" /><span>' + item.label + '</span>';
+      grid.appendChild(row);
+    });
+    section.appendChild(grid);
+    sections.appendChild(section);
+  }
+
+  buildSection('Colors', interfaceVars, 'tb-section-core');
+  buildSection('Resource Colors', resourceVars, 'tb-section-types');
 
   const actions = document.createElement('div');
   actions.className = 'tb-actions';
   actions.innerHTML = '<button id="tb-save" class="button" type="button">Save Theme</button>';
-  body.appendChild(actions);
+  root.appendChild(actions);
 
   const collect = () => {
     const vars = {};
@@ -3245,9 +3275,14 @@ function renderCustomizeTab() {
     showToast('Theme saved.');
   };
 
+  if (editingThemeId) {
+    const editNameInput = document.getElementById('tb-name');
+    const existingTheme = customThemeById(editingThemeId);
+    if (editNameInput && existingTheme) editNameInput.value = existingTheme.name || '';
+  }
+
   preview();
 }
-
 
 function moveThemePickerToMobile() {
   const dlg = themePickerDialog || document.getElementById('theme-picker-dialog');
