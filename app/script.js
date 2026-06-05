@@ -546,12 +546,20 @@ configToggle.addEventListener('click', () => {
 const mobileAgentApiBody = document.getElementById('mobile-agent-api-body');
 const agentApiDialogPlaceholder = document.createComment('agent-api-dialog-placeholder');
 let agentApiContentInMobile = false;
+let agentApiReturnToConfig = false;
+
+function getAgentApiDialogBody() {
+  return agentApiDialog?.querySelector('.agent-dialog-body') || document.querySelector('#agent-api-dialog .agent-dialog-body');
+}
 
 function moveAgentApiToMobile() {
-  const dlg = agentApiDialog || document.getElementById('agent-api-dialog');
+  const dialogBody = getAgentApiDialogBody();
   const body = mobileAgentApiBody || document.getElementById('mobile-agent-api-body');
-  if (!dlg || !body || agentApiContentInMobile) return;
-  if (!agentApiDialogPlaceholder.parentNode) dlg.insertBefore(agentApiDialogPlaceholder, dlg.firstChild);
+  if (!dialogBody || !body || agentApiContentInMobile) return;
+
+  // Mobile already has its own page header. Move only the content area,
+  // not the desktop dialog title/footer, so the heading is not duplicated.
+  if (!agentApiDialogPlaceholder.parentNode) dialogBody.insertBefore(agentApiDialogPlaceholder, dialogBody.firstChild);
   let node = agentApiDialogPlaceholder.nextSibling;
   while (node) {
     const next = node.nextSibling;
@@ -562,10 +570,10 @@ function moveAgentApiToMobile() {
 }
 
 function restoreAgentApiToDialog() {
-  const dlg = agentApiDialog || document.getElementById('agent-api-dialog');
+  const dialogBody = getAgentApiDialogBody();
   const body = mobileAgentApiBody || document.getElementById('mobile-agent-api-body');
-  if (!dlg || !body || !agentApiContentInMobile) return;
-  while (body.firstChild) dlg.insertBefore(body.firstChild, agentApiDialogPlaceholder.nextSibling);
+  if (!dialogBody || !body || !agentApiContentInMobile) return;
+  while (body.firstChild) dialogBody.insertBefore(body.firstChild, agentApiDialogPlaceholder.nextSibling);
   if (agentApiDialogPlaceholder.parentNode) agentApiDialogPlaceholder.remove();
   agentApiContentInMobile = false;
 }
@@ -575,8 +583,30 @@ function closeMobileAgentApiView() {
   restoreAgentApiToDialog();
 }
 
-function openAgentApiDialog() {
+function returnFromAgentApi() {
+  clearAgentTokenBox();
+  const shouldReturn = agentApiReturnToConfig;
+  agentApiReturnToConfig = false;
+
+  if (isMobile() && agentApiContentInMobile) {
+    if (shouldReturn) {
+      showMobileView('mobile-config');
+      setActiveMobileNav('nav-more');
+    } else {
+      hideMobileViews();
+    }
+    return;
+  }
+
+  if (shouldReturn && configDialog && !configDialog.open) {
+    configDialog.showModal();
+  }
+}
+
+function openAgentApiDialog(options) {
   if (!agentApiDialog) return;
+  const opts = options || {};
+  agentApiReturnToConfig = !!opts.returnToConfig;
   if (configDialog?.open) configDialog.close();
   if (typeof closeMobileMoreSheet === 'function') closeMobileMoreSheet();
   if (typeof renderAgentKeyLists === 'function') renderAgentKeyLists();
@@ -589,13 +619,14 @@ function openAgentApiDialog() {
     return;
   }
   restoreAgentApiToDialog();
+  agentApiDialog.onclose = returnFromAgentApi;
   if (typeof agentApiDialog.showModal === 'function' && !agentApiDialog.open) agentApiDialog.showModal();
 }
 
-document.getElementById('agent-api-btn')?.addEventListener('click', openAgentApiDialog);
-document.getElementById('agent-api-btn-mobile')?.addEventListener('click', openAgentApiDialog);
+document.getElementById('agent-api-btn')?.addEventListener('click', () => openAgentApiDialog({ returnToConfig: true }));
+document.getElementById('agent-api-btn-mobile')?.addEventListener('click', () => openAgentApiDialog({ returnToConfig: true }));
 document.getElementById('agent-api-close')?.addEventListener('click', () => {
-  if (isMobile() && agentApiContentInMobile) { hideMobileViews(); return; }
+  if (isMobile() && agentApiContentInMobile) { returnFromAgentApi(); return; }
   clearAgentTokenBox();
   agentApiDialog?.close();
 });

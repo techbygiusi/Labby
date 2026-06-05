@@ -5292,3 +5292,168 @@ dialog.rack-form-dialog:not([open]) {
     padding-top: 0.7rem !important;
   }
 }
+
+
+/* Mobile Config uses the same calm grouped layout as the desktop Config dialog. */
+@media (max-width: 1100px) {
+  #mobile-config .mobile-view-body {
+    padding: 1.1rem 1rem calc(6.5rem + env(safe-area-inset-bottom));
+  }
+
+  #mobile-config .config-menu-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.95rem;
+    width: 100%;
+  }
+
+  #mobile-config .config-intro,
+  #mobile-config .config-section-title {
+    display: flex;
+    align-items: center;
+    min-height: 56px;
+    margin: 0;
+    padding: 0.85rem 1rem;
+    border: 3px solid var(--line);
+    border-radius: 16px;
+    background: var(--blue);
+  }
+
+  #mobile-config .config-section-title {
+    margin-top: 0.9rem;
+    font-weight: 800;
+  }
+
+  #mobile-config .config-menu-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+    width: 100%;
+  }
+
+  #mobile-config .config-menu-row-two {
+    grid-template-columns: 1fr;
+  }
+
+  #mobile-config .button,
+  #mobile-config .file-label {
+    width: 100%;
+    min-height: 56px;
+    justify-content: center;
+    border-radius: 16px;
+  }
+}
+
+@media (min-width: 720px) and (max-width: 1100px) {
+  #mobile-config .config-menu-row-two {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* In the mobile API Keys page the header belongs to the mobile shell only. */
+@media (max-width: 1100px) {
+  #mobile-agent-api .tree-head,
+  #mobile-agent-api .dialog-footer {
+    display: none !important;
+  }
+
+  #mobile-agent-api .agent-api-panel {
+    padding: 0;
+    border: 0;
+  }
+}
+
+/* ================================================================
+   v44: compact desktop theme customizer controls.
+   Keep mobile touch targets large; desktop uses normal form sizing.
+   ================================================================ */
+@media (min-width: 1101px) {
+  .theme-picker-dialog #theme-customize-body.theme-builder-body {
+    min-height: 0 !important;
+    height: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.8rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-base-row {
+    display: grid !important;
+    grid-template-columns: 110px minmax(220px, 420px) !important;
+    justify-content: start !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+    width: 100% !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-base-row input[type='text'],
+  .theme-picker-dialog #theme-customize-body #tb-name {
+    width: min(420px, 100%) !important;
+    min-width: 0 !important;
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 0.35rem 0.7rem !important;
+    border-radius: 10px !important;
+    font-size: 0.82rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
+    grid-auto-rows: auto !important;
+    gap: 0.55rem 0.75rem !important;
+    align-content: start !important;
+    min-height: 0 !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-color-row {
+    display: grid !important;
+    grid-template-columns: 44px minmax(0, 1fr) !important;
+    grid-template-rows: auto !important;
+    align-items: center !important;
+    gap: 0.55rem !important;
+    min-height: 46px !important;
+    padding: 0.35rem 0.45rem !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-color-row input[type='color'] {
+    width: 44px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 2px !important;
+    border: 2px solid var(--line) !important;
+    border-radius: 8px !important;
+    background: var(--panel) !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-color-row span {
+    min-height: 0 !important;
+    font-size: 0.74rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-actions {
+    display: flex !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    padding: 0.35rem 0 0 !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-actions #tb-save,
+  .theme-picker-dialog #theme-customize-body .tb-actions .button {
+    width: auto !important;
+    min-width: 180px !important;
+    max-width: 260px !important;
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 0.42rem 0.9rem !important;
+    border-radius: 12px !important;
+    font-size: 0.8rem !important;
+  }
+}
