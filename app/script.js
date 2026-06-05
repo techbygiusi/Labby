@@ -78,6 +78,20 @@ const configToggle = document.getElementById('config-toggle');
 const configDialog = document.getElementById('config-dialog');
 const toast = document.getElementById('toast');
 
+const mobileProgress = document.getElementById('mobile-progress');
+let mobileProgressCount = 0;
+const nativeFetch = window.fetch.bind(window);
+window.fetch = async (...args) => {
+  mobileProgressCount += 1;
+  mobileProgress?.classList.add('active');
+  try {
+    return await nativeFetch(...args);
+  } finally {
+    mobileProgressCount = Math.max(0, mobileProgressCount - 1);
+    if (!mobileProgressCount) setTimeout(() => mobileProgress?.classList.remove('active'), 180);
+  }
+};
+
 let editingId = null;
 let selectedNetworkColor = networkPalette[0];
 let items = [];
@@ -1161,6 +1175,7 @@ function cardNode(item) {
 
   const deleteButton = node.querySelector('.delete-btn');
   if (deleteButton) deleteButton.addEventListener('click', () => removeItem(item.id));
+  enhanceMobileCard(node, item);
   return node;
 }
 
@@ -1804,6 +1819,12 @@ function buildGraphView() {
       hoverTip.textContent = '';
     });
     node.addEventListener('click', () => {
+      if (isMobile()) {
+        tip.innerHTML = graphInfoHtml(item);
+        tip.classList.add('active');
+        wrap.classList.add('node-selected');
+        return;
+      }
       startEditing(item.id);
       treeDialog.close();
       showToast(`Editing ${item.name}`);
@@ -1823,6 +1844,24 @@ function buildGraphView() {
 
 
 
+
+function graphInfoHtml(item) {
+  const bits = [
+    item.description,
+    item.ip ? `IP: ${item.ip}` : '',
+    item.type === 'app' ? appDetails(item) : '',
+    hardwareDetailsLabel(item) || specsLabel(item),
+    hostingLabel(item),
+    connectionLabel(item),
+  ].filter(Boolean);
+  return `
+    <div class="graph-info-grabber"></div>
+    <strong>${escapeHtml((item.symbol || '') + ' ' + item.name)}</strong>
+    <span class="tree-meta">${escapeHtml(label(item.type))}</span>
+    ${bits.map(bit => `<p>${escapeHtml(bit)}</p>`).join('')}
+    <button class="button secondary" type="button" onclick="window.startEditingMobile('${item.id}')">Edit</button>
+  `;
+}
 
 function getGraphBounds(positions, graphItems) {
   const points = graphItems
@@ -1987,6 +2026,7 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
   }, { passive: false });
 
   wrap.addEventListener('pointerdown', (event) => {
+    if (event.pointerType === 'touch') return;
     const target = event.target;
     if (target.closest('.graph-node')) return;
     dragging = true;
@@ -2012,6 +2052,82 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
 
   wrap.addEventListener('pointerup', stopDrag);
   wrap.addEventListener('pointercancel', stopDrag);
+
+  let pinchStartDistance = 0;
+  let pinchStartScale = 1;
+  let pinchCenterGraph = null;
+  let touchPanActive = false;
+  let touchPanStartX = 0;
+  let touchPanStartY = 0;
+  let touchPanBaseX = 0;
+  let touchPanBaseY = 0;
+
+  function touchDistance(touches) {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.hypot(dx, dy);
+  }
+
+  function touchCenter(touches, rect) {
+    return {
+      x: ((touches[0].clientX + touches[1].clientX) / 2) - rect.left,
+      y: ((touches[0].clientY + touches[1].clientY) / 2) - rect.top,
+    };
+  }
+
+  wrap.addEventListener('touchstart', (event) => {
+    const target = event.target;
+    touchPanActive = false;
+
+    if (event.touches.length === 1) {
+      if (target.closest('.graph-node, .graph-info-panel')) return;
+      event.preventDefault();
+      touchPanActive = true;
+      touchPanStartX = event.touches[0].clientX;
+      touchPanStartY = event.touches[0].clientY;
+      touchPanBaseX = panX;
+      touchPanBaseY = panY;
+      return;
+    }
+
+    if (event.touches.length !== 2) return;
+    event.preventDefault();
+    const rect = wrap.getBoundingClientRect();
+    const center = touchCenter(event.touches, rect);
+    pinchStartDistance = touchDistance(event.touches);
+    pinchStartScale = scale;
+    pinchCenterGraph = { x: (center.x - panX) / scale, y: (center.y - panY) / scale };
+  }, { passive: false });
+
+  wrap.addEventListener('touchmove', (event) => {
+    if (event.touches.length === 1 && touchPanActive) {
+      event.preventDefault();
+      panX = touchPanBaseX + (event.touches[0].clientX - touchPanStartX);
+      panY = touchPanBaseY + (event.touches[0].clientY - touchPanStartY);
+      applyTransform();
+      return;
+    }
+
+    if (event.touches.length !== 2 || !pinchCenterGraph || !pinchStartDistance) return;
+    event.preventDefault();
+    touchPanActive = false;
+    const rect = wrap.getBoundingClientRect();
+    const center = touchCenter(event.touches, rect);
+    const ratio = touchDistance(event.touches) / pinchStartDistance;
+    scale = Math.max(0.22, Math.min(2.8, pinchStartScale * ratio));
+    panX = center.x - pinchCenterGraph.x * scale;
+    panY = center.y - pinchCenterGraph.y * scale;
+    applyTransform();
+  }, { passive: false });
+
+  wrap.addEventListener('touchend', (event) => {
+    if (event.touches.length === 0) touchPanActive = false;
+    if (event.touches.length !== 2) {
+      pinchStartDistance = 0;
+      pinchCenterGraph = null;
+    }
+  }, { passive: true });
+
   wrap.style.cursor = 'grab';
 }
 
@@ -2715,37 +2831,64 @@ function isMobile() {
   return window.innerWidth <= 1100;
 }
 
+function setActiveMobileNav(id) {
+  document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.toggle('active', b.id === id));
+}
+
+function closeMobileMoreSheet() {
+  const sheet = document.getElementById('mobile-more-sheet');
+  const more = document.getElementById('nav-more');
+  if (!sheet) return;
+  sheet.classList.remove('open');
+  sheet.setAttribute('aria-hidden', 'true');
+  more?.setAttribute('aria-expanded', 'false');
+}
+
+function openMobileMoreSheet() {
+  const sheet = document.getElementById('mobile-more-sheet');
+  const more = document.getElementById('nav-more');
+  if (!sheet) return;
+  sheet.classList.add('open');
+  sheet.setAttribute('aria-hidden', 'false');
+  more?.setAttribute('aria-expanded', 'true');
+}
+
 function showMobileView(id) {
+  closeMobileMoreSheet();
+  showRackOverlay(null);
+  closeRackPaletteSheet();
   document.querySelectorAll('.mobile-view').forEach(v => v.classList.remove('active'));
-  document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
   const view = document.getElementById(id);
   if (view) view.classList.add('active');
 }
 
 function hideMobileViews() {
+  closeMobileMoreSheet();
+  showRackOverlay(null);
+  closeRackPaletteSheet();
   document.querySelectorAll('.mobile-view').forEach(v => v.classList.remove('active'));
-  document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
-  const topo = document.getElementById('nav-topology');
-  if (topo) topo.classList.add('active');
+  setActiveMobileNav('nav-topology');
 }
 
 const navTopology = document.getElementById('nav-topology');
 const navAdd = document.getElementById('nav-add');
+const navRack = document.getElementById('nav-rack');
 const navIp = document.getElementById('nav-ip');
+const navMore = document.getElementById('nav-more');
 const navTree = document.getElementById('nav-tree');
 const navConfig = document.getElementById('nav-config');
+const navTheme = document.getElementById('nav-theme');
 
 if (navTopology) {
   navTopology.classList.add('active');
   navTopology.addEventListener('click', () => {
     hideMobileViews();
-    navTopology.classList.add('active');
   });
 }
 
 if (navAdd) navAdd.addEventListener('click', () => {
   showMobileView('mobile-add');
-  navAdd.classList.add('active');
+  setActiveMobileNav('nav-add');
   document.getElementById('mobile-form-title').textContent = 'Add Resource';
   const body = document.getElementById('mobile-form-body');
   const formEl = document.getElementById('resource-form');
@@ -2755,19 +2898,42 @@ if (navAdd) navAdd.addEventListener('click', () => {
 
 if (navIp) navIp.addEventListener('click', () => {
   showMobileView('mobile-ip');
-  navIp.classList.add('active');
+  setActiveMobileNav('nav-ip');
   renderIPViewMobile();
+});
+
+if (navRack) navRack.addEventListener('click', () => {
+  closeMobileMoreSheet();
+  document.querySelectorAll('.mobile-view').forEach(v => v.classList.remove('active'));
+  renderRackOverview();
+  showRackOverlay('rack-overview');
+  setActiveMobileNav('nav-rack');
+});
+
+if (navMore) navMore.addEventListener('click', () => {
+  const sheet = document.getElementById('mobile-more-sheet');
+  sheet?.classList.contains('open') ? closeMobileMoreSheet() : openMobileMoreSheet();
+});
+
+document.querySelectorAll('[data-sheet-close]').forEach(btn => {
+  btn.addEventListener('click', () => closeMobileMoreSheet());
 });
 
 if (navTree) navTree.addEventListener('click', () => {
   showMobileView('mobile-tree');
-  navTree.classList.add('active');
+  setActiveMobileNav('nav-more');
   renderMobileTree();
 });
 
 if (navConfig) navConfig.addEventListener('click', () => {
   showMobileView('mobile-config');
-  navConfig.classList.add('active');
+  setActiveMobileNav('nav-more');
+});
+
+if (navTheme) navTheme.addEventListener('click', () => {
+  closeMobileMoreSheet();
+  setActiveMobileNav('nav-more');
+  openThemePicker({ returnToConfig: false });
 });
 
 const mobileFormClose = document.getElementById('mobile-form-close');
@@ -2949,7 +3115,7 @@ window.startEditingMobile = function(id) {
   startEditing(id);
   if (isMobile()) {
     showMobileView('mobile-add');
-    navAdd.classList.add('active');
+    setActiveMobileNav('nav-add');
     document.getElementById('mobile-form-title').textContent = 'Edit Resource';
     const body = document.getElementById('mobile-form-body');
     const formEl = document.getElementById('resource-form');
@@ -3107,9 +3273,9 @@ function showRackOverlay(id) {
 // ---- Main toggle ----
 if (rackToggleBtn) {
   rackToggleBtn.addEventListener('click', () => {
-    if (isMobile()) { showToast('Rack View ist nur auf dem Desktop verfügbar.', 'error'); return; }
     renderRackOverview();
     showRackOverlay('rack-overview');
+    if (isMobile()) setActiveMobileNav('nav-rack');
   });
 }
 // Header buttons are now rendered dynamically inside renderRackOverview()
@@ -3434,6 +3600,7 @@ function openRackEditor(rackId) {
   renderPalette();
   renderRackDiagram('front');
   renderRackDiagram('rear');
+  updateRackMobileSide(currentRackMobileSide || 'front');
   equaliseRackHeights();
   showRackOverlay('rack-editor');
 }
@@ -3526,6 +3693,35 @@ function renderRackDiagram(side) {
   requestAnimationFrame(equaliseRackHeights);
 }
 
+function placeRackComponentAt(side, u, rack) {
+  if (!rackDragComponent) return;
+  const fits = canFit(side, u, rackDragComponent.heightU, rack, rackDragComponent.fromSlot);
+  if (!fits) { showToast('Not enough space.', 'error'); return; }
+  if (rackDragComponent.fromSlot) delete rack.slots[rackDragComponent.fromSlot];
+  const slotKey = `${side}-${u}`;
+  rack.slots[slotKey] = {
+    componentType: rackDragComponent.componentType,
+    heightU: rackDragComponent.heightU,
+    label: rackDragComponent.label,
+    category: rackDragComponent.category || 'compute',
+    linkedDeviceId: rackDragComponent.linkedDeviceId || null,
+    multiDevice: rackDragComponent.multiDevice || null,
+    linkedDevices: rackDragComponent.linkedDevices || null,
+    isPDU: rackDragComponent.isPDU || false,
+    pduPorts: rackDragComponent.pduPorts || null,
+    pduLinks: rackDragComponent.pduLinks || null,
+    isBlank: rackDragComponent.isBlank || false,
+    isPassive: rackDragComponent.isPassive || false,
+  };
+  const placed = rackDragComponent;
+  saveRackData();
+  renderRackDiagram(side);
+  if (!placed.isBlank && !placed.isPassive) showLinkPanel(slotKey, side);
+  rackDragComponent = null;
+  document.querySelectorAll('.rack-palette-item.selected').forEach(el => el.classList.remove('selected'));
+  closeRackPaletteSheet();
+}
+
 function createEmptySlot(side, u, rack) {
   const el = document.createElement('div');
   el.className = 'rack-slot empty';
@@ -3544,32 +3740,11 @@ function createEmptySlot(side, u, rack) {
   el.addEventListener('drop', e => {
     e.preventDefault();
     el.classList.remove('drag-over', 'drag-invalid');
-    if (!rackDragComponent) return;
-    const fits = canFit(side, u, rackDragComponent.heightU, rack, rackDragComponent.fromSlot);
-    if (!fits) { showToast('Not enough space.', 'error'); return; }
-    if (rackDragComponent.fromSlot) delete rack.slots[rackDragComponent.fromSlot];
-    const slotKey = `${side}-${u}`;
-    rack.slots[slotKey] = {
-      componentType: rackDragComponent.componentType,
-      heightU: rackDragComponent.heightU,
-      label: rackDragComponent.label,
-      category: rackDragComponent.category || 'compute',
-      linkedDeviceId: rackDragComponent.linkedDeviceId || null,
-      multiDevice: rackDragComponent.multiDevice || null,
-      linkedDevices: rackDragComponent.linkedDevices || null,
-      isPDU: rackDragComponent.isPDU || false,
-      pduPorts: rackDragComponent.pduPorts || null,
-      pduLinks: rackDragComponent.pduLinks || null,
-      isBlank: rackDragComponent.isBlank || false,
-      isPassive: rackDragComponent.isPassive || false,
-    };
-    saveRackData();
-    renderRackDiagram(side);
-    // Blanks and cable management have no hardware to link
-    if (!rackDragComponent.isBlank && !rackDragComponent.isPassive) {
-      showLinkPanel(slotKey, side);
-    }
-    rackDragComponent = null;
+    placeRackComponentAt(side, u, rack);
+  });
+  el.addEventListener('click', () => {
+    if (!isMobile() || !rackDragComponent) return;
+    placeRackComponentAt(side, u, rack);
   });
   return el;
 }
@@ -3865,6 +4040,153 @@ function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+
+/* ================================================================
+   Mobile UX helpers
+   ================================================================ */
+let currentRackMobileSide = 'front';
+
+function enhanceMobileCard(node, item) {
+  let startX = 0;
+  let startY = 0;
+  let swiping = false;
+
+  node.addEventListener('click', (event) => {
+    if (!isMobile()) return;
+    if (event.target.closest('button,a,.card-controls')) return;
+    node.classList.toggle('mobile-expanded');
+  });
+
+  node.addEventListener('touchstart', (event) => {
+    if (!isMobile() || event.touches.length !== 1) return;
+    startX = event.touches[0].clientX;
+    startY = event.touches[0].clientY;
+    swiping = true;
+  }, { passive: true });
+
+  node.addEventListener('touchmove', (event) => {
+    if (!swiping || !isMobile() || event.touches.length !== 1) return;
+    const dx = event.touches[0].clientX - startX;
+    const dy = event.touches[0].clientY - startY;
+    if (Math.abs(dx) < 18 || Math.abs(dx) < Math.abs(dy) * 1.3) return;
+    node.classList.toggle('swipe-edit', dx > 42);
+    node.classList.toggle('swipe-delete', dx < -42);
+  }, { passive: true });
+
+  node.addEventListener('touchend', (event) => {
+    if (!swiping || !isMobile()) return;
+    swiping = false;
+    const dx = (event.changedTouches?.[0]?.clientX || startX) - startX;
+    node.classList.remove('swipe-edit', 'swipe-delete');
+    if (Math.abs(dx) < 88) return;
+    if (dx > 0) window.startEditingMobile(item.id);
+    else removeItem(item.id);
+  }, { passive: true });
+}
+
+function initMobileFormComfort() {
+  const sectionFields = [computeFields, networkFields, ramModulesWrap, diskListWrap, nasSharesWrap, nasRaidsWrap].filter(Boolean);
+  sectionFields.forEach((field) => {
+    if (field.querySelector('.mobile-section-toggle')) return;
+    const legend = field.querySelector('legend');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'button secondary mobile-section-toggle';
+    btn.textContent = 'Show details';
+    btn.addEventListener('click', () => {
+      const collapsed = field.classList.toggle('mobile-collapsed');
+      btn.textContent = collapsed ? 'Show details' : 'Hide details';
+    });
+    if (legend) legend.insertAdjacentElement('afterend', btn); else field.prepend(btn);
+    if (field !== networkFields) field.classList.add('mobile-collapsed');
+  });
+
+  form?.addEventListener('focusin', (event) => {
+    if (!isMobile()) return;
+    const target = event.target;
+    if (!target.matches('input, select, textarea')) return;
+    setTimeout(() => target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 160);
+  });
+}
+
+function updateRackMobileSide(side) {
+  currentRackMobileSide = side;
+  const frontBtn = document.getElementById('rack-mobile-front');
+  const rearBtn = document.getElementById('rack-mobile-rear');
+  frontBtn?.classList.toggle('active', side === 'front');
+  rearBtn?.classList.toggle('active', side === 'rear');
+  document.querySelectorAll('.rack-view-col').forEach((col) => {
+    const title = col.querySelector('.rack-view-title')?.textContent?.trim().toLowerCase();
+    col.classList.toggle('mobile-active', title === side);
+  });
+}
+
+function openRackPaletteSheet() {
+  if (!isMobile()) return;
+  document.getElementById('rack-palette')?.classList.add('open');
+}
+
+function closeRackPaletteSheet() {
+  document.getElementById('rack-palette')?.classList.remove('open');
+}
+
+function initMobileRackControls() {
+  document.getElementById('rack-mobile-front')?.addEventListener('click', () => updateRackMobileSide('front'));
+  document.getElementById('rack-mobile-rear')?.addEventListener('click', () => updateRackMobileSide('rear'));
+  document.getElementById('rack-mobile-palette-toggle')?.addEventListener('click', openRackPaletteSheet);
+  document.getElementById('rack-palette-close')?.addEventListener('click', closeRackPaletteSheet);
+
+  const palette = document.getElementById('rack-palette');
+  palette?.addEventListener('click', (event) => {
+    const item = event.target.closest('.rack-palette-item');
+    if (!item || !isMobile()) return;
+    const def = RACK_COMPONENTS.find(c => c.componentType === item.dataset.componentType) || {};
+    rackDragComponent = {
+      componentType: item.dataset.componentType,
+      heightU: parseInt(item.dataset.heightU || def.heightU || '1', 10),
+      label: item.dataset.label || def.label || 'Component',
+      category: def.category || 'compute',
+      multiDevice: def.multiDevice || null,
+      isPDU: !!def.isPDU,
+      isBlank: !!def.isBlank,
+      isPassive: !!def.isPassive,
+      source: 'palette',
+    };
+    palette.querySelectorAll('.rack-palette-item.selected').forEach(el => el.classList.remove('selected'));
+    item.classList.add('selected');
+    showToast('Tap an empty rack slot to place it.');
+    closeRackPaletteSheet();
+  });
+
+  let sideTouchX = 0;
+  const rackViews = document.querySelector('.rack-views-wrap');
+  rackViews?.addEventListener('touchstart', (event) => {
+    if (!isMobile() || event.touches.length !== 1) return;
+    sideTouchX = event.touches[0].clientX;
+  }, { passive: true });
+  rackViews?.addEventListener('touchend', (event) => {
+    if (!isMobile()) return;
+    const dx = (event.changedTouches?.[0]?.clientX || sideTouchX) - sideTouchX;
+    if (Math.abs(dx) < 72) return;
+    updateRackMobileSide(dx < 0 ? 'rear' : 'front');
+  }, { passive: true });
+}
+
+function initMobileDialogSheets() {
+  document.querySelectorAll('dialog.tree-dialog, dialog.rack-form-dialog').forEach((dlg) => {
+    if (dlg.querySelector(':scope > .sheet-handle')) return;
+    const handle = document.createElement('button');
+    handle.type = 'button';
+    handle.className = 'sheet-handle';
+    handle.setAttribute('aria-label', 'Close sheet');
+    handle.addEventListener('click', () => dlg.close());
+    dlg.prepend(handle);
+  });
+}
+
+initMobileFormComfort();
+initMobileRackControls();
+initMobileDialogSheets();
 
 // Theme initialization moved after definitions
 try { initTheme(); } catch(e){ console.error(e); }
