@@ -5309,3 +5309,89 @@ dialog[open] {
     padding-bottom: calc(1rem + env(safe-area-inset-bottom));
   }
 }
+
+/* v44: desktop Config menu matches the grouped two-column action layout. */
+@media (min-width: 1101px) {
+  #config-dialog.tree-dialog[open] {
+    width: min(92vw, 1320px) !important;
+    height: min(86vh, 860px) !important;
+    max-width: min(92vw, 1320px) !important;
+    max-height: min(86vh, 860px) !important;
+    padding: 1.65rem 1.9rem !important;
+  }
+
+  #config-dialog .tree-head {
+    margin-bottom: 1.15rem !important;
+  }
+
+  #config-dialog .config-menu-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.05rem;
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
+  #config-dialog .config-intro,
+  #config-dialog .config-section-title,
+  #config-dialog .config-menu-grid > .button,
+  #config-dialog .config-menu-row > .button,
+  #config-dialog .config-menu-row > .file-label {
+    min-height: 52px;
+    border-radius: 14px;
+  }
+
+  #config-dialog .config-intro {
+    display: flex;
+    align-items: center;
+    margin: 0 !important;
+    padding: 0 1.1rem !important;
+  }
+
+  #config-dialog .config-menu-row {
+    display: grid;
+    gap: 1.35rem;
+    width: 100%;
+  }
+
+  #config-dialog .config-menu-row-two {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #config-dialog .config-section-title {
+    display: flex;
+    align-items: center;
+    padding: 0 1.1rem;
+    margin-top: 1.2rem;
+    border: 2px solid var(--border);
+    background: var(--panel);
+    font-weight: 800;
+  }
+
+  #config-dialog .config-wide-action {
+    width: 100%;
+  }
+
+  #config-dialog .config-menu-grid .button,
+  #config-dialog .config-menu-grid .file-label {
+    width: 100%;
+    justify-content: center;
+  }
+
+  #config-dialog .stack,
+  #config-dialog .config-content,
+  #config-dialog .legend {
+    display: none !important;
+  }
+
+  #config-dialog .dialog-footer {
+    border-top: 2px solid var(--border);
+    padding-top: 0.9rem;
+    margin-top: auto !important;
+  }
+
+  #config-dialog .dialog-footer .button {
+    min-height: 52px;
+    width: 100%;
+  }
+}

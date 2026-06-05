@@ -877,6 +877,8 @@ Connected devices are listed on hardware cards</pre>
       </ol>
       <h2>Expiration</h2>
       <p>Every API key has an expiration date. The longest supported lifetime is one year. Expired keys are rejected by the backend and should be revoked or replaced.</p>
+      <h2>Backup and Restore</h2>
+      <p>API keys are secrets and are never included in Labby config exports. They cannot be imported through Config Import. After restoring a Labby backup, create new API keys for every trusted agent.</p>
       <h2>Scopes</h2>
       <table>
         <thead><tr><th>Scope</th><th>Purpose</th></tr></thead>
@@ -943,6 +945,7 @@ Summarize all planned changes before writing them.</pre>
       <p>In the public demo, API key management is shown for evaluation. External network access is intended for the self-hosted backend.</p>
       <h2>Security Notes</h2>
       <ul>
+        <li>API keys are not exported or imported by Labby backups.</li>
         <li>Use one key per agent.</li>
         <li>Grant only the scopes that the agent needs.</li>
         <li>Use the shortest practical expiration.</li>
@@ -1051,11 +1054,14 @@ Summarize all planned changes before writing them.</pre>
         <li>Racks and rack layouts</li>
         <li>Custom themes</li>
         <li>Active selected theme</li>
+        <li>Live status data submitted by agents</li>
         <li>Tutorial state and export metadata</li>
       </ul>
+      <p><strong>API keys are never exported.</strong> They are secret credentials and must be recreated after a restore.</p>
       <h2>Import Config</h2>
       <pre>Config → Import Config</pre>
-      <p>Import restores Labby JSON backups on both desktop and mobile. Full config exports include resources, locations, racks and themes.</p>
+      <p>Import restores Labby JSON backups on both desktop and mobile. Full config exports include resources, locations, racks, themes and agent-submitted status data.</p>
+      <p>Config Import does not import API keys. Existing API keys on the server stay unchanged, and restored systems need new keys for automation agents.</p>
       <h2>Clear All</h2>
       <p><strong>Clear All</strong> removes the current inventory and should only be used after exporting a backup.</p>
       <h2>Tutorial</h2>
@@ -1076,7 +1082,7 @@ Summarize all planned changes before writing them.</pre>
   alpine tar xzf /backup/labby-backup.tar.gz -C /</pre>
       <h2>App-Level Backup</h2>
       <pre>Config → Export Config</pre>
-      <p>This is the easiest portable backup. It contains inventory, locations, racks, themes and active theme.</p>
+      <p>This is the easiest portable backup. It contains inventory, locations, racks, themes and active theme. API keys are never part of app-level exports.</p>
       <h2>Demo Backup</h2>
       <p>The demo stores changes in your browser only. Use Export Config before clearing browser storage or loading the demo seed again.</p>
     `},
