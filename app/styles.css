@@ -4019,3 +4019,412 @@ dialog.rack-form-dialog:not([open]) {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* ================================================================
+   v13: real mobile theme customizer and simplified desktop rack workspace.
+   ================================================================ */
+@media (max-width: 1100px) {
+  /* The Customize tab is rendered with tb-* classes, so optimize those directly. */
+  #mobile-theme-body #theme-tab-customize {
+    padding: 0 !important;
+  }
+
+  #mobile-theme-body #theme-customize-body.theme-builder-body {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.9rem !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 0 calc(120px + env(safe-area-inset-bottom)) !important;
+  }
+
+  #mobile-theme-body .tb-base-row {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.45rem !important;
+    padding: 0.8rem !important;
+    border: 3px solid var(--line) !important;
+    border-radius: 20px !important;
+    background: var(--panel) !important;
+    color: var(--muted) !important;
+  }
+
+  #mobile-theme-body .tb-base-row input[type='text'] {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 54px !important;
+    padding: 0.65rem 0.8rem !important;
+    border: 3px solid var(--line) !important;
+    border-radius: 16px !important;
+    background: var(--phone) !important;
+    color: var(--text) !important;
+    font-size: 16px !important;
+  }
+
+  #mobile-theme-body .tb-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.75rem !important;
+    width: 100% !important;
+  }
+
+  #mobile-theme-body .tb-color-row {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.5rem !important;
+    min-height: 112px !important;
+    padding: 0.7rem !important;
+    border: 3px solid var(--line) !important;
+    border-radius: 20px !important;
+    background: var(--panel) !important;
+    align-items: stretch !important;
+  }
+
+  #mobile-theme-body .tb-color-row input[type='color'] {
+    order: 1 !important;
+    width: 100% !important;
+    height: 54px !important;
+    border: 3px solid var(--line) !important;
+    border-radius: 14px !important;
+    background: var(--phone) !important;
+  }
+
+  #mobile-theme-body .tb-color-row span {
+    order: 2 !important;
+    min-height: 2.2em !important;
+    color: var(--muted) !important;
+    font-size: 0.78rem !important;
+    line-height: 1.2 !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  #mobile-theme-body .tb-actions {
+    position: sticky !important;
+    bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+    display: block !important;
+    margin-top: 0.25rem !important;
+    padding: 0.55rem !important;
+    border: 3px solid var(--line) !important;
+    border-radius: 22px !important;
+    background: color-mix(in srgb, var(--phone) 96%, white) !important;
+    box-shadow: 0 18px 42px rgba(0,0,0,0.18) !important;
+    z-index: 5 !important;
+  }
+
+  #mobile-theme-body .tb-actions .button,
+  #mobile-theme-body .tb-actions #tb-save {
+    width: 100% !important;
+    min-height: 56px !important;
+    border-radius: 18px !important;
+    background: var(--yellow) !important;
+    font-size: 0.95rem !important;
+  }
+}
+
+@media (max-width: 520px) {
+  #mobile-theme-body .tb-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (min-width: 1101px) {
+  /* Rack is a native full-screen workspace on desktop: no app header overlap, no card-in-card shell. */
+  #rack-overview.rack-overlay,
+  #rack-editor.rack-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 180 !important;
+    width: auto !important;
+    height: auto !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: var(--bg) !important;
+    overflow: hidden !important;
+  }
+
+  #rack-overview.rack-overlay::before,
+  #rack-editor.rack-overlay::before {
+    display: none !important;
+  }
+
+  #rack-overview .rack-overview-body {
+    height: 100dvh !important;
+    max-height: none !important;
+    overflow: auto !important;
+    padding: clamp(1rem, 2vw, 2rem) clamp(1.4rem, 4vw, 5rem) !important;
+    background: var(--bg) !important;
+  }
+
+  #rack-overview .rack-overview-inner {
+    width: min(1500px, 100%) !important;
+    margin: 0 auto !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 1rem !important;
+    flex: none !important;
+  }
+
+  #rack-overview .rack-ov-topbar {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 4 !important;
+    padding: 0.35rem 0 0.9rem !important;
+    background: var(--bg) !important;
+    border-bottom: 3px solid var(--line) !important;
+  }
+
+  #rack-overview .rack-ov-title {
+    font-size: 1.05rem !important;
+  }
+
+  #rack-overview .rack-ov-actions .button {
+    min-height: 38px !important;
+    padding: 0.38rem 0.7rem !important;
+  }
+
+  #rack-overview .rack-ov-panel {
+    display: grid !important;
+    grid-template-columns: 280px minmax(0, 1fr) !important;
+    gap: 1rem !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  #rack-overview .rack-location-bar {
+    align-content: start !important;
+    align-self: start !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.5rem !important;
+    padding: 0.9rem !important;
+    border: 3px solid var(--line) !important;
+    border-radius: 18px !important;
+    background: var(--phone) !important;
+    box-shadow: var(--shadow) !important;
+  }
+
+  #rack-overview .rack-location-bar select,
+  #rack-overview .rack-location-bar .button {
+    width: 100% !important;
+    min-height: 40px !important;
+  }
+
+  #rack-overview .rack-cards-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+    align-content: start !important;
+    gap: 0.9rem !important;
+  }
+
+  #rack-overview .rack-card {
+    min-height: 120px !important;
+    padding: 1rem !important;
+    border: 3px solid var(--line) !important;
+    border-radius: 18px !important;
+    background: var(--phone) !important;
+  }
+
+  #rack-overview .rack-empty-state {
+    grid-column: 1 / -1 !important;
+    min-height: 320px !important;
+    border: 3px dashed var(--line) !important;
+    border-radius: 22px !important;
+    background: color-mix(in srgb, var(--panel) 70%, transparent) !important;
+  }
+
+  #rack-editor .rack-overlay-head {
+    flex: 0 0 58px !important;
+    min-height: 58px !important;
+    padding: 0.55rem clamp(1rem, 2vw, 2rem) !important;
+    border-bottom: 3px solid var(--line) !important;
+    background: var(--phone) !important;
+  }
+
+  #rack-editor .rack-editor-body {
+    height: calc(100dvh - 58px) !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: clamp(210px, 14vw, 300px) minmax(0, 1fr) !important;
+    overflow: hidden !important;
+    background: var(--bg) !important;
+  }
+
+  #rack-editor .rack-palette {
+    width: auto !important;
+    height: 100% !important;
+    border-right: 3px solid var(--line) !important;
+    background: var(--phone) !important;
+  }
+
+  #rack-editor .rack-views-wrap {
+    height: 100% !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(360px, 1fr)) !important;
+    gap: clamp(1rem, 2vw, 2rem) !important;
+    align-content: start !important;
+    justify-content: stretch !important;
+    padding: clamp(1rem, 2vw, 2.2rem) !important;
+    overflow: auto !important;
+  }
+
+  #rack-editor .rack-view-col {
+    min-width: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+    flex: none !important;
+  }
+
+  #rack-editor .rack-frame {
+    width: 100% !important;
+    border: 3px solid var(--line) !important;
+    border-radius: 18px !important;
+    background: var(--panel) !important;
+    box-shadow: var(--shadow) !important;
+  }
+}
+
+/* ================================================================
+   v14: mobile Themes uses two-column selection/customize grid.
+   Name + Save stay full width for faster one-handed editing.
+   ================================================================ */
+@media (max-width: 1100px) {
+  #mobile-theme-body {
+    padding-inline: clamp(1rem, 4vw, 1.4rem) !important;
+  }
+
+  /* Default theme selection: two calm columns instead of a long single list. */
+  #mobile-theme-body .theme-picker-grid,
+  #mobile-theme-body #theme-tab-themes .theme-picker-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.75rem !important;
+    width: 100% !important;
+  }
+
+  #mobile-theme-body .theme-swatch {
+    min-width: 0 !important;
+    padding: 0.65rem !important;
+    border-radius: 18px !important;
+  }
+
+  #mobile-theme-body .theme-swatch-preview {
+    height: 54px !important;
+    min-height: 54px !important;
+    border-radius: 14px !important;
+  }
+
+  #mobile-theme-body .theme-swatch-name {
+    font-size: 0.78rem !important;
+    line-height: 1.2 !important;
+  }
+
+  /* Customize: name input is the full-width first row. */
+  #mobile-theme-body #theme-customize-body.theme-builder-body {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem !important;
+    width: 100% !important;
+    padding-bottom: calc(112px + env(safe-area-inset-bottom)) !important;
+  }
+
+  #mobile-theme-body .tb-base-row {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.5rem !important;
+    padding: 0.75rem !important;
+  }
+
+  #mobile-theme-body .tb-base-row input[type='text'],
+  #mobile-theme-body #tb-name {
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 54px !important;
+    font-size: 16px !important;
+  }
+
+  /* Color controls stay two-column even on narrow phones. */
+  #mobile-theme-body .tb-grid,
+  #mobile-theme-body .theme-color-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.65rem !important;
+    width: 100% !important;
+  }
+
+  #mobile-theme-body .tb-color-row,
+  #mobile-theme-body .theme-color-field {
+    min-width: 0 !important;
+    min-height: 96px !important;
+    padding: 0.6rem !important;
+    border-radius: 18px !important;
+  }
+
+  #mobile-theme-body .tb-color-row input[type='color'],
+  #mobile-theme-body .theme-color-field input[type='color'] {
+    width: 100% !important;
+    height: 48px !important;
+    min-height: 48px !important;
+  }
+
+  #mobile-theme-body .tb-color-row span,
+  #mobile-theme-body .theme-color-field span,
+  #mobile-theme-body .theme-color-label {
+    font-size: 0.72rem !important;
+    line-height: 1.15 !important;
+    min-height: 2em !important;
+  }
+
+  /* Save stays a full-width sticky action. */
+  #mobile-theme-body .tb-actions,
+  #mobile-theme-body .theme-custom-wrap .theme-actions {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    position: sticky !important;
+    bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+    margin-top: 0.1rem !important;
+    padding: 0.55rem !important;
+    border-radius: 20px !important;
+    z-index: 10 !important;
+  }
+
+  #mobile-theme-body .tb-actions #tb-save,
+  #mobile-theme-body .tb-actions .button,
+  #mobile-theme-body .theme-custom-wrap .theme-actions .button,
+  #mobile-theme-body .theme-custom-wrap .theme-actions .primary-btn {
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 56px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  #mobile-theme-body .theme-picker-grid,
+  #mobile-theme-body #theme-tab-themes .theme-picker-grid,
+  #mobile-theme-body .tb-grid,
+  #mobile-theme-body .theme-color-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 360px) {
+  #mobile-theme-body .theme-picker-grid,
+  #mobile-theme-body #theme-tab-themes .theme-picker-grid,
+  #mobile-theme-body .tb-grid,
+  #mobile-theme-body .theme-color-grid {
+    gap: 0.45rem !important;
+  }
+
+  #mobile-theme-body .tb-color-row,
+  #mobile-theme-body .theme-color-field,
+  #mobile-theme-body .theme-swatch {
+    padding: 0.45rem !important;
+  }
+}
