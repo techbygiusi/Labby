@@ -81,11 +81,13 @@
     }
 
     /* ── layout helpers ── */
-    .wrap { width: min(90vw, 1100px); margin: 0 auto; }
+    .wrap { width: min(calc(100% - 2rem), 1100px); margin: 0 auto; }
 
 
     /* ── shared chrome sizing ── */
     body > nav {
+      width: 100%;
+      max-width: 100%;
       padding: 1.1rem 0;
     }
     body > nav > .wrap,
@@ -93,11 +95,16 @@
       min-height: 38px;
     }
     body > footer {
+      width: 100%;
+      max-width: 100%;
       padding: 1rem 0;
     }
 
     /* ── nav ── */
     nav {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: clip;
       padding: 1.1rem 0;
       border-bottom: 3px solid var(--line);
       background: color-mix(in srgb, var(--phone) 92%, white);
@@ -107,6 +114,7 @@
       box-shadow: 0 4px 18px rgba(0,0,0,.08);
     }
     nav .wrap {
+      min-width: 0;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -366,11 +374,15 @@
 
     /* ── footer ── */
     footer {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: clip;
       border-top: 3px solid var(--line);
       padding: 1rem 0;
       background: color-mix(in srgb, var(--phone) 92%, white);
     }
     footer .wrap {
+      min-width: 0;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -415,12 +427,26 @@
     .theme-toggle:hover { transform: translateY(-1px); }
     .theme-toggle:active { transform: translateY(1px); }
 
-    /* ── mobile nav improvements ── */
-    @media (max-width: 520px) {
+    /* ── mobile chrome ── */
+    @media (max-width: 640px) {
       nav .wrap { gap: .5rem; }
-      .nav-links { gap: .35rem; }
-      .nav-links .btn { padding: .38rem .6rem; font-size: .72rem; }
-      .nav-links .btn svg { display: none; }
+      .nav-brand { display: none; }
+      .wrap { width: min(calc(100% - 1.25rem), 1100px); }
+      .nav-links, .footer-links { gap: .45rem; }
+      .nav-links .btn,
+      .nav-links .theme-toggle,
+      .footer-links .btn {
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        justify-content: center;
+        gap: 0;
+      }
+      .nav-links .btn-label,
+      .nav-links #toggle-label,
+      .footer-links .btn-label { display: none; }
+      .nav-links svg,
+      .footer-links svg { display: block; }
     }
 
     @media (max-width: 640px) {
@@ -436,12 +462,12 @@
       .cta-card { padding: 2rem 1.2rem; }
       .cta-btns .btn { width: 100%; justify-content: center; }
       .cta-btns { flex-direction: column; align-items: stretch; }
-      footer .wrap { flex-direction: column; align-items: flex-start; }
+      footer .wrap { flex-direction: column; align-items: flex-end; text-align: right; }
       pre { font-size: .72rem; padding: .85rem .9rem; }
     }
 
     @media (max-width: 400px) {
-      .wrap { width: 95vw; }
+      .wrap { width: min(calc(100% - 1.25rem), 1100px); }
       .nav-brand .nav-name { display: none; }
     }
   </style>
@@ -457,15 +483,15 @@
     <div class="nav-links">
       <a class="btn btn-secondary" href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-        GitHub
+        <span class="btn-label">GitHub</span>
       </a>
-      <a class="btn btn-primary" href="/demo/">🚀 Live Demo</a>
-      <a class="btn btn-secondary" href="wiki.html">📚 Wiki</a>
+      <a class="btn btn-primary" href="/demo/" aria-label="Live Demo"><span class="btn-icon">🚀</span><span class="btn-label">Live Demo</span></a>
+      <a class="btn btn-secondary" href="wiki.html" aria-label="Wiki"><span class="btn-icon">📚</span><span class="btn-label">Wiki</span></a>
       <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">
         <svg id="toggle-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
         </svg>
-        <span id="toggle-label">Dark</span>
+        <span id="toggle-label" class="btn-label">Dark</span>
       </button>
     </div>
   </div>
@@ -653,11 +679,11 @@ docker compose up --build -d</pre>
       © <a href="https://github.com/techbygiusi" target="_blank" rel="noopener">TechByGiusi</a> -MIT License
     </p>
     <div class="footer-links">
-      <a class="btn btn-secondary" href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener" style="padding:.35rem .75rem;font-size:.72rem">
+      <a class="btn btn-secondary" href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-        GitHub
+        <span class="btn-label">GitHub</span>
       </a>
-      <a class="btn btn-primary" href="/demo/" style="padding:.35rem .75rem;font-size:.72rem">🚀 Live Demo</a>
+      <a class="btn btn-primary" href="/demo/" aria-label="Live Demo"><span class="btn-icon">🚀</span><span class="btn-label">Live Demo</span></a>
     </div>
   </div>
 </footer>

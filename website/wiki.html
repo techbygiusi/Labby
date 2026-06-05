@@ -80,11 +80,13 @@
       pointer-events: none;
     }
 
-    .wrap { width: min(90vw, 1100px); margin: 0 auto; }
+    .wrap { width: min(calc(100% - 2rem), 1100px); margin: 0 auto; }
 
 
     /* ── shared chrome sizing ── */
     body > nav {
+      width: 100%;
+      max-width: 100%;
       padding: 1.1rem 0;
     }
     body > nav > .wrap,
@@ -92,12 +94,17 @@
       min-height: 38px;
     }
     body > footer {
+      width: 100%;
+      max-width: 100%;
       padding: 1rem 0;
     }
 
     /* ── nav ── */
     nav {
-      padding: 1rem 0;
+      width: 100%;
+      max-width: 100%;
+      overflow-x: clip;
+      padding: 1.1rem 0;
       border-bottom: 3px solid var(--line);
       background: color-mix(in srgb, var(--phone) 92%, white);
       position: sticky;
@@ -106,7 +113,7 @@
       box-shadow: 0 4px 18px rgba(0,0,0,.08);
       transition: background .25s ease, border-color .25s ease;
     }
-    nav .wrap { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+    nav .wrap { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
     .nav-brand { display: flex; align-items: center; gap: .65rem; text-decoration: none; }
     .nav-name { font: 700 1rem/1 'Space Mono', monospace; color: var(--text); }
     .nav-badge {
@@ -147,12 +154,16 @@
 
     /* ── footer ── */
     footer {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: clip;
       border-top: 3px solid var(--line);
       padding: 1rem 0;
       background: color-mix(in srgb, var(--phone) 92%, white);
       transition: background .25s ease, border-color .25s ease;
     }
     footer .wrap {
+      min-width: 0;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -171,9 +182,10 @@
 
     .wiki-layout {
       display: grid;
-      grid-template-columns: 220px 1fr;
+      grid-template-columns: 220px minmax(0, 1fr);
       gap: 1.5rem;
       align-items: start;
+      min-width: 0;
     }
 
     .wiki-sidebar {
@@ -208,6 +220,9 @@
       border-radius: 16px;
       padding: 2rem 2.2rem;
       min-height: 420px;
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
       font-size: .9rem;
       line-height: 1.7;
       transition: background .25s ease, border-color .25s ease;
@@ -219,15 +234,15 @@
       padding-bottom: .3rem;
       border-bottom: 2px solid color-mix(in srgb, var(--line) 15%, transparent);
     }
-    .wiki-content p  { margin: 0 0 .75rem; }
+    .wiki-content p  { margin: 0 0 .75rem; overflow-wrap: anywhere; }
     .wiki-content ul, .wiki-content ol { margin: 0 0 .75rem 1.3rem; }
-    .wiki-content li { margin-bottom: .25rem; }
+    .wiki-content li { margin-bottom: .25rem; overflow-wrap: anywhere; }
     .wiki-pre-wrap { position: relative; margin: .65rem 0; }
     .wiki-content pre {
       background: var(--text); color: var(--bg);
       border-radius: 10px; padding: .85rem 3.2rem .85rem 1rem;
       font: 600 .76rem/1.5 'Space Mono', monospace;
-      overflow-x: auto; border: 2px solid var(--line);
+      overflow-x: auto; max-width: 100%; border: 2px solid var(--line);
       margin: 0;
     }
     .wiki-copy-btn {
@@ -257,9 +272,11 @@
     .wiki-drawer-overlay { display: none; }
 
     @media (max-width: 820px) {
-      .wiki-layout { grid-template-columns: 1fr; }
+      .wrap { width: min(calc(100% - 2rem), 1100px); }
+      .wiki-page { padding: 2rem 0 3.5rem; }
+      .wiki-layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
       .wiki-sidebar { display: none; }
-      .wiki-content { padding: 1.3rem 1.1rem; }
+      .wiki-content { width: 100%; padding: 1.3rem 1.1rem; }
 
       .wiki-drawer { display: block; }
 
@@ -355,8 +372,26 @@
       .wiki-drawer .wiki-nav-link.active { background: var(--yellow); border-color: var(--line); }
     }
 
-    @media (max-width: 520px) {
-      .btn-label { display: none; }
+    @media (max-width: 640px) {
+      nav .wrap { gap: .5rem; }
+      .nav-brand { display: none; }
+      .wrap { width: min(calc(100% - 1.25rem), 1100px); }
+      .nav-links, .footer-links { gap: .45rem; }
+      .nav-links .btn,
+      .nav-links .theme-toggle,
+      .footer-links .btn {
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        justify-content: center;
+        gap: 0;
+      }
+      .nav-links .btn-label,
+      .nav-links #toggle-label,
+      .footer-links .btn-label { display: none; }
+      .nav-links svg,
+      .footer-links svg { display: block; }
+      footer .wrap { flex-direction: column; align-items: flex-end; text-align: right; }
     }
   </style>
 </head>
@@ -716,9 +751,9 @@ Hosted on: docker-01</pre>
     <div class="footer-links">
       <a class="btn btn-secondary" href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-        GitHub
+        <span class="btn-label">GitHub</span>
       </a>
-      <a class="btn btn-primary" href="/demo/">🚀 Live Demo</a>
+      <a class="btn btn-primary" href="/demo/" aria-label="Live Demo"><span class="btn-icon">🚀</span><span class="btn-label">Live Demo</span></a>
     </div>
   </div>
 </footer>
