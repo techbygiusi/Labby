@@ -26,7 +26,7 @@ Self-host it with Docker and keep your homelab map available from every browser 
 <table>
   <tr>
     <td align="center">
-      <img width="1920" height="1080" alt="Screenshot 2026-06-04 121522" src="https://github.com/user-attachments/assets/ce9f13f0-0fbf-418b-8897-fe25348daa69" />
+      <img width="1920" height="1080" alt="labby-topology" src="https://github.com/user-attachments/assets/1df3a23b-14ce-4a67-ae5a-73d48adb2237" />
       <br/>
       <sub><b>Dashboard</b></sub>
     </td>
@@ -38,17 +38,17 @@ Self-host it with Docker and keep your homelab map available from every browser 
 <table>
   <tr>
     <td width="33%" align="center">
-      <img width="100%" src="https://github.com/user-attachments/assets/341270a2-fafa-44ff-b69a-339b530466f0" />
+      <img alt="labby-mobile-startscreen" src="https://github.com/user-attachments/assets/a485c373-dc5b-4a66-af78-461450831d90" />
       <br/>
       <sub><b>Dashboard</b></sub>
     </td>
     <td width="33%" align="center">
-      <img width="100%" src="https://github.com/user-attachments/assets/6d05ed2a-091c-4606-8d56-56818e5c29ec" />
+      <img alt="labby-mobile-ip-view" src="https://github.com/user-attachments/assets/4e8b2eb8-bde8-4cd4-aad2-e898a72c8b43" />
       <br/>
       <sub><b>IP View</b></sub>
     </td>
     <td width="33%" align="center">
-      <img width="100%" src="https://github.com/user-attachments/assets/76ede22a-9953-4e7e-ad38-2c04751b85a2" />
+      <img alt="labby-mobile-config" src="https://github.com/user-attachments/assets/dcb54b1a-d0f5-4cc0-9431-4c180b761c20" />
       <br/>
       <sub><b>Config View</b></sub>
     </td>
@@ -84,7 +84,7 @@ Self-host it with Docker and keep your homelab map available from every browser 
 - 🔗 **Clickable web URLs** open apps and devices directly from their card
 - 🧷 Relationship metadata for hosted resources and connected devices
 
-<img width="1920" height="1080" alt="Screenshot 2026-06-04 121546" src="https://github.com/user-attachments/assets/3d7ee761-db8b-4da3-9700-3602c971d419" />
+<img width="1920" height="1080" alt="labby-graph-view" src="https://github.com/user-attachments/assets/7b72df1e-aae7-4409-b650-93be698d7cf6" />
 
 ---
 
@@ -168,7 +168,7 @@ Self-host it with Docker and keep your homelab map available from every browser 
 - 🗄️ Data stored server-side in the main self-hosted version
 - 📦 Old localStorage exports can be imported directly
 
-<img width="1920" height="1080" alt="Screenshot 2026-06-04 121528" src="https://github.com/user-attachments/assets/966f673f-731f-46ae-89be-b9bf32a04008" />
+<img width="1920" height="1080" alt="labby-config" src="https://github.com/user-attachments/assets/a81a9cdc-a2d8-42db-a9d7-4fbdc64f5aa6" />
 
 ---
 
