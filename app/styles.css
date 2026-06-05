@@ -4988,3 +4988,88 @@ dialog[open] {
     font-size: 0.72rem;
   }
 }
+
+/* ================================================================
+   v30 demo: reserve space for demo banner above fixed app views.
+   The demo banner is part of the demo shell, so every fixed mobile
+   page and rack workspace must start below it instead of rendering
+   underneath it.
+   ================================================================ */
+:root {
+  --demo-banner-h: 38px;
+}
+
+.demo-banner {
+  box-sizing: border-box !important;
+  min-height: var(--demo-banner-h) !important;
+  height: var(--demo-banner-h) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 1rem !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+@media (min-width: 1101px) {
+  #rack-overview.rack-overlay,
+  #rack-editor.rack-overlay {
+    top: var(--demo-banner-h) !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: calc(100dvh - var(--demo-banner-h)) !important;
+    min-height: 0 !important;
+  }
+
+  #rack-overview .rack-overview-body {
+    height: calc(100dvh - var(--demo-banner-h)) !important;
+  }
+
+  #rack-editor .rack-editor-body {
+    max-height: calc(100dvh - var(--demo-banner-h) - 56px) !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  :root {
+    --demo-banner-h: calc(36px + env(safe-area-inset-top));
+  }
+
+  .demo-banner {
+    font-size: 0.68rem !important;
+    padding: env(safe-area-inset-top) 0.75rem 0 !important;
+    line-height: 1.1 !important;
+  }
+
+  .mobile-view,
+  .rack-overlay {
+    top: var(--demo-banner-h) !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: calc(100dvh - var(--demo-banner-h)) !important;
+    min-height: calc(100dvh - var(--demo-banner-h)) !important;
+    max-height: calc(100dvh - var(--demo-banner-h)) !important;
+  }
+
+  .mobile-view-head,
+  .rack-ov-topbar,
+  .rack-overlay-head,
+  .panel-center > .panel-head {
+    padding-top: 0 !important;
+  }
+
+  .mobile-sheet {
+    top: var(--demo-banner-h) !important;
+    height: calc(100dvh - var(--demo-banner-h)) !important;
+  }
+
+  dialog.theme-picker-dialog[open] {
+    top: var(--demo-banner-h) !important;
+    height: calc(100dvh - var(--demo-banner-h)) !important;
+    max-height: calc(100dvh - var(--demo-banner-h)) !important;
+    padding-top: 0 !important;
+  }
+}
