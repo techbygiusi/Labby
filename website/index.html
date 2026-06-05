@@ -21,6 +21,11 @@
       --mint:   #b8efca;
       --blue:   #b8d9ff;
       --shadow: 0 14px 28px rgba(22,25,36,.14);
+      --code-bg: #202126;
+      --code-fg: #ece9df;
+      --code-border: #2e2f36;
+      --code-btn-bg: #f5f1e7;
+      --code-btn-fg: #202126;
     }
 
     [data-theme="dark"] {
@@ -35,6 +40,11 @@
       --mint:   #352d48;
       --blue:   #38304c;
       --shadow: 0 16px 34px rgba(10,6,18,.65);
+      --code-bg: #202126;
+      --code-fg: #ece9df;
+      --code-border: #5c4d7a;
+      --code-btn-bg: #f5f1e7;
+      --code-btn-fg: #202126;
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -314,35 +324,39 @@
     .step-text strong { color: var(--text); font-weight: 700; }
     .code-block {
       position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: .45rem;
     }
     pre {
-      background: var(--text);
-      color: var(--bg);
+      background: var(--code-bg);
+      color: var(--code-fg);
       border-radius: 12px;
-      padding: 1rem 3.5rem 1rem 1.2rem;
+      padding: 1rem 1.2rem;
       font: 600 .83rem/1.55 'Space Mono', monospace;
       overflow-x: auto;
-      border: 2px solid var(--line);
+      border: 2px solid var(--code-border);
+      scrollbar-gutter: stable;
     }
     .copy-btn {
-      position: absolute;
-      top: .6rem;
-      right: .6rem;
-      border: 2px solid rgba(255,255,255,.2);
+      align-self: flex-end;
+      border: 2px solid var(--code-border);
       border-radius: 8px;
-      background: rgba(255,255,255,.1);
-      color: #fff;
+      background: var(--code-btn-bg);
+      color: var(--code-btn-fg);
       font: 700 .72rem/1 'Space Mono', monospace;
-      padding: .3rem .55rem;
+      padding: .36rem .62rem;
       cursor: pointer;
       display: flex;
       align-items: center;
       gap: .3rem;
       transition: background .15s ease, transform .12s ease;
+      box-shadow: 0 2px 0 var(--code-border);
     }
-    .copy-btn:hover { background: rgba(255,255,255,.2); transform: translateY(-1px); }
-    .copy-btn:active { transform: translateY(1px); }
-    .copy-btn.copied { border-color: #b8efca; color: #b8efca; background: rgba(184,239,202,.1); }
+    .copy-btn:hover { background: var(--yellow); transform: translateY(-1px); }
+    .copy-btn:active { transform: translateY(1px); box-shadow: none; }
+    .copy-btn.copied { border-color: #65b57a; color: #1e6a32; background: #b8efca; }
 
     /* ── cta ── */
     .cta {
@@ -464,6 +478,8 @@
       .cta-btns { flex-direction: column; align-items: stretch; }
       footer .wrap { flex-direction: column; align-items: flex-end; text-align: right; }
       pre { font-size: .72rem; padding: .85rem .9rem; }
+      .copy-btn { font-size: 0; padding: .42rem .55rem; }
+      .copy-btn svg { width: 17px; height: 17px; }
     }
 
     @media (max-width: 400px) {

@@ -21,6 +21,11 @@
       --mint:   #b8efca;
       --blue:   #b8d9ff;
       --shadow: 0 14px 28px rgba(22,25,36,.14);
+      --code-bg: #202126;
+      --code-fg: #ece9df;
+      --code-border: #2e2f36;
+      --code-btn-bg: #f5f1e7;
+      --code-btn-fg: #202126;
     }
     [data-theme="dark"] {
       --bg:     #1e1828;
@@ -34,6 +39,11 @@
       --mint:   #352d48;
       --blue:   #38304c;
       --shadow: 0 16px 34px rgba(10,6,18,.65);
+      --code-bg: #202126;
+      --code-fg: #ece9df;
+      --code-border: #5c4d7a;
+      --code-btn-bg: #f5f1e7;
+      --code-btn-fg: #202126;
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -237,27 +247,37 @@
     .wiki-content p  { margin: 0 0 .75rem; overflow-wrap: anywhere; }
     .wiki-content ul, .wiki-content ol { margin: 0 0 .75rem 1.3rem; }
     .wiki-content li { margin-bottom: .25rem; overflow-wrap: anywhere; }
-    .wiki-pre-wrap { position: relative; margin: .65rem 0; }
+    .wiki-pre-wrap {
+      position: relative;
+      margin: .65rem 0;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: .4rem;
+    }
     .wiki-content pre {
-      background: var(--text); color: var(--bg);
-      border-radius: 10px; padding: .85rem 3.2rem .85rem 1rem;
+      background: var(--code-bg); color: var(--code-fg);
+      border-radius: 10px; padding: .85rem 1rem;
       font: 600 .76rem/1.5 'Space Mono', monospace;
-      overflow-x: auto; max-width: 100%; border: 2px solid var(--line);
+      overflow-x: auto; max-width: 100%; border: 2px solid var(--code-border);
       margin: 0;
+      scrollbar-gutter: stable;
     }
     .wiki-copy-btn {
-      position: absolute; top: .5rem; right: .5rem;
-      border: 2px solid rgba(255,255,255,.2); border-radius: 7px;
-      background: rgba(255,255,255,.1); color: #fff;
+      align-self: flex-end;
+      border: 2px solid var(--code-border); border-radius: 7px;
+      background: var(--code-btn-bg); color: var(--code-btn-fg);
       font: 700 .68rem/1 'Space Mono', monospace;
-      padding: .28rem .5rem; cursor: pointer;
+      padding: .32rem .55rem; cursor: pointer;
       display: flex; align-items: center; gap: .25rem;
       transition: background .15s ease, transform .12s ease;
       white-space: nowrap;
+      box-shadow: 0 2px 0 var(--code-border);
+      order: -1;
     }
-    .wiki-copy-btn:hover { background: rgba(255,255,255,.2); transform: translateY(-1px); }
-    .wiki-copy-btn:active { transform: translateY(1px); }
-    .wiki-copy-btn.copied { border-color: #b8efca; color: #b8efca; background: rgba(184,239,202,.12); }
+    .wiki-copy-btn:hover { background: var(--yellow); transform: translateY(-1px); }
+    .wiki-copy-btn:active { transform: translateY(1px); box-shadow: none; }
+    .wiki-copy-btn.copied { border-color: #65b57a; color: #1e6a32; background: #b8efca; }
     .wiki-content code {
       font-family: 'Space Mono', monospace; font-size: .82em;
       background: color-mix(in srgb, var(--line) 10%, transparent);
@@ -265,6 +285,12 @@
     }
     .wiki-content pre code { background: none; padding: 0; font-size: inherit; }
     .wiki-content a { color: var(--text); font-weight: 700; }
+
+    @media (max-width: 640px) {
+      .wiki-copy-btn { font-size: 0; padding: .4rem .52rem; }
+      .wiki-copy-btn svg { width: 17px; height: 17px; }
+      .wiki-content pre { padding: .8rem .9rem; }
+    }
 
     /* ── mobile FAB menu ── */
     .wiki-fab { display: none; }
