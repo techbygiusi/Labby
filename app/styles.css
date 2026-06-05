@@ -5313,10 +5313,10 @@ dialog[open] {
 /* v44: desktop Config menu matches the grouped two-column action layout. */
 @media (min-width: 1101px) {
   #config-dialog.tree-dialog[open] {
-    width: min(92vw, 1320px) !important;
-    height: min(86vh, 860px) !important;
-    max-width: min(92vw, 1320px) !important;
-    max-height: min(86vh, 860px) !important;
+    width: min(1280px, calc(100vw - 96px)) !important;
+    height: min(760px, calc(100dvh - 96px)) !important;
+    max-width: calc(100vw - 96px) !important;
+    max-height: calc(100dvh - 96px) !important;
     padding: 1.65rem 1.9rem !important;
   }
 
@@ -5363,8 +5363,8 @@ dialog[open] {
     align-items: center;
     padding: 0 1.1rem;
     margin-top: 1.2rem;
-    border: 2px solid var(--border);
-    background: var(--panel);
+    border: 3px solid var(--line);
+    background: var(--blue);
     font-weight: 800;
   }
 
