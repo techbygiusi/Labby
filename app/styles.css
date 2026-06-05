@@ -5009,3 +5009,68 @@ dialog.rack-form-dialog:not([open]) {
     white-space: nowrap;
   }
 }
+
+
+/* ── Agent API Access ───────────────────────────────────────────────────── */
+.agent-api-panel {
+  margin-top: 1rem;
+  padding: 0.85rem;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel) 92%, var(--bg));
+}
+.agent-api-panel h3,
+.agent-api-panel h4 { margin: 0 0 0.45rem; }
+.agent-key-form { display: grid; gap: 0.65rem; margin-top: 0.75rem; }
+.agent-key-form label { display: grid; gap: 0.35rem; font-weight: 700; }
+.agent-scope-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 0.45rem;
+}
+.agent-scope-option {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.55rem;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  font: 700 0.72rem/1.2 'Space Mono', monospace;
+}
+.agent-scope-option input { width: 18px; height: 18px; }
+.agent-token-box {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--info);
+  overflow-wrap: anywhere;
+  font: 700 0.76rem/1.45 'Space Mono', monospace;
+}
+.agent-key-list { display: grid; gap: 0.5rem; margin-top: 0.75rem; }
+.agent-key-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.65rem;
+  align-items: center;
+  padding: 0.65rem;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+.agent-key-card strong { display:block; overflow-wrap:anywhere; }
+.agent-key-meta { color: var(--muted); font-size: 0.72rem; line-height: 1.35; }
+.agent-key-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: flex-end; }
+.agent-key-actions .button { min-height: 38px; padding: 0.35rem 0.55rem; }
+@media (max-width: 1100px) {
+  .agent-api-panel { padding: 0.75rem; }
+  .agent-scope-grid { grid-template-columns: 1fr 1fr; }
+  .agent-key-card { grid-template-columns: 1fr; }
+  .agent-key-actions { justify-content: stretch; }
+  .agent-key-actions .button { flex: 1; min-height: 44px; }
+}
+@media (max-width: 520px) {
+  .agent-scope-grid { grid-template-columns: 1fr; }
+}

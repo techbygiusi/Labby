@@ -336,6 +336,20 @@
           <p><span class="dot app"></span> App</p>
           <p><span class="dot network"></span> Network</p>
         </div>
+        <section class="agent-api-panel" aria-label="Agent API Access">
+          <h3>🤖 Agent API Access</h3>
+          <p class="note">Create API keys for trusted automation agents. Keys are shown once when created.</p>
+          <form id="agent-key-form-mobile" class="agent-key-form">
+            <label>Agent name
+              <input id="agent-key-name-mobile" type="text" placeholder="e.g. Hermes" autocomplete="off" />
+            </label>
+            <div class="agent-scope-grid" data-agent-scopes="mobile"></div>
+            <button class="button" type="submit">Create API Key</button>
+          </form>
+          <div id="agent-token-mobile" class="agent-token-box" hidden></div>
+          <div id="agent-key-list-mobile" class="agent-key-list"></div>
+        </section>
+
       </div>
       <div class="mobile-view-footer">
         <button class="button secondary" id="mobile-config-close">← Back to Topology</button>
@@ -401,6 +415,20 @@
           <p><span class="dot app"></span> App</p>
           <p><span class="dot network"></span> Network</p>
         </div>
+        <section class="agent-api-panel" aria-label="Agent API Access">
+          <h4>🤖 Agent API Access</h4>
+          <p class="note">Create API keys for trusted automation agents. Keys are shown once when created.</p>
+          <form id="agent-key-form" class="agent-key-form">
+            <label>Agent name
+              <input id="agent-key-name" type="text" placeholder="e.g. Hermes" autocomplete="off" />
+            </label>
+            <div class="agent-scope-grid" data-agent-scopes="desktop"></div>
+            <button class="button" type="submit">Create API Key</button>
+          </form>
+          <div id="agent-token" class="agent-token-box" hidden></div>
+          <div id="agent-key-list" class="agent-key-list"></div>
+        </section>
+
       </div>
       <div class="dialog-footer">
         <button class="button secondary" onclick="document.getElementById('config-dialog').close()">✕ Close</button>
