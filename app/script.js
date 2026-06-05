@@ -1572,10 +1572,15 @@ function buildGraphView() {
     return wrap;
   }
 
-  const viewportWidth = Math.max(760, treeContent.clientWidth - 30);
-  const viewportHeight = Math.max(460, treeContent.clientHeight - 34);
-  const minWidthForItems = Math.max(680, graphItems.length * 84);
-  const minHeightForItems = Math.max(460, Math.ceil(graphItems.length / 8) * 180);
+  const graphHost = isMobile() ? (document.getElementById('mobile-tree-content') || treeContent) : treeContent;
+  const viewportWidth = Math.max(isMobile() ? 320 : 760, (graphHost?.clientWidth || treeContent.clientWidth || window.innerWidth) - 30);
+  const viewportHeight = Math.max(isMobile() ? 560 : 460, (graphHost?.clientHeight || treeContent.clientHeight || window.innerHeight * 0.65) - 34);
+  const minWidthForItems = isMobile()
+    ? Math.max(viewportWidth, Math.min(1280, graphItems.length * 58))
+    : Math.max(680, graphItems.length * 84);
+  const minHeightForItems = isMobile()
+    ? Math.max(620, Math.ceil(graphItems.length / 6) * 138)
+    : Math.max(460, Math.ceil(graphItems.length / 8) * 180);
   const width = Math.max(viewportWidth, minWidthForItems);
   const height = Math.max(viewportHeight, minHeightForItems);
   canvas.style.setProperty('--graph-width', `${width}px`);
@@ -1642,7 +1647,7 @@ function buildGraphView() {
 
   const rawX = new Map();
   let cursor = 0;
-  const horizontalStep = 108;
+  const horizontalStep = isMobile() ? 132 : 108;
 
   function assignX(nodeId, trail = new Set()) {
     if (rawX.has(nodeId)) return rawX.get(nodeId);
@@ -1703,15 +1708,15 @@ function buildGraphView() {
     const minRawX = Math.min(...allRawX);
     const maxRawX = Math.max(...allRawX);
     const rawSpan = Math.max(1, maxRawX - minRawX);
-    const horizontalPadding = 46;
+    const horizontalPadding = isMobile() ? 82 : 46;
     const usableWidth = Math.max(240, width - horizontalPadding * 2);
     const compress = rawSpan > usableWidth ? usableWidth / rawSpan : 1;
     const finalSpan = rawSpan * compress;
     const startX = (width - finalSpan) / 2;
 
-    const topPadding = 44;
+    const topPadding = isMobile() ? 76 : 44;
     const maxDepth = Math.max(1, Math.max(...depthValues));
-    const layerGap = Math.max(54, Math.round((height - topPadding - 30) / maxDepth));
+    const layerGap = isMobile() ? Math.max(130, Math.round((height - topPadding - 90) / maxDepth)) : Math.max(54, Math.round((height - topPadding - 30) / maxDepth));
 
     graphItems.forEach((item) => {
       const x = startX + (rawX.get(item.id) - minRawX) * compress;
@@ -1950,6 +1955,9 @@ function getGraphBounds(positions, graphItems) {
 }
 
 function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
+  const mobileGraph = isMobile();
+  const minGraphScale = mobileGraph ? 0.68 : 0.22;
+  const maxGraphScale = mobileGraph ? 3.2 : 2.4;
   let scale = 1;
   let panX = 0;
   let panY = 0;
@@ -1980,7 +1988,7 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
 
     const fitScaleX = (viewportW - fitPadding * 2) / focusW;
     const fitScaleY = (viewportH - fitPadding * 2) / focusH;
-    scale = Math.max(0.22, Math.min(1, fitScaleX, fitScaleY));
+    scale = Math.max(minGraphScale, Math.min(1, fitScaleX, fitScaleY));
 
     const focusCenterX = Number.isFinite(bounds.focusCenterX)
       ? bounds.focusCenterX
@@ -2013,7 +2021,7 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
     const pointerY = event.clientY - rect.top;
 
     const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;
-    const nextScale = Math.max(0.22, Math.min(2.4, scale * zoomFactor));
+    const nextScale = Math.max(minGraphScale, Math.min(maxGraphScale, scale * zoomFactor));
     if (nextScale === scale) return;
 
     const graphX = (pointerX - panX) / scale;
@@ -2026,7 +2034,6 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
   }, { passive: false });
 
   wrap.addEventListener('pointerdown', (event) => {
-    if (event.pointerType === 'touch') return;
     const target = event.target;
     if (target.closest('.graph-node')) return;
     dragging = true;
@@ -2056,11 +2063,6 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
   let pinchStartDistance = 0;
   let pinchStartScale = 1;
   let pinchCenterGraph = null;
-  let touchPanActive = false;
-  let touchPanStartX = 0;
-  let touchPanStartY = 0;
-  let touchPanBaseX = 0;
-  let touchPanBaseY = 0;
 
   function touchDistance(touches) {
     const dx = touches[0].clientX - touches[1].clientX;
@@ -2076,20 +2078,6 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
   }
 
   wrap.addEventListener('touchstart', (event) => {
-    const target = event.target;
-    touchPanActive = false;
-
-    if (event.touches.length === 1) {
-      if (target.closest('.graph-node, .graph-info-panel')) return;
-      event.preventDefault();
-      touchPanActive = true;
-      touchPanStartX = event.touches[0].clientX;
-      touchPanStartY = event.touches[0].clientY;
-      touchPanBaseX = panX;
-      touchPanBaseY = panY;
-      return;
-    }
-
     if (event.touches.length !== 2) return;
     event.preventDefault();
     const rect = wrap.getBoundingClientRect();
@@ -2100,28 +2088,18 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
   }, { passive: false });
 
   wrap.addEventListener('touchmove', (event) => {
-    if (event.touches.length === 1 && touchPanActive) {
-      event.preventDefault();
-      panX = touchPanBaseX + (event.touches[0].clientX - touchPanStartX);
-      panY = touchPanBaseY + (event.touches[0].clientY - touchPanStartY);
-      applyTransform();
-      return;
-    }
-
     if (event.touches.length !== 2 || !pinchCenterGraph || !pinchStartDistance) return;
     event.preventDefault();
-    touchPanActive = false;
     const rect = wrap.getBoundingClientRect();
     const center = touchCenter(event.touches, rect);
     const ratio = touchDistance(event.touches) / pinchStartDistance;
-    scale = Math.max(0.22, Math.min(2.8, pinchStartScale * ratio));
+    scale = Math.max(minGraphScale, Math.min(maxGraphScale, pinchStartScale * ratio));
     panX = center.x - pinchCenterGraph.x * scale;
     panY = center.y - pinchCenterGraph.y * scale;
     applyTransform();
   }, { passive: false });
 
   wrap.addEventListener('touchend', (event) => {
-    if (event.touches.length === 0) touchPanActive = false;
     if (event.touches.length !== 2) {
       pinchStartDistance = 0;
       pinchCenterGraph = null;
@@ -2893,7 +2871,7 @@ if (navAdd) navAdd.addEventListener('click', () => {
   const body = document.getElementById('mobile-form-body');
   const formEl = document.getElementById('resource-form');
   if (body && formEl && !body.contains(formEl)) body.appendChild(formEl);
-  setTimeout(() => document.getElementById('name').focus(), 50);
+  if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur();
 });
 
 if (navIp) navIp.addEventListener('click', () => {
@@ -3250,6 +3228,12 @@ const rackRear         = document.getElementById('rack-rear');
 const rackPaletteItems = document.getElementById('rack-palette-items');
 const rackFormPageTitle = document.getElementById('rack-form-page-title');
 const rackFormPageBody  = document.getElementById('rack-form-page-body');
+const rackPalette = document.getElementById('rack-palette');
+const rackPaletteBackdrop = document.getElementById('rack-palette-backdrop');
+const rackMobilePaletteFab = document.getElementById('rack-mobile-palette-fab');
+const rackSelectedComponentPill = document.getElementById('rack-selected-component-pill');
+const rackSelectedComponentText = document.getElementById('rack-selected-component-text');
+const rackSelectedComponentClear = document.getElementById('rack-selected-component-clear');
 // rackFormBack removed — dialog now uses inline close buttons
 const phoneGrid         = document.querySelector('.phone-grid');
 
@@ -3262,6 +3246,7 @@ async function saveRackData() { await saveItemsToAPI(items); }
 function showRackOverlay(id) {
   // Only toggle the full-screen overlays — never the form dialog
   [rackOverview, rackEditor].forEach(el => el && el.classList.add('hidden'));
+  if (id !== 'rack-editor') closeRackPaletteSheet();
   if (phoneGrid) phoneGrid.style.display = '';
   if (id) {
     const el = document.getElementById(id);
@@ -3601,6 +3586,8 @@ function openRackEditor(rackId) {
   renderRackDiagram('front');
   renderRackDiagram('rear');
   updateRackMobileSide(currentRackMobileSide || 'front');
+  closeRackPaletteSheet();
+  clearRackComponentSelection();
   equaliseRackHeights();
   showRackOverlay('rack-editor');
 }
@@ -3619,6 +3606,23 @@ function autoSaveRack() {
   if (!rack) return;
   rack.name = rackEditorName.textContent.trim() || rack.name;
   saveRackData();
+}
+
+function clearRackComponentSelection() {
+  rackDragComponent = null;
+  document.querySelectorAll('.rack-palette-item.selected').forEach(el => el.classList.remove('selected'));
+  updateRackSelectedComponentUI();
+}
+
+function updateRackSelectedComponentUI() {
+  if (!rackSelectedComponentPill || !rackSelectedComponentText) return;
+  if (!isMobile() || !rackDragComponent || rackDragComponent.fromSlot) {
+    rackSelectedComponentPill.classList.add('hidden');
+    rackSelectedComponentText.textContent = '';
+    return;
+  }
+  rackSelectedComponentPill.classList.remove('hidden');
+  rackSelectedComponentText.textContent = `${rackDragComponent.label} selected · tap an empty rack slot to place it.`;
 }
 
 // ---- Palette ----
@@ -3717,8 +3721,7 @@ function placeRackComponentAt(side, u, rack) {
   saveRackData();
   renderRackDiagram(side);
   if (!placed.isBlank && !placed.isPassive) showLinkPanel(slotKey, side);
-  rackDragComponent = null;
-  document.querySelectorAll('.rack-palette-item.selected').forEach(el => el.classList.remove('selected'));
+  clearRackComponentSelection();
   closeRackPaletteSheet();
 }
 
@@ -3865,6 +3868,13 @@ function showLinkPanel(slotKey, side) {
   panel.style.width    = frameRect.width + 'px';
   panel.style.top      = (slotRect.bottom) + 'px';
   panel.style.zIndex   = '200';
+  if (isMobile()) {
+    panel.style.left = 'max(10px, env(safe-area-inset-left))';
+    panel.style.right = 'max(10px, env(safe-area-inset-right))';
+    panel.style.width = 'auto';
+    panel.style.top = 'auto';
+    panel.style.bottom = 'max(12px, env(safe-area-inset-bottom))';
+  }
 
   const hardwareItems = items.filter(i => i.type === 'hardware');
 
@@ -4123,21 +4133,25 @@ function updateRackMobileSide(side) {
 
 function openRackPaletteSheet() {
   if (!isMobile()) return;
-  document.getElementById('rack-palette')?.classList.add('open');
+  rackPalette?.classList.add('open');
+  rackPaletteBackdrop?.classList.add('open');
 }
 
 function closeRackPaletteSheet() {
-  document.getElementById('rack-palette')?.classList.remove('open');
+  rackPalette?.classList.remove('open');
+  rackPaletteBackdrop?.classList.remove('open');
 }
 
 function initMobileRackControls() {
   document.getElementById('rack-mobile-front')?.addEventListener('click', () => updateRackMobileSide('front'));
   document.getElementById('rack-mobile-rear')?.addEventListener('click', () => updateRackMobileSide('rear'));
   document.getElementById('rack-mobile-palette-toggle')?.addEventListener('click', openRackPaletteSheet);
+  rackMobilePaletteFab?.addEventListener('click', openRackPaletteSheet);
   document.getElementById('rack-palette-close')?.addEventListener('click', closeRackPaletteSheet);
+  rackPaletteBackdrop?.addEventListener('click', closeRackPaletteSheet);
+  rackSelectedComponentClear?.addEventListener('click', clearRackComponentSelection);
 
-  const palette = document.getElementById('rack-palette');
-  palette?.addEventListener('click', (event) => {
+  rackPalette?.addEventListener('click', (event) => {
     const item = event.target.closest('.rack-palette-item');
     if (!item || !isMobile()) return;
     const def = RACK_COMPONENTS.find(c => c.componentType === item.dataset.componentType) || {};
@@ -4152,9 +4166,10 @@ function initMobileRackControls() {
       isPassive: !!def.isPassive,
       source: 'palette',
     };
-    palette.querySelectorAll('.rack-palette-item.selected').forEach(el => el.classList.remove('selected'));
+    rackPalette.querySelectorAll('.rack-palette-item.selected').forEach(el => el.classList.remove('selected'));
     item.classList.add('selected');
-    showToast('Tap an empty rack slot to place it.');
+    updateRackSelectedComponentUI();
+    showToast('Component selected. Tap an empty rack slot to place it.');
     closeRackPaletteSheet();
   });
 
@@ -4187,6 +4202,7 @@ function initMobileDialogSheets() {
 initMobileFormComfort();
 initMobileRackControls();
 initMobileDialogSheets();
+updateRackSelectedComponentUI();
 
 // Theme initialization moved after definitions
 try { initTheme(); } catch(e){ console.error(e); }

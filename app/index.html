@@ -319,10 +319,7 @@
         <h2>Config</h2>
       </div>
       <div class="mobile-view-body">
-        <div class="config-theme-actions mobile-config-theme-actions">
-          <button id="theme-btn-mobile" class="button secondary" type="button">🎨 Themes</button>
-          <button id="show-tutorial-btn-mobile" class="button secondary" type="button">📖 Tutorial</button>
-        </div>
+        <button id="theme-btn-mobile" class="button secondary" type="button" style="width:100%;margin-bottom:1rem">🎨 Themes</button>
         <p class="note">Backup or move your full homelab map.</p>
         <div class="stack">
           <button id="export-btn-mobile" class="button secondary" type="button">Export Config</button>
@@ -331,6 +328,7 @@
             <input id="import-file-mobile" type="file" accept="application/json" />
           </label>
           <button id="clear-all-mobile" class="button danger" type="button">Clear All</button>
+          <button id="show-tutorial-btn-mobile" class="button secondary" type="button">📖 Tutorial</button>
         </div>
         <div class="legend" style="margin-top:1rem">
           <p><span class="dot hardware"></span> Hardware</p>
@@ -386,10 +384,7 @@
           <input id="import-file" type="file" accept="application/json" />
         </label>
         <button id="clear-all" class="button danger" type="button">Clear All</button>
-        <div class="config-theme-actions">
-          <button id="theme-btn" class="button secondary" type="button">🎨 Themes</button>
-          <button id="show-tutorial-btn" class="button secondary" type="button">📖 Tutorial</button>
-        </div>
+        <button id="theme-btn" class="button secondary" type="button">🎨 Themes</button>
       </div>
       <div class="config-content">
         <div class="legend">
@@ -399,7 +394,31 @@
           <p><span class="dot app"></span> App</p>
           <p><span class="dot network"></span> Network</p>
         </div>
-
+        <section class="config-tutorial" aria-label="Quick tutorial">
+          <h4>Quick Tutorial</h4>
+          <div class="config-tutorial-grid">
+            <article>
+              <strong>1. Add resources</strong>
+              <span>Create hardware, VMs, LXCs, apps and networks from the form.</span>
+            </article>
+            <article>
+              <strong>2. Connect services</strong>
+              <span>Use hosted-on and connection fields to build your homelab map.</span>
+            </article>
+            <article>
+              <strong>3. Check IP View</strong>
+              <span>Find used IPs by subnet, hostname or port without digging through cards.</span>
+            </article>
+            <article>
+              <strong>4. Use Tree / Graph</strong>
+              <span>Visualize relationships between hardware, guests, apps and networks.</span>
+            </article>
+            <article>
+              <strong>5. Backup config</strong>
+              <span>Export and import JSON backups including the active theme.</span>
+            </article>
+          </div>
+        </section>
       </div>
       <div class="dialog-footer">
         <button class="button secondary" onclick="document.getElementById('config-dialog').close()">✕ Close</button>
@@ -513,12 +532,18 @@
         </div>
         <button id="rack-mobile-palette-toggle" class="button" type="button">+ Add Component</button>
       </div>
+      <div id="rack-selected-component-pill" class="rack-selected-component-pill hidden" aria-live="polite">
+        <span id="rack-selected-component-text" class="rack-selected-component-text"></span>
+        <button id="rack-selected-component-clear" class="icon-btn rack-selected-component-clear" type="button" aria-label="Clear selected component">✕</button>
+      </div>
       <div id="rack-editor-body" class="rack-editor-body">
+        <div id="rack-palette-backdrop" class="rack-palette-backdrop"></div>
         <div class="rack-palette" id="rack-palette">
           <button id="rack-palette-close" class="sheet-handle" type="button" aria-label="Close component palette"></button>
           <h3 class="rack-palette-title">Components</h3>
           <div id="rack-palette-items" class="rack-palette-items"></div>
         </div>
+        <button id="rack-mobile-palette-fab" class="rack-mobile-palette-fab" type="button" aria-label="Open component list">≡</button>
         <div class="rack-views-wrap">
           <div class="rack-view-col">
             <h3 class="rack-view-title">Front</h3>

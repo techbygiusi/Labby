@@ -2578,6 +2578,10 @@ dialog[open] {
   background: color-mix(in srgb, var(--line) 60%, transparent);
 }
 
+.rack-selected-component-pill { display: none; }
+.rack-palette-backdrop { display: none; }
+.rack-mobile-palette-fab { display: none; }
+
 @media (max-width: 1100px) {
   html { scroll-behavior: smooth; }
   body {
@@ -2797,34 +2801,101 @@ dialog[open] {
   .rack-mobile-toolbar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 0.6rem;
     padding: 0.55rem 0.75rem;
     border-bottom: 2px solid var(--line);
     background: var(--phone);
   }
+  #rack-mobile-palette-toggle { display: none; }
   .rack-side-tabs { display: flex; gap: 0.35rem; }
   .rack-side-tabs .active { background: var(--yellow); }
+  .rack-selected-component-pill {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin: 0.55rem 0.75rem 0;
+    padding: 0.55rem 0.75rem;
+    border: 2px solid var(--line);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--yellow) 24%, var(--panel));
+  }
+  .rack-selected-component-pill.hidden { display: none; }
+  .rack-selected-component-text {
+    min-width: 0;
+    flex: 1;
+    font-size: 0.9rem;
+    line-height: 1.35;
+  }
+  .rack-selected-component-clear {
+    flex-shrink: 0;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .rack-palette-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 219;
+    background: rgba(0, 0, 0, 0.24);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 260ms ease, visibility 260ms ease;
+  }
+  .rack-palette-backdrop.open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
   .rack-palette {
     position: fixed;
-    left: max(8px, env(safe-area-inset-left));
-    right: max(8px, env(safe-area-inset-right));
-    bottom: max(8px, env(safe-area-inset-bottom));
+    left: 50%;
+    right: auto;
+    top: 50%;
+    bottom: auto;
+    width: min(420px, calc(100vw - 24px));
     z-index: 220;
-    max-height: 78dvh;
+    max-height: min(74dvh, 640px);
     overflow: auto;
     border: 3px solid var(--line);
     border-radius: 26px;
     background: var(--phone);
     box-shadow: 0 24px 60px rgba(0,0,0,0.28);
     padding: 0.55rem 0.8rem 0.9rem;
-    transform: translateY(calc(100% + 26px));
-    transition: transform 280ms ease;
+    transform: translate(-50%, calc(100% + 40px));
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 280ms ease, opacity 220ms ease;
   }
-  .rack-palette.open { transform: translateY(0); }
+  .rack-palette.open {
+    transform: translate(-50%, -50%);
+    opacity: 1;
+    pointer-events: auto;
+  }
   .rack-palette-title { margin-top: 0.2rem; }
   .rack-palette-items { max-height: none; display: grid; gap: 0.5rem; }
   .rack-palette-item.selected { outline: 3px solid var(--accent); background: var(--yellow); }
+  .rack-mobile-palette-fab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    right: calc(max(10px, env(safe-area-inset-right)) + 4px);
+    top: 50%;
+    z-index: 218;
+    width: 58px;
+    height: 58px;
+    border: 3px solid var(--line);
+    border-radius: 999px;
+    background: var(--yellow);
+    color: var(--text);
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.18);
+    transform: translateY(-50%);
+    font-size: 1.45rem;
+    line-height: 1;
+  }
   .rack-views-wrap { display: block; overflow-y: auto; max-height: calc(100dvh - 178px); padding: 0.75rem; }
   .rack-view-col { display: none; }
   .rack-view-col.mobile-active { display: block; }
@@ -2846,37 +2917,221 @@ dialog[open] {
   }
 }
 
-/* Config dialog cleanup: tutorial lives in the existing popup, not inline. */
-#config-dialog {
-  height: auto;
-  min-height: 0;
-}
-
-#config-dialog .config-content {
-  flex: 0 0 auto;
-  min-height: 0;
-  display: block;
-  margin-top: 0.85rem;
-}
-
-.config-theme-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.7rem;
-  width: 100%;
-}
-
-.config-theme-actions .button {
-  width: 100%;
-  min-width: 0;
-}
-
-.mobile-config-theme-actions {
-  margin-bottom: 1rem;
-}
-
-@media (max-width: 520px) {
-  .config-theme-actions {
-    grid-template-columns: 1fr;
+/* ================================================================
+   Mobile fixes v3: rack controls, full theme view, graph readability,
+   and no horizontal start-page scrolling.
+   ================================================================ */
+@media (max-width: 1100px) {
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden !important;
   }
+
+  .app,
+  .panel-center,
+  .phone-grid,
+  .boards,
+  .column,
+  .mobile-view,
+  .mobile-view-body {
+    max-width: 100vw;
+    overflow-x: hidden !important;
+  }
+
+  .boards {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 1rem;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+    scroll-snap-type: none !important;
+    padding: 0 0 1rem;
+  }
+
+  .column {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    flex: none !important;
+    overflow: visible !important;
+  }
+
+  .column h3 {
+    position: static !important;
+    transform: none !important;
+    line-height: 1.1;
+    word-break: break-word;
+  }
+
+  .card,
+  .card * {
+    max-width: 100%;
+  }
+
+  .card-title,
+  .card-desc,
+  .card-meta,
+  .card span,
+  .card p {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* Theme behaves as a full mobile screen, not as a small popup/sheet. */
+  dialog.theme-picker-dialog[open] {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border-inline: 0 !important;
+    padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) calc(88px + env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)) !important;
+    overflow: auto !important;
+  }
+
+  dialog.theme-picker-dialog::backdrop {
+    background: transparent !important;
+  }
+
+  .theme-picker-dialog .dialog-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    background: var(--phone);
+    padding-top: 0.75rem;
+  }
+
+  /* Rack editor: add the missing top border and keep remove buttons reachable. */
+  .rack-overlay {
+    border-top: 3px solid var(--line);
+  }
+
+  .rack-overlay-head {
+    border-top: 0;
+    border-bottom: 3px solid var(--line);
+  }
+
+  .rack-frame {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden;
+    border-top: 3px solid var(--line);
+  }
+
+  .rack-slot {
+    grid-template-columns: 2.4rem minmax(0, 1fr) 3.1rem !important;
+    column-gap: 0.35rem;
+    padding-right: 0.25rem !important;
+    overflow: hidden;
+  }
+
+  .rack-slot-content {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .rack-slot-label,
+  .rack-slot-device,
+  .rack-multi-lines {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .rack-slot-remove {
+    position: static !important;
+    justify-self: end;
+    align-self: center;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    border-radius: 14px;
+    z-index: 3;
+  }
+
+  /* Component assignment as a calm bottom sheet. */
+  .rack-link-panel {
+    left: max(10px, env(safe-area-inset-left)) !important;
+    right: max(10px, env(safe-area-inset-right)) !important;
+    bottom: max(12px, env(safe-area-inset-bottom)) !important;
+    top: auto !important;
+    width: auto !important;
+    max-height: 72dvh !important;
+    overflow: auto !important;
+    border: 3px solid var(--line);
+    border-radius: 26px;
+    background: var(--phone);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.26);
+    padding: 1rem;
+  }
+
+  .rack-link-row {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.35rem;
+    align-items: stretch;
+    margin-bottom: 0.75rem;
+  }
+
+  .rack-link-row-label {
+    font-size: 0.74rem;
+    opacity: 0.75;
+  }
+
+  .rack-link-row select,
+  .rack-link-panel select {
+    width: 100% !important;
+    min-height: 48px;
+  }
+
+  .rack-link-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+    border-top: 1px solid color-mix(in srgb, var(--line) 42%, transparent);
+    padding-top: 0.8rem;
+    margin-top: 0.2rem;
+  }
+
+  /* Graph readability: keep nodes tappable and text visible after initial fit. */
+  .mobile-view #mobile-tree-content,
+  #mobile-tree-content .tree-shell {
+    min-height: calc(100dvh - 190px);
+  }
+
+  #mobile-tree-content .graph-wrap {
+    width: 100%;
+    min-height: calc(100dvh - 210px) !important;
+    border: 3px solid var(--line);
+    border-radius: 22px;
+  }
+
+  #mobile-tree-content .graph-canvas {
+    transform-origin: 0 0;
+    will-change: transform;
+  }
+
+  #mobile-tree-content .graph-node {
+    width: 62px !important;
+    height: 62px !important;
+    font-size: 1.45rem !important;
+  }
+
+  #mobile-tree-content .graph-node-label {
+    transform: translate(-50%, 44px) !important;
+    max-width: 150px;
+    font-size: 0.8rem;
+    line-height: 1.15;
+  }
+}
+@media (max-width: 1100px) {
+  .rack-slot-remove { opacity: 1 !important; }
+  .rack-editor.hidden .rack-mobile-palette-fab { display: none !important; }
+  .rack-editor.hidden .rack-palette-backdrop { display: none !important; }
 }
