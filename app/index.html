@@ -25,7 +25,12 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="demo-banner">🎭 Demo mode - changes are saved in your browser only. <a href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener noreferrer">Self-host Labby</a> for permanent storage.</div>
+    <div class="demo-banner" aria-label="Demo mode notice">
+      <div class="demo-banner-track">
+        <span class="demo-banner-message">🎭 Demo mode - changes are saved in your browser only. <a href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener noreferrer">Self-host Labby</a> for permanent storage.</span>
+        <span class="demo-banner-message demo-banner-message-clone" aria-hidden="true">🎭 Demo mode - changes are saved in your browser only. <a href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener noreferrer" tabindex="-1">Self-host Labby</a> for permanent storage.</span>
+      </div>
+    </div>
     <header class="topbar">
       <div class="brand-wrap">
         <img src="logo.svg" alt="Labby logo" class="logo" />

@@ -273,15 +273,185 @@
       overflow: hidden;
       background: var(--panel);
       box-shadow: var(--shadow);
-      transition: transform .15s ease;
+      transition: transform .15s ease, box-shadow .15s ease;
+      cursor: pointer;
+      position: relative;
+      appearance: none;
+      -webkit-appearance: none;
+      text-align: left;
+      padding: 0;
+      width: 100%;
+      color: inherit;
+      font: inherit;
     }
-    .gallery-item:hover { transform: translateY(-2px); }
+    .gallery-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 18px 36px rgba(0,0,0,.14);
+    }
+    .gallery-item:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 3px;
+    }
     .gallery-item img { width: 100%; height: auto; display: block; }
     .gallery-caption {
       font: 700 .74rem/1 'Space Mono', monospace;
       color: var(--muted);
       padding: .55rem .75rem;
       border-top: 2px solid var(--line);
+    }
+    .gallery-hint {
+      margin-top: .75rem;
+      color: var(--muted);
+      font: 700 .72rem/1.45 'Space Mono', monospace;
+    }
+
+    /* ── screenshot viewer ── */
+    .shot-viewer {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.25rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .18s ease;
+    }
+    .shot-viewer.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .shot-viewer-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(13, 16, 21, .84);
+      backdrop-filter: blur(4px);
+    }
+    .shot-viewer-dialog {
+      position: relative;
+      width: min(1180px, 100%);
+      max-height: min(90vh, 100%);
+      display: flex;
+      flex-direction: column;
+      gap: .8rem;
+      background: color-mix(in srgb, var(--panel) 96%, white);
+      border: 3px solid var(--line);
+      border-radius: 22px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.28);
+      padding: 1rem;
+    }
+    .shot-viewer-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .75rem;
+      flex-wrap: wrap;
+    }
+    .shot-viewer-title {
+      font: 700 .92rem/1.2 'Space Mono', monospace;
+      color: var(--text);
+    }
+    .shot-viewer-meta {
+      font: 700 .72rem/1.2 'Space Mono', monospace;
+      color: var(--muted);
+    }
+    .shot-viewer-main {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+      flex: 1;
+      overflow: hidden;
+      border: 2px solid var(--line);
+      border-radius: 18px;
+      background: color-mix(in srgb, var(--phone) 94%, white);
+    }
+    .shot-viewer-stage {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: .35rem;
+      touch-action: pan-x pan-y;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable both-edges;
+    }
+    .shot-viewer-stage img {
+      display: block;
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-height: calc(90vh - 210px);
+      object-fit: contain;
+      border-radius: 12px;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    .shot-viewer-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 48px;
+      height: 48px;
+      border-radius: 999px;
+      border: 2px solid var(--line);
+      background: color-mix(in srgb, var(--panel) 92%, white);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      font: 700 1.2rem/1 'Space Mono', monospace;
+    }
+    .shot-viewer-nav:hover { transform: translateY(-50%) scale(1.03); }
+    .shot-viewer-prev { left: .9rem; }
+    .shot-viewer-next { right: .9rem; }
+    .shot-viewer-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .85rem;
+      flex-wrap: wrap;
+    }
+    .shot-viewer-thumbs {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      gap: .65rem;
+      overflow-x: auto;
+      padding-bottom: .2rem;
+      scroll-snap-type: x proximity;
+      -webkit-overflow-scrolling: touch;
+    }
+    .shot-viewer-thumb {
+      flex: 0 0 120px;
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+      overflow: hidden;
+      cursor: pointer;
+      opacity: .78;
+      transition: opacity .15s ease, transform .15s ease, border-color .15s ease;
+      scroll-snap-align: start;
+    }
+    .shot-viewer-thumb.active {
+      opacity: 1;
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+    .shot-viewer-thumb img {
+      width: 100%;
+      height: 68px;
+      object-fit: cover;
+      display: block;
+    }
+    .shot-viewer-close {
+      flex: 0 0 auto;
     }
 
     /* ── install ── */
@@ -602,31 +772,33 @@
     <p class="section-label">Screenshots</p>
     <h2 class="section-title">See it in action</h2>
 
+    <p class="gallery-hint">Click or tap a screenshot to open the viewer. Swipe or use the arrows to browse left and right.</p>
+
     <div class="gallery">
-      <div class="gallery-item">
+      <button class="gallery-item" type="button" data-shot-src="images/labby-graph-view.png" data-shot-title="Graph View" aria-label="Open screenshot: Graph View">
         <img src="images/labby-graph-view.png" alt="Graph View" loading="lazy" />
         <p class="gallery-caption">🕸️ Graph View</p>
-      </div>
-      <div class="gallery-item">
+      </button>
+      <button class="gallery-item" type="button" data-shot-src="images/labby-rack-view.png" data-shot-title="IP View" aria-label="Open screenshot: IP View">
         <img src="images/labby-rack-view.png" alt="IP View" loading="lazy" />
         <p class="gallery-caption">🌐 IP View</p>
-      </div>
-      <div class="gallery-item">
+      </button>
+      <button class="gallery-item" type="button" data-shot-src="images/labby-rack-editor.png" data-shot-title="Rack Editor" aria-label="Open screenshot: Rack Editor">
         <img src="images/labby-rack-editor.png" alt="Rack Editor" loading="lazy" />
         <p class="gallery-caption">🔧 Rack Editor</p>
-      </div>
-      <div class="gallery-item">
+      </button>
+      <button class="gallery-item" type="button" data-shot-src="images/labby-theme-menu.png" data-shot-title="Theme Picker" aria-label="Open screenshot: Theme Picker">
         <img src="images/labby-theme-menu.png" alt="Theme Picker" loading="lazy" />
         <p class="gallery-caption">🎨 Theme Picker</p>
-      </div>
-      <div class="gallery-item">
+      </button>
+      <button class="gallery-item" type="button" data-shot-src="images/labby-themes.png" data-shot-title="Custom Theme Editor" aria-label="Open screenshot: Custom Theme Editor">
         <img src="images/labby-themes.png" alt="Custom Theme Editor" loading="lazy" />
         <p class="gallery-caption">🎨 Custom Theme Editor</p>
-      </div>
-      <div class="gallery-item">
+      </button>
+      <button class="gallery-item" type="button" data-shot-src="images/labby-config-menu.png" data-shot-title="Config Menu" aria-label="Open screenshot: Config Menu">
         <img src="images/labby-config-menu.png" alt="Config Menu" loading="lazy" />
         <p class="gallery-caption">⚙️ Config &amp; Backup</p>
-      </div>
+      </button>
     </div>
   </div>
 </section>
@@ -688,6 +860,33 @@ docker compose up --build -d</pre>
   </div>
 </div>
 
+
+
+<div class="shot-viewer" id="shot-viewer" aria-hidden="true">
+  <div class="shot-viewer-backdrop" data-close-viewer></div>
+  <div class="shot-viewer-dialog" role="dialog" aria-modal="true" aria-labelledby="shot-viewer-title">
+    <div class="shot-viewer-toolbar">
+      <div>
+        <div class="shot-viewer-title" id="shot-viewer-title">Screenshot Viewer</div>
+        <div class="shot-viewer-meta" id="shot-viewer-meta">1 / 6</div>
+      </div>
+      <button class="btn btn-secondary shot-viewer-close" type="button" id="shot-viewer-close">✕ Close</button>
+    </div>
+
+    <div class="shot-viewer-main">
+      <button class="shot-viewer-nav shot-viewer-prev" type="button" id="shot-viewer-prev" aria-label="Previous screenshot">‹</button>
+      <div class="shot-viewer-stage" id="shot-viewer-stage">
+        <img id="shot-viewer-image" src="" alt="" />
+      </div>
+      <button class="shot-viewer-nav shot-viewer-next" type="button" id="shot-viewer-next" aria-label="Next screenshot">›</button>
+    </div>
+
+    <div class="shot-viewer-footer">
+      <div class="shot-viewer-thumbs" id="shot-viewer-thumbs"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ── footer ── -->
 <footer>
   <div class="wrap">
@@ -739,6 +938,120 @@ docker compose up --build -d</pre>
     applyTheme(!isDark);
     localStorage.setItem('labby-site-theme', !isDark ? 'dark' : 'light');
   });
+
+  const galleryButtons = Array.from(document.querySelectorAll('.gallery-item[data-shot-src]'));
+  const viewer = document.getElementById('shot-viewer');
+  const viewerImage = document.getElementById('shot-viewer-image');
+  const viewerTitle = document.getElementById('shot-viewer-title');
+  const viewerMeta = document.getElementById('shot-viewer-meta');
+  const viewerThumbs = document.getElementById('shot-viewer-thumbs');
+  const viewerClose = document.getElementById('shot-viewer-close');
+  const viewerPrev = document.getElementById('shot-viewer-prev');
+  const viewerNext = document.getElementById('shot-viewer-next');
+  const viewerStage = document.getElementById('shot-viewer-stage');
+  let activeShotIndex = 0;
+  let touchStartX = 0;
+  let touchStartY = 0;
+
+  const shots = galleryButtons.map((button, index) => ({
+    index,
+    src: button.dataset.shotSrc,
+    title: button.dataset.shotTitle || `Screenshot ${index + 1}`,
+    caption: button.querySelector('.gallery-caption')?.textContent?.trim() || button.dataset.shotTitle || `Screenshot ${index + 1}`
+  }));
+
+  function buildViewerThumbs() {
+    viewerThumbs.innerHTML = '';
+    shots.forEach((shot, index) => {
+      const thumb = document.createElement('button');
+      thumb.type = 'button';
+      thumb.className = 'shot-viewer-thumb';
+      thumb.setAttribute('aria-label', `Open ${shot.title}`);
+      thumb.innerHTML = `<img src="${shot.src}" alt="${shot.title}" />`;
+      thumb.addEventListener('click', () => showShot(index));
+      viewerThumbs.appendChild(thumb);
+    });
+  }
+
+  function showShot(index) {
+    if (!shots.length) return;
+    activeShotIndex = (index + shots.length) % shots.length;
+    const shot = shots[activeShotIndex];
+    viewerImage.src = shot.src;
+    viewerImage.alt = shot.title;
+    viewerTitle.textContent = shot.caption;
+    viewerMeta.textContent = `${activeShotIndex + 1} / ${shots.length}`;
+    viewerStage.scrollTo({ left: 0, top: 0, behavior: 'auto' });
+    Array.from(viewerThumbs.children).forEach((thumb, thumbIndex) => {
+      thumb.classList.toggle('active', thumbIndex === activeShotIndex);
+      if (thumbIndex === activeShotIndex) {
+        thumb.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+      }
+    });
+  }
+
+  function openViewer(index) {
+    if (!shots.length) return;
+    viewer.classList.add('open');
+    viewer.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    showShot(index);
+  }
+
+  function closeViewer() {
+    viewer.classList.remove('open');
+    viewer.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+
+  galleryButtons.forEach((button, index) => {
+    button.addEventListener('click', () => openViewer(index));
+    button.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        openViewer(index);
+      }
+    });
+  });
+
+  buildViewerThumbs();
+
+  viewerPrev.addEventListener('click', () => showShot(activeShotIndex - 1));
+  viewerNext.addEventListener('click', () => showShot(activeShotIndex + 1));
+  viewerClose.addEventListener('click', closeViewer);
+  viewer.querySelectorAll('[data-close-viewer]').forEach((node) => node.addEventListener('click', closeViewer));
+
+  document.addEventListener('keydown', (event) => {
+    if (!viewer.classList.contains('open')) return;
+    if (event.key === 'Escape') closeViewer();
+    if (event.key === 'ArrowLeft') showShot(activeShotIndex - 1);
+    if (event.key === 'ArrowRight') showShot(activeShotIndex + 1);
+  });
+
+  viewerStage.addEventListener('touchstart', (event) => {
+    const touch = event.changedTouches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+  }, { passive: true });
+
+  viewerStage.addEventListener('touchend', (event) => {
+    const touch = event.changedTouches[0];
+    const diffX = touch.clientX - touchStartX;
+    const diffY = touch.clientY - touchStartY;
+    if (Math.abs(diffX) > 45 && Math.abs(diffX) > Math.abs(diffY)) {
+      if (diffX < 0) showShot(activeShotIndex + 1);
+      else showShot(activeShotIndex - 1);
+    }
+  }, { passive: true });
+
+  viewerStage.addEventListener('wheel', (event) => {
+    if (!viewer.classList.contains('open')) return;
+    if (Math.abs(event.deltaX) > Math.abs(event.deltaY) && Math.abs(event.deltaX) > 18) {
+      event.preventDefault();
+      if (event.deltaX > 0) showShot(activeShotIndex + 1);
+      else showShot(activeShotIndex - 1);
+    }
+  }, { passive: false });
 </script>
 
 </body>

@@ -458,10 +458,13 @@
             <a class="wiki-nav-link active" href="#" data-page="home">Home</a>
             <a class="wiki-nav-link" href="#" data-page="installation">Installation</a>
             <a class="wiki-nav-link" href="#" data-page="quickstart">Quick Start</a>
+            <a class="wiki-nav-link" href="#" data-page="demomode">Demo Mode</a>
           </div>
           <div class="wiki-nav-group">
             <p class="wiki-nav-heading">Features</p>
             <a class="wiki-nav-link" href="#" data-page="features">Features</a>
+            <a class="wiki-nav-link" href="#" data-page="mobileux">Mobile UX</a>
+            <a class="wiki-nav-link" href="#" data-page="topologycards">Topology Cards</a>
             <a class="wiki-nav-link" href="#" data-page="rackview">Rack View</a>
             <a class="wiki-nav-link" href="#" data-page="treegraph">Tree &amp; Graph View</a>
             <a class="wiki-nav-link" href="#" data-page="ipview">IP View</a>
@@ -505,24 +508,31 @@ btn.addEventListener('click', () => {
 (function(){
   const PAGES = {
     home:{title:'🧪 Labby Wiki',content:`
-      <p>Labby is a lightweight homelab inventory, rack and topology tool with persistent, browser-independent storage. Track your hardware, VMs, LXCs, apps, networks, rack layouts and relationships in one clean dashboard. Self-host it with Docker and keep your homelab map available from every browser and device.</p>
+      <p>Labby is a lightweight homelab inventory, rack and topology tool with persistent, browser-independent storage. Track hardware, VMs, LXCs, apps, networks, rack layouts, themes and relationships in one clean dashboard.</p>
       <h2>Main Highlights</h2>
       <ul>
         <li>🖥️ Resource tracking for Hardware, VMs, LXCs, Apps and Networks</li>
-        <li>🌐 Topology mapping with Tree and Graph relationship views</li>
-        <li>🗄️ Rack View with locations, racks, front/rear layouts and device linking</li>
-        <li>🎨 Built-in themes and custom theme editor</li>
-        <li>🧠 Automatic network matching by IP/CIDR</li>
-        <li>📡 Optional live checks for IP and URL status</li>
-        <li>💾 Export / Import JSON backups including racks, themes and active theme</li>
-        <li>📱 Mobile and tablet optimized full-screen views</li>
-        <li>🗄️ Persistent server-side storage in the self-hosted version</li>
+        <li>🌐 Topology cards with inline details, Edit/Delete actions and optional live checks</li>
+        <li>🌳 Relationship Tree view for host, guest, app and network structure</li>
+        <li>🗄️ Rack View with locations, racks, front/rear layouts and linked resources</li>
+        <li>🎨 Built-in themes, custom theme editor and the Matrix theme</li>
+        <li>📱 Mobile bottom navigation: Boards, Add, Rack, IP and More</li>
+        <li>💾 Export / Import JSON backups including resources, racks, locations, custom themes and active theme</li>
+        <li>🧪 Demo mode with browser-only storage and Load Demo seed data</li>
       </ul>
       <h2>Fast Start</h2>
       <pre>git clone https://github.com/techbygiusi/Labby.git
 cd Labby
 docker compose up --build -d</pre>
       <p>Open: <code>http://localhost:8080</code></p>
+      <h2>Recommended Reading Order</h2>
+      <ol>
+        <li>Quick Start</li>
+        <li>Topology Cards</li>
+        <li>Mobile UX</li>
+        <li>Rack View</li>
+        <li>Config, Import &amp; Export</li>
+      </ol>
     `},
     installation:{title:'🚀 Installation',content:`
       <h2>Requirements</h2>
@@ -532,13 +542,12 @@ docker compose up --build -d</pre>
       <p>Open Labby in your browser: <code>http://localhost:8080</code></p>
       <h2>Stop Labby</h2>
       <pre>docker compose down</pre>
-      <p>Data is preserved in Docker volume: <code>labby-data</code></p>
+      <p>Data is preserved in Docker volume: <code>labby-data</code>.</p>
       <h2>Update Existing Installation</h2>
       <pre>cd ~/Labby
 git pull
 docker compose down
 docker compose up --build -d</pre>
-      <p>Check containers: <code>docker compose ps</code></p>
       <h2>Full Clean Rebuild</h2>
       <pre>cd ~/Labby
 git pull
@@ -549,7 +558,7 @@ docker compose up -d</pre>
       <p>Edit <code>docker-compose.yml</code>:</p>
       <pre>ports:
   - "9090:80"</pre>
-      <p>Then restart and open <code>http://localhost:9090</code></p>
+      <p>Then restart and open <code>http://localhost:9090</code>.</p>
     `},
     quickstart:{title:'🧭 Quick Start',content:`
       <p>A clean setup order keeps the map easy to understand.</p>
@@ -559,85 +568,170 @@ docker compose up -d</pre>
 192.168.10.0/24
 Gateway: 192.168.10.1</pre>
       <h2>2. Add Hardware</h2>
-      <p>Router, switch, hypervisor, server, NAS, backup, PC. Add OS, CPU, RAM, disks, IP, notes.</p>
+      <p>Add routers, switches, hypervisors, servers, NAS systems, backup nodes or PCs. Fill OS, manufacturer, CPU, RAM, disks, IP, notes and relationships where useful.</p>
       <h2>3. Add VMs and LXCs</h2>
-      <p>Select the host they run on.</p>
+      <p>Select the hardware host they run on. This builds the Tree view and relationship structure.</p>
       <pre>VM: docker-01
 Hosted on: Proxmox Node 1</pre>
       <h2>4. Add Apps</h2>
+      <p>Add apps with IP:Port and URL where available. Apps can be linked to VMs, LXCs or hardware.</p>
       <pre>App: Portainer
 IP:Port: 192.168.20.21:9000
 Web URL: https://portainer.home.local
 Hosted on: docker-01</pre>
-      <h2>5. Use the Views</h2>
+      <h2>5. Use the Main Views</h2>
       <ul>
-        <li><strong>IP View</strong> -all IPs sorted by subnet</li>
-        <li><strong>Tree View</strong> -hosting relationships</li>
-        <li><strong>Graph View</strong> -visual relationship map</li>
-        <li><strong>Rack View</strong> -physical rack placement</li>
+        <li><strong>Boards / Topology</strong> - resource cards, relationships, Edit/Delete and status</li>
+        <li><strong>Add</strong> - create or update resources</li>
+        <li><strong>Rack</strong> - locations, racks and rack editor</li>
+        <li><strong>IP</strong> - all used IPs grouped by subnet</li>
+        <li><strong>More</strong> - Tree, Config and Themes on mobile</li>
       </ul>
       <h2>6. Back Up Your Setup</h2>
       <pre>Config → Export Config</pre>
+    `},
+    demomode:{title:'🧪 Demo Mode',content:`
+      <p>The public demo is intentionally browser-only. It is safe to try because changes stay in your own browser storage and do not change the real self-hosted backend.</p>
+      <h2>What Is Preserved in the Demo</h2>
+      <ul>
+        <li>Demo banner at the top of the app</li>
+        <li>Browser-only storage</li>
+        <li>Load Demo buttons and seed data</li>
+        <li>Demo tutorial behavior</li>
+        <li>Demo racks, locations and sample devices</li>
+      </ul>
+      <h2>Scrolling Demo Banner</h2>
+      <p>On narrow screens, the demo banner text scrolls automatically in a loop when it does not fit. Hovering or focusing the banner pauses the movement so the self-host link remains easy to click.</p>
+      <h2>Resetting Demo Data</h2>
+      <p>Use the <strong>Load Demo</strong> button to restore the prepared example inventory. Export your own test data first if you want to keep it.</p>
+      <h2>Difference to Self-Hosted Labby</h2>
+      <p>The self-hosted version stores data server-side. The demo stores data locally in the browser only.</p>
     `},
     features:{title:'✨ Features',content:`
       <h2>Core</h2>
       <ul>
         <li>🖥️ Resource tracking for Hardware, VMs, LXCs, Apps and Networks</li>
-        <li>🌐 Topology mapping with Tree and Graph relationship views</li>
-        <li>🗄️ Rack View with locations, racks, front/rear layouts and device linking</li>
-        <li>🎨 Theme system with built-in themes and custom theme editor</li>
+        <li>🌐 Topology cards with Search, Type filter, Details, Edit and Delete</li>
+        <li>🌳 Tree relationship view</li>
+        <li>🗄️ Rack View with physical rack placement</li>
+        <li>🎨 Theme presets and custom theme editor</li>
         <li>🧠 Automatic network matching by IP/CIDR</li>
-        <li>🧭 Config tutorial built into the Config dialog</li>
-        <li>💾 Persistent server-side storage saved in JSON on the backend</li>
+        <li>📡 Optional Live IP and Live URL checks</li>
+        <li>💾 Persistent server-side storage in self-hosted Labby</li>
       </ul>
-      <h2>Resources and Metadata</h2>
-      <p>OS, Manufacturer, CPU, RAM, Disks, Notes, Links, Web URLs, Status, Hosted-on relationships, Connected devices. Hardware types: Server, Router/Gateway, Switch, Hypervisor, NAS, Backup, PC.</p>
+      <h2>Resource Metadata</h2>
+      <p>Labby can store OS, manufacturer, CPU, RAM, disks, notes, links, URLs, live status, hosted-on relationships and connected devices.</p>
       <h2>Live Status</h2>
-      <p>Online, Offline, Maintenance, Live IP check, Live URL check. For apps, IP:Port values like <code>192.168.20.21:9443</code> are supported -the live check extracts the host automatically.</p>
-      <h2>Mobile and Desktop UX</h2>
-      <p>Desktop: classic two-panel layout. Mobile/tablet: full-screen panels with bottom navigation (Topology, Add, IP View, Tree, Config).</p>
+      <p>Manual statuses include Online, Offline and Maintenance. Optional live checks can ping an IP or check a URL. Empty live/action areas are hidden when nothing is configured, so cards stay clean.</p>
+      <h2>Responsive UX</h2>
+      <p>Desktop keeps a traditional workspace layout. Mobile uses full-screen pages, large tap targets, bottom navigation and sheets instead of cramped dialogs.</p>
+    `},
+    mobileux:{title:'📱 Mobile UX',content:`
+      <p>Mobile is designed as its own app-like flow, not a shrunken desktop layout.</p>
+      <h2>Bottom Navigation</h2>
+      <ul>
+        <li><strong>Boards</strong> - opens the Topology card view</li>
+        <li><strong>Add</strong> - opens the resource form without auto-focusing the first field</li>
+        <li><strong>Rack</strong> - opens Rack View and Rack Editor</li>
+        <li><strong>IP</strong> - opens the IP overview</li>
+        <li><strong>More</strong> - opens Tree, Config and Themes in a clean sheet</li>
+      </ul>
+      <h2>More Sheet</h2>
+      <p>Tap <strong>More</strong> to open secondary views. The sheet stays minimal: icon and label only. Tree, Config and Themes open as mobile pages with matching topbars.</p>
+      <h2>Forms</h2>
+      <ul>
+        <li>Inputs use at least 16px font size to avoid iOS zoom</li>
+        <li>No field is focused automatically when opening Add</li>
+        <li>Optional sections are grouped and visually separated</li>
+        <li>Focused fields scroll into view above the keyboard</li>
+      </ul>
+      <h2>Topology Cards</h2>
+      <ul>
+        <li>Tap a card to expand or collapse details</li>
+        <li>Swipe right to edit</li>
+        <li>Swipe left to delete with confirmation</li>
+        <li>Buttons remain large enough for touch</li>
+      </ul>
+      <h2>Mobile Graph View</h2>
+      <p>Graph View is disabled on mobile because dense graphs became difficult to read. Mobile Relationship view uses Tree only. Desktop Graph remains available.</p>
+    `},
+    topologycards:{title:'🧩 Topology Cards',content:`
+      <p>Topology cards are the main way to browse, edit and understand your homelab resources.</p>
+      <h2>Desktop Usage</h2>
+      <ul>
+        <li>Use Search to filter by name, IP, hostname, port or notes</li>
+        <li>Use the Type filter to focus Hardware, VMs, LXCs, Apps or Networks</li>
+        <li>Click <strong>Edit</strong> on a card to load that object into the editor</li>
+        <li>Click <strong>Delete</strong> to remove an object after confirmation</li>
+        <li>Copy/Open buttons appear only when useful data exists</li>
+      </ul>
+      <h2>Mobile Usage</h2>
+      <ul>
+        <li>Tap a card to reveal details inline</li>
+        <li>Swipe right to edit</li>
+        <li>Swipe left to delete</li>
+        <li>Use visible Copy/Open buttons for IPs and URLs</li>
+      </ul>
+      <h2>Live and Action Areas</h2>
+      <p>If no Live Ping or Live URL check is configured, Labby hides the empty placeholder. If a card has no actions, the empty action container is hidden as well. This keeps the board calm and avoids empty bordered boxes.</p>
+      <h2>Copy and Open Buttons</h2>
+      <p>IP and URL actions are shown as real buttons with consistent height, padding and rounded corners. On mobile, they stay touch-friendly.</p>
+      <h2>Relationships Shown on Cards</h2>
+      <pre>Hardware hosts VM/LXC
+VM/LXC hosts App
+Network matches IP/CIDR
+Connected devices are listed on hardware cards</pre>
     `},
     rackview:{title:'🗄️ Rack View',content:`
-      <p>Rack View lets you document the physical side of your homelab.</p>
-      <h2>What Rack View Can Do</h2>
+      <p>Rack View documents the physical side of your homelab: locations, racks, rack units and linked resources.</p>
+      <h2>Desktop Rack View</h2>
       <ul>
-        <li>Create locations and racks</li>
-        <li>Configure rack height units and form factor</li>
-        <li>Build front and rear rack layouts</li>
-        <li>Drag components into slots</li>
-        <li>Link rack components to Labby resources</li>
-        <li>Edit or delete racks through the context menu</li>
-        <li>Export and import rack data with normal config backup</li>
+        <li>Create and edit locations</li>
+        <li>Create and edit racks</li>
+        <li>Select a location and open rack cards</li>
+        <li>Open the Rack Editor from a rack card</li>
+      </ul>
+      <h2>Desktop Rack Editor</h2>
+      <ul>
+        <li>Component palette on the left</li>
+        <li>Front and rear rack layouts side by side</li>
+        <li>Drag components into free rack slots</li>
+        <li>Remove components with the slot remove action</li>
+        <li>Link placed components to Labby resources</li>
+      </ul>
+      <h2>Mobile Rack View</h2>
+      <ul>
+        <li>Rack has its own bottom-nav tab</li>
+        <li>Front and Rear are switched with tabs</li>
+        <li>The component palette opens from a floating button instead of staying in the way</li>
+        <li>Tap a component, then tap an empty rack slot to place it</li>
+        <li>Use the selected-component pill to clear the current selection</li>
+        <li>Vertical scrolling works directly over the rack area</li>
       </ul>
       <h2>Supported Rack Components</h2>
       <ul>
-        <li>1U / 2U / 4U servers, Multi-PC server rows</li>
-        <li>Router, Switch, Patch panel</li>
-        <li>Cable management, UPS, PDU, KVM, Blank panels</li>
+        <li>1U / 2U / 4U servers and multi-PC rows</li>
+        <li>Router, Switch, Patch Panel</li>
+        <li>Cable Management, UPS, PDU, KVM and Blank panels</li>
       </ul>
-      <h2>Typical Workflow</h2>
-      <ol>
-        <li>Open <strong>Rack View</strong></li>
-        <li>Create a <strong>Location</strong></li>
-        <li>Create a <strong>Rack</strong></li>
-        <li>Open the Rack Editor</li>
-        <li>Drag components into front or rear layout</li>
-        <li>Link components to existing Labby resources</li>
-      </ol>
+      <h2>Backup</h2>
+      <p>Locations, racks and rack layouts are included in normal config export/import.</p>
     `},
     treegraph:{title:'🌳 Tree and Graph View',content:`
-      <p>Labby provides two relationship views.</p>
+      <p>Labby provides relationship views for understanding how the homelab is connected.</p>
       <h2>Tree View</h2>
-      <p>Groups infrastructure by type and relationship. Shows hardware groups, hosts, VMs, LXCs, apps running on guests and unassigned resources.</p>
-      <h2>Graph View</h2>
-      <p>Visualizes relationships as connected bubbles.</p>
+      <p>Tree View groups infrastructure by type and relationship. It shows hardware groups, hosts, VMs, LXCs, apps running on guests and unassigned resources.</p>
+      <h2>Mobile Tree View</h2>
+      <p>On mobile, Tree View opens from the More sheet and is the only relationship view. It includes bottom clearance so the last entries are not hidden behind the bottom navigation.</p>
+      <h2>Desktop Graph View</h2>
+      <p>Graph View remains available on desktop. It visualizes relationships as connected bubbles and helps inspect larger dependency structures.</p>
       <ul>
-        <li>Auto-zoom on open</li>
-        <li>Centers around the main component cluster</li>
-        <li>Permanent node names below bubbles</li>
-        <li>Hover shows <strong>Edit</strong> tooltip</li>
-        <li>Clicking a bubble opens the resource editor</li>
+        <li>Pan and zoom the graph on desktop</li>
+        <li>Node names stay visible below bubbles</li>
+        <li>Clicking or selecting a node can open details or editing depending on the current UI state</li>
       </ul>
+      <h2>Mobile Graph Status</h2>
+      <p>Graph View is intentionally hidden on mobile. Dense topology graphs were not readable enough on small screens, so mobile uses the clearer Tree view.</p>
       <h2>Relationship Examples</h2>
       <pre>Router → Switch → Hypervisor → VM → App</pre>
       <pre>NAS → Backup Server</pre>
@@ -653,48 +747,70 @@ Hosted on: docker-01</pre>
         <li>Search by IP, hostname or port</li>
       </ul>
       <p>Example app entry: <code>192.168.20.21:2283</code></p>
+      <h2>Mobile</h2>
+      <p>IP View has its own bottom-nav tab and uses the same mobile header spacing as the other pages.</p>
       <h2>Best Practice</h2>
       <p>Add networks before adding devices. This allows Labby to match devices to the correct subnet automatically.</p>
     `},
     themes:{title:'🎨 Themes',content:`
-      <p>Labby includes a theme system for the interface.</p>
+      <p>Labby includes a complete theme system for desktop and mobile.</p>
       <h2>Built-in Themes</h2>
       <ul>
         <li>Light, Ocean, Forest, Rose, Solar</li>
-        <li>Dark, Midnight, Carbon, Nord, Grape</li>
+        <li>Dark, Midnight, Carbon, Nord, Matrix</li>
       </ul>
+      <h2>Matrix Theme</h2>
+      <p>The previous Grape preset is now the visible <strong>Matrix</strong> theme: black base colors with neon-green accents. The internal ID stays compatible with older saved selections.</p>
+      <h2>Theme Selection</h2>
+      <p>Open <strong>Themes</strong> from Config or from the mobile More sheet. Select a preset card to apply it.</p>
       <h2>Custom Themes</h2>
-      <p>The custom theme editor lets you change background, panels, text, borders, accent buttons, info boxes, highlights, danger color and resource type colors.</p>
+      <p>The custom theme editor lets you change background, bottom background, panel surface, card/input surface, text, muted text, borders, accent buttons, info boxes, highlights, danger color and resource type colors.</p>
+      <h2>Desktop Customize Layout</h2>
+      <p>On desktop, the customizer uses the available dialog width with larger color cards. <strong>Save Theme</strong> is a full-width action above the Close footer.</p>
+      <h2>Mobile Customize Layout</h2>
+      <p>On mobile, the name input uses the full width and color controls use a two-column card grid. <strong>Save Theme</strong> is placed inline as the final action below the color controls.</p>
       <h2>Import and Export</h2>
-      <p>Custom themes are included in config exports. The active theme is also saved and restored when importing a config.</p>
+      <p>Custom themes and the active theme are included in config exports and restored on import.</p>
     `},
     config:{title:'💾 Config, Import and Export',content:`
       <p>Labby supports app-level JSON backup and restore.</p>
       <h2>Export Config</h2>
       <pre>Config → Export Config</pre>
-      <p>The export includes: Resources, Locations, Racks, Custom themes, Active theme.</p>
+      <p>The export includes:</p>
+      <ul>
+        <li>Resources / inventory items</li>
+        <li>Locations</li>
+        <li>Racks and rack layouts</li>
+        <li>Custom themes</li>
+        <li>Active selected theme</li>
+        <li>Tutorial state and export metadata</li>
+      </ul>
       <h2>Import Config</h2>
       <pre>Config → Import Config</pre>
-      <p>Supports current full JSON exports and older localStorage exports from previous Labby versions.</p>
-      <h2>Config Tutorial</h2>
-      <p>The Config dialog includes a short tutorial directly inside the dialog.</p>
+      <p>Import uses one shared logic path on desktop and mobile. Current full JSON exports and older localStorage-style exports are supported.</p>
+      <h2>Clear All</h2>
+      <p><strong>Clear All</strong> removes the current inventory and should only be used after exporting a backup.</p>
+      <h2>Tutorial</h2>
+      <p>The tutorial opens as its own popup from Config instead of filling the Config screen with help text.</p>
     `},
     backup:{title:'🗄️ Data and Backup',content:`
       <p>The self-hosted version stores data server-side in a JSON file inside Docker volume <code>labby-data</code>.</p>
       <h2>Docker Volume Backup</h2>
       <p>Create a backup:</p>
-      <pre>docker run --rm \\
-  -v labby-data:/data \\
-  -v $(pwd):/backup \\
+      <pre>docker run --rm \
+  -v labby-data:/data \
+  -v $(pwd):/backup \
   alpine tar czf /backup/labby-backup.tar.gz /data</pre>
       <p>Restore:</p>
-      <pre>docker run --rm \\
-  -v labby-data:/data \\
-  -v $(pwd):/backup \\
+      <pre>docker run --rm \
+  -v labby-data:/data \
+  -v $(pwd):/backup \
   alpine tar xzf /backup/labby-backup.tar.gz -C /</pre>
       <h2>App-Level Backup</h2>
       <pre>Config → Export Config</pre>
-      <p>Creates a JSON backup that can be imported later.</p>
+      <p>This is the easiest portable backup. It contains inventory, locations, racks, themes and active theme.</p>
+      <h2>Demo Backup</h2>
+      <p>The demo stores changes in your browser only. Use Export Config before clearing browser storage or loading the demo seed again.</p>
     `},
   };
 

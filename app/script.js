@@ -4590,6 +4590,36 @@ function getDemoItems() {
 }
 
 
+function initDemoBannerMarquee() {
+  const banner = document.querySelector('.demo-banner');
+  const track = document.querySelector('.demo-banner-track');
+  const message = document.querySelector('.demo-banner-message:not(.demo-banner-message-clone)');
+  if (!banner || !track || !message) return;
+
+  const update = () => {
+    banner.classList.remove('is-scrolling');
+    track.style.removeProperty('--demo-marquee-duration');
+    // Wait one frame so measurements are taken without the animation clone affecting layout.
+    requestAnimationFrame(() => {
+      const overflow = message.scrollWidth > banner.clientWidth - 8;
+      banner.classList.toggle('is-scrolling', overflow);
+      if (overflow) {
+        const distance = Math.max(message.scrollWidth, banner.clientWidth);
+        const seconds = Math.min(28, Math.max(10, distance / 42));
+        track.style.setProperty('--demo-marquee-duration', `${seconds}s`);
+      }
+    });
+  };
+
+  update();
+  window.addEventListener('resize', update, { passive: true });
+  if ('ResizeObserver' in window) {
+    new ResizeObserver(update).observe(banner);
+  }
+}
+
+initDemoBannerMarquee();
+
 
 // Theme initialization moved after definitions
 try { initTheme(); } catch(e){ console.error(e); }
