@@ -273,6 +273,78 @@
       color: var(--muted);
     }
 
+    /* ── API agent spotlight ── */
+    .api-spotlight {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(320px, .95fr);
+      gap: 2rem;
+      align-items: center;
+      background: color-mix(in srgb, var(--phone) 92%, white);
+      border: 3px solid var(--line);
+      border-radius: 22px;
+      padding: 1.6rem;
+      box-shadow: var(--shadow);
+      margin-top: 2.5rem;
+    }
+    .api-spotlight-copy {
+      min-width: 0;
+    }
+    .api-spotlight-copy .section-desc {
+      max-width: none;
+      margin-bottom: 1.15rem;
+    }
+    .api-list {
+      display: grid;
+      gap: .6rem;
+      margin: 1.1rem 0 1.4rem;
+      list-style: none;
+    }
+    .api-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: .55rem;
+      color: var(--muted);
+      font-size: .92rem;
+      line-height: 1.5;
+    }
+    .api-list li::before {
+      content: '✓';
+      flex: 0 0 auto;
+      width: 1.35rem;
+      height: 1.35rem;
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--line);
+      border-radius: 999px;
+      background: var(--mint);
+      color: var(--text);
+      font: 700 .72rem/1 'Space Mono', monospace;
+      margin-top: .04rem;
+    }
+    .api-spotlight-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .65rem;
+    }
+    .api-spotlight-shot {
+      overflow: hidden;
+      border: 2px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: 0 14px 28px rgba(22,25,36,.12);
+    }
+    .api-spotlight-shot img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .api-spotlight-shot figcaption {
+      border-top: 2px solid var(--line);
+      padding: .65rem .8rem;
+      color: var(--muted);
+      font: 700 .75rem/1.25 'Space Mono', monospace;
+    }
+
     /* ── screenshots gallery ── */
     .gallery {
       display: grid;
@@ -571,8 +643,7 @@
       border-radius: 24px;
       padding: 3rem 2rem;
       box-shadow: var(--shadow);
-      display: inline-block;
-      max-width: 560px;
+      display: block;
       width: 100%;
     }
     .cta h2 {
@@ -673,6 +744,15 @@
       .hero-btns .btn { width: 100%; justify-content: center; font-size: .82rem; }
       .hero-btns { flex-direction: column; align-items: stretch; max-width: 320px; margin: 0 auto; }
       .features-grid { grid-template-columns: 1fr; }
+      .api-spotlight {
+        grid-template-columns: 1fr;
+        padding: 1.15rem;
+        gap: 1.15rem;
+      }
+      .api-spotlight-actions .btn {
+        width: 100%;
+        justify-content: center;
+      }
       .gallery { grid-template-columns: 1fr; }
       .install-steps { grid-template-columns: 1fr; }
       .install-block { padding: 1.4rem 1.1rem 1.2rem; }
@@ -794,6 +874,45 @@
         <p class="feature-title">Mobile Optimized</p>
         <p class="feature-desc">Full-screen views and bottom navigation on mobile and tablet. Same features, smaller screen.</p>
       </div>
+    </div>
+  </div>
+</section>
+
+<hr />
+
+<!-- ── agent api ── -->
+<section id="agent-api">
+  <div class="wrap">
+    <p class="section-label">Automation</p>
+    <h2 class="section-title">Connect trusted agents with API keys</h2>
+    <p class="section-desc">
+      Labby can expose scoped API access for automation agents such as Hermes, OpenClaw or your own monitoring scripts.
+      Agents can read inventory, update status, trigger allowed ping checks and help keep your homelab map current.
+    </p>
+
+    <div class="api-spotlight">
+      <div class="api-spotlight-copy">
+        <p class="section-label">Agent API Access</p>
+        <h3 class="section-title">Scoped keys for automation</h3>
+        <p class="section-desc">
+          Create time-limited API keys from Config → API Keys. Each key receives only the permissions it needs,
+          and the token is shown once for secure copy-and-paste into your agent configuration.
+        </p>
+        <ul class="api-list">
+          <li>Read inventory, locations and racks</li>
+          <li>Write inventory updates only when explicitly allowed</li>
+          <li>Submit live status updates from external monitoring agents</li>
+          <li>Run ping checks with scoped permission</li>
+        </ul>
+        <div class="api-spotlight-actions">
+          <a class="btn btn-primary" href="wiki.html#agentapi">📚 Read Agent API Wiki</a>
+          <a class="btn btn-secondary" href="/demo/">🚀 Try it in the demo</a>
+        </div>
+      </div>
+      <figure class="api-spotlight-shot">
+        <img src="images/labby-api-key.png" alt="Labby API key management" loading="lazy" />
+        <figcaption>API key management with scopes and expiration</figcaption>
+      </figure>
     </div>
   </div>
 </section>
