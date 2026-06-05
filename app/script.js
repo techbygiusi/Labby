@@ -1170,10 +1170,19 @@ function cardNode(item) {
   setCardText(node, '.card-hosting', hostingLabel(item));
   setCardText(node, '.card-links', connectionLabel(item));
 
-  // Live status display
+  // Live status display: only render the live/status row when the object
+  // actually has IP/URL monitoring configured. Empty placeholder boxes must
+  // not remain visible in Topology cards.
   const liveStatusEl = node.querySelector('.card-live-status');
   if (liveStatusEl) {
-    liveStatusEl.innerHTML = buildLiveStatusHtml(item);
+    const liveStatusHtml = buildLiveStatusHtml(item).trim();
+    if (liveStatusHtml) {
+      liveStatusEl.innerHTML = liveStatusHtml;
+      liveStatusEl.classList.remove('hidden');
+    } else {
+      liveStatusEl.innerHTML = '';
+      liveStatusEl.classList.add('hidden');
+    }
   }
 
   const badge = node.querySelector('.type-badge');
@@ -1198,7 +1207,9 @@ function cardNode(item) {
   const actionsEl = node.querySelector('.card-actions');
   if (actionsEl) {
     const actions = buildCardActions(item);
+    actionsEl.innerHTML = '';
     actions.forEach(el => actionsEl.appendChild(el));
+    actionsEl.classList.toggle('hidden', actions.length === 0);
   }
 
   const editButton = node.querySelector('.edit-btn');
