@@ -927,17 +927,21 @@ docker compose up --build -d</pre>
   // Hero word rotator. The phrase stays stable while the highlighted word
   // cycles through the main inventory areas Labby can map.
   const heroRotator = document.getElementById('hero-rotator');
-  const heroWords = ['Homelab', 'Server', 'VMs', 'Hardware', 'Racks', 'Networks'];
+  const heroWords = ['Homelab', 'Server', 'VMs', 'Hardware', 'Racks', 'Networks', 'Apps'];
+  const heroWordDurations = { Homelab: 4200, default: 1800 };
   let heroWordIndex = 0;
   if (heroRotator) {
-    window.setInterval(() => {
+    const rotateHeroWord = () => {
       heroWordIndex = (heroWordIndex + 1) % heroWords.length;
       heroRotator.classList.add('is-changing');
       window.setTimeout(() => {
         heroRotator.textContent = heroWords[heroWordIndex];
         heroRotator.classList.remove('is-changing');
+        const delay = heroWordDurations[heroWords[heroWordIndex]] || heroWordDurations.default;
+        window.setTimeout(rotateHeroWord, delay);
       }, 220);
-    }, 1800);
+    };
+    window.setTimeout(rotateHeroWord, heroWordDurations.Homelab);
   }
 
   const MOON = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
