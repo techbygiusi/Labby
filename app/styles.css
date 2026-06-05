@@ -322,8 +322,19 @@ button, input, select, textarea { touch-action: manipulation; }
 
 .topbar { width: min(80vw, 1920px); margin: 0 auto; padding: clamp(8px, 0.9vw, 14px) var(--app-pad); display: flex; justify-content: space-between; align-items: flex-start; gap: 0.6rem; }
 .brand-wrap { display: flex; gap: 0.75rem; align-items: flex-start; }
-.logo { width: clamp(34px, 2.1vw, 44px); height: clamp(34px, 2.1vw, 44px); border-radius: 10px; border: 2px solid var(--line); background: var(--panel); box-shadow: 0 4px 0 rgba(0, 0, 0, 0.15); }
+.logo { width: clamp(34px, 2.1vw, 44px); height: clamp(34px, 2.1vw, 44px); display: block; object-fit: contain; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .topbar-actions { display: flex; gap: 0.5rem; }
+
+/* Logo: the SVG is drawn directly without a decorative frame. */
+.logo,
+.brand-wrap .logo {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+
 .brand { margin: 0; font: 700 clamp(0.76rem, 0.7vw, 0.95rem)/1 'Space Mono', monospace; }
 h1 { margin: 0.18rem 0 0.1rem; font-family: 'Space Mono', monospace; font-size: clamp(1.15rem, 1.4vw, 1.7rem); }
 .subtitle { font-size: clamp(0.76rem, 0.78vw, 0.95rem); }
