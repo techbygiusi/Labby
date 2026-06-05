@@ -1,3 +1,16 @@
+/*
+ * Labby Backend API
+ * -----------------------------------------------------------------------------
+ * Stores the homelab inventory JSON, serves the static app, and validates scoped
+ * Agent API keys for automation clients. Keep this file dependency-light so the
+ * self-hosted Docker deployment stays simple.
+ *
+ * Security notes for contributors:
+ *  - Never persist one-time API key tokens, only hashes and metadata.
+ *  - Agent keys are intentionally excluded from config export/import.
+ *  - Validate scopes before every agent write or ping operation.
+ */
+
 const express = require('express');
 const path = require('path');
 const fs = require('fs');

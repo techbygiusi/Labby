@@ -1,3 +1,18 @@
+/*
+ * Labby App Stylesheet
+ * -----------------------------------------------------------------------------
+ * Contributor map:
+ *  1. Base variables and shared components define the visual language.
+ *  2. Desktop layout rules come first and must remain compatible with wide screens.
+ *  3. Mobile behavior lives under @media (max-width: 1100px).
+ *  4. Dialogs, sheets and rack-specific rules are grouped by feature.
+ *
+ * Style guide:
+ *  - Reuse CSS variables instead of hard-coded theme colors.
+ *  - Keep tap targets at least 44px on mobile.
+ *  - Add new mobile-only fixes inside the mobile media block whenever possible.
+ */
+
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;600;700&display=swap');
 
 :root {
@@ -5213,5 +5228,56 @@ dialog.rack-form-dialog:not([open]) {
   #config-dialog .dialog-footer .button {
     min-height: 52px;
     width: 100%;
+  }
+}
+
+
+/* v38/v46: keep desktop Config compact and consistent with Themes/API Keys. */
+@media (min-width: 1101px) {
+  #config-dialog.tree-dialog[open] {
+    width: min(1180px, calc(100vw - 128px)) !important;
+    height: min(680px, calc(100dvh - 128px)) !important;
+    max-width: calc(100vw - 128px) !important;
+    max-height: calc(100dvh - 128px) !important;
+    padding: 1rem 1.15rem !important;
+  }
+
+  #config-dialog .tree-head {
+    margin-bottom: 0.9rem !important;
+  }
+
+  #config-dialog .config-menu-grid {
+    gap: 0.75rem !important;
+  }
+
+  #config-dialog .config-menu-row {
+    gap: 0.9rem !important;
+  }
+
+  #config-dialog .config-intro,
+  #config-dialog .config-section-title {
+    min-height: 42px !important;
+    border-radius: 12px !important;
+    padding: 0 0.85rem !important;
+  }
+
+  #config-dialog .config-menu-grid > .button,
+  #config-dialog .config-menu-row > .button,
+  #config-dialog .config-menu-row > .file-label,
+  #config-dialog .dialog-footer .button {
+    min-height: 36px !important;
+    height: auto !important;
+    border-radius: 12px !important;
+    padding: 0.42rem 0.75rem !important;
+  }
+
+  #config-dialog .config-section-title {
+    margin-top: 0.7rem !important;
+    border: 2px solid var(--line) !important;
+    background: var(--blue) !important;
+  }
+
+  #config-dialog .dialog-footer {
+    padding-top: 0.7rem !important;
   }
 }
