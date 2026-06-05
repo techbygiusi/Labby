@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Labby - Map Your Homelab</title>
+  <title>Labby -Map Your Homelab</title>
   <meta name="description" content="Labby is a lightweight homelab inventory, rack and topology tool. Track hardware, VMs, LXCs, apps and networks. Self-host with Docker." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -129,7 +129,6 @@
     .btn-primary { background: var(--yellow); }
     .btn-secondary { background: var(--panel); }
     .btn-mint { background: var(--mint); }
-    .btn-blue { background: var(--blue); }
     .btn:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 6px 16px rgba(0,0,0,.13); }
     .btn:active { transform: translateY(1px) scale(.99); box-shadow: none; }
 
@@ -324,24 +323,6 @@
     .copy-btn:active { transform: translateY(1px); }
     .copy-btn.copied { border-color: #b8efca; color: #b8efca; background: rgba(184,239,202,.1); }
 
-    /* ── deployment cards ── */
-    .deploy-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 1rem;
-      margin-top: 2.5rem;
-    }
-    .deploy-card {
-      background: color-mix(in srgb, var(--phone) 92%, white);
-      border: 2px solid var(--line);
-      border-radius: 16px;
-      padding: 1.4rem 1.2rem;
-      box-shadow: var(--shadow);
-    }
-    .deploy-card-icon { font-size: 2rem; margin-bottom: .6rem; }
-    .deploy-card-title { font: 700 1rem/1.2 'Space Mono', monospace; margin-bottom: .5rem; }
-    .deploy-card-desc { font-size: .85rem; color: var(--muted); line-height: 1.55; margin-bottom: 1rem; }
-
     /* ── cta ── */
     .cta {
       text-align: center;
@@ -444,7 +425,6 @@
       .cta-btns { flex-direction: column; align-items: stretch; }
       footer .wrap { flex-direction: column; align-items: flex-start; }
       pre { font-size: .72rem; padding: .85rem .9rem; }
-      .deploy-grid { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 400px) {
@@ -466,8 +446,7 @@
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
         GitHub
       </a>
-      <a class="btn btn-primary" href="/demo/">🚀 Live Demo</a>
-      <a class="btn btn-blue" href="/app/">🔒 Open App</a>
+      <a class="btn btn-primary" href="https://www.my-labby.com/" target="_blank" rel="noopener">🚀 Live Demo</a>
       <a class="btn btn-secondary" href="wiki.html">📚 Wiki</a>
       <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">
         <svg id="toggle-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -485,18 +464,17 @@
     <h1>Map Your <span>Homelab</span></h1>
     <p class="hero-sub">
       Lightweight inventory, rack and topology tool for homelabbers.
-      Track hardware, VMs, LXCs, apps and networks — self-hosted with Docker.
+      Track hardware, VMs, LXCs, apps and networks -self-hosted with Docker.
     </p>
     <div class="hero-btns">
-      <a class="btn btn-primary" href="/demo/">🚀 Try Live Demo</a>
-      <a class="btn btn-blue" href="/app/">🔒 Open App</a>
+      <a class="btn btn-primary" href="https://www.my-labby.com/" target="_blank" rel="noopener">🚀 Try Live Demo</a>
       <a class="btn btn-secondary" href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
         View on GitHub
       </a>
       <a class="btn btn-mint" href="#install">⚙️ Self-Host</a>
     </div>
-    <p class="note-strip">🚀 Demo: browser-only storage &nbsp;|&nbsp; 🔒 App: persistent server-side storage</p>
+    <p class="note-strip">⚠️ Demo saves in your browser only. Self-host for persistent shared storage.</p>
   </div>
 
   <!-- main screenshot -->
@@ -514,13 +492,13 @@
   <div class="wrap">
     <p class="section-label">What Labby does</p>
     <h2 class="section-title">Everything for your homelab map</h2>
-    <p class="section-desc">One dashboard for all your infrastructure. From bare-metal servers to containerized apps — add it, connect it, visualize it.</p>
+    <p class="section-desc">One dashboard for all your infrastructure. From bare-metal servers to containerized apps -add it, connect it, visualize it.</p>
 
     <div class="features-grid">
       <div class="feature-card">
         <span class="feature-icon">🖥️</span>
         <p class="feature-title">Resource Tracking</p>
-        <p class="feature-desc">Hardware, VMs, LXCs, Apps and Networks with rich metadata — OS, CPU, RAM, disks, notes and links.</p>
+        <p class="feature-desc">Hardware, VMs, LXCs, Apps and Networks with rich metadata -OS, CPU, RAM, disks, notes and links.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon">🌳</span>
@@ -545,7 +523,7 @@
       <div class="feature-card">
         <span class="feature-icon">🎨</span>
         <p class="feature-title">10+ Themes</p>
-        <p class="feature-desc">Built-in Light, Dark, Ocean, Nord, Grape and more — plus a full custom theme editor with export support.</p>
+        <p class="feature-desc">Built-in Light, Dark, Ocean, Nord, Grape and more -plus a full custom theme editor with export support.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon">💾</span>
@@ -556,11 +534,6 @@
         <span class="feature-icon">📱</span>
         <p class="feature-title">Mobile Optimized</p>
         <p class="feature-desc">Full-screen views and bottom navigation on mobile and tablet. Same features, smaller screen.</p>
-      </div>
-      <div class="feature-card">
-        <span class="feature-icon">🔍</span>
-        <p class="feature-title">SEO Optimized</p>
-        <p class="feature-desc">Clean semantic HTML, meta tags, Open Graph and Twitter Card support — ready to be indexed and shared right out of the box.</p>
       </div>
     </div>
   </div>
@@ -605,42 +578,26 @@
 
 <hr />
 
-<!-- ── deployment options ── -->
+<!-- ── install ── -->
 <section id="install">
   <div class="wrap">
-    <p class="section-label">Deployment</p>
-    <h2 class="section-title">Two ways to use Labby</h2>
-    <p class="section-desc">Pick the version that fits your needs. Both run under my-labby.com.</p>
+    <p class="section-label">Self-Hosting</p>
+    <h2 class="section-title">Up in two commands</h2>
+    <p class="section-desc">Requires Docker and Docker Compose. Data is stored in a named Docker volume and survives restarts.</p>
 
-    <div class="deploy-grid">
-      <div class="deploy-card">
-        <div class="deploy-card-icon">🚀</div>
-        <p class="deploy-card-title">Demo — /demo/</p>
-        <p class="deploy-card-desc">Try Labby instantly with no setup. Data is stored in your browser only — nothing is saved to a server. Perfect for exploring features.</p>
-        <a class="btn btn-primary" href="/demo/" style="border-width:3px;padding:.65rem 1.3rem;font-size:.88rem">Open Demo</a>
-      </div>
-      <div class="deploy-card">
-        <div class="deploy-card-icon">🔒</div>
-        <p class="deploy-card-title">App — /app/</p>
-        <p class="deploy-card-desc">Full Labby with persistent server-side storage. Data survives restarts and is shared across all your devices and browsers. SSO-ready.</p>
-        <a class="btn btn-blue" href="/app/" style="border-width:3px;padding:.65rem 1.3rem;font-size:.88rem">Open App</a>
-      </div>
-    </div>
-
-    <div class="install-block" style="margin-top:2rem">
-      <p class="section-label" style="margin-bottom:.75rem">Self-Hosting</p>
+    <div class="install-block">
       <div class="install-steps">
         <div class="install-step">
           <span class="step-num">1</span>
-          <p class="step-text"><strong>Clone</strong> the Labby repository</p>
+          <p class="step-text"><strong>Clone</strong> the repository from GitHub</p>
         </div>
         <div class="install-step">
           <span class="step-num">2</span>
-          <p class="step-text"><strong>Enter</strong> the Labby Neue Webseite folder</p>
+          <p class="step-text"><strong>Run</strong> docker compose up</p>
         </div>
         <div class="install-step">
           <span class="step-num">3</span>
-          <p class="step-text"><strong>Run</strong> docker compose up — open <code style="font-family:'Space Mono',monospace">localhost</code></p>
+          <p class="step-text"><strong>Open</strong> <code style="font-family:'Space Mono',monospace">localhost:8080</code></p>
         </div>
       </div>
 <div class="code-block">
@@ -649,7 +606,7 @@
     Copy
   </button>
   <pre id="install-code">git clone https://github.com/techbygiusi/Labby.git
-cd "Labby/Labby Neue Webseite"
+cd Labby
 docker compose up --build -d</pre>
 </div>
     </div>
@@ -664,10 +621,9 @@ docker compose up --build -d</pre>
     <div class="cta-card">
       <div style="font-size:2.2rem;margin-bottom:.75rem">🧪</div>
       <h2>Ready to map your homelab?</h2>
-      <p>Try the demo instantly — no sign-up needed. Or open the full app for persistent shared storage across all your devices.</p>
+      <p>Try the live demo instantly -no sign-up needed. Or self-host Labby for persistent shared storage across all your devices.</p>
       <div class="cta-btns">
-        <a class="btn btn-primary" href="/demo/">🚀 Open Demo</a>
-        <a class="btn btn-blue" href="/app/">🔒 Open App</a>
+        <a class="btn btn-primary" href="https://www.my-labby.com/" target="_blank" rel="noopener">🚀 Open Live Demo</a>
         <a class="btn btn-secondary" href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
           GitHub
@@ -681,15 +637,14 @@ docker compose up --build -d</pre>
 <footer>
   <div class="wrap">
     <p class="footer-text">
-      © <a href="https://github.com/techbygiusi" target="_blank" rel="noopener">TechByGiusi</a> — MIT License
+      © <a href="https://github.com/techbygiusi" target="_blank" rel="noopener">TechByGiusi</a> -MIT License
     </p>
     <div class="footer-links">
       <a class="btn btn-secondary" href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener" style="padding:.35rem .75rem;font-size:.72rem">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
         GitHub
       </a>
-      <a class="btn btn-primary" href="/demo/" style="padding:.35rem .75rem;font-size:.72rem">🚀 Demo</a>
-      <a class="btn btn-blue" href="/app/" style="padding:.35rem .75rem;font-size:.72rem">🔒 App</a>
+      <a class="btn btn-primary" href="https://www.my-labby.com/" target="_blank" rel="noopener" style="padding:.35rem .75rem;font-size:.72rem">🚀 Live Demo</a>
     </div>
   </div>
 </footer>
@@ -732,3 +687,4 @@ docker compose up --build -d</pre>
 </script>
 
 </body>
+</html>
