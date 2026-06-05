@@ -1,0 +1,735 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Labby - Map Your Homelab</title>
+  <meta name="description" content="Labby is a lightweight homelab inventory, rack and topology tool. Track hardware, VMs, LXCs, apps and networks. Self-host with Docker." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:     #ece9df;
+      --bg-b:   #d6ccc2;
+      --panel:  #ffffff;
+      --phone:  #f5f1e7;
+      --text:   #202126;
+      --muted:  #575a64;
+      --line:   #2e2f36;
+      --yellow: #f4d371;
+      --mint:   #b8efca;
+      --blue:   #b8d9ff;
+      --shadow: 0 14px 28px rgba(22,25,36,.14);
+    }
+
+    [data-theme="dark"] {
+      --bg:     #1e1828;
+      --bg-b:   #15101e;
+      --panel:  #2e2640;
+      --phone:  #231d30;
+      --text:   #ede6f5;
+      --muted:  #9e8fb5;
+      --line:   #5c4d7a;
+      --yellow: #e8b4d8;
+      --mint:   #352d48;
+      --blue:   #38304c;
+      --shadow: 0 16px 34px rgba(10,6,18,.65);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      background: var(--bg-b);
+      color: var(--text);
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* ── wave background ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      --split: 22%;
+      --cut: calc(100% - var(--split));
+      --amp: 2.2%;
+      clip-path: polygon(
+        0% 0%, 100% 0%,
+        100% calc(var(--cut) + var(--amp)*.35),
+        92%  calc(var(--cut) + var(--amp)*.12),
+        84%  calc(var(--cut) + var(--amp)*-.05),
+        76%  calc(var(--cut) + var(--amp)*-.18),
+        68%  calc(var(--cut) + var(--amp)*-.26),
+        60%  calc(var(--cut) + var(--amp)*-.28),
+        52%  calc(var(--cut) + var(--amp)*-.22),
+        44%  calc(var(--cut) + var(--amp)*-.10),
+        36%  calc(var(--cut) + var(--amp)*.05),
+        28%  calc(var(--cut) + var(--amp)*.18),
+        20%  calc(var(--cut) + var(--amp)*.27),
+        12%  calc(var(--cut) + var(--amp)*.24),
+        6%   calc(var(--cut) + var(--amp)*.12),
+        0%   calc(var(--cut) + var(--amp)*-.05)
+      );
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    /* ── layout helpers ── */
+    .wrap { width: min(90vw, 1100px); margin: 0 auto; }
+
+    /* ── nav ── */
+    nav {
+      padding: 1.1rem 0;
+      border-bottom: 3px solid var(--line);
+      background: color-mix(in srgb, var(--phone) 92%, white);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: 0 4px 18px rgba(0,0,0,.08);
+    }
+    nav .wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: .65rem;
+      text-decoration: none;
+    }
+    .nav-name {
+      font: 700 1rem/1 'Space Mono', monospace;
+      color: var(--text);
+    }
+    .nav-links { display: flex; gap: .5rem; }
+
+    /* ── button ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      padding: .48rem .9rem;
+      font: 700 .82rem/1.2 'Space Mono', monospace;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+      white-space: nowrap;
+      color: var(--text);
+    }
+    .btn-primary { background: var(--yellow); }
+    .btn-secondary { background: var(--panel); }
+    .btn-mint { background: var(--mint); }
+    .btn-blue { background: var(--blue); }
+    .btn:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 6px 16px rgba(0,0,0,.13); }
+    .btn:active { transform: translateY(1px) scale(.99); box-shadow: none; }
+
+    /* ── hero ── */
+    .hero {
+      padding: 5rem 0 4rem;
+      text-align: center;
+    }
+    .hero h1 {
+      font: 700 clamp(2rem, 5vw, 3.2rem)/1.1 'Space Mono', monospace;
+      margin-bottom: .75rem;
+      letter-spacing: -.01em;
+    }
+    .hero h1 span { color: #3B82F6; }
+    .hero-sub {
+      font-size: clamp(.95rem, 2vw, 1.1rem);
+      color: var(--muted);
+      max-width: 580px;
+      margin: 0 auto 2rem;
+      line-height: 1.6;
+    }
+    .hero-btns {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: .65rem;
+    }
+    .hero-btns .btn { padding: .65rem 1.3rem; font-size: .88rem; border-width: 3px; }
+
+    /* ── note strip ── */
+    .note-strip {
+      font: 700 .76rem/1.4 'Space Mono', monospace;
+      color: var(--muted);
+      margin-top: .9rem;
+    }
+
+    /* ── screenshot ── */
+    .screenshot-wrap {
+      padding: 0 0 3.5rem;
+    }
+    .screenshot-card {
+      border: 3px solid var(--line);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      background: var(--panel);
+    }
+    .screenshot-card img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* ── section ── */
+    section { padding: 4rem 0; }
+    .section-label {
+      font: 700 .72rem/1 'Space Mono', monospace;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: .55rem;
+    }
+    .section-title {
+      font: 700 clamp(1.4rem, 3vw, 2rem)/1.2 'Space Mono', monospace;
+      margin-bottom: 1rem;
+    }
+    .section-desc {
+      color: var(--muted);
+      line-height: 1.65;
+      max-width: 580px;
+      font-size: .95rem;
+    }
+
+    /* ── features grid ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 1rem;
+      margin-top: 2.5rem;
+    }
+    .feature-card {
+      background: color-mix(in srgb, var(--phone) 92%, white);
+      border: 2px solid var(--line);
+      border-radius: 16px;
+      padding: 1.2rem 1.1rem;
+      box-shadow: var(--shadow);
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .feature-card:hover { transform: translateY(-3px); box-shadow: 0 18px 36px rgba(0,0,0,.14); }
+    .feature-icon { font-size: 1.8rem; margin-bottom: .65rem; display: block; }
+    .feature-title {
+      font: 700 .88rem/1.2 'Space Mono', monospace;
+      margin-bottom: .4rem;
+    }
+    .feature-desc {
+      font-size: .82rem;
+      line-height: 1.55;
+      color: var(--muted);
+    }
+
+    /* ── screenshots gallery ── */
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1rem;
+      margin-top: 2.5rem;
+    }
+    .gallery-item {
+      border: 2px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      transition: transform .15s ease;
+    }
+    .gallery-item:hover { transform: translateY(-2px); }
+    .gallery-item img { width: 100%; height: auto; display: block; }
+    .gallery-caption {
+      font: 700 .74rem/1 'Space Mono', monospace;
+      color: var(--muted);
+      padding: .55rem .75rem;
+      border-top: 2px solid var(--line);
+    }
+
+    /* ── install ── */
+    .install-block {
+      background: color-mix(in srgb, var(--phone) 92%, white);
+      border: 3px solid var(--line);
+      border-radius: 20px;
+      padding: 2rem 2rem 1.5rem;
+      box-shadow: var(--shadow);
+      margin-top: 2.5rem;
+    }
+    .install-steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .install-step {
+      display: flex;
+      gap: .75rem;
+      align-items: flex-start;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      border: 2px solid var(--line);
+      border-radius: 999px;
+      background: var(--yellow);
+      font: 700 .8rem/1 'Space Mono', monospace;
+      display: grid;
+      place-items: center;
+    }
+    .step-text {
+      font-size: .85rem;
+      line-height: 1.5;
+      color: var(--muted);
+      padding-top: .1rem;
+    }
+    .step-text strong { color: var(--text); font-weight: 700; }
+    .code-block {
+      position: relative;
+    }
+    pre {
+      background: var(--text);
+      color: var(--bg);
+      border-radius: 12px;
+      padding: 1rem 3.5rem 1rem 1.2rem;
+      font: 600 .83rem/1.55 'Space Mono', monospace;
+      overflow-x: auto;
+      border: 2px solid var(--line);
+    }
+    .copy-btn {
+      position: absolute;
+      top: .6rem;
+      right: .6rem;
+      border: 2px solid rgba(255,255,255,.2);
+      border-radius: 8px;
+      background: rgba(255,255,255,.1);
+      color: #fff;
+      font: 700 .72rem/1 'Space Mono', monospace;
+      padding: .3rem .55rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: .3rem;
+      transition: background .15s ease, transform .12s ease;
+    }
+    .copy-btn:hover { background: rgba(255,255,255,.2); transform: translateY(-1px); }
+    .copy-btn:active { transform: translateY(1px); }
+    .copy-btn.copied { border-color: #b8efca; color: #b8efca; background: rgba(184,239,202,.1); }
+
+    /* ── deployment cards ── */
+    .deploy-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1rem;
+      margin-top: 2.5rem;
+    }
+    .deploy-card {
+      background: color-mix(in srgb, var(--phone) 92%, white);
+      border: 2px solid var(--line);
+      border-radius: 16px;
+      padding: 1.4rem 1.2rem;
+      box-shadow: var(--shadow);
+    }
+    .deploy-card-icon { font-size: 2rem; margin-bottom: .6rem; }
+    .deploy-card-title { font: 700 1rem/1.2 'Space Mono', monospace; margin-bottom: .5rem; }
+    .deploy-card-desc { font-size: .85rem; color: var(--muted); line-height: 1.55; margin-bottom: 1rem; }
+
+    /* ── cta ── */
+    .cta {
+      text-align: center;
+      padding: 4.5rem 0 5rem;
+    }
+    .cta-card {
+      background: color-mix(in srgb, var(--phone) 92%, white);
+      border: 3px solid var(--line);
+      border-radius: 24px;
+      padding: 3rem 2rem;
+      box-shadow: var(--shadow);
+      display: inline-block;
+      max-width: 560px;
+      width: 100%;
+    }
+    .cta h2 {
+      font: 700 clamp(1.3rem, 3vw, 1.8rem)/1.2 'Space Mono', monospace;
+      margin-bottom: .75rem;
+    }
+    .cta p {
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+      font-size: .92rem;
+    }
+    .cta-btns { display: flex; flex-wrap: wrap; gap: .65rem; justify-content: center; }
+    .cta-btns .btn { border-width: 3px; padding: .65rem 1.3rem; font-size: .88rem; }
+
+    /* ── footer ── */
+    footer {
+      border-top: 3px solid var(--line);
+      padding: 1rem 0;
+      background: color-mix(in srgb, var(--phone) 92%, white);
+    }
+    footer .wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: .75rem;
+    }
+    .footer-text {
+      font: 700 .72rem/1.4 'Space Mono', monospace;
+      color: var(--muted);
+    }
+    .footer-text a { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
+    .footer-links { display: flex; gap: .5rem; }
+
+    /* ── divider ── */
+    hr {
+      border: none;
+      border-top: 2px solid color-mix(in srgb, var(--line) 25%, transparent);
+      margin: 0;
+    }
+
+    /* ── dark mode transition ── */
+    body, nav, footer, .feature-card, .gallery-item, .install-block, .cta-card, .screenshot-card {
+      transition: background .25s ease, color .25s ease, border-color .25s ease, box-shadow .25s ease;
+    }
+
+    /* ── theme toggle (in nav) ── */
+    .theme-toggle {
+      height: 36px;
+      padding: 0 .75rem;
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+      color: var(--text);
+      font: 700 .78rem/1 'Space Mono', monospace;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: .35rem;
+      white-space: nowrap;
+      transition: transform .12s ease, background .25s ease, border-color .25s ease;
+    }
+    .theme-toggle:hover { transform: translateY(-1px); }
+    .theme-toggle:active { transform: translateY(1px); }
+
+    /* ── mobile nav improvements ── */
+    @media (max-width: 520px) {
+      nav .wrap { gap: .5rem; }
+      .nav-links { gap: .35rem; }
+      .nav-links .btn { padding: .38rem .6rem; font-size: .72rem; }
+      .nav-links .btn svg { display: none; }
+    }
+
+    @media (max-width: 640px) {
+      .hero { padding: 2.5rem 0 2rem; }
+      .hero h1 { font-size: 1.75rem; }
+      .hero-sub { font-size: .9rem; }
+      .hero-btns .btn { width: 100%; justify-content: center; font-size: .82rem; }
+      .hero-btns { flex-direction: column; align-items: stretch; max-width: 320px; margin: 0 auto; }
+      .features-grid { grid-template-columns: 1fr; }
+      .gallery { grid-template-columns: 1fr; }
+      .install-steps { grid-template-columns: 1fr; }
+      .install-block { padding: 1.4rem 1.1rem 1.2rem; }
+      .cta-card { padding: 2rem 1.2rem; }
+      .cta-btns .btn { width: 100%; justify-content: center; }
+      .cta-btns { flex-direction: column; align-items: stretch; }
+      footer .wrap { flex-direction: column; align-items: flex-start; }
+      pre { font-size: .72rem; padding: .85rem .9rem; }
+      .deploy-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 400px) {
+      .wrap { width: 95vw; }
+      .nav-brand .nav-name { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── nav ── -->
+<nav>
+  <div class="wrap">
+    <a class="nav-brand" href="#">
+      <span class="nav-name">Labby</span>
+    </a>
+    <div class="nav-links">
+      <a class="btn btn-secondary" href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+      <a class="btn btn-primary" href="/demo/">🚀 Live Demo</a>
+      <a class="btn btn-blue" href="/app/">🔒 Open App</a>
+      <a class="btn btn-secondary" href="wiki.html">📚 Wiki</a>
+      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">
+        <svg id="toggle-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+        <span id="toggle-label">Dark</span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ── hero ── -->
+<div class="wrap">
+  <div class="hero">
+    <h1>Map Your <span>Homelab</span></h1>
+    <p class="hero-sub">
+      Lightweight inventory, rack and topology tool for homelabbers.
+      Track hardware, VMs, LXCs, apps and networks — self-hosted with Docker.
+    </p>
+    <div class="hero-btns">
+      <a class="btn btn-primary" href="/demo/">🚀 Try Live Demo</a>
+      <a class="btn btn-blue" href="/app/">🔒 Open App</a>
+      <a class="btn btn-secondary" href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        View on GitHub
+      </a>
+      <a class="btn btn-mint" href="#install">⚙️ Self-Host</a>
+    </div>
+    <p class="note-strip">🚀 Demo: browser-only storage &nbsp;|&nbsp; 🔒 App: persistent server-side storage</p>
+  </div>
+
+  <!-- main screenshot -->
+  <div class="screenshot-wrap">
+    <div class="screenshot-card">
+      <img src="images/labby-main-view.png" alt="Labby dashboard" loading="eager" />
+    </div>
+  </div>
+</div>
+
+<hr />
+
+<!-- ── features ── -->
+<section>
+  <div class="wrap">
+    <p class="section-label">What Labby does</p>
+    <h2 class="section-title">Everything for your homelab map</h2>
+    <p class="section-desc">One dashboard for all your infrastructure. From bare-metal servers to containerized apps — add it, connect it, visualize it.</p>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <span class="feature-icon">🖥️</span>
+        <p class="feature-title">Resource Tracking</p>
+        <p class="feature-desc">Hardware, VMs, LXCs, Apps and Networks with rich metadata — OS, CPU, RAM, disks, notes and links.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🌳</span>
+        <p class="feature-title">Topology Views</p>
+        <p class="feature-desc">Tree view and interactive Graph view visualize hosting relationships between every resource.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🗄️</span>
+        <p class="feature-title">Rack View</p>
+        <p class="feature-desc">Create locations and racks. Drag components into front and rear rack slots and link them to Labby resources.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🌐</span>
+        <p class="feature-title">IP View</p>
+        <p class="feature-desc">Dedicated IP address view grouped by subnet. Live search by IP, hostname or port. Color-coded networks.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">📡</span>
+        <p class="feature-title">Live Status Checks</p>
+        <p class="feature-desc">Optional auto-ping for IPs and auto-check for URLs. Online / Offline / Maintenance status per resource.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🎨</span>
+        <p class="feature-title">10+ Themes</p>
+        <p class="feature-desc">Built-in Light, Dark, Ocean, Nord, Grape and more — plus a full custom theme editor with export support.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">💾</span>
+        <p class="feature-title">Server-Side Storage</p>
+        <p class="feature-desc">Data lives on the server, shared across all browsers and devices. Export / import JSON backups anytime.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">📱</span>
+        <p class="feature-title">Mobile Optimized</p>
+        <p class="feature-desc">Full-screen views and bottom navigation on mobile and tablet. Same features, smaller screen.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🔐</span>
+        <p class="feature-title">SSO Ready</p>
+        <p class="feature-desc">Designed to work behind oauth2-proxy, Authentik, Keycloak or Authelia. Reads X-Auth-Request-User and Bearer JWT headers.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr />
+
+<!-- ── screenshots ── -->
+<section>
+  <div class="wrap">
+    <p class="section-label">Screenshots</p>
+    <h2 class="section-title">See it in action</h2>
+
+    <div class="gallery">
+      <div class="gallery-item">
+        <img src="images/labby-graph-view.png" alt="Graph View" loading="lazy" />
+        <p class="gallery-caption">🕸️ Graph View</p>
+      </div>
+      <div class="gallery-item">
+        <img src="images/labby-rack-view.png" alt="Rack View" loading="lazy" />
+        <p class="gallery-caption">🗄️ Rack Overview</p>
+      </div>
+      <div class="gallery-item">
+        <img src="images/labby-rack-editor.png" alt="Rack Editor" loading="lazy" />
+        <p class="gallery-caption">🔧 Rack Editor</p>
+      </div>
+      <div class="gallery-item">
+        <img src="images/labby-themes.png" alt="Themes" loading="lazy" />
+        <p class="gallery-caption">🎨 Theme Picker</p>
+      </div>
+      <div class="gallery-item">
+        <img src="images/labby-theme-menu.png" alt="Theme Menu" loading="lazy" />
+        <p class="gallery-caption">🎨 Custom Theme Editor</p>
+      </div>
+      <div class="gallery-item">
+        <img src="images/labby-config-menu.png" alt="Config Menu" loading="lazy" />
+        <p class="gallery-caption">⚙️ Config &amp; Backup</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr />
+
+<!-- ── deployment options ── -->
+<section id="install">
+  <div class="wrap">
+    <p class="section-label">Deployment</p>
+    <h2 class="section-title">Two ways to use Labby</h2>
+    <p class="section-desc">Pick the version that fits your needs. Both run under my-labby.com.</p>
+
+    <div class="deploy-grid">
+      <div class="deploy-card">
+        <div class="deploy-card-icon">🚀</div>
+        <p class="deploy-card-title">Demo — /demo/</p>
+        <p class="deploy-card-desc">Try Labby instantly with no setup. Data is stored in your browser only — nothing is saved to a server. Perfect for exploring features.</p>
+        <a class="btn btn-primary" href="/demo/" style="border-width:3px;padding:.65rem 1.3rem;font-size:.88rem">Open Demo</a>
+      </div>
+      <div class="deploy-card">
+        <div class="deploy-card-icon">🔒</div>
+        <p class="deploy-card-title">App — /app/</p>
+        <p class="deploy-card-desc">Full Labby with persistent server-side storage. Data survives restarts and is shared across all your devices and browsers. SSO-ready.</p>
+        <a class="btn btn-blue" href="/app/" style="border-width:3px;padding:.65rem 1.3rem;font-size:.88rem">Open App</a>
+      </div>
+    </div>
+
+    <div class="install-block" style="margin-top:2rem">
+      <p class="section-label" style="margin-bottom:.75rem">Self-Hosting</p>
+      <div class="install-steps">
+        <div class="install-step">
+          <span class="step-num">1</span>
+          <p class="step-text"><strong>Clone</strong> the Labby repository</p>
+        </div>
+        <div class="install-step">
+          <span class="step-num">2</span>
+          <p class="step-text"><strong>Enter</strong> the Labby Neue Webseite folder</p>
+        </div>
+        <div class="install-step">
+          <span class="step-num">3</span>
+          <p class="step-text"><strong>Run</strong> docker compose up — open <code style="font-family:'Space Mono',monospace">localhost</code></p>
+        </div>
+      </div>
+<div class="code-block">
+  <button class="copy-btn" id="copy-btn" onclick="copyCode()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    Copy
+  </button>
+  <pre id="install-code">git clone https://github.com/techbygiusi/Labby.git
+cd "Labby/Labby Neue Webseite"
+docker compose up --build -d</pre>
+</div>
+    </div>
+  </div>
+</section>
+
+<hr />
+
+<!-- ── cta ── -->
+<div class="wrap">
+  <div class="cta">
+    <div class="cta-card">
+      <div style="font-size:2.2rem;margin-bottom:.75rem">🧪</div>
+      <h2>Ready to map your homelab?</h2>
+      <p>Try the demo instantly — no sign-up needed. Or open the full app for persistent shared storage across all your devices.</p>
+      <div class="cta-btns">
+        <a class="btn btn-primary" href="/demo/">🚀 Open Demo</a>
+        <a class="btn btn-blue" href="/app/">🔒 Open App</a>
+        <a class="btn btn-secondary" href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+          GitHub
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── footer ── -->
+<footer>
+  <div class="wrap">
+    <p class="footer-text">
+      © <a href="https://github.com/techbygiusi" target="_blank" rel="noopener">TechByGiusi</a> — MIT License
+    </p>
+    <div class="footer-links">
+      <a class="btn btn-secondary" href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener" style="padding:.35rem .75rem;font-size:.72rem">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+      <a class="btn btn-primary" href="/demo/" style="padding:.35rem .75rem;font-size:.72rem">🚀 Demo</a>
+      <a class="btn btn-blue" href="/app/" style="padding:.35rem .75rem;font-size:.72rem">🔒 App</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const btn   = document.getElementById('theme-toggle');
+  const icon  = document.getElementById('toggle-icon');
+  const label = document.getElementById('toggle-label');
+  const html  = document.documentElement;
+
+  const MOON = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  const SUN  = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+
+  function applyTheme(dark) {
+    html.dataset.theme = dark ? 'dark' : '';
+    icon.innerHTML = dark ? SUN : MOON;
+    label.textContent = dark ? 'Light' : 'Dark';
+  }
+
+  applyTheme(localStorage.getItem('labby-site-theme') === 'dark');
+
+  function copyCode() {
+    const btn = document.getElementById('copy-btn');
+    const text = document.getElementById('install-code').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.classList.add('copied');
+      btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy';
+      }, 2000);
+    });
+  }
+
+  btn.addEventListener('click', () => {
+    const isDark = html.dataset.theme === 'dark';
+    applyTheme(!isDark);
+    localStorage.setItem('labby-site-theme', !isDark ? 'dark' : 'light');
+  });
+</script>
+
+</body>
+</html>
