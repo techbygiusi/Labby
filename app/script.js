@@ -115,6 +115,16 @@ const agentScopes = [
   ['ping:run', 'Run ping'],
   ['config:read', 'Read config'],
 ];
+const agentExpiryOptions = {
+  '1d': { label: '1 day', ms: 24 * 60 * 60 * 1000 },
+  '1w': { label: '1 week', ms: 7 * 24 * 60 * 60 * 1000 },
+  '1m': { label: '1 month', ms: 30 * 24 * 60 * 60 * 1000 },
+  '1y': { label: '1 year', ms: 365 * 24 * 60 * 60 * 1000 },
+};
+function getAgentExpiryIso(value) {
+  const opt = agentExpiryOptions[value] || agentExpiryOptions['1m'];
+  return new Date(Date.now() + opt.ms).toISOString();
+}
 
 const API_BASE = (() => {
   const loc = window.location;
@@ -516,17 +526,62 @@ configToggle.addEventListener('click', () => {
   configDialog.showModal();
 });
 
+const mobileAgentApiBody = document.getElementById('mobile-agent-api-body');
+const agentApiDialogPlaceholder = document.createComment('agent-api-dialog-placeholder');
+let agentApiContentInMobile = false;
+
+function moveAgentApiToMobile() {
+  const dlg = agentApiDialog || document.getElementById('agent-api-dialog');
+  const body = mobileAgentApiBody || document.getElementById('mobile-agent-api-body');
+  if (!dlg || !body || agentApiContentInMobile) return;
+  if (!agentApiDialogPlaceholder.parentNode) dlg.insertBefore(agentApiDialogPlaceholder, dlg.firstChild);
+  let node = agentApiDialogPlaceholder.nextSibling;
+  while (node) {
+    const next = node.nextSibling;
+    body.appendChild(node);
+    node = next;
+  }
+  agentApiContentInMobile = true;
+}
+
+function restoreAgentApiToDialog() {
+  const dlg = agentApiDialog || document.getElementById('agent-api-dialog');
+  const body = mobileAgentApiBody || document.getElementById('mobile-agent-api-body');
+  if (!dlg || !body || !agentApiContentInMobile) return;
+  while (body.firstChild) dlg.insertBefore(body.firstChild, agentApiDialogPlaceholder.nextSibling);
+  if (agentApiDialogPlaceholder.parentNode) agentApiDialogPlaceholder.remove();
+  agentApiContentInMobile = false;
+}
+
+function closeMobileAgentApiView() {
+  if (!agentApiContentInMobile) return;
+  restoreAgentApiToDialog();
+}
+
 function openAgentApiDialog() {
   if (!agentApiDialog) return;
   if (configDialog?.open) configDialog.close();
   if (typeof closeMobileMoreSheet === 'function') closeMobileMoreSheet();
   if (typeof renderAgentKeyLists === 'function') renderAgentKeyLists();
+  clearAgentTokenBox();
+  if (isMobile()) {
+    if (agentApiDialog.open) agentApiDialog.close();
+    moveAgentApiToMobile();
+    showMobileView('mobile-agent-api');
+    setActiveMobileNav('nav-more');
+    return;
+  }
+  restoreAgentApiToDialog();
   if (typeof agentApiDialog.showModal === 'function' && !agentApiDialog.open) agentApiDialog.showModal();
 }
 
 document.getElementById('agent-api-btn')?.addEventListener('click', openAgentApiDialog);
 document.getElementById('agent-api-btn-mobile')?.addEventListener('click', openAgentApiDialog);
-document.getElementById('agent-api-close')?.addEventListener('click', () => agentApiDialog?.close());
+document.getElementById('agent-api-close')?.addEventListener('click', () => {
+  if (isMobile() && agentApiContentInMobile) { hideMobileViews(); return; }
+  clearAgentTokenBox();
+  agentApiDialog?.close();
+});
 
 clearAll.addEventListener('click', async () => {
   if (!confirm('Delete all resources? This also clears all rack, location and custom theme data.')) return;
@@ -622,7 +677,10 @@ function applyImportedConfig(parsed) {
 
 
 function getLocalAgentKeys() {
-  try { return JSON.parse(localStorage.getItem(agentKeyStorage) || '[]'); } catch { return []; }
+  try {
+    const now = Date.now();
+    return JSON.parse(localStorage.getItem(agentKeyStorage) || '[]').filter(k => !k.expiresAt || Date.parse(k.expiresAt) > now);
+  } catch { return []; }
 }
 
 function setLocalAgentKeys(keys) {
@@ -654,11 +712,11 @@ async function loadAgentKeys() {
   }
 }
 
-async function createAgentKey(name, scopes) {
+async function createAgentKey(name, scopes, expiresAt) {
   try {
     const data = await agentApiRequest('/api/agent-keys', {
       method: 'POST',
-      body: JSON.stringify({ name, scopes }),
+      body: JSON.stringify({ name, scopes, expiresAt }),
     });
     return data;
   } catch {
@@ -670,6 +728,7 @@ async function createAgentKey(name, scopes) {
       scopes,
       enabled: true,
       createdAt: new Date().toISOString(),
+      expiresAt,
       lastUsed: '',
     };
     const keys = getLocalAgentKeys();
@@ -714,10 +773,29 @@ function selectedAgentScopes(form) {
   return Array.from(form.querySelectorAll('.agent-scope-option input:checked')).map(input => input.value);
 }
 
+function clearAgentTokenBox() {
+  document.querySelectorAll('.agent-token-box').forEach((box) => {
+    box.hidden = true;
+    box.innerHTML = '';
+  });
+}
+
 function showAgentToken(box, token) {
-  if (!box) return;
+  if (!box || !token) return;
   box.hidden = false;
-  box.innerHTML = `<strong>Copy this key now. It is shown once:</strong><br><code>${escapeAttr(token)}</code>`;
+  const inputId = `agent-token-copy-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  box.innerHTML = `
+    <strong>Copy this key now. It is shown once and cannot be recovered later:</strong>
+    <div class="agent-token-copy-row">
+      <input id="${inputId}" type="text" readonly value="${escapeAttr(token)}" aria-label="New API key" />
+      <button class="button secondary" type="button" data-copy-agent-token="${inputId}">Copy</button>
+      <button class="button secondary" type="button" data-clear-agent-token>Done</button>
+    </div>`;
+  requestAnimationFrame(() => {
+    const field = document.getElementById(inputId);
+    field?.focus();
+    field?.select();
+  });
 }
 
 async function renderAgentKeyLists() {
@@ -728,7 +806,7 @@ async function renderAgentKeyLists() {
         <div>
           <strong>${escapeAttr(key.name)}</strong>
           <div class="agent-key-meta">${key.enabled === false ? 'Disabled' : 'Enabled'} · ${escapeAttr(key.prefix || 'labby_…')} · ${escapeAttr((key.scopes || []).join(', '))}</div>
-          <div class="agent-key-meta">Created: ${escapeAttr(key.createdAt || '-')} · Last used: ${escapeAttr(key.lastUsed || 'never')}</div>
+          <div class="agent-key-meta">Created: ${escapeAttr(key.createdAt || '-')} · Expires: ${escapeAttr(key.expiresAt || '-')} · Last used: ${escapeAttr(key.lastUsed || 'never')}</div>
         </div>
         <div class="agent-key-actions">
           <button class="button secondary" type="button" data-agent-toggle>${key.enabled === false ? 'Enable' : 'Disable'}</button>
@@ -739,10 +817,11 @@ async function renderAgentKeyLists() {
   });
 }
 
-function bindAgentKeyForm(formId, nameId, tokenId) {
+function bindAgentKeyForm(formId, nameId, tokenId, expiryId) {
   const formNode = document.getElementById(formId);
   const nameNode = document.getElementById(nameId);
   const tokenNode = document.getElementById(tokenId);
+  const expiryNode = document.getElementById(expiryId);
   if (!formNode || formNode.dataset.ready === '1') return;
   formNode.dataset.ready = '1';
   formNode.addEventListener('submit', async (event) => {
@@ -751,7 +830,8 @@ function bindAgentKeyForm(formId, nameId, tokenId) {
     if (!name) return showToast('Agent name is required.', 'error');
     const scopes = selectedAgentScopes(formNode);
     if (!scopes.length) return showToast('Select at least one scope.', 'error');
-    const result = await createAgentKey(name, scopes);
+    const expiresAt = getAgentExpiryIso(expiryNode?.value || '1m');
+    const result = await createAgentKey(name, scopes, expiresAt);
     nameNode.value = '';
     showAgentToken(tokenNode, result.token);
     await renderAgentKeyLists();
@@ -761,11 +841,25 @@ function bindAgentKeyForm(formId, nameId, tokenId) {
 
 function initAgentApiPanel() {
   document.querySelectorAll('[data-agent-scopes]').forEach(renderAgentScopeGrid);
-  bindAgentKeyForm('agent-key-form', 'agent-key-name', 'agent-token');
-  bindAgentKeyForm('agent-key-form-mobile', 'agent-key-name-mobile', 'agent-token-mobile');
+  bindAgentKeyForm('agent-key-form', 'agent-key-name', 'agent-token', 'agent-key-expiry');
+  bindAgentKeyForm('agent-key-form-mobile', 'agent-key-name-mobile', 'agent-token-mobile', 'agent-key-expiry-mobile');
   if (document.documentElement.dataset.agentApiReady !== '1') {
     document.documentElement.dataset.agentApiReady = '1';
     document.addEventListener('click', async (event) => {
+      const copyButton = event.target.closest?.('[data-copy-agent-token]');
+      if (copyButton) {
+        const field = document.getElementById(copyButton.dataset.copyAgentToken);
+        if (field) {
+          field.select();
+          try { await navigator.clipboard.writeText(field.value); showToast('API key copied.'); }
+          catch { document.execCommand?.('copy'); showToast('API key selected.'); }
+        }
+        return;
+      }
+      if (event.target.closest?.('[data-clear-agent-token]')) {
+        clearAgentTokenBox();
+        return;
+      }
       const card = event.target.closest?.('.agent-key-card');
       if (!card) return;
       const id = card.dataset.agentKey;
@@ -3207,6 +3301,7 @@ function openMobileMoreSheet() {
 
 function showMobileView(id) {
   if (id !== 'mobile-theme') closeMobileThemeView();
+  if (id !== 'mobile-agent-api') closeMobileAgentApiView();
   closeMobileMoreSheet();
   showRackOverlay(null);
   closeRackPaletteSheet();
@@ -3217,6 +3312,7 @@ function showMobileView(id) {
 
 function hideMobileViews() {
   closeMobileThemeView();
+  closeMobileAgentApiView();
   closeMobileMoreSheet();
   showRackOverlay(null);
   closeRackPaletteSheet();

@@ -5049,6 +5049,21 @@ dialog.rack-form-dialog:not([open]) {
   overflow-wrap: anywhere;
   font: 700 0.76rem/1.45 'Space Mono', monospace;
 }
+.agent-token-copy-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.55rem;
+}
+.agent-token-copy-row input {
+  min-width: 0;
+  font: 700 0.72rem/1.2 'Space Mono', monospace;
+}
+.agent-key-form select {
+  min-height: 44px;
+  width: 100%;
+}
 .agent-key-list { display: grid; gap: 0.5rem; margin-top: 0.75rem; }
 .agent-key-card {
   display: grid;
@@ -5073,13 +5088,16 @@ dialog.rack-form-dialog:not([open]) {
 }
 @media (max-width: 520px) {
   .agent-scope-grid { grid-template-columns: 1fr; }
+  .agent-token-copy-row { grid-template-columns: 1fr; }
 }
 
 
 /* v30/v38: Agent API Access uses its own dialog so Config stays compact. */
 .agent-api-dialog {
-  width: min(1040px, calc(100vw - 96px));
-  height: min(780px, calc(100dvh - 96px));
+  width: min(1280px, calc(100vw - 96px));
+  height: min(760px, calc(100dvh - 96px));
+  max-width: calc(100vw - 96px);
+  max-height: calc(100dvh - 96px);
 }
 .agent-api-dialog .agent-dialog-body {
   flex: 1 1 auto;
@@ -5094,6 +5112,15 @@ dialog.rack-form-dialog:not([open]) {
 #agent-api-btn {
   margin-top: 0;
 }
+@media (min-width: 1101px) {
+  .agent-api-dialog .tree-head {
+    margin-bottom: 0.8rem;
+  }
+  .agent-api-dialog .agent-dialog-body {
+    padding-right: 0.2rem;
+  }
+}
+
 @media (max-width: 1100px) {
   .agent-api-dialog {
     height: 100dvh !important;

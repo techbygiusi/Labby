@@ -60,6 +60,18 @@ function hashKey(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex');
 }
 
+function normalizeAgentExpiry(value) {
+  const max = Date.now() + 365 * 24 * 60 * 60 * 1000;
+  const fallback = Date.now() + 30 * 24 * 60 * 60 * 1000;
+  const parsed = Date.parse(value || '');
+  const target = Number.isFinite(parsed) ? parsed : fallback;
+  return new Date(Math.min(Math.max(target, Date.now() + 60 * 1000), max)).toISOString();
+}
+
+function isAgentKeyExpired(key) {
+  return !!key.expiresAt && Date.parse(key.expiresAt) <= Date.now();
+}
+
 function publicAgentKey(key) {
   return {
     id: key.id,
@@ -68,6 +80,7 @@ function publicAgentKey(key) {
     scopes: Array.isArray(key.scopes) ? key.scopes : [],
     enabled: key.enabled !== false,
     createdAt: key.createdAt,
+    expiresAt: key.expiresAt || '',
     lastUsed: key.lastUsed || '',
   };
 }
@@ -81,7 +94,7 @@ function requireAgentScope(scope) {
     const data = readDb();
     const tokenHash = hashKey(token);
     const key = data.agentKeys.find((entry) => entry.hash === tokenHash && entry.enabled !== false);
-    if (!key) return res.status(401).json({ error: 'Invalid or disabled API key.' });
+    if (!key || isAgentKeyExpired(key)) return res.status(401).json({ error: 'Invalid, expired or disabled API key.' });
 
     const scopes = Array.isArray(key.scopes) ? key.scopes : [];
     if (!scopes.includes(scope) && !scopes.includes('*')) {
@@ -116,6 +129,7 @@ app.post('/api/agent-keys', (req, res) => {
     scopes,
     enabled: true,
     createdAt: new Date().toISOString(),
+    expiresAt: normalizeAgentExpiry(body.expiresAt),
     lastUsed: '',
   };
   data.agentKeys.push(entry);
@@ -129,6 +143,7 @@ app.patch('/api/agent-keys/:id', (req, res) => {
   if (!key) return res.status(404).json({ error: 'API key not found.' });
   if (typeof req.body.name === 'string') key.name = req.body.name.trim() || key.name;
   if (Array.isArray(req.body.scopes)) key.scopes = req.body.scopes.map(String);
+  if (typeof req.body.expiresAt === 'string') key.expiresAt = normalizeAgentExpiry(req.body.expiresAt);
   if (typeof req.body.enabled === 'boolean') key.enabled = req.body.enabled;
   writeDb(data);
   res.json({ key: publicAgentKey(key) });
