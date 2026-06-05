@@ -309,8 +309,27 @@
     .gallery-caption {
       font: 700 .74rem/1 'Space Mono', monospace;
       color: var(--muted);
-      padding: .55rem .75rem;
+      padding: .55rem .75rem .3rem;
       border-top: 2px solid var(--line);
+    }
+    .gallery-open {
+      width: 100%;
+      display: block;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      padding: 0;
+      cursor: pointer;
+    }
+    .gallery-wiki-link {
+      display: inline-flex;
+      margin: 0 .75rem .65rem;
+      color: var(--text);
+      font: 700 .68rem/1.2 'Space Mono', monospace;
+      text-decoration: underline;
+      text-underline-offset: 3px;
     }
     .gallery-hint {
       margin-top: .75rem;
@@ -720,7 +739,7 @@
   <!-- main screenshot -->
   <div class="screenshot-wrap">
     <div class="screenshot-card">
-      <img src="images/labby-main-view.png" alt="Labby dashboard" loading="eager" />
+      <img src="images/labby-topology.png" alt="Labby topology dashboard" loading="eager" />
     </div>
   </div>
 </div>
@@ -790,30 +809,104 @@
     <p class="gallery-hint">Click or tap a screenshot to open the viewer. Swipe or use the arrows to browse left and right.</p>
 
     <div class="gallery">
-      <button class="gallery-item" type="button" data-shot-src="images/labby-graph-view.png" data-shot-title="Graph View" aria-label="Open screenshot: Graph View">
-        <img src="images/labby-graph-view.png" alt="Graph View" loading="lazy" />
-        <p class="gallery-caption">🕸️ Graph View</p>
-      </button>
-      <button class="gallery-item" type="button" data-shot-src="images/labby-rack-view.png" data-shot-title="IP View" aria-label="Open screenshot: IP View">
-        <img src="images/labby-rack-view.png" alt="IP View" loading="lazy" />
-        <p class="gallery-caption">🌐 IP View</p>
-      </button>
-      <button class="gallery-item" type="button" data-shot-src="images/labby-rack-editor.png" data-shot-title="Rack Editor" aria-label="Open screenshot: Rack Editor">
-        <img src="images/labby-rack-editor.png" alt="Rack Editor" loading="lazy" />
-        <p class="gallery-caption">🔧 Rack Editor</p>
-      </button>
-      <button class="gallery-item" type="button" data-shot-src="images/labby-theme-menu.png" data-shot-title="Theme Picker" aria-label="Open screenshot: Theme Picker">
-        <img src="images/labby-theme-menu.png" alt="Theme Picker" loading="lazy" />
-        <p class="gallery-caption">🎨 Theme Picker</p>
-      </button>
-      <button class="gallery-item" type="button" data-shot-src="images/labby-themes.png" data-shot-title="Custom Theme Editor" aria-label="Open screenshot: Custom Theme Editor">
-        <img src="images/labby-themes.png" alt="Custom Theme Editor" loading="lazy" />
-        <p class="gallery-caption">🎨 Custom Theme Editor</p>
-      </button>
-      <button class="gallery-item" type="button" data-shot-src="images/labby-config-menu.png" data-shot-title="Config Menu" aria-label="Open screenshot: Config Menu">
-        <img src="images/labby-config-menu.png" alt="Config Menu" loading="lazy" />
-        <p class="gallery-caption">⚙️ Config &amp; Backup</p>
-      </button>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-topology.png" data-shot-title="Topology" data-wiki-href="wiki.html#topologycards" aria-label="Open screenshot: Topology">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-topology.png" alt="Topology" loading="lazy" />
+          <p class="gallery-caption">🧩 Topology</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#topologycards" aria-label="Open wiki entry for Topology">Read Topology Cards</a>
+      </article>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-mobile-startscreen.png" data-shot-title="Mobile Startscreen" data-wiki-href="wiki.html#mobileux" aria-label="Open screenshot: Mobile Startscreen">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-mobile-startscreen.png" alt="Mobile Startscreen" loading="lazy" />
+          <p class="gallery-caption">📱 Mobile Startscreen</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#mobileux" aria-label="Open wiki entry for Mobile Startscreen">Read Mobile UX</a>
+      </article>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-mobile-menu.png" data-shot-title="Mobile More Menu" data-wiki-href="wiki.html#mobileux" aria-label="Open screenshot: Mobile More Menu">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-mobile-menu.png" alt="Mobile More Menu" loading="lazy" />
+          <p class="gallery-caption">📱 Mobile More Menu</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#mobileux" aria-label="Open wiki entry for Mobile More Menu">Read Mobile UX</a>
+      </article>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-mobile-config.png" data-shot-title="Mobile Config" data-wiki-href="wiki.html#config" aria-label="Open screenshot: Mobile Config">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-mobile-config.png" alt="Mobile Config" loading="lazy" />
+          <p class="gallery-caption">⚙️ Mobile Config</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#config" aria-label="Open wiki entry for Mobile Config">Read Config, Import & Export</a>
+      </article>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-rack-view.png" data-shot-title="Rack View" data-wiki-href="wiki.html#rackview" aria-label="Open screenshot: Rack View">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-rack-view.png" alt="Rack View" loading="lazy" />
+          <p class="gallery-caption">🗄️ Rack View</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#rackview" aria-label="Open wiki entry for Rack View">Read Rack View</a>
+      </article>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-rack-editor.png" data-shot-title="Rack Editor" data-wiki-href="wiki.html#rackview" aria-label="Open screenshot: Rack Editor">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-rack-editor.png" alt="Rack Editor" loading="lazy" />
+          <p class="gallery-caption">🔧 Rack Editor</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#rackview" aria-label="Open wiki entry for Rack Editor">Read Rack View</a>
+      </article>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-mobile-rack-view.png" data-shot-title="Mobile Rack View" data-wiki-href="wiki.html#rackview" aria-label="Open screenshot: Mobile Rack View">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-mobile-rack-view.png" alt="Mobile Rack View" loading="lazy" />
+          <p class="gallery-caption">📱 Mobile Rack View</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#rackview" aria-label="Open wiki entry for Mobile Rack View">Read Rack View</a>
+      </article>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-ip-view.png" data-shot-title="IP View" data-wiki-href="wiki.html#ipview" aria-label="Open screenshot: IP View">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-ip-view.png" alt="IP View" loading="lazy" />
+          <p class="gallery-caption">🌐 IP View</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#ipview" aria-label="Open wiki entry for IP View">Read IP View</a>
+      </article>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-mobile-ip-view.png" data-shot-title="Mobile IP View" data-wiki-href="wiki.html#ipview" aria-label="Open screenshot: Mobile IP View">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-mobile-ip-view.png" alt="Mobile IP View" loading="lazy" />
+          <p class="gallery-caption">🌐 Mobile IP View</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#ipview" aria-label="Open wiki entry for Mobile IP View">Read IP View</a>
+      </article>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-graph-view.png" data-shot-title="Graph View" data-wiki-href="wiki.html#treegraph" aria-label="Open screenshot: Graph View">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-graph-view.png" alt="Graph View" loading="lazy" />
+          <p class="gallery-caption">🕸️ Graph View</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#treegraph" aria-label="Open wiki entry for Graph View">Read Tree and Graph View</a>
+      </article>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-theme-selector.png" data-shot-title="Theme Selector" data-wiki-href="wiki.html#themes" aria-label="Open screenshot: Theme Selector">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-theme-selector.png" alt="Theme Selector" loading="lazy" />
+          <p class="gallery-caption">🎨 Theme Selector</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#themes" aria-label="Open wiki entry for Theme Selector">Read Themes</a>
+      </article>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-theme-customization.png" data-shot-title="Theme Customization" data-wiki-href="wiki.html#themes" aria-label="Open screenshot: Theme Customization">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-theme-customization.png" alt="Theme Customization" loading="lazy" />
+          <p class="gallery-caption">🎨 Theme Customization</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#themes" aria-label="Open wiki entry for Theme Customization">Read Themes</a>
+      </article>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-config.png" data-shot-title="Config Menu" data-wiki-href="wiki.html#config" aria-label="Open screenshot: Config Menu">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-config.png" alt="Config Menu" loading="lazy" />
+          <p class="gallery-caption">⚙️ Config Menu</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#config" aria-label="Open wiki entry for Config Menu">Read Config, Import & Export</a>
+      </article>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-api-key.png" data-shot-title="API Keys" data-wiki-href="wiki.html#agentapi" aria-label="Open screenshot: API Keys">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-api-key.png" alt="API Keys" loading="lazy" />
+          <p class="gallery-caption">🤖 API Keys</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#agentapi" aria-label="Open wiki entry for API Keys">Read Agent API Access</a>
+      </article>
     </div>
   </div>
 </section>
@@ -898,6 +991,7 @@ docker compose up --build -d</pre>
 
     <div class="shot-viewer-footer">
       <div class="shot-viewer-thumbs" id="shot-viewer-thumbs"></div>
+      <a class="btn btn-secondary shot-viewer-wiki-link" id="shot-viewer-wiki-link" href="wiki.html">Open wiki entry</a>
     </div>
   </div>
 </div>
@@ -984,6 +1078,7 @@ docker compose up --build -d</pre>
   const viewerPrev = document.getElementById('shot-viewer-prev');
   const viewerNext = document.getElementById('shot-viewer-next');
   const viewerStage = document.getElementById('shot-viewer-stage');
+  const viewerWikiLink = document.getElementById('shot-viewer-wiki-link');
   let activeShotIndex = 0;
   let touchStartX = 0;
   let touchStartY = 0;
@@ -992,7 +1087,8 @@ docker compose up --build -d</pre>
     index,
     src: button.dataset.shotSrc,
     title: button.dataset.shotTitle || `Screenshot ${index + 1}`,
-    caption: button.querySelector('.gallery-caption')?.textContent?.trim() || button.dataset.shotTitle || `Screenshot ${index + 1}`
+    caption: button.querySelector('.gallery-caption')?.textContent?.trim() || button.dataset.shotTitle || `Screenshot ${index + 1}`,
+    wikiHref: button.dataset.wikiHref || 'wiki.html'
   }));
 
   function buildViewerThumbs() {
@@ -1016,6 +1112,7 @@ docker compose up --build -d</pre>
     viewerImage.alt = shot.title;
     viewerTitle.textContent = shot.caption;
     viewerMeta.textContent = `${activeShotIndex + 1} / ${shots.length}`;
+    if (viewerWikiLink) viewerWikiLink.href = shot.wikiHref;
     viewerStage.scrollTo({ left: 0, top: 0, behavior: 'auto' });
     Array.from(viewerThumbs.children).forEach((thumb, thumbIndex) => {
       thumb.classList.toggle('active', thumbIndex === activeShotIndex);
@@ -1038,6 +1135,10 @@ docker compose up --build -d</pre>
     viewer.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
   }
+
+  document.querySelectorAll('.gallery-wiki-link').forEach((link) => {
+    link.addEventListener('click', (event) => event.stopPropagation());
+  });
 
   galleryButtons.forEach((button, index) => {
     button.addEventListener('click', () => openViewer(index));

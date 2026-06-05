@@ -288,6 +288,34 @@
     .wiki-content pre code { background: none; padding: 0; font-size: inherit; }
     .wiki-content a { color: var(--text); font-weight: 700; }
 
+    .wiki-shot-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: .85rem;
+      margin: 1rem 0 1.35rem;
+    }
+    .wiki-shot {
+      border: 2px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      background: color-mix(in srgb, var(--phone) 88%, white);
+      box-shadow: 0 8px 18px rgba(0,0,0,.08);
+    }
+    .wiki-shot img {
+      width: 100%;
+      display: block;
+      height: auto;
+    }
+    .wiki-shot figcaption {
+      border-top: 2px solid var(--line);
+      padding: .55rem .7rem;
+      color: var(--muted);
+      font: 700 .7rem/1.35 'Space Mono', monospace;
+    }
+    @media (max-width: 640px) {
+      .wiki-shot-grid { grid-template-columns: 1fr; }
+    }
+
     @media (max-width: 640px) {
       .wiki-copy-btn { font-size: 0; padding: .4rem .52rem; }
       .wiki-copy-btn svg { width: 17px; height: 17px; }
@@ -601,6 +629,10 @@ btn.addEventListener('click', () => {
   const PAGES = {
     home:{title:'🧪 Labby Wiki',content:`
       <p>Labby is a lightweight homelab inventory, rack and topology tool with persistent, browser-independent storage. Track hardware, VMs, LXCs, apps, networks, rack layouts, themes and relationships in one clean dashboard.</p>
+      <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-topology.png" alt="Labby topology overview" loading="lazy" /><figcaption>Topology overview</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-rack-view.png" alt="Labby rack view" loading="lazy" /><figcaption>Rack view</figcaption></figure>
+      </div>
       <h2>Main Highlights</h2>
       <ul>
         <li>🖥️ Resource tracking for Hardware, VMs, LXCs, Apps and Networks</li>
@@ -796,6 +828,10 @@ docker-compose.yml</pre>
       </ul>
       <h2>Resource Metadata</h2>
       <p>Labby can store OS, manufacturer, CPU, RAM, disks, notes, links, URLs, live status, hosted-on relationships and connected devices.</p>
+      <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-topology.png" alt="Topology" loading="lazy" /><figcaption>Topology</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-theme-selector.png" alt="Themes" loading="lazy" /><figcaption>Themes</figcaption></figure>
+      </div>
       <h2>Live Status</h2>
       <p>Manual statuses include Online, Offline and Maintenance. Optional live checks can ping an IP or check a URL when those fields are configured on a resource.</p>
       <h2>Responsive UX</h2>
@@ -803,6 +839,11 @@ docker-compose.yml</pre>
     `},
     mobileux:{title:'📱 Mobile UX',content:`
       <p>Mobile is designed as its own app-like flow, not a shrunken desktop layout.</p>
+      <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-mobile-startscreen.png" alt="Mobile start screen" loading="lazy" /><figcaption>Mobile start screen</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-mobile-menu.png" alt="Mobile More menu" loading="lazy" /><figcaption>Mobile More menu</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-mobile-config.png" alt="Mobile Config page" loading="lazy" /><figcaption>Mobile Config page</figcaption></figure>
+      </div>
       <h2>Bottom Navigation</h2>
       <ul>
         <li><strong>Boards</strong> - opens the Topology card view</li>
@@ -832,6 +873,9 @@ docker-compose.yml</pre>
     `},
     topologycards:{title:'🧩 Topology Cards',content:`
       <p>Topology cards are the main way to browse, edit and understand your homelab resources.</p>
+      <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-topology.png" alt="Topology cards" loading="lazy" /><figcaption>Topology cards</figcaption></figure>
+      </div>
       <h2>Desktop Usage</h2>
       <ul>
         <li>Use Search to filter by name, IP, hostname, port or notes</li>
@@ -860,6 +904,9 @@ Connected devices are listed on hardware cards</pre>
 
     agentapi:{title:'🤖 Agent API Access',content:`
       <p>Agent API Access lets trusted automation tools connect to Labby with scoped API keys. This is useful for inventory import, monitoring agents and infrastructure automation.</p>
+      <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-api-key.png" alt="API Keys dialog" loading="lazy" /><figcaption>API Keys management</figcaption></figure>
+      </div>
       <h2>What Agents Can Do</h2>
       <ul>
         <li>Read the current inventory, locations and racks</li>
@@ -956,6 +1003,11 @@ Summarize all planned changes before writing them.</pre>
     `},
     rackview:{title:'🗄️ Rack View',content:`
       <p>Rack View documents the physical side of your homelab: locations, racks, rack units and linked resources.</p>
+      <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-rack-view.png" alt="Rack View" loading="lazy" /><figcaption>Rack View</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-rack-editor.png" alt="Rack Editor" loading="lazy" /><figcaption>Rack Editor</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-mobile-rack-view.png" alt="Mobile Rack View" loading="lazy" /><figcaption>Mobile Rack View</figcaption></figure>
+      </div>
       <h2>Desktop Rack View</h2>
       <ul>
         <li>Create and edit locations</li>
@@ -991,6 +1043,9 @@ Summarize all planned changes before writing them.</pre>
     `},
     treegraph:{title:'🌳 Tree and Graph View',content:`
       <p>Labby provides relationship views for understanding how the homelab is connected.</p>
+      <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-graph-view.png" alt="Graph View" loading="lazy" /><figcaption>Desktop Graph View</figcaption></figure>
+      </div>
       <h2>Tree View</h2>
       <p>Tree View groups infrastructure by type and relationship. It shows hardware groups, hosts, VMs, LXCs, apps running on guests and unassigned resources.</p>
       <h2>Mobile Tree View</h2>
@@ -1010,6 +1065,10 @@ Summarize all planned changes before writing them.</pre>
     `},
     ipview:{title:'🌐 IP View',content:`
       <p>IP View shows all used addresses in one place.</p>
+      <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-ip-view.png" alt="IP View" loading="lazy" /><figcaption>Desktop IP View</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-mobile-ip-view.png" alt="Mobile IP View" loading="lazy" /><figcaption>Mobile IP View</figcaption></figure>
+      </div>
       <h2>Features</h2>
       <ul>
         <li>Dedicated IP overview sorted by subnet</li>
@@ -1026,6 +1085,10 @@ Summarize all planned changes before writing them.</pre>
     `},
     themes:{title:'🎨 Themes',content:`
       <p>Labby includes a complete theme system for desktop and mobile.</p>
+      <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-theme-selector.png" alt="Theme selector" loading="lazy" /><figcaption>Theme selector</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-theme-customization.png" alt="Theme customization" loading="lazy" /><figcaption>Theme customization</figcaption></figure>
+      </div>
       <h2>Built-in Themes</h2>
       <ul>
         <li>Light, Ocean, Forest, Rose, Solar</li>
@@ -1046,6 +1109,10 @@ Summarize all planned changes before writing them.</pre>
     `},
     config:{title:'💾 Config, Import and Export',content:`
       <p>Labby supports app-level JSON backup and restore.</p>
+      <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-config.png" alt="Config menu" loading="lazy" /><figcaption>Config menu</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-mobile-config.png" alt="Mobile config" loading="lazy" /><figcaption>Mobile Config</figcaption></figure>
+      </div>
       <h2>Export Config</h2>
       <pre>Config → Export Config</pre>
       <p>The export includes:</p>
@@ -1119,7 +1186,7 @@ Summarize all planned changes before writing them.</pre>
     });
   }
 
-  function showPage(id) {
+  function showPage(id, updateHash = true) {
     const p = PAGES[id]; if (!p) return;
     content.innerHTML = '<h1>' + p.title + '</h1>' + p.content;
     wrapCodeBlocks();
@@ -1127,12 +1194,16 @@ Summarize all planned changes before writing them.</pre>
     document.querySelectorAll('.wiki-nav-link').forEach(l =>
       l.classList.toggle('active', l.dataset.page === id)
     );
+    if (updateHash && location.hash.slice(1) !== id) {
+      history.replaceState(null, '', '#' + id);
+    }
   }
 
   // desktop sidebar
   links.forEach(l => l.addEventListener('click', e => { e.preventDefault(); showPage(l.dataset.page); }));
 
-  showPage('home');
+  showPage(location.hash ? location.hash.slice(1) : 'home', false);
+  window.addEventListener('hashchange', () => showPage(location.hash.slice(1) || 'home', false));
 
   // wire up FAB + drawer AFTER full DOM is ready
   document.addEventListener('DOMContentLoaded', function() {
