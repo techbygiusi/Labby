@@ -559,6 +559,7 @@
             <a class="wiki-nav-link" href="#" data-page="treegraph">Tree &amp; Graph View</a>
             <a class="wiki-nav-link" href="#" data-page="ipview">IP View</a>
             <a class="wiki-nav-link" href="#" data-page="themes">Themes</a>
+            <a class="wiki-nav-link" href="#" data-page="agentapi">Agent API Access</a>
           </div>
           <div class="wiki-nav-group">
             <p class="wiki-nav-heading">Data</p>
@@ -789,6 +790,7 @@ docker-compose.yml</pre>
         <li>🎨 Theme presets and custom theme editor</li>
         <li>🧠 Automatic network matching by IP/CIDR</li>
         <li>📡 Optional Live IP and Live URL checks</li>
+        <li>🤖 Agent API Access for trusted automation tools</li>
         <li>💾 Persistent server-side storage in self-hosted Labby</li>
       </ul>
       <h2>Resource Metadata</h2>
@@ -853,6 +855,78 @@ docker-compose.yml</pre>
 VM/LXC hosts App
 Network matches IP/CIDR
 Connected devices are listed on hardware cards</pre>
+    `},
+
+    agentapi:{title:'🤖 Agent API Access',content:`
+      <p>Agent API Access lets trusted automation tools connect to Labby with scoped API keys. This is useful for inventory import, monitoring agents and infrastructure automation.</p>
+      <h2>What Agents Can Do</h2>
+      <ul>
+        <li>Read the current inventory, locations and racks</li>
+        <li>Write inventory updates when the key has write permission</li>
+        <li>Submit live status updates for existing resources</li>
+        <li>Run ping checks through the Labby backend when allowed</li>
+        <li>Synchronize data from external tools or scripts</li>
+      </ul>
+      <h2>Creating an API Key</h2>
+      <ol>
+        <li>Open <strong>Config</strong>.</li>
+        <li>Go to <strong>Agent API Access</strong>.</li>
+        <li>Enter a descriptive agent name, for example <code>Hermes</code> or <code>OpenKClaw</code>.</li>
+        <li>Select the required scopes.</li>
+        <li>Create the key and copy it immediately. The token is only shown once.</li>
+      </ol>
+      <h2>Scopes</h2>
+      <table>
+        <thead><tr><th>Scope</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>inventory:read</code></td><td>Read resources, locations and racks.</td></tr>
+          <tr><td><code>inventory:write</code></td><td>Update resources, locations and racks.</td></tr>
+          <tr><td><code>rack:read</code></td><td>Read rack-related data.</td></tr>
+          <tr><td><code>rack:write</code></td><td>Change rack-related data.</td></tr>
+          <tr><td><code>status:read</code></td><td>Read agent-submitted status information.</td></tr>
+          <tr><td><code>status:write</code></td><td>Submit status information for resources.</td></tr>
+          <tr><td><code>ping:run</code></td><td>Run backend ping checks.</td></tr>
+          <tr><td><code>config:read</code></td><td>Read exported configuration data.</td></tr>
+        </tbody>
+      </table>
+      <h2>Authentication</h2>
+      <p>Agents send the token as a Bearer token in the HTTP Authorization header.</p>
+      <pre>Authorization: Bearer labby_xxxxxxxxxxxxxxxxx</pre>
+      <h2>Common Endpoints</h2>
+      <pre>GET  /api/agent/inventory
+PUT  /api/agent/inventory
+GET  /api/agent/status
+POST /api/agent/status
+POST /api/agent/ping</pre>
+      <h2>Status Update Example</h2>
+      <pre>POST /api/agent/status
+Authorization: Bearer labby_xxxxxxxxxxxxxxxxx
+Content-Type: application/json
+
+{
+  "itemId": "resource-id",
+  "ipStatus": "online",
+  "urlStatus": "offline",
+  "message": "Checked by monitoring agent"
+}</pre>
+      <h2>Architecture</h2>
+      <div class="arch-diagram" aria-label="Agent API architecture diagram">
+        <div class="arch-row">
+          <div class="arch-card"><strong>Agent</strong><span>Hermes, OpenKClaw, monitoring script or custom automation.</span></div>
+          <div class="arch-card"><strong>API Key</strong><span>Bearer token with selected scopes.</span></div>
+          <div class="arch-card"><strong>Labby Backend</strong><span>Validates the token and applies the requested action.</span></div>
+        </div>
+        <div class="arch-arrow">Agent → Authorization Header → Scope Check → Inventory / Status / Ping</div>
+      </div>
+      <h2>Demo Mode</h2>
+      <p>In the public demo, API key management is shown for evaluation. External network access is intended for the self-hosted backend.</p>
+      <h2>Security Notes</h2>
+      <ul>
+        <li>Use one key per agent.</li>
+        <li>Grant only the scopes that the agent needs.</li>
+        <li>Revoke unused keys.</li>
+        <li>Store tokens outside of source code and public repositories.</li>
+      </ul>
     `},
     rackview:{title:'🗄️ Rack View',content:`
       <p>Rack View documents the physical side of your homelab: locations, racks, rack units and linked resources.</p>

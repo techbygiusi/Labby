@@ -107,6 +107,17 @@ let lastTypeSelection = typeSelect.value;
 let lastHardwareKindSelection = hardwareKindSelect.value;
 let pollingInterval = null;
 let liveStatusData = {}; // Store live status data { itemId: { ipStatus: 'online'|'offline', urlStatus: 'online'|'offline' } }
+const agentKeyStorage = 'labby-agent-keys';
+const agentScopes = [
+  ['inventory:read', 'Read inventory'],
+  ['inventory:write', 'Write inventory'],
+  ['rack:read', 'Read racks'],
+  ['rack:write', 'Write racks'],
+  ['status:read', 'Read status'],
+  ['status:write', 'Write status'],
+  ['ping:run', 'Run ping'],
+  ['config:read', 'Read config'],
+];
 
 const API_BASE = (() => {
   const loc = window.location;
@@ -116,21 +127,22 @@ const API_BASE = (() => {
 async function loadItemsFromAPI() {
   try {
     const raw = localStorage.getItem(storageKey);
-    if (!raw) return { items: [], locations: [], racks: [] };
+    if (!raw) return { items: [], locations: [], racks: [], agentStatus: {} };
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return { items: parsed, locations: [], racks: [] };
+    if (Array.isArray(parsed)) return { items: parsed, locations: [], racks: [], agentStatus: {} };
     return {
       items: Array.isArray(parsed.items) ? parsed.items : [],
       locations: Array.isArray(parsed.locations) ? parsed.locations : [],
       racks: Array.isArray(parsed.racks) ? parsed.racks : [],
+      agentStatus: parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {},
     };
   } catch {
-    return { items: [], locations: [], racks: [] };
+    return { items: [], locations: [], racks: [], agentStatus: {} };
   }
 }
 
 async function saveItemsToAPI(itemList) {
-  const payload = { items: itemList, locations, racks };
+  const payload = { items: itemList, locations, racks, agentStatus: liveStatusData };
   try { localStorage.setItem(storageKey, JSON.stringify(payload)); } catch {}
 }
 
@@ -149,6 +161,7 @@ applyTypeVisibility();
 
 (async () => {
   await seedFullDemoData();
+  initAgentApiPanel();
   render();
   startPolling();
   openDemoTutorialAfterLayout();
@@ -208,6 +221,7 @@ async function seedFullDemoData({ force = false } = {}) {
   items = sanitizeItems(loaded.items);
   locations = loaded.locations || [];
   racks = loaded.racks || [];
+  liveStatusData = loaded.agentStatus || {};
   migrateDemoDataTo192Subnets();
   ensureDemoRackData();
   localStorage.setItem(demoStorageVersionKey, demoStorageVersion);
@@ -226,6 +240,7 @@ async function loadDemoData() {
   await seedFullDemoData({ force: true });
   stopEditing();
   showToast('Demo data loaded with sample rack layouts.');
+  initAgentApiPanel();
   render();
   if (typeof renderRackOverview === 'function') renderRackOverview();
   openDemoTutorialAfterLayout();
@@ -598,6 +613,7 @@ function buildConfigExport() {
     items,
     locations,
     racks,
+    agentStatus: liveStatusData,
     customThemes: getCustomThemes(),
     activeTheme,
     // Kept for older imports that only looked for `theme`.
@@ -634,6 +650,7 @@ function applyImportedConfig(parsed) {
   items     = sanitizeItems(parsed.items || []);
   locations = Array.isArray(parsed.locations) ? parsed.locations : [];
   racks     = Array.isArray(parsed.racks) ? parsed.racks : [];
+  liveStatusData = parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {};
 
   if (Array.isArray(parsed.customThemes)) importCustomThemes(parsed.customThemes);
   applyImportedThemeFromConfig(parsed);
@@ -644,6 +661,174 @@ function applyImportedConfig(parsed) {
     localStorage.removeItem('labby-tutorial-seen');
   }
 }
+
+
+function getLocalAgentKeys() {
+  try { return JSON.parse(localStorage.getItem(agentKeyStorage) || '[]'); } catch { return []; }
+}
+
+function setLocalAgentKeys(keys) {
+  try { localStorage.setItem(agentKeyStorage, JSON.stringify(keys)); } catch {}
+}
+
+function createLocalAgentToken() {
+  const bytes = new Uint8Array(24);
+  if (crypto?.getRandomValues) crypto.getRandomValues(bytes);
+  else bytes.forEach((_, i) => bytes[i] = Math.floor(Math.random() * 256));
+  return 'labby_demo_' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function agentApiRequest(path, options = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function loadAgentKeys() {
+  try {
+    const data = await agentApiRequest('/api/agent-keys');
+    return Array.isArray(data.keys) ? data.keys : [];
+  } catch {
+    return getLocalAgentKeys();
+  }
+}
+
+async function createAgentKey(name, scopes) {
+  try {
+    const data = await agentApiRequest('/api/agent-keys', {
+      method: 'POST',
+      body: JSON.stringify({ name, scopes }),
+    });
+    return data;
+  } catch {
+    const token = createLocalAgentToken();
+    const key = {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      name,
+      prefix: token.slice(0, 16),
+      scopes,
+      enabled: true,
+      createdAt: new Date().toISOString(),
+      lastUsed: '',
+    };
+    const keys = getLocalAgentKeys();
+    keys.push(key);
+    setLocalAgentKeys(keys);
+    return { key, token };
+  }
+}
+
+async function updateAgentKey(id, patch) {
+  try {
+    await agentApiRequest(`/api/agent-keys/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  } catch {
+    const keys = getLocalAgentKeys().map(k => k.id === id ? { ...k, ...patch } : k);
+    setLocalAgentKeys(keys);
+  }
+}
+
+async function deleteAgentKey(id) {
+  try {
+    await agentApiRequest(`/api/agent-keys/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  } catch {
+    setLocalAgentKeys(getLocalAgentKeys().filter(k => k.id !== id));
+  }
+}
+
+function renderAgentScopeGrid(target) {
+  if (!target || target.dataset.ready === '1') return;
+  target.innerHTML = agentScopes.map(([scope, label]) => `
+    <label class="agent-scope-option">
+      <input type="checkbox" value="${escapeAttr(scope)}" ${['inventory:read','status:write','ping:run'].includes(scope) ? 'checked' : ''} />
+      <span>${label}</span>
+    </label>
+  `).join('');
+  target.dataset.ready = '1';
+}
+
+function selectedAgentScopes(form) {
+  return Array.from(form.querySelectorAll('.agent-scope-option input:checked')).map(input => input.value);
+}
+
+function showAgentToken(box, token) {
+  if (!box) return;
+  box.hidden = false;
+  box.innerHTML = `<strong>Copy this key now. It is shown once:</strong><br><code>${escapeAttr(token)}</code>`;
+}
+
+async function renderAgentKeyLists() {
+  const keys = await loadAgentKeys();
+  document.querySelectorAll('.agent-key-list').forEach((list) => {
+    list.innerHTML = keys.length ? keys.map((key) => `
+      <article class="agent-key-card" data-agent-key="${escapeAttr(key.id)}">
+        <div>
+          <strong>${escapeAttr(key.name)}</strong>
+          <div class="agent-key-meta">${key.enabled === false ? 'Disabled' : 'Enabled'} · ${escapeAttr(key.prefix || 'labby_…')} · ${escapeAttr((key.scopes || []).join(', '))}</div>
+          <div class="agent-key-meta">Created: ${escapeAttr(key.createdAt || '-')} · Last used: ${escapeAttr(key.lastUsed || 'never')}</div>
+        </div>
+        <div class="agent-key-actions">
+          <button class="button secondary" type="button" data-agent-toggle>${key.enabled === false ? 'Enable' : 'Disable'}</button>
+          <button class="button danger" type="button" data-agent-delete>Revoke</button>
+        </div>
+      </article>
+    `).join('') : '<p class="note">No agent API keys yet.</p>';
+  });
+}
+
+function bindAgentKeyForm(formId, nameId, tokenId) {
+  const formNode = document.getElementById(formId);
+  const nameNode = document.getElementById(nameId);
+  const tokenNode = document.getElementById(tokenId);
+  if (!formNode || formNode.dataset.ready === '1') return;
+  formNode.dataset.ready = '1';
+  formNode.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const name = nameNode.value.trim();
+    if (!name) return showToast('Agent name is required.', 'error');
+    const scopes = selectedAgentScopes(formNode);
+    if (!scopes.length) return showToast('Select at least one scope.', 'error');
+    const result = await createAgentKey(name, scopes);
+    nameNode.value = '';
+    showAgentToken(tokenNode, result.token);
+    await renderAgentKeyLists();
+    showToast('Agent API key created.');
+  });
+}
+
+function initAgentApiPanel() {
+  document.querySelectorAll('[data-agent-scopes]').forEach(renderAgentScopeGrid);
+  bindAgentKeyForm('agent-key-form', 'agent-key-name', 'agent-token');
+  bindAgentKeyForm('agent-key-form-mobile', 'agent-key-name-mobile', 'agent-token-mobile');
+  if (document.documentElement.dataset.agentApiReady !== '1') {
+    document.documentElement.dataset.agentApiReady = '1';
+    document.addEventListener('click', async (event) => {
+      const card = event.target.closest?.('.agent-key-card');
+      if (!card) return;
+      const id = card.dataset.agentKey;
+      const keys = await loadAgentKeys();
+      const key = keys.find(k => k.id === id);
+      if (event.target.matches('[data-agent-toggle]')) {
+        await updateAgentKey(id, { enabled: key?.enabled === false });
+        await renderAgentKeyLists();
+        showToast('Agent API key updated.');
+      }
+      if (event.target.matches('[data-agent-delete]')) {
+        if (!confirm('Revoke this API key?')) return;
+        await deleteAgentKey(id);
+        await renderAgentKeyLists();
+        showToast('Agent API key revoked.');
+      }
+    });
+  }
+  renderAgentKeyLists();
+}
+
 
 exportBtn.addEventListener('click', () => {
   const config = buildConfigExport();
@@ -668,6 +853,7 @@ importFile.addEventListener('change', async (event) => {
     await saveItems();
     showToast('Config imported successfully.');
     render();
+    if (typeof renderAgentKeyLists === 'function') renderAgentKeyLists();
   } catch {
     showToast('Invalid config file. Please upload a Labby JSON export.', 'error');
   } finally {
@@ -3301,6 +3487,7 @@ if (importFileMobile) importFileMobile.addEventListener('change', async (event) 
     await saveItems();
     showToast('Config imported successfully.');
     render();
+    if (typeof renderAgentKeyLists === 'function') renderAgentKeyLists();
   } catch {
     showToast('Invalid config file.', 'error');
   } finally {

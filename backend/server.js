@@ -15,19 +15,186 @@ app.use(express.json({ limit: '10mb' }));
 
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
 
+
+
+// ── Agent API keys and automation endpoints ────────────────────────────────
+const crypto = require('crypto');
+
+function readDb() {
+  try {
+    if (!fs.existsSync(DB_PATH)) return { items: [], locations: [], racks: [], agentKeys: [], agentStatus: {} };
+    const raw = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+    if (Array.isArray(raw)) return { items: raw, locations: [], racks: [], agentKeys: [], agentStatus: {} };
+    return {
+      items: Array.isArray(raw.items) ? raw.items : [],
+      locations: Array.isArray(raw.locations) ? raw.locations : [],
+      racks: Array.isArray(raw.racks) ? raw.racks : [],
+      agentKeys: Array.isArray(raw.agentKeys) ? raw.agentKeys : [],
+      agentStatus: raw.agentStatus && typeof raw.agentStatus === 'object' ? raw.agentStatus : {},
+    };
+  } catch {
+    return { items: [], locations: [], racks: [], agentKeys: [], agentStatus: {} };
+  }
+}
+
+function writeDb(data) {
+  const existing = readDb();
+  const next = {
+    items: Array.isArray(data.items) ? data.items : existing.items,
+    locations: Array.isArray(data.locations) ? data.locations : existing.locations,
+    racks: Array.isArray(data.racks) ? data.racks : existing.racks,
+    agentKeys: Array.isArray(data.agentKeys) ? data.agentKeys : existing.agentKeys,
+    agentStatus: data.agentStatus && typeof data.agentStatus === 'object' ? data.agentStatus : existing.agentStatus,
+  };
+  fs.writeFileSync(DB_PATH, JSON.stringify(next), 'utf8');
+  return next;
+}
+
+function hashKey(value) {
+  return crypto.createHash('sha256').update(String(value)).digest('hex');
+}
+
+function publicAgentKey(key) {
+  return {
+    id: key.id,
+    name: key.name,
+    prefix: key.prefix,
+    scopes: Array.isArray(key.scopes) ? key.scopes : [],
+    enabled: key.enabled !== false,
+    createdAt: key.createdAt,
+    lastUsed: key.lastUsed || '',
+  };
+}
+
+function requireAgentScope(scope) {
+  return (req, res, next) => {
+    const header = req.get('Authorization') || '';
+    const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+    if (!token) return res.status(401).json({ error: 'Missing bearer token.' });
+
+    const data = readDb();
+    const tokenHash = hashKey(token);
+    const key = data.agentKeys.find((entry) => entry.hash === tokenHash && entry.enabled !== false);
+    if (!key) return res.status(401).json({ error: 'Invalid or disabled API key.' });
+
+    const scopes = Array.isArray(key.scopes) ? key.scopes : [];
+    if (!scopes.includes(scope) && !scopes.includes('*')) {
+      return res.status(403).json({ error: `Missing scope: ${scope}` });
+    }
+
+    key.lastUsed = new Date().toISOString();
+    writeDb(data);
+    req.agentKey = key;
+    next();
+  };
+}
+
+app.get('/api/agent-keys', (req, res) => {
+  const data = readDb();
+  res.json({ keys: data.agentKeys.map(publicAgentKey) });
+});
+
+app.post('/api/agent-keys', (req, res) => {
+  const body = req.body || {};
+  const name = String(body.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'Name is required.' });
+
+  const scopes = Array.isArray(body.scopes) ? body.scopes.map(String) : [];
+  const rawKey = `labby_${crypto.randomBytes(24).toString('hex')}`;
+  const data = readDb();
+  const entry = {
+    id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    name,
+    prefix: rawKey.slice(0, 12),
+    hash: hashKey(rawKey),
+    scopes,
+    enabled: true,
+    createdAt: new Date().toISOString(),
+    lastUsed: '',
+  };
+  data.agentKeys.push(entry);
+  writeDb(data);
+  res.json({ key: publicAgentKey(entry), token: rawKey });
+});
+
+app.patch('/api/agent-keys/:id', (req, res) => {
+  const data = readDb();
+  const key = data.agentKeys.find((entry) => entry.id === req.params.id);
+  if (!key) return res.status(404).json({ error: 'API key not found.' });
+  if (typeof req.body.name === 'string') key.name = req.body.name.trim() || key.name;
+  if (Array.isArray(req.body.scopes)) key.scopes = req.body.scopes.map(String);
+  if (typeof req.body.enabled === 'boolean') key.enabled = req.body.enabled;
+  writeDb(data);
+  res.json({ key: publicAgentKey(key) });
+});
+
+app.delete('/api/agent-keys/:id', (req, res) => {
+  const data = readDb();
+  const before = data.agentKeys.length;
+  data.agentKeys = data.agentKeys.filter((entry) => entry.id !== req.params.id);
+  writeDb(data);
+  res.json({ ok: true, removed: before - data.agentKeys.length });
+});
+
+app.get('/api/agent/inventory', requireAgentScope('inventory:read'), (req, res) => {
+  const data = readDb();
+  res.json({ items: data.items, locations: data.locations, racks: data.racks, agentStatus: data.agentStatus });
+});
+
+app.put('/api/agent/inventory', requireAgentScope('inventory:write'), (req, res) => {
+  const body = req.body || {};
+  const data = readDb();
+  data.items = Array.isArray(body.items) ? body.items : data.items;
+  data.locations = Array.isArray(body.locations) ? body.locations : data.locations;
+  data.racks = Array.isArray(body.racks) ? body.racks : data.racks;
+  writeDb(data);
+  res.json({ ok: true, count: data.items.length });
+});
+
+app.get('/api/agent/status', requireAgentScope('status:read'), (req, res) => {
+  res.json({ status: readDb().agentStatus });
+});
+
+app.post('/api/agent/status', requireAgentScope('status:write'), (req, res) => {
+  const { itemId, ipStatus, urlStatus, message } = req.body || {};
+  if (!itemId) return res.status(400).json({ error: 'itemId is required.' });
+  const data = readDb();
+  data.agentStatus[String(itemId)] = {
+    ...(data.agentStatus[String(itemId)] || {}),
+    ...(ipStatus ? { ipStatus: String(ipStatus) } : {}),
+    ...(urlStatus ? { urlStatus: String(urlStatus) } : {}),
+    ...(message ? { message: String(message) } : {}),
+    checkedAt: new Date().toISOString(),
+    source: req.agentKey.name,
+  };
+  writeDb(data);
+  res.json({ ok: true, status: data.agentStatus[String(itemId)] });
+});
+
+app.post('/api/agent/ping', requireAgentScope('ping:run'), (req, res) => {
+  const { ip } = req.body || {};
+  if (!ip || typeof ip !== 'string') return res.status(400).json({ error: 'IP address required' });
+  const { exec } = require('child_process');
+  const isWindows = process.platform === 'win32';
+  const pingCmd = isWindows ? `ping -n 1 -w 1000 ${ip}` : `ping -c 1 -W 1000 ${ip}`;
+  exec(pingCmd, { timeout: 5000 }, (error) => {
+    res.json({ status: error ? 'offline' : 'online', ip });
+  });
+});
+
 app.get('/api/data', (req, res) => {
   try {
-    if (!fs.existsSync(DB_PATH)) return res.json({ items: [], locations: [], racks: [] });
+    if (!fs.existsSync(DB_PATH)) return res.json({ items: [], locations: [], racks: [], agentStatus: {} });
     const raw = fs.readFileSync(DB_PATH, 'utf8');
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      return res.json({ items: parsed, locations: [], racks: [] });
+      return res.json({ items: parsed, locations: [], racks: [], agentStatus: {} });
     }
     const data = {
       items:     Array.isArray(parsed.items)     ? parsed.items     : [],
@@ -36,7 +203,7 @@ app.get('/api/data', (req, res) => {
     };
     res.json(data);
   } catch {
-    res.json({ items: [], locations: [], racks: [] });
+    res.json({ items: [], locations: [], racks: [], agentStatus: {} });
   }
 });
 
@@ -44,17 +211,19 @@ app.post('/api/data', (req, res) => {
   const body = req.body;
   let data;
   if (Array.isArray(body)) {
-    let existing = { locations: [], racks: [] };
+    let existing = { locations: [], racks: [], agentKeys: [], agentStatus: {} };
     try {
       if (fs.existsSync(DB_PATH)) {
         const raw = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
         if (!Array.isArray(raw)) {
           existing.locations = raw.locations || [];
           existing.racks = raw.racks || [];
+          existing.agentKeys = raw.agentKeys || [];
+          existing.agentStatus = raw.agentStatus || {};
         }
       }
     } catch {}
-    data = { items: body, locations: existing.locations, racks: existing.racks };
+    data = { items: body, locations: existing.locations, racks: existing.racks, agentKeys: existing.agentKeys, agentStatus: existing.agentStatus };
   } else if (body && typeof body === 'object') {
     data = {
       items:     Array.isArray(body.items)     ? body.items     : [],
