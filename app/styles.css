@@ -4896,3 +4896,44 @@ dialog.rack-form-dialog:not([open]) {
     padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important;
   }
 }
+
+/* ================================================================
+   v27: actually match desktop Theme save height and trim mobile Tree clearance.
+   ================================================================ */
+@media (min-width: 1101px) {
+  .theme-picker-dialog #theme-customize-body .tb-actions {
+    display: block !important;
+    width: 100% !important;
+    padding: 0.55rem 0 0.65rem !important;
+    margin: 0 !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-actions #tb-save,
+  .theme-picker-dialog #theme-customize-body .tb-actions .button {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 44px !important;
+    padding-block: 0 !important;
+    border-radius: 12px !important;
+    line-height: 1 !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  #mobile-tree-content {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+    scroll-padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+  }
+
+  #mobile-tree-content .tree-shell,
+  #mobile-tree-content .tree-groups,
+  #mobile-tree-content .tree-category:last-child,
+  #mobile-tree-content .tree-card:last-child {
+    margin-bottom: calc(0.45rem + env(safe-area-inset-bottom)) !important;
+  }
+
+  #mobile-tree {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom)) !important;
+  }
+}
