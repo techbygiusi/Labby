@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile
     container_name: labby-frontend
     ports:
-      - "80:80"
+      - "8080:80"
     depends_on:
       - labby-backend
     restart: always
