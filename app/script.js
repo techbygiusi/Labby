@@ -2584,9 +2584,25 @@ function showToast(message, kind = 'success') {
   if (!toast) return;
   toast.textContent = message;
   toast.style.borderColor = kind === 'error' ? 'var(--danger)' : 'var(--line)';
+
+  // Native dialogs live in the browser top layer and ignore normal z-index stacking.
+  // Use the Popover API for toasts too, so messages appear above the currently active window.
+  const canUseTopLayer = typeof toast.showPopover === 'function' && typeof toast.hidePopover === 'function';
+  if (canUseTopLayer) {
+    if (!toast.hasAttribute('popover')) toast.setAttribute('popover', 'manual');
+    try {
+      if (!toast.matches(':popover-open')) toast.showPopover();
+    } catch {}
+  }
+
   toast.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove('show');
+    if (canUseTopLayer) {
+      try { if (toast.matches(':popover-open')) toast.hidePopover(); } catch {}
+    }
+  }, 2200);
 }
 
 function setTreeMode(mode) {

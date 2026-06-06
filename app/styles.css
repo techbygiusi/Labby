@@ -6825,3 +6825,49 @@ dialog.rack-form-dialog:not([open]) {
     min-height: calc(44px * var(--rack-slot-u, 1)) !important;
   }
 }
+
+/* v60: restore mobile advanced footer spacing to match the Edit Resource action area. */
+@media (max-width: 1100px) {
+  .advanced-resource-dialog.mobile-page-open,
+  dialog.advanced-resource-dialog.mobile-page-open[open] {
+    inset: 0 0 calc(74px + max(0.5rem, env(safe-area-inset-bottom, 0px))) 0 !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-footer {
+    padding: 0.7rem max(1rem, env(safe-area-inset-right)) 0.75rem max(1rem, env(safe-area-inset-left)) !important;
+    gap: 0.65rem !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-footer .button {
+    min-height: 48px !important;
+    padding: 0.6rem 0.75rem !important;
+  }
+}
+
+/* v61: place toast messages in the browser top layer, above active dialogs. */
+.toast[popover] {
+  position: fixed !important;
+  inset: unset !important;
+  top: max(14px, calc(env(safe-area-inset-top, 0px) + 10px)) !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: max-content !important;
+  max-width: min(90vw, 520px) !important;
+  margin: 0 !important;
+  transform: translate(-50%, -20px) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: 2147483647 !important;
+}
+
+.toast[popover]::backdrop {
+  display: none !important;
+  background: transparent !important;
+}
+
+.toast[popover].show {
+  opacity: 1 !important;
+  transform: translate(-50%, 0) !important;
+  transition: transform 170ms ease, opacity 170ms ease !important;
+}
