@@ -6871,3 +6871,37 @@ dialog.rack-form-dialog:not([open]) {
   transform: translate(-50%, 0) !important;
   transition: transform 170ms ease, opacity 170ms ease !important;
 }
+
+
+/* v67: SSH private-key credential support. */
+.credential-auth-panel {
+  margin: 0 0 0.8rem;
+}
+
+.credential-auth-panel.hidden {
+  display: none !important;
+}
+
+.credential-key-row {
+  align-items: stretch !important;
+}
+
+.credential-key-row textarea {
+  width: 100%;
+  min-height: 130px;
+  resize: vertical;
+  font: 700 0.78rem/1.35 'Space Mono', monospace;
+  white-space: pre;
+  overflow: auto;
+}
+
+@media (max-width: 1100px) {
+  .credential-key-row,
+  .credential-key-row.credential-input-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .credential-key-row textarea {
+    min-height: 160px;
+  }
+}
