@@ -7,7 +7,7 @@
  *
  * Security notes for contributors:
  *  - Never persist one-time API key tokens, only hashes and metadata.
- *  - Agent keys are intentionally excluded from config export/import.
+ *  - Agent key records are exported/imported only when encrypted by the client export key.
  *  - Validate scopes before every agent write or ping operation.
  */
 
@@ -250,24 +250,120 @@ app.post('/api/agent/ping', requireAgentScope('ping:run'), (req, res) => {
   });
 });
 
+
+
+// ── Browser SSH bridge ─────────────────────────────────────────────────────
+// This intentionally avoids extra npm dependencies. It starts the system ssh
+// client and streams stdout/stderr through small polling endpoints. Public-key
+// auth works best; password prompts depend on the host image and ssh client.
+const { spawn } = require('child_process');
+const sshSessions = new Map();
+
+function safeSshHost(value) {
+  const host = String(value || '').trim();
+  if (!/^[a-zA-Z0-9_.:-]+$/.test(host)) return '';
+  return host;
+}
+
+function safeSshUser(value) {
+  const user = String(value || '').trim();
+  if (!user) return '';
+  if (!/^[a-zA-Z0-9_.-]+$/.test(user)) return '';
+  return user;
+}
+
+app.post('/api/ssh/start', (req, res) => {
+  const host = safeSshHost(req.body?.host);
+  const username = safeSshUser(req.body?.username);
+  if (!host) return res.status(400).json({ error: 'Valid SSH host/IP is required.' });
+
+  const sessionId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const target = username ? `${username}@${host}` : host;
+  const args = [
+    '-tt',
+    '-o', 'StrictHostKeyChecking=accept-new',
+    '-o', 'ServerAliveInterval=30',
+    target,
+  ];
+
+  let proc;
+  try {
+    proc = spawn('ssh', args, { stdio: ['pipe', 'pipe', 'pipe'] });
+  } catch (err) {
+    return res.status(500).json({ error: `Unable to start ssh: ${err.message}` });
+  }
+
+  const session = { id: sessionId, proc, output: `ssh ${target}\n`, closed: false, createdAt: Date.now() };
+  sshSessions.set(sessionId, session);
+
+  const collect = (chunk) => {
+    session.output += chunk.toString('utf8');
+    if (session.output.length > 200000) session.output = session.output.slice(-100000);
+  };
+  proc.stdout.on('data', collect);
+  proc.stderr.on('data', collect);
+  proc.on('close', (code) => {
+    session.closed = true;
+    session.output += `\n[process exited with code ${code ?? 'unknown'}]\n`;
+    setTimeout(() => sshSessions.delete(sessionId), 5 * 60 * 1000);
+  });
+  proc.on('error', (err) => {
+    session.closed = true;
+    session.output += `\n[ssh error: ${err.message}]\n`;
+  });
+
+  res.json({ sessionId, output: session.output });
+});
+
+app.get('/api/ssh/:id/output', (req, res) => {
+  const session = sshSessions.get(req.params.id);
+  if (!session) return res.status(404).json({ error: 'SSH session not found.', closed: true });
+  const output = session.output;
+  session.output = '';
+  res.json({ output, closed: session.closed });
+});
+
+app.post('/api/ssh/:id/input', (req, res) => {
+  const session = sshSessions.get(req.params.id);
+  if (!session || session.closed) return res.status(404).json({ error: 'SSH session not found or closed.' });
+  const input = String(req.body?.input || '');
+  if (input) session.proc.stdin.write(input);
+  res.json({ ok: true });
+});
+
+app.post('/api/ssh/:id/close', (req, res) => {
+  const session = sshSessions.get(req.params.id);
+  if (session && !session.closed) {
+    try { session.proc.stdin.write('exit\n'); } catch {}
+    setTimeout(() => {
+      try { if (!session.proc.killed) session.proc.kill('SIGTERM'); } catch {}
+    }, 600);
+    session.closed = true;
+  }
+  sshSessions.delete(req.params.id);
+  res.json({ ok: true });
+});
+
+
 app.get('/api/data', (req, res) => {
   try {
-    if (!fs.existsSync(DB_PATH)) return res.json({ items: [], locations: [], racks: [], agentStatus: {} });
+    if (!fs.existsSync(DB_PATH)) return res.json({ items: [], locations: [], racks: [], agentKeys: [], agentStatus: {} });
     const raw = fs.readFileSync(DB_PATH, 'utf8');
     const parsed = JSON.parse(raw);
     // Backward-compat: if stored as a bare array, wrap it
     if (Array.isArray(parsed)) {
-      return res.json({ items: parsed, locations: [], racks: [], agentStatus: {} });
+      return res.json({ items: parsed, locations: [], racks: [], agentKeys: [], agentStatus: {} });
     }
     const data = {
       items: Array.isArray(parsed.items) ? parsed.items : [],
       locations: Array.isArray(parsed.locations) ? parsed.locations : [],
       racks: Array.isArray(parsed.racks) ? parsed.racks : [],
+      agentKeys: Array.isArray(parsed.agentKeys) ? parsed.agentKeys : [],
       agentStatus: parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {},
     };
     res.json(data);
   } catch {
-    res.json({ items: [], locations: [], racks: [], agentStatus: {} });
+    res.json({ items: [], locations: [], racks: [], agentKeys: [], agentStatus: {} });
   }
 });
 
@@ -294,7 +390,7 @@ app.post('/api/data', (req, res) => {
       items: Array.isArray(body.items) ? body.items : [],
       locations: Array.isArray(body.locations) ? body.locations : [],
       racks: Array.isArray(body.racks) ? body.racks : [],
-      agentKeys: readDb().agentKeys || [],
+      agentKeys: Array.isArray(body.agentKeys) ? body.agentKeys : (readDb().agentKeys || []),
       agentStatus: body.agentStatus && typeof body.agentStatus === 'object' ? body.agentStatus : (readDb().agentStatus || {}),
     };
   } else {

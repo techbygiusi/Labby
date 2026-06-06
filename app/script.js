@@ -88,6 +88,27 @@ const advancedResourceTitle = document.getElementById('advanced-resource-title')
 const advancedResourceClose = document.getElementById('advanced-resource-close');
 const advancedResourceCloseTop = document.getElementById('advanced-resource-close-top');
 const advancedResourceSave = document.getElementById('advanced-resource-save');
+const cliDialog = document.getElementById('cli-dialog');
+const cliTitle = document.getElementById('cli-title');
+const cliSubtitle = document.getElementById('cli-subtitle');
+const cliTerminal = document.getElementById('cli-terminal');
+const cliInput = document.getElementById('cli-input');
+const cliSend = document.getElementById('cli-send');
+const cliCopy = document.getElementById('cli-copy');
+const cliCtrlC = document.getElementById('cli-ctrl-c');
+const cliClose = document.getElementById('cli-close');
+const mobileCliView = document.getElementById('mobile-cli');
+const mobileCliTitle = document.getElementById('mobile-cli-title');
+const mobileCliSubtitle = document.getElementById('mobile-cli-subtitle');
+const mobileCliTerminal = document.getElementById('mobile-cli-terminal');
+const mobileCliInput = document.getElementById('mobile-cli-input');
+const mobileCliSend = document.getElementById('mobile-cli-send');
+const mobileCliCopy = document.getElementById('mobile-cli-copy');
+const mobileCliCtrlC = document.getElementById('mobile-cli-ctrl-c');
+const mobileCliClose = document.getElementById('mobile-cli-close');
+let cliSession = null;
+let cliPollTimer = null;
+let cliActiveItem = null;
 let credentialFields = null;
 const formTitle = document.getElementById('form-title');
 const searchInput = document.getElementById('search');
@@ -129,6 +150,7 @@ let lastTypeSelection = typeSelect.value;
 let lastHardwareKindSelection = hardwareKindSelect.value;
 let pollingInterval = null;
 let liveStatusData = {}; // Store live status data { itemId: { ipStatus: 'online'|'offline', urlStatus: 'online'|'offline' } }
+let importedAgentKeysForSave = null;
 const agentKeyStorage = 'labby-agent-keys';
 const agentScopes = [
   ['inventory:read', 'Read inventory'],
@@ -172,6 +194,7 @@ async function loadItemsFromAPI() {
       locations: Array.isArray(data.locations) ? data.locations : [],
       racks: Array.isArray(data.racks) ? data.racks : [],
       agentStatus: data.agentStatus && typeof data.agentStatus === 'object' ? data.agentStatus : {},
+      agentKeys: Array.isArray(data.agentKeys) ? data.agentKeys : [],
     };
   } catch (err) {
     console.warn('Labby: API not reachable, falling back to localStorage.', err);
@@ -195,6 +218,7 @@ async function saveItemsToAPI(itemList) {
     racks: racks,
     agentStatus: liveStatusData,
   };
+  if (Array.isArray(importedAgentKeysForSave)) payload.agentKeys = importedAgentKeysForSave;
   try {
     const res = await fetch(`${API_BASE}/api/data`, {
       method: 'POST',
@@ -202,6 +226,7 @@ async function saveItemsToAPI(itemList) {
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (Array.isArray(importedAgentKeysForSave)) importedAgentKeysForSave = null;
   } catch (err) {
     console.warn('Labby: API save failed, writing to localStorage as fallback.', err);
     try { localStorage.setItem(storageKey, JSON.stringify(payload)); } catch {}
@@ -376,9 +401,39 @@ document.addEventListener('click', async (event) => {
     const field = document.getElementById(toggleBtn.dataset.credentialToggle);
     if (!field) return;
     field.type = field.type === 'password' ? 'text' : 'password';
-    toggleBtn.textContent = field.type === 'password' ? '👁️' : '🙈';
+    toggleBtn.innerHTML = credentialEyeSvg(field.type !== 'password');
+    toggleBtn.setAttribute('aria-label', field.type === 'password' ? 'Show password' : 'Hide password');
   }
 });
+
+
+document.addEventListener('click', (event) => {
+  const cliBtn = event.target.closest?.('[data-cli-open]');
+  if (!cliBtn) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const item = findById(cliBtn.dataset.cliOpen);
+  if (item) openCliSession(item);
+});
+
+[cliSend, mobileCliSend].filter(Boolean).forEach((btn) => btn.addEventListener('click', () => sendCliInput()));
+[cliInput, mobileCliInput].filter(Boolean).forEach((input) => {
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      sendCliInput();
+    }
+  });
+});
+[cliCopy, mobileCliCopy].filter(Boolean).forEach((btn) => btn.addEventListener('click', copyCliOutput));
+[cliCtrlC, mobileCliCtrlC].filter(Boolean).forEach((btn) => btn.addEventListener('click', () => sendCliControl('ctrl-c')));
+[cliClose, mobileCliClose].filter(Boolean).forEach((btn) => btn.addEventListener('click', closeCliSession));
+if (cliDialog) {
+  cliDialog.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    closeCliSession();
+  });
+}
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -780,27 +835,107 @@ async function decryptCredentialBundle(payload, keyHex) {
   return JSON.parse(new TextDecoder().decode(decrypted));
 }
 
+async function loadRawAgentKeysForExport() {
+  try {
+    const res = await fetch(`${API_BASE}/api/data`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.agentKeys) ? data.agentKeys : [];
+  } catch {
+    return [];
+  }
+}
+
+function openKeyPopup({ title, message, key = '', mode = 'copy' } = {}) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'secret-key-modal';
+    const inputType = mode === 'input' ? 'password' : 'text';
+    const actionLabel = mode === 'input' ? 'Import' : 'Copy key';
+    overlay.innerHTML = `
+      <div class="secret-key-card" role="dialog" aria-modal="true" aria-label="${escapeAttr(title || 'Secret key')}">
+        <div class="secret-key-head">
+          <h3>${escapeHtml(title || 'Secret key')}</h3>
+          <p>${escapeHtml(message || '')}</p>
+        </div>
+        <div class="secret-key-row">
+          <input id="secret-key-field" type="${inputType}" value="${escapeAttr(key)}" placeholder="Paste export key" autocomplete="off" readonly="${mode === 'input' ? '' : 'readonly'}" />
+        </div>
+        <div class="secret-key-actions">
+          <button class="button" type="button" data-secret-action>${actionLabel}</button>
+          <button class="button secondary" type="button" data-secret-close>Close</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const field = overlay.querySelector('#secret-key-field');
+    if (mode === 'input') field.removeAttribute('readonly');
+    window.setTimeout(() => { field.focus(); field.select(); }, 30);
+
+    const done = (value) => {
+      overlay.remove();
+      resolve(value);
+    };
+
+    overlay.addEventListener('click', async (event) => {
+      if (event.target === overlay || event.target.closest('[data-secret-close]')) {
+        done(mode === 'input' ? '' : key);
+        return;
+      }
+      if (event.target.closest('[data-secret-action]')) {
+        if (mode === 'input') {
+          done(field.value.trim());
+          return;
+        }
+        field.select();
+        try { await navigator.clipboard.writeText(field.value); showToast('Export key copied.'); }
+        catch { document.execCommand?.('copy'); showToast('Export key selected.'); }
+      }
+    });
+  });
+}
+
 async function buildConfigExport() {
   const activeTheme = getActiveThemeId();
+  const rawAgentKeys = await loadRawAgentKeysForExport();
   const exportHasCredentials = hasAnyCredentials(items);
+  const exportHasAgentKeys = rawAgentKeys.length > 0;
   let exportedItems = items;
   let encryptedCredentials = null;
-  if (exportHasCredentials) {
-    const key = generateCredentialExportKey();
-    encryptedCredentials = await encryptCredentialBundle(credentialsByItemId(items), key);
-    exportedItems = itemsWithoutCredentials(items);
-    window.prompt('Copy this credential export key now. You need it to decrypt credentials during import:', key);
+  let encryptedAgentKeys = null;
+  let exportKey = null;
+
+  if (exportHasCredentials || exportHasAgentKeys) {
+    exportKey = generateCredentialExportKey();
+    if (exportHasCredentials) {
+      encryptedCredentials = await encryptCredentialBundle(credentialsByItemId(items), exportKey);
+      exportedItems = itemsWithoutCredentials(items);
+    }
+    if (exportHasAgentKeys) {
+      encryptedAgentKeys = await encryptCredentialBundle(rawAgentKeys, exportKey);
+    }
+    await openKeyPopup({
+      title: 'Copy Export Key',
+      message: 'This key decrypts encrypted credentials and API key records during import. Store it safely; Labby cannot recover it later.',
+      key: exportKey,
+      mode: 'copy',
+    });
   }
+
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     app: 'Labby',
     exportedAt: new Date().toISOString(),
     items: exportedItems,
     locations,
     racks,
     agentStatus: liveStatusData,
-    secretsExcluded: ['agentKeys'],
+    encryptedSecrets: {
+      credentials: encryptedCredentials,
+      agentKeys: encryptedAgentKeys,
+    },
     credentialsEncrypted: encryptedCredentials,
+    agentKeysEncrypted: encryptedAgentKeys,
     customThemes: getCustomThemes(),
     activeTheme,
     // Kept for older imports that only looked for `theme`.
@@ -827,6 +962,7 @@ async function applyImportedConfig(parsed) {
     items = sanitizeItems(parsed);
     locations = [];
     racks = [];
+    importedAgentKeysForSave = null;
     return;
   }
 
@@ -835,14 +971,32 @@ async function applyImportedConfig(parsed) {
   }
 
   let importedItems = sanitizeItems(parsed.items || []);
-  if (parsed.credentialsEncrypted) {
-    const key = window.prompt('This export contains encrypted credentials. Paste the credential export key to import them:');
-    if (!key) throw new Error('Credential export key required.');
-    const credentialMap = await decryptCredentialBundle(parsed.credentialsEncrypted, key.trim());
-    importedItems = importedItems.map((item) => ({
-      ...item,
-      credentials: normalizeCredentials(credentialMap[item.id]),
-    }));
+  const encryptedSecrets = parsed.encryptedSecrets && typeof parsed.encryptedSecrets === 'object' ? parsed.encryptedSecrets : {};
+  const encryptedCredentials = encryptedSecrets.credentials || parsed.credentialsEncrypted;
+  const encryptedAgentKeys = encryptedSecrets.agentKeys || parsed.agentKeysEncrypted;
+
+  if (encryptedCredentials || encryptedAgentKeys) {
+    const key = await openKeyPopup({
+      title: 'Import encrypted secrets',
+      message: 'Paste the export key to import encrypted credentials and API key records. Without it, only non-secret config data can be imported.',
+      mode: 'input',
+    });
+    if (!key) throw new Error('Export key required.');
+    if (encryptedCredentials) {
+      const credentialMap = await decryptCredentialBundle(encryptedCredentials, key.trim());
+      importedItems = importedItems.map((item) => ({
+        ...item,
+        credentials: normalizeCredentials(credentialMap[item.id]),
+      }));
+    }
+    if (encryptedAgentKeys) {
+      const decryptedAgentKeys = await decryptCredentialBundle(encryptedAgentKeys, key.trim());
+      importedAgentKeysForSave = Array.isArray(decryptedAgentKeys) ? decryptedAgentKeys : [];
+    } else {
+      importedAgentKeysForSave = null;
+    }
+  } else {
+    importedAgentKeysForSave = null;
   }
 
   items     = importedItems;
@@ -1088,7 +1242,7 @@ importFile.addEventListener('change', async (event) => {
     await applyImportedConfig(parsed);
     stopEditing();
     await saveItems();
-    showToast('Config imported successfully. API keys are not imported.');
+    showToast('Config imported successfully.');
     render();
     if (typeof renderAgentKeyLists === 'function') renderAgentKeyLists();
   } catch {
@@ -1318,7 +1472,7 @@ function supportsComputeDetails(type, hardwareKind = hardwareKindSelect.value) {
 }
 
 function supportsCredentials(type) {
-  return ['hardware', 'vm', 'app'].includes(type);
+  return ['hardware', 'vm', 'lxc', 'app'].includes(type);
 }
 
 function normalizeCredentials(value) {
@@ -1326,8 +1480,16 @@ function normalizeCredentials(value) {
   const username = String(value.username || '').trim();
   const password = String(value.password || '');
   const note = String(value.note || '').trim();
-  if (!username && !password && !note) return null;
-  return { username, password, note };
+  const cli = Boolean(value.cli || value.accessCli);
+  const web = Boolean(value.web || value.accessWeb);
+  if (!username && !password && !note && !cli && !web) return null;
+  return { username, password, note, cli, web };
+}
+
+function credentialEyeSvg(isOpen = false) {
+  return isOpen
+    ? '<svg class="credential-eye-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>'
+    : '<svg class="credential-eye-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M8.5 5.6A10.4 10.4 0 0 1 12 5c6 0 9.5 7 9.5 7a16.4 16.4 0 0 1-3.1 4.2"/><path d="M6.4 6.9C3.9 8.6 2.5 12 2.5 12s3.5 7 9.5 7a10 10 0 0 0 4.4-1"/></svg>';
 }
 
 function credentialInput(id) {
@@ -1339,6 +1501,8 @@ function getCredentialFields() {
     username: credentialInput('credential-username')?.value || '',
     password: credentialInput('credential-password')?.value || '',
     note: credentialInput('credential-note')?.value || '',
+    cli: credentialInput('credential-cli')?.checked || false,
+    web: credentialInput('credential-web')?.checked || false,
   });
 }
 
@@ -1347,9 +1511,13 @@ function setCredentialFields(credentials) {
   const username = credentialInput('credential-username');
   const password = credentialInput('credential-password');
   const note = credentialInput('credential-note');
+  const cli = credentialInput('credential-cli');
+  const web = credentialInput('credential-web');
   if (username) username.value = normalized?.username || '';
   if (password) password.value = normalized?.password || '';
   if (note) note.value = normalized?.note || '';
+  if (cli) cli.checked = Boolean(normalized?.cli);
+  if (web) web.checked = Boolean(normalized?.web);
 }
 
 function defaultSymbol(type, hardwareKind = 'server') {
@@ -1667,9 +1835,25 @@ function initAdvancedResourceSettings() {
           Password
           <div class="credential-input-row">
             <input id="credential-password" type="password" autocomplete="new-password" placeholder="••••••••" />
-            <button class="button secondary credential-eye" type="button" data-credential-toggle="credential-password">👁️</button>
+            <button class="button secondary credential-eye" type="button" data-credential-toggle="credential-password" aria-label="Show password">${credentialEyeSvg(false)}</button>
             <button class="button secondary" type="button" data-credential-copy="credential-password">Copy</button>
           </div>
+        </label>
+      </div>
+      <div class="credential-access-grid">
+        <label class="credential-access-option">
+          <input id="credential-cli" type="checkbox" />
+          <span>
+            <strong>CLI / SSH</strong>
+            <small>Show a CLI button next to the IP address.</small>
+          </span>
+        </label>
+        <label class="credential-access-option">
+          <input id="credential-web" type="checkbox" />
+          <span>
+            <strong>Web</strong>
+            <small>Marks these credentials as usable for the web interface.</small>
+          </span>
         </label>
       </div>
       <label>
@@ -1828,9 +2012,11 @@ function cardNode(item) {
 
 function buildCardActions(item) {
   const els = [];
+  const baseIp = item.ip ? item.ip.split('/')[0] : '';
 
-  if (item.ip) {
-    els.push(makeCopyBtn(item.ip.split('/')[0], 'Copy IP'));
+  if (baseIp) {
+    els.push(makeCopyBtn(baseIp, 'Copy IP'));
+    if (item.credentials?.cli) els.push(makeCliBtn(item));
   }
 
   if (item.type === 'app' && item.ipPort) {
@@ -1838,6 +2024,7 @@ function buildCardActions(item) {
   }
 
   if ((item.type === 'app' || item.type === 'hardware') && item.webUrl) {
+    els.push(makeCopyBtn(item.webUrl, 'Copy URL'));
     const link = document.createElement('a');
     link.href = item.webUrl;
     link.target = '_blank';
@@ -1846,11 +2033,24 @@ function buildCardActions(item) {
     link.textContent = '🔗 Open';
     link.title = item.webUrl;
     els.push(link);
-
-    els.push(makeCopyBtn(item.webUrl, 'Copy URL'));
   }
 
   return els;
+}
+
+
+function cliIconSvg() {
+  return '<svg class="cli-action-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4z"/><path d="m7 10 3 2-3 2"/><path d="M12 15h5"/></svg>';
+}
+
+function makeCliBtn(item) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'card-action-cli';
+  btn.dataset.cliOpen = item.id;
+  btn.innerHTML = cliIconSvg() + '<span>CLI</span>';
+  btn.title = `Open SSH CLI for ${item.name}`;
+  return btn;
 }
 
 function makeCopyBtn(value, label) {
@@ -1874,6 +2074,158 @@ function makeCopyBtn(value, label) {
     });
   });
   return btn;
+}
+
+
+function cliTargetForItem(item) {
+  const ip = item?.ip ? String(item.ip).split('/')[0].trim() : '';
+  const username = item?.credentials?.username ? String(item.credentials.username).trim() : '';
+  return { ip, username, target: username ? `${username}@${ip}` : ip };
+}
+
+function activeCliEls() {
+  const mobile = isMobile();
+  return {
+    view: mobile ? mobileCliView : cliDialog,
+    title: mobile ? mobileCliTitle : cliTitle,
+    subtitle: mobile ? mobileCliSubtitle : cliSubtitle,
+    terminal: mobile ? mobileCliTerminal : cliTerminal,
+    input: mobile ? mobileCliInput : cliInput,
+  };
+}
+
+function setCliOutput(text, append = false) {
+  const desktopTerm = cliTerminal;
+  const mobileTerm = mobileCliTerminal;
+  [desktopTerm, mobileTerm].filter(Boolean).forEach((terminal) => {
+    terminal.textContent = append ? `${terminal.textContent}${text}` : text;
+    terminal.scrollTop = terminal.scrollHeight;
+  });
+}
+
+async function openCliSession(item) {
+  const { ip, username, target } = cliTargetForItem(item);
+  if (!ip) {
+    showToast('No IP address available for CLI.', 'error');
+    return;
+  }
+  cliActiveItem = item;
+  const els = activeCliEls();
+  if (els.title) els.title.textContent = `CLI · ${item.name}`;
+  if (els.subtitle) els.subtitle.textContent = `ssh ${target}`;
+  setCliOutput(`Connecting to ${target}...\n`);
+
+  if (isMobile()) {
+    hideMobileViews?.();
+    mobileCliView?.classList.add('active');
+    document.getElementById('nav-topology')?.classList.remove('active');
+  } else if (cliDialog && !cliDialog.open) {
+    cliDialog.showModal();
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/ssh/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ host: ip, username }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Could not start SSH session.');
+    cliSession = data.sessionId;
+    setCliOutput(data.output || `Connected to ${target}.\n`);
+    startCliPolling();
+    els.input?.focus();
+  } catch (err) {
+    const sshUrl = username ? `ssh://${encodeURIComponent(username)}@${ip}` : `ssh://${ip}`;
+    setCliOutput(
+      `Labby could not start the backend SSH session.\n\n` +
+      `You can still launch your system SSH client manually:\nssh ${target}\n\n` +
+      `Reason: ${err.message || err}\n`
+    );
+    const elsNow = activeCliEls();
+    if (elsNow.terminal) {
+      const a = document.createElement('a');
+      a.href = sshUrl;
+      a.textContent = `Open system SSH: ${sshUrl}`;
+      a.className = 'cli-system-link';
+      elsNow.terminal.appendChild(a);
+    }
+  }
+}
+
+function startCliPolling() {
+  stopCliPolling();
+  cliPollTimer = window.setInterval(async () => {
+    if (!cliSession) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(cliSession)}/output`);
+      const data = await res.json();
+      if (data.output) setCliOutput(data.output, true);
+      if (data.closed) {
+        setCliOutput('\n[SSH session closed]\n', true);
+        cliSession = null;
+        stopCliPolling();
+      }
+    } catch {
+      stopCliPolling();
+    }
+  }, 800);
+}
+
+function stopCliPolling() {
+  if (cliPollTimer) window.clearInterval(cliPollTimer);
+  cliPollTimer = null;
+}
+
+async function sendCliInput() {
+  if (!cliSession) return;
+  const els = activeCliEls();
+  const value = els.input?.value || '';
+  if (!value) return;
+  els.input.value = '';
+  setCliOutput(`$ ${value}\n`, true);
+  try {
+    await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(cliSession)}/input`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: `${value}\n` }),
+    });
+  } catch {
+    showToast('Could not send command.', 'error');
+  }
+}
+
+async function sendCliControl(control) {
+  if (!cliSession) return;
+  try {
+    await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(cliSession)}/input`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: control === 'ctrl-c' ? '\u0003' : '' }),
+    });
+  } catch {
+    showToast('Could not send control input.', 'error');
+  }
+}
+
+async function copyCliOutput() {
+  const els = activeCliEls();
+  const text = els.terminal?.innerText || els.terminal?.textContent || '';
+  try { await navigator.clipboard.writeText(text); showToast('CLI output copied.'); }
+  catch { showToast('Could not copy CLI output.', 'error'); }
+}
+
+async function closeCliSession() {
+  const sessionToClose = cliSession;
+  cliSession = null;
+  stopCliPolling();
+  if (sessionToClose) {
+    try { await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(sessionToClose)}/close`, { method: 'POST' }); }
+    catch {}
+  }
+  if (cliDialog?.open) cliDialog.close();
+  mobileCliView?.classList.remove('active');
+  cliActiveItem = null;
 }
 
 function createCardShell() {
@@ -3919,7 +4271,7 @@ if (importFileMobile) importFileMobile.addEventListener('change', async (event) 
     await applyImportedConfig(parsed);
     stopEditing();
     await saveItems();
-    showToast('Config imported successfully. API keys are not imported.');
+    showToast('Config imported successfully.');
     render();
     if (typeof renderAgentKeyLists === 'function') renderAgentKeyLists();
   } catch {

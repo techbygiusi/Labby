@@ -6337,3 +6337,307 @@ dialog.rack-form-dialog:not([open]) {
     grid-column: 1 / -1;
   }
 }
+
+/* v51: credentials polish, secret export modal and SVG eye icon. */
+.credential-eye-svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  margin: 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.credential-eye {
+  display: inline-grid !important;
+  place-items: center !important;
+}
+
+.secret-key-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(20, 22, 24, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.secret-key-card {
+  width: min(640px, calc(100vw - 2rem));
+  max-height: min(90dvh, 720px);
+  overflow: auto;
+  padding: 1.25rem;
+  border: 3px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 20px 50px rgba(0,0,0,.22);
+}
+
+.secret-key-head h3 {
+  margin: 0 0 0.45rem;
+  font: 900 1.15rem/1.2 'Space Mono', monospace;
+}
+
+.secret-key-head p {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font: 600 0.86rem/1.5 'Inter', system-ui, sans-serif;
+}
+
+.secret-key-row input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.7rem 0.85rem;
+  border: 3px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--text);
+  font: 700 0.86rem/1.35 'Space Mono', monospace;
+  overflow-wrap: anywhere;
+}
+
+.secret-key-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 640px) {
+  .secret-key-card {
+    padding: 1rem;
+    border-radius: 16px;
+  }
+
+  .secret-key-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* v52: Credentials access flags and SSH/CLI window. */
+.credential-access-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+}
+
+.credential-access-option {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 58px;
+  margin: 0 !important;
+  padding: 0.65rem 0.75rem !important;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel) 92%, white);
+}
+
+.credential-access-option input[type='checkbox'] {
+  width: 22px;
+  height: 22px;
+}
+
+.credential-access-option strong,
+.credential-access-option small {
+  display: block;
+}
+
+.credential-access-option small {
+  margin-top: 0.18rem;
+  color: var(--muted);
+  font: 600 0.72rem/1.25 'Inter', system-ui, sans-serif;
+}
+
+.card-action-cli {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 34px;
+  max-width: min(100%, 260px);
+  padding: 0.42rem 0.68rem;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: var(--mint);
+  color: var(--text);
+  cursor: pointer;
+  font: 700 0.7rem/1.15 'Space Mono', monospace;
+}
+
+.cli-action-svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cli-dialog {
+  width: min(1180px, calc(100vw - 128px));
+  height: min(760px, calc(100dvh - 96px));
+  max-width: calc(100vw - 96px);
+  max-height: calc(100dvh - 96px);
+  margin: auto;
+  padding: 0;
+  border: 3px solid var(--line);
+  border-radius: 20px;
+  background: var(--phone);
+  color: var(--text);
+  overflow: hidden;
+}
+
+.cli-dialog[open] {
+  display: block;
+}
+
+.cli-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.cli-shell {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  gap: 0.8rem;
+  padding: 1rem;
+}
+
+.cli-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--line);
+}
+
+.cli-head h3 {
+  margin: 0;
+  font: 900 1.05rem/1.2 'Space Mono', monospace;
+}
+
+.cli-subtitle {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font: 700 0.75rem/1.25 'Space Mono', monospace;
+}
+
+.cli-terminal {
+  min-height: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
+  background: #05070a;
+  color: #d4f7d4;
+  border: 3px solid var(--line);
+  border-radius: 16px;
+  padding: 1rem;
+  font: 700 0.82rem/1.5 'Space Mono', ui-monospace, monospace;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+}
+
+.cli-terminal::selection,
+.cli-terminal *::selection {
+  background: #f4d371;
+  color: #05070a;
+}
+
+.cli-system-link {
+  display: inline-block;
+  margin-top: 0.7rem;
+  color: #9eff9e;
+  text-decoration: underline;
+}
+
+.cli-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.7rem;
+}
+
+.cli-input-row input {
+  background: #05070a !important;
+  color: #d4f7d4 !important;
+  border-color: var(--line) !important;
+  font-family: 'Space Mono', ui-monospace, monospace !important;
+}
+
+.cli-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.7rem;
+  padding-top: 0.75rem;
+  border-top: 2px solid var(--line);
+}
+
+@media (max-width: 1100px) {
+  .credential-access-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card-action-cli {
+    min-height: 46px !important;
+    height: 46px !important;
+    border-radius: 14px !important;
+    font-size: 0.86rem !important;
+  }
+
+  #mobile-cli {
+    padding-top: 0 !important;
+  }
+
+  #mobile-cli.active {
+    display: flex !important;
+  }
+
+  #mobile-cli .mobile-view-body,
+  .mobile-cli-body {
+    padding: 0 0 calc(76px + env(safe-area-inset-bottom)) 0 !important;
+    height: 100dvh !important;
+    overflow: hidden !important;
+  }
+
+  .mobile-cli-shell {
+    height: calc(100dvh - 76px - env(safe-area-inset-bottom));
+    padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem 0.75rem;
+    border-radius: 0;
+  }
+
+  .mobile-cli-head {
+    padding-bottom: 0.55rem;
+  }
+
+  .cli-terminal {
+    border-radius: 14px;
+    padding: 0.85rem;
+    font-size: 0.78rem;
+  }
+
+  .cli-input-row {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+
+  .cli-footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.55rem;
+  }
+
+  .cli-footer #mobile-cli-close {
+    grid-column: 1 / -1;
+  }
+}

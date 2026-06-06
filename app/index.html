@@ -377,6 +377,51 @@
       <div class="mobile-view-body" id="mobile-agent-api-body"></div>
     </div>
 
+
+    <dialog id="cli-dialog" class="cli-dialog" aria-labelledby="cli-title">
+      <div class="cli-shell">
+        <div class="cli-head">
+          <div>
+            <h3 id="cli-title">CLI</h3>
+            <p id="cli-subtitle" class="cli-subtitle">SSH session</p>
+          </div>
+        </div>
+        <div id="cli-terminal" class="cli-terminal" tabindex="0" aria-label="SSH terminal output"></div>
+        <div class="cli-input-row">
+          <input id="cli-input" type="text" autocomplete="off" spellcheck="false" placeholder="Type command and press Enter..." />
+          <button id="cli-send" class="button" type="button">Send</button>
+        </div>
+        <div class="cli-footer">
+          <button id="cli-copy" class="button secondary" type="button">Copy output</button>
+          <button id="cli-ctrl-c" class="button secondary" type="button">Send Ctrl+C</button>
+          <button id="cli-close" class="button secondary" type="button">✕ Close SSH</button>
+        </div>
+      </div>
+    </dialog>
+
+    <div class="mobile-view" id="mobile-cli">
+      <div class="mobile-view-body mobile-cli-body">
+        <div class="cli-shell mobile-cli-shell">
+          <div class="cli-head mobile-cli-head">
+            <div>
+              <h3 id="mobile-cli-title">CLI</h3>
+              <p id="mobile-cli-subtitle" class="cli-subtitle">SSH session</p>
+            </div>
+          </div>
+          <div id="mobile-cli-terminal" class="cli-terminal" tabindex="0" aria-label="SSH terminal output"></div>
+          <div class="cli-input-row">
+            <input id="mobile-cli-input" type="text" autocomplete="off" spellcheck="false" placeholder="Type command and press Enter..." />
+            <button id="mobile-cli-send" class="button" type="button">Send</button>
+          </div>
+          <div class="cli-footer">
+            <button id="mobile-cli-copy" class="button secondary" type="button">Copy output</button>
+            <button id="mobile-cli-ctrl-c" class="button secondary" type="button">Ctrl+C</button>
+            <button id="mobile-cli-close" class="button secondary" type="button">✕ Close SSH</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <dialog id="ip-dialog" class="tree-dialog">
       <div class="tree-head">
         <h3>IP Address View</h3>
@@ -440,7 +485,7 @@
       </div>
       <div class="agent-dialog-body">
         <section class="agent-api-panel" aria-label="Agent API Access">
-          <p class="note">Create API keys for trusted automation agents. Keys are shown once when created. API keys are never included in config exports and cannot be imported.</p>
+          <p class="note">Create API keys for trusted automation agents. New tokens are shown once. API key records are included only in encrypted config exports and require the export key during import.</p>
           <form id="agent-key-form" class="agent-key-form">
             <label>Agent name
               <input id="agent-key-name" type="text" placeholder="e.g. Hermes" autocomplete="off" />
