@@ -860,6 +860,11 @@
         <p class="feature-desc">Optional auto-ping for IPs and auto-check for URLs. Online / Offline / Maintenance status per resource.</p>
       </div>
       <div class="feature-card">
+        <span class="feature-icon">⌨️</span>
+        <p class="feature-title">Browser Console</p>
+        <p class="feature-desc">Open SSH sessions from resources with CLI credentials, copy output and manage known-host keys from the browser.</p>
+      </div>
+      <div class="feature-card">
         <span class="feature-icon">🎨</span>
         <p class="feature-title">10+ Themes</p>
         <p class="feature-desc">Built-in Light, Dark, Ocean, Nord, Grape and more -plus a full custom theme editor with export support.</p>
@@ -880,6 +885,45 @@
 
 <hr />
 
+<!-- ── console ── -->
+<section id="console">
+  <div class="wrap">
+    <p class="section-label">Console</p>
+    <h2 class="section-title">Open SSH sessions from your topology</h2>
+    <p class="section-desc">
+      Resources with CLI credentials can expose a secure console button next to their IP address.
+      Labby opens the session in a designed terminal window on desktop and a full mobile console page on phones.
+    </p>
+
+    <div class="api-spotlight">
+      <div class="api-spotlight-copy">
+        <p class="section-label">Browser Console</p>
+        <h3 class="section-title">CLI access without leaving Labby</h3>
+        <p class="section-desc">
+          Store CLI credentials on Hardware, VMs, LXCs or Apps, mark them for CLI access, and connect by clicking the terminal icon in Topology.
+          Terminal output can be copied, selected text auto-copies, and known-host keys can be cleared for a specific target.
+        </p>
+        <ul class="api-list">
+          <li>CLI credential flag per resource</li>
+          <li>Desktop console window with black terminal surface</li>
+          <li>Mobile full-page console with bottom navigation preserved</li>
+          <li>Clear SSH known-host key for the current target</li>
+        </ul>
+        <div class="api-spotlight-actions">
+          <a class="btn btn-primary" href="wiki.html#console">📚 Read Console Wiki</a>
+          <a class="btn btn-secondary" href="/demo/">🚀 Try it in the demo</a>
+        </div>
+      </div>
+      <figure class="api-spotlight-shot">
+        <img src="images/labby-console.png" alt="Labby browser console" loading="lazy" />
+        <figcaption>Browser console for resource CLI access</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<hr />
+
 <!-- ── agent api ── -->
 <section id="agent-api">
   <div class="wrap">
@@ -887,7 +931,7 @@
     <h2 class="section-title">Connect trusted agents with API keys</h2>
     <p class="section-desc">
       Labby can expose scoped API access for automation agents such as Hermes, OpenClaw or your own monitoring scripts.
-      Agents can read inventory, update status, trigger allowed ping checks and help keep your homelab map current.
+      Agents can read inventory, update status, trigger allowed ping checks and, when explicitly allowed, read or update resource credentials.
     </p>
 
     <div class="api-spotlight">
@@ -903,6 +947,7 @@
           <li>Write inventory updates only when explicitly allowed</li>
           <li>Submit live status updates from external monitoring agents</li>
           <li>Run ping checks with scoped permission</li>
+          <li>Read or write credentials only with explicit credential scopes</li>
         </ul>
         <div class="api-spotlight-actions">
           <a class="btn btn-primary" href="wiki.html#agentapi">📚 Read Agent API Wiki</a>
@@ -934,6 +979,20 @@
           <p class="gallery-caption">🧩 Topology</p>
         </button>
         <a class="gallery-wiki-link" href="wiki.html#topologycards" aria-label="Open wiki entry for Topology">Read Topology Cards</a>
+      </article>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-console.png" data-shot-title="Console" data-wiki-href="wiki.html#console" aria-label="Open screenshot: Console">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-console.png" alt="Console" loading="lazy" />
+          <p class="gallery-caption">⌨️ Console</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#console" aria-label="Open wiki entry for Console">Read Console</a>
+      </article>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-advanced-settings.png" data-shot-title="Advanced Settings" data-wiki-href="wiki.html#topologycards" aria-label="Open screenshot: Advanced Settings">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-advanced-settings.png" alt="Advanced Settings" loading="lazy" />
+          <p class="gallery-caption">⚙️ Advanced Settings</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#topologycards" aria-label="Open wiki entry for Advanced Settings">Read Resource Settings</a>
       </article>
       <article class="gallery-item" tabindex="0" data-shot-src="images/labby-rack-view.png" data-shot-title="Rack View" data-wiki-href="wiki.html#rackview" aria-label="Open screenshot: Rack View">
         <button class="gallery-open" type="button">
@@ -990,6 +1049,41 @@
           <p class="gallery-caption">🤖 API Keys</p>
         </button>
         <a class="gallery-wiki-link" href="wiki.html#agentapi" aria-label="Open wiki entry for API Keys">Read Agent API Access</a>
+      </article>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-mobile-startscreen.png" data-shot-title="Mobile Startscreen" data-wiki-href="wiki.html#mobileux" aria-label="Open screenshot: Mobile Startscreen">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-mobile-startscreen.png" alt="Mobile Startscreen" loading="lazy" />
+          <p class="gallery-caption">📱 Mobile Startscreen</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#mobileux" aria-label="Open wiki entry for Mobile UX">Read Mobile UX</a>
+      </article>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-mobile-menu.png" data-shot-title="Mobile Menu" data-wiki-href="wiki.html#mobileux" aria-label="Open screenshot: Mobile Menu">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-mobile-menu.png" alt="Mobile Menu" loading="lazy" />
+          <p class="gallery-caption">📱 Mobile Menu</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#mobileux" aria-label="Open wiki entry for Mobile UX">Read Mobile UX</a>
+      </article>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-mobile-rack-view.png" data-shot-title="Mobile Rack View" data-wiki-href="wiki.html#rackview" aria-label="Open screenshot: Mobile Rack View">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-mobile-rack-view.png" alt="Mobile Rack View" loading="lazy" />
+          <p class="gallery-caption">📱 Mobile Rack View</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#rackview" aria-label="Open wiki entry for Rack View">Read Rack View</a>
+      </article>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-mobile-ip-view.png" data-shot-title="Mobile IP View" data-wiki-href="wiki.html#ipview" aria-label="Open screenshot: Mobile IP View">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-mobile-ip-view.png" alt="Mobile IP View" loading="lazy" />
+          <p class="gallery-caption">📱 Mobile IP View</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#ipview" aria-label="Open wiki entry for IP View">Read IP View</a>
+      </article>
+      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-mobile-config.png" data-shot-title="Mobile Config" data-wiki-href="wiki.html#config" aria-label="Open screenshot: Mobile Config">
+        <button class="gallery-open" type="button">
+          <img src="images/labby-mobile-config.png" alt="Mobile Config" loading="lazy" />
+          <p class="gallery-caption">📱 Mobile Config</p>
+        </button>
+        <a class="gallery-wiki-link" href="wiki.html#config" aria-label="Open wiki entry for Config">Read Config</a>
       </article>
     </div>
   </div>

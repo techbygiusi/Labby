@@ -18,7 +18,7 @@
 const storageKey = 'labby-data-v8';
 const themeKey = 'labby-theme';
 const demoStorageVersionKey = 'labby-demo-storage-version';
-const demoStorageVersion = '2026-main-sync-v29';
+const demoStorageVersion = '2026-v61-demo-sync';
 const types = ['hardware', 'vm', 'lxc', 'app', 'network'];
 const networkPalette = ['#3b82f6', '#10b981', '#22c55e', '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#a855f7', '#14b8a6', '#84cc16', '#06b6d4', '#8b5cf6'];
 
@@ -85,6 +85,35 @@ const gatewayInput = document.getElementById('gateway');
 const colorPicker = document.getElementById('network-color-picker');
 const cancelEditBtn = document.getElementById('cancel-edit');
 const saveBtn = document.getElementById('save-btn');
+const advancedSettingsBtn = document.getElementById('advanced-settings-btn');
+const advancedResourceDialog = document.getElementById('advanced-resource-dialog');
+const advancedResourceBody = document.getElementById('advanced-resource-body');
+const advancedResourceTitle = document.getElementById('advanced-resource-title');
+const advancedResourceClose = document.getElementById('advanced-resource-close');
+const advancedResourceCloseTop = document.getElementById('advanced-resource-close-top');
+const advancedResourceSave = document.getElementById('advanced-resource-save');
+const cliDialog = document.getElementById('cli-dialog');
+const cliTitle = document.getElementById('cli-title');
+const cliSubtitle = document.getElementById('cli-subtitle');
+const cliTerminal = document.getElementById('cli-terminal');
+const cliInput = document.getElementById('cli-input');
+const cliSend = document.getElementById('cli-send');
+const cliCopy = document.getElementById('cli-copy');
+const cliClearKey = document.getElementById('cli-clear-key');
+const cliClose = document.getElementById('cli-close');
+const mobileCliView = document.getElementById('mobile-cli');
+const mobileCliTitle = document.getElementById('mobile-cli-title');
+const mobileCliSubtitle = document.getElementById('mobile-cli-subtitle');
+const mobileCliTerminal = document.getElementById('mobile-cli-terminal');
+const mobileCliInput = document.getElementById('mobile-cli-input');
+const mobileCliSend = document.getElementById('mobile-cli-send');
+const mobileCliCopy = document.getElementById('mobile-cli-copy');
+const mobileCliClearKey = document.getElementById('mobile-cli-clear-key');
+const mobileCliClose = document.getElementById('mobile-cli-close');
+let cliSession = null;
+let cliPollTimer = null;
+let cliActiveItem = null;
+let credentialFields = null;
 const formTitle = document.getElementById('form-title');
 const searchInput = document.getElementById('search');
 const filterType = document.getElementById('filter-type');
@@ -125,6 +154,7 @@ let lastTypeSelection = typeSelect.value;
 let lastHardwareKindSelection = hardwareKindSelect.value;
 let pollingInterval = null;
 let liveStatusData = {}; // Store live status data { itemId: { ipStatus: 'online'|'offline', urlStatus: 'online'|'offline' } }
+let importedAgentKeysForSave = null;
 const agentKeyStorage = 'labby-agent-keys';
 const agentScopes = [
   ['inventory:read', 'Read inventory'],
@@ -135,6 +165,8 @@ const agentScopes = [
   ['status:write', 'Write status'],
   ['ping:run', 'Run ping'],
   ['config:read', 'Read config'],
+  ['credentials:read', 'Read credentials'],
+  ['credentials:write', 'Write credentials'],
 ];
 const agentExpiryOptions = {
   '1d': { label: '1 day', ms: 24 * 60 * 60 * 1000 },
@@ -155,23 +187,34 @@ const API_BASE = (() => {
 async function loadItemsFromAPI() {
   try {
     const raw = localStorage.getItem(storageKey);
-    if (!raw) return { items: [], locations: [], racks: [], agentStatus: {} };
+    if (!raw) return { items: [], locations: [], racks: [], agentStatus: {}, agentKeys: [] };
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return { items: parsed, locations: [], racks: [], agentStatus: {} };
+    if (Array.isArray(parsed)) return { items: parsed, locations: [], racks: [], agentStatus: {}, agentKeys: [] };
     return {
       items: Array.isArray(parsed.items) ? parsed.items : [],
       locations: Array.isArray(parsed.locations) ? parsed.locations : [],
       racks: Array.isArray(parsed.racks) ? parsed.racks : [],
       agentStatus: parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {},
+      agentKeys: Array.isArray(parsed.agentKeys) ? parsed.agentKeys : [],
     };
   } catch {
-    return { items: [], locations: [], racks: [], agentStatus: {} };
+    return { items: [], locations: [], racks: [], agentStatus: {}, agentKeys: [] };
   }
 }
 
 async function saveItemsToAPI(itemList) {
-  const payload = { items: itemList, locations, racks, agentStatus: liveStatusData };
+  const payload = {
+    items: itemList,
+    locations,
+    racks,
+    agentStatus: liveStatusData,
+  };
+  if (Array.isArray(importedAgentKeysForSave)) payload.agentKeys = importedAgentKeysForSave;
   try { localStorage.setItem(storageKey, JSON.stringify(payload)); } catch {}
+  if (Array.isArray(importedAgentKeysForSave)) {
+    setLocalAgentKeys(importedAgentKeysForSave);
+    importedAgentKeysForSave = null;
+  }
 }
 
 cleanupDuplicateIds(['symbol-wrap', 'hardware-kind-wrap', 'manufacturer-wrap', 'os-wrap', 'symbol', 'hardware-kind', 'manufacturer', 'os']);
@@ -183,6 +226,7 @@ appendRamModuleRow();
 appendDiskRow();
 appendRaidRow();
 symbolInput.value = defaultSymbol('hardware', 'server');
+initAdvancedResourceSettings();
 // initTheme moved to end
 
 applyTypeVisibility();
@@ -276,6 +320,7 @@ async function loadDemoData() {
 
 seedDemo?.addEventListener('click', loadDemoData);
 seedDemoMobile?.addEventListener('click', loadDemoData);
+
 
 async function startPolling() {
   if (pollingInterval) clearInterval(pollingInterval);
@@ -395,6 +440,64 @@ if (treeModeTree && treeModeGraph) {
   treeModeTree.addEventListener('click', () => setTreeMode('tree'));
   treeModeGraph.addEventListener('click', () => setTreeMode('graph'));
 }
+if (advancedSettingsBtn) advancedSettingsBtn.addEventListener('click', openAdvancedResourceSettings);
+[advancedResourceClose, advancedResourceCloseTop].filter(Boolean).forEach((btn) => {
+  btn.addEventListener('click', closeAdvancedResourceSettings);
+});
+if (advancedResourceDialog) {
+  advancedResourceDialog.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    closeAdvancedResourceSettings();
+  });
+}
+
+document.addEventListener('click', async (event) => {
+  const copyBtn = event.target.closest?.('[data-credential-copy]');
+  if (copyBtn) {
+    const field = document.getElementById(copyBtn.dataset.credentialCopy);
+    if (!field) return;
+    try { await navigator.clipboard.writeText(field.value || ''); showToast('Copied.'); }
+    catch { field.select(); document.execCommand?.('copy'); showToast('Selected for copy.'); }
+    return;
+  }
+  const toggleBtn = event.target.closest?.('[data-credential-toggle]');
+  if (toggleBtn) {
+    const field = document.getElementById(toggleBtn.dataset.credentialToggle);
+    if (!field) return;
+    field.type = field.type === 'password' ? 'text' : 'password';
+    toggleBtn.innerHTML = credentialEyeSvg(field.type !== 'password');
+    toggleBtn.setAttribute('aria-label', field.type === 'password' ? 'Show password' : 'Hide password');
+  }
+});
+
+
+document.addEventListener('click', (event) => {
+  const cliBtn = event.target.closest?.('[data-cli-open]');
+  if (!cliBtn) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const item = findById(cliBtn.dataset.cliOpen);
+  if (item) openCliSession(item);
+});
+
+[cliSend, mobileCliSend].filter(Boolean).forEach((btn) => btn.addEventListener('click', () => sendCliInput()));
+[cliInput, mobileCliInput].filter(Boolean).forEach((input) => {
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      sendCliInput();
+    }
+  });
+});
+[cliClearKey, mobileCliClearKey].filter(Boolean).forEach((btn) => btn.addEventListener('click', clearCliKnownHostAndReconnect));
+[cliCopy, mobileCliCopy].filter(Boolean).forEach((btn) => btn.addEventListener('click', copyCliOutput));
+[cliClose, mobileCliClose].filter(Boolean).forEach((btn) => btn.addEventListener('click', closeCliSession));
+if (cliDialog) {
+  cliDialog.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    closeCliSession();
+  });
+}
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -466,6 +569,7 @@ form.addEventListener('submit', async (event) => {
         : [],
     ipStatus: ipStatusSelect.value || '',
     urlStatus: urlStatusSelect.value || '',
+    credentials: supportsCredentials(type) ? getCredentialFields() : null,
   };
 
   const wasEditing = Boolean(editingId);
@@ -482,6 +586,7 @@ form.addEventListener('submit', async (event) => {
   normalizeItems();
   await saveItems();
   showToast(wasEditing ? 'Resource updated.' : 'Resource added.');
+  closeAdvancedResourceSettings();
   form.reset();
   statusSelect.value = '';
   hardwareWebUrlInput.value = '';
@@ -491,6 +596,7 @@ form.addEventListener('submit', async (event) => {
   ipStatusSelect.value = '';
   urlStatusSelect.value = '';
   resetDynamicHardwareFields();
+  setCredentialFields(null);
   setMultiValues(routerSwitches, []);
   setMultiValues(switchLinks, []);
   setMultiValues(switchDeviceLinks, []);
@@ -500,6 +606,7 @@ form.addEventListener('submit', async (event) => {
 });
 
 cancelEditBtn.addEventListener('click', () => {
+  closeAdvancedResourceSettings();
   stopEditing();
   form.reset();
   symbolInput.value = defaultSymbol('hardware', 'server');
@@ -507,6 +614,7 @@ cancelEditBtn.addEventListener('click', () => {
   ipStatusSelect.value = '';
   urlStatusSelect.value = '';
   resetDynamicHardwareFields();
+  setCredentialFields(null);
   setMultiValues(routerSwitches, []);
   setMultiValues(switchLinks, []);
   setMultiValues(switchDeviceLinks, []);
@@ -643,16 +751,14 @@ function returnFromAgentApi() {
   const shouldReturn = agentApiReturnToConfig;
   agentApiReturnToConfig = false;
 
-  if (isMobile()) {
-    if (agentApiContentInMobile) {
-      if (shouldReturn) {
-        showMobileView('mobile-config');
-        setActiveMobileNav('nav-more');
-      } else {
-        hideMobileViews();
-      }
-      return;
+  if (isMobile() && agentApiContentInMobile) {
+    if (shouldReturn) {
+      showMobileView('mobile-config');
+      setActiveMobileNav('nav-more');
+    } else {
+      hideMobileViews();
     }
+    return;
   }
 
   if (shouldReturn && configDialog && !configDialog.open) {
@@ -722,17 +828,179 @@ function getActiveThemeId() {
   return document.documentElement.dataset.theme || localStorage.getItem(themeKey) || 'light';
 }
 
-function buildConfigExport() {
-  const activeTheme = getActiveThemeId();
+function hasAnyCredentials(list = items) {
+  return list.some((item) => item?.credentials && (item.credentials.username || item.credentials.password));
+}
+
+function credentialsByItemId(list = items) {
+  return Object.fromEntries(list
+    .filter((item) => item?.id && item.credentials && (item.credentials.username || item.credentials.password))
+    .map((item) => [item.id, item.credentials]));
+}
+
+function itemsWithoutCredentials(list = items) {
+  return list.map((item) => {
+    const clone = { ...item };
+    delete clone.credentials;
+    return clone;
+  });
+}
+
+function bytesToBase64(bytes) {
+  return btoa(String.fromCharCode(...bytes));
+}
+
+function base64ToBytes(value) {
+  return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+}
+
+function hexToBytes(value) {
+  const clean = String(value || '').trim().replace(/\s+/g, '');
+  if (!/^[0-9a-fA-F]{64}$/.test(clean)) throw new Error('Invalid credential export key.');
+  const bytes = new Uint8Array(32);
+  for (let i = 0; i < 32; i += 1) bytes[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
+  return bytes;
+}
+
+function bytesToHex(bytes) {
+  return Array.from(bytes).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function importAesKeyFromHex(hex) {
+  return crypto.subtle.importKey('raw', hexToBytes(hex), 'AES-GCM', false, ['encrypt', 'decrypt']);
+}
+
+function generateCredentialExportKey() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return bytesToHex(bytes);
+}
+
+async function encryptCredentialBundle(bundle, keyHex) {
+  const iv = new Uint8Array(12);
+  crypto.getRandomValues(iv);
+  const key = await importAesKeyFromHex(keyHex);
+  const plaintext = new TextEncoder().encode(JSON.stringify(bundle));
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext);
   return {
-    schemaVersion: 2,
+    version: 1,
+    algorithm: 'AES-GCM-256',
+    iv: bytesToBase64(iv),
+    ciphertext: bytesToBase64(new Uint8Array(ciphertext)),
+  };
+}
+
+async function decryptCredentialBundle(payload, keyHex) {
+  if (!payload || payload.algorithm !== 'AES-GCM-256') throw new Error('Unsupported credential payload.');
+  const key = await importAesKeyFromHex(keyHex);
+  const iv = base64ToBytes(payload.iv || '');
+  const ciphertext = base64ToBytes(payload.ciphertext || '');
+  const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+  return JSON.parse(new TextDecoder().decode(decrypted));
+}
+
+async function loadRawAgentKeysForExport() {
+  return getLocalAgentKeys();
+}
+
+function openKeyPopup({ title, message, key = '', mode = 'copy' } = {}) {
+  return new Promise((resolve) => {
+    const supportsDialog = typeof HTMLDialogElement !== 'undefined';
+    const overlay = supportsDialog ? document.createElement('dialog') : document.createElement('div');
+    overlay.className = 'secret-key-modal';
+    const inputType = mode === 'input' ? 'password' : 'text';
+    const actionLabel = mode === 'input' ? 'Import' : 'Copy key';
+    overlay.innerHTML = `
+      <div class="secret-key-card" role="dialog" aria-modal="true" aria-label="${escapeAttr(title || 'Secret key')}">
+        <div class="secret-key-head">
+          <h3>${escapeHtml(title || 'Secret key')}</h3>
+          <p>${escapeHtml(message || '')}</p>
+        </div>
+        <div class="secret-key-row">
+          <input id="secret-key-field" type="${inputType}" value="${escapeAttr(key)}" placeholder="Paste export key" autocomplete="off" readonly="${mode === 'input' ? '' : 'readonly'}" />
+        </div>
+        <div class="secret-key-actions">
+          <button class="button" type="button" data-secret-action>${actionLabel}</button>
+          <button class="button secondary" type="button" data-secret-close>Close</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    if (supportsDialog && typeof overlay.showModal === 'function') overlay.showModal();
+    const field = overlay.querySelector('#secret-key-field');
+    if (mode === 'input') field.removeAttribute('readonly');
+    window.setTimeout(() => { field.focus(); field.select(); }, 30);
+
+    const done = (value) => {
+      if (supportsDialog && overlay.open) overlay.close();
+      overlay.remove();
+      resolve(value);
+    };
+
+    overlay.addEventListener('cancel', (event) => {
+      event.preventDefault();
+      done(mode === 'input' ? '' : key);
+    });
+
+    overlay.addEventListener('click', async (event) => {
+      if (event.target === overlay || event.target.closest('[data-secret-close]')) {
+        done(mode === 'input' ? '' : key);
+        return;
+      }
+      if (event.target.closest('[data-secret-action]')) {
+        if (mode === 'input') {
+          done(field.value.trim());
+          return;
+        }
+        field.select();
+        try { await navigator.clipboard.writeText(field.value); showToast('Export key copied.'); }
+        catch { document.execCommand?.('copy'); showToast('Export key selected.'); }
+      }
+    });
+  });
+}
+
+async function buildConfigExport() {
+  const activeTheme = getActiveThemeId();
+  const rawAgentKeys = await loadRawAgentKeysForExport();
+  const exportHasCredentials = hasAnyCredentials(items);
+  const exportHasAgentKeys = rawAgentKeys.length > 0;
+  let exportedItems = items;
+  let encryptedCredentials = null;
+  let encryptedAgentKeys = null;
+  let exportKey = null;
+
+  if (exportHasCredentials || exportHasAgentKeys) {
+    exportKey = generateCredentialExportKey();
+    if (exportHasCredentials) {
+      encryptedCredentials = await encryptCredentialBundle(credentialsByItemId(items), exportKey);
+      exportedItems = itemsWithoutCredentials(items);
+    }
+    if (exportHasAgentKeys) {
+      encryptedAgentKeys = await encryptCredentialBundle(rawAgentKeys, exportKey);
+    }
+    await openKeyPopup({
+      title: 'Copy Export Key',
+      message: 'This key decrypts encrypted credentials and API key records during import. Store it safely; Labby cannot recover it later.',
+      key: exportKey,
+      mode: 'copy',
+    });
+  }
+
+  return {
+    schemaVersion: 4,
     app: 'Labby',
     exportedAt: new Date().toISOString(),
-    items,
+    items: exportedItems,
     locations,
     racks,
     agentStatus: liveStatusData,
-    secretsExcluded: ['agentKeys'],
+    encryptedSecrets: {
+      credentials: encryptedCredentials,
+      agentKeys: encryptedAgentKeys,
+    },
+    credentialsEncrypted: encryptedCredentials,
+    agentKeysEncrypted: encryptedAgentKeys,
     customThemes: getCustomThemes(),
     activeTheme,
     // Kept for older imports that only looked for `theme`.
@@ -753,12 +1021,13 @@ function applyImportedThemeFromConfig(parsed) {
   }
 }
 
-function applyImportedConfig(parsed) {
+async function applyImportedConfig(parsed) {
   // Legacy export support: old Labby exports were a bare items array.
   if (Array.isArray(parsed)) {
     items = sanitizeItems(parsed);
     locations = [];
     racks = [];
+    importedAgentKeysForSave = null;
     return;
   }
 
@@ -766,7 +1035,36 @@ function applyImportedConfig(parsed) {
     throw new Error('Invalid Labby config');
   }
 
-  items     = sanitizeItems(parsed.items || []);
+  let importedItems = sanitizeItems(parsed.items || []);
+  const encryptedSecrets = parsed.encryptedSecrets && typeof parsed.encryptedSecrets === 'object' ? parsed.encryptedSecrets : {};
+  const encryptedCredentials = encryptedSecrets.credentials || parsed.credentialsEncrypted;
+  const encryptedAgentKeys = encryptedSecrets.agentKeys || parsed.agentKeysEncrypted;
+
+  if (encryptedCredentials || encryptedAgentKeys) {
+    const key = await openKeyPopup({
+      title: 'Import encrypted secrets',
+      message: 'Paste the export key to import encrypted credentials and API key records. Without it, only non-secret config data can be imported.',
+      mode: 'input',
+    });
+    if (!key) throw new Error('Export key required.');
+    if (encryptedCredentials) {
+      const credentialMap = await decryptCredentialBundle(encryptedCredentials, key.trim());
+      importedItems = importedItems.map((item) => ({
+        ...item,
+        credentials: normalizeCredentials(credentialMap[item.id]),
+      }));
+    }
+    if (encryptedAgentKeys) {
+      const decryptedAgentKeys = await decryptCredentialBundle(encryptedAgentKeys, key.trim());
+      importedAgentKeysForSave = Array.isArray(decryptedAgentKeys) ? decryptedAgentKeys : [];
+    } else {
+      importedAgentKeysForSave = null;
+    }
+  } else {
+    importedAgentKeysForSave = null;
+  }
+
+  items     = importedItems;
   locations = Array.isArray(parsed.locations) ? parsed.locations : [];
   racks     = Array.isArray(parsed.racks) ? parsed.racks : [];
   liveStatusData = parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {};
@@ -801,12 +1099,7 @@ function createLocalAgentToken() {
 }
 
 async function agentApiRequest(path, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  throw new Error('Demo mode keeps API key records in browser storage only.');
 }
 
 async function loadAgentKeys() {
@@ -988,8 +1281,8 @@ function initAgentApiPanel() {
 }
 
 
-exportBtn.addEventListener('click', () => {
-  const config = buildConfigExport();
+exportBtn.addEventListener('click', async () => {
+  const config = await buildConfigExport();
   const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -1006,10 +1299,10 @@ importFile.addEventListener('change', async (event) => {
   try {
     const text = await file.text();
     const parsed = JSON.parse(text);
-    applyImportedConfig(parsed);
+    await applyImportedConfig(parsed);
     stopEditing();
     await saveItems();
-    showToast('Config imported successfully. API keys are not imported.');
+    showToast('Config imported successfully.');
     render();
     if (typeof renderAgentKeyLists === 'function') renderAgentKeyLists();
   } catch {
@@ -1238,6 +1531,55 @@ function supportsComputeDetails(type, hardwareKind = hardwareKindSelect.value) {
   return ['vm', 'lxc'].includes(type);
 }
 
+function supportsCredentials(type) {
+  return ['hardware', 'vm', 'lxc', 'app'].includes(type);
+}
+
+function normalizeCredentials(value) {
+  if (!value || typeof value !== 'object') return null;
+  const username = String(value.username || '').trim();
+  const password = String(value.password || '');
+  const note = String(value.note || '').trim();
+  const cli = Boolean(value.cli || value.accessCli);
+  const web = Boolean(value.web || value.accessWeb);
+  if (!username && !password && !note && !cli && !web) return null;
+  return { username, password, note, cli, web };
+}
+
+function credentialEyeSvg(isOpen = false) {
+  return isOpen
+    ? '<svg class="credential-eye-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>'
+    : '<svg class="credential-eye-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M8.5 5.6A10.4 10.4 0 0 1 12 5c6 0 9.5 7 9.5 7a16.4 16.4 0 0 1-3.1 4.2"/><path d="M6.4 6.9C3.9 8.6 2.5 12 2.5 12s3.5 7 9.5 7a10 10 0 0 0 4.4-1"/></svg>';
+}
+
+function credentialInput(id) {
+  return document.getElementById(id);
+}
+
+function getCredentialFields() {
+  return normalizeCredentials({
+    username: credentialInput('credential-username')?.value || '',
+    password: credentialInput('credential-password')?.value || '',
+    note: credentialInput('credential-note')?.value || '',
+    cli: credentialInput('credential-cli')?.checked || false,
+    web: credentialInput('credential-web')?.checked || false,
+  });
+}
+
+function setCredentialFields(credentials) {
+  const normalized = normalizeCredentials(credentials);
+  const username = credentialInput('credential-username');
+  const password = credentialInput('credential-password');
+  const note = credentialInput('credential-note');
+  const cli = credentialInput('credential-cli');
+  const web = credentialInput('credential-web');
+  if (username) username.value = normalized?.username || '';
+  if (password) password.value = normalized?.password || '';
+  if (note) note.value = normalized?.note || '';
+  if (cli) cli.checked = Boolean(normalized?.cli);
+  if (web) web.checked = Boolean(normalized?.web);
+}
+
 function defaultSymbol(type, hardwareKind = 'server') {
   if (type === 'hardware') {
     return {
@@ -1268,6 +1610,7 @@ function sanitizeItems(raw) {
       status: ['online','offline','maintenance'].includes(item.status) ? item.status : '',
       description: item.description ? String(item.description) : '',
       notes: item.notes ? String(item.notes) : '',
+      credentials: normalizeCredentials(item.credentials),
       connections: Array.isArray(item.connections) ? [...new Set(item.connections.map(String))] : [],
       ip: item.ip ? String(item.ip) : '',
       cpu: item.cpu ? String(item.cpu) : '',
@@ -1314,6 +1657,8 @@ function normalizeList(list) {
     const next = { ...item };
     next.connections = next.connections.filter((id) => known.has(id) && id !== next.id);
     if (!supportsNotes(next.type)) next.notes = '';
+    if (!supportsCredentials(next.type)) next.credentials = null;
+    else next.credentials = normalizeCredentials(next.credentials);
     if (!['hardware', 'vm', 'lxc'].includes(next.type)) {
       next.ip = '';
       next.os = '';
@@ -1501,7 +1846,120 @@ function applyTypeVisibility() {
   lastTypeSelection = type;
   lastHardwareKindSelection = hardwareKind;
 
+  updateAdvancedResourceControls(type, hardwareKind);
   refreshHardwareConnectionOptions();
+}
+
+function initAdvancedResourceSettings() {
+  if (!advancedResourceBody) return;
+  const advancedIds = [
+    'manufacturer-wrap',
+    'os-wrap',
+    'ip-status-wrap',
+    'url-status-wrap',
+    'compute-fields',
+    'switch-ports-wrap',
+    'router-switches-wrap',
+    'switch-links-wrap',
+    'switch-device-links-wrap',
+    'nas-shares-wrap',
+    'nas-raids-wrap',
+    'hosted-on-wrap',
+    'app-hosted-on-wrap',
+  ];
+
+  advancedIds
+    .map((id) => document.getElementById(id))
+    .filter(Boolean)
+    .forEach((node) => {
+      node.classList.add('advanced-resource-field');
+      advancedResourceBody.appendChild(node);
+    });
+
+  if (!document.getElementById('credentials-wrap')) {
+    credentialFields = document.createElement('fieldset');
+    credentialFields.id = 'credentials-wrap';
+    credentialFields.className = 'network-fields advanced-resource-field credentials-fieldset hidden';
+    credentialFields.innerHTML = `
+      <legend>Credentials</legend>
+      <p class="advanced-section-note">Store username and password for this resource. Passwords are hidden by default and included in encrypted config exports.</p>
+      <div class="credential-grid">
+        <label>
+          Username
+          <div class="credential-input-row">
+            <input id="credential-username" type="text" autocomplete="off" placeholder="e.g. admin" />
+            <button class="button secondary" type="button" data-credential-copy="credential-username">Copy</button>
+          </div>
+        </label>
+        <label>
+          Password
+          <div class="credential-input-row">
+            <input id="credential-password" type="password" autocomplete="new-password" placeholder="••••••••" />
+            <button class="button secondary credential-eye" type="button" data-credential-toggle="credential-password" aria-label="Show password">${credentialEyeSvg(false)}</button>
+            <button class="button secondary" type="button" data-credential-copy="credential-password">Copy</button>
+          </div>
+        </label>
+      </div>
+      <div class="credential-access-grid">
+        <label class="credential-access-option">
+          <input id="credential-cli" type="checkbox" />
+          <span>
+            <strong>CLI / SSH</strong>
+            <small>Show a CLI button next to the IP address.</small>
+          </span>
+        </label>
+        <label class="credential-access-option">
+          <input id="credential-web" type="checkbox" />
+          <span>
+            <strong>Web</strong>
+            <small>Marks these credentials as usable for the web interface.</small>
+          </span>
+        </label>
+      </div>
+      <label>
+        Credential note
+        <input id="credential-note" type="text" placeholder="e.g. stored in vault, local admin, recovery user" />
+      </label>
+    `;
+    advancedResourceBody.prepend(credentialFields);
+  } else {
+    credentialFields = document.getElementById('credentials-wrap');
+  }
+}
+
+function updateAdvancedResourceControls(type, hardwareKind) {
+  const hasAdvanced = ['hardware', 'vm', 'lxc', 'app'].includes(type);
+  advancedSettingsBtn?.classList.toggle('hidden', !hasAdvanced);
+  document.getElementById('credentials-wrap')?.classList.toggle('hidden', !supportsCredentials(type));
+  if (advancedResourceSave) advancedResourceSave.textContent = editingId ? 'Save changes' : 'Add item';
+  if (advancedResourceTitle) {
+    const typeTitle = type === 'hardware' ? hardwareTypeLabel(hardwareKind) : label(type);
+    advancedResourceTitle.textContent = `${typeTitle} Settings`;
+  }
+}
+
+function openAdvancedResourceSettings() {
+  const type = typeSelect.value;
+  if (type === 'network') return;
+  applyTypeVisibility();
+  refreshHostOptions();
+  refreshAppHostOptions();
+  refreshHardwareConnectionOptions();
+  if (advancedResourceDialog && !advancedResourceDialog.open) {
+    if (window.innerWidth <= 1100) {
+      advancedResourceDialog.setAttribute('open', '');
+      advancedResourceDialog.classList.add('mobile-page-open');
+    } else {
+      advancedResourceDialog.showModal();
+    }
+  }
+}
+
+function closeAdvancedResourceSettings() {
+  if (!advancedResourceDialog?.open) return;
+  advancedResourceDialog.classList.remove('mobile-page-open');
+  if (advancedResourceDialog.matches(':modal')) advancedResourceDialog.close();
+  else advancedResourceDialog.removeAttribute('open');
 }
 
 function render() {
@@ -1622,9 +2080,11 @@ function cardNode(item) {
 
 function buildCardActions(item) {
   const els = [];
+  const baseIp = item.ip ? item.ip.split('/')[0] : '';
 
-  if (item.ip) {
-    els.push(makeCopyBtn(item.ip.split('/')[0], 'Copy IP'));
+  if (baseIp) {
+    els.push(makeCopyBtn(baseIp, 'Copy IP'));
+    if (item.credentials?.cli) els.push(makeCliBtn(item));
   }
 
   if (item.type === 'app' && item.ipPort) {
@@ -1632,6 +2092,7 @@ function buildCardActions(item) {
   }
 
   if ((item.type === 'app' || item.type === 'hardware') && item.webUrl) {
+    els.push(makeCopyBtn(item.webUrl, 'Copy URL'));
     const link = document.createElement('a');
     link.href = item.webUrl;
     link.target = '_blank';
@@ -1640,11 +2101,24 @@ function buildCardActions(item) {
     link.textContent = '🔗 Open';
     link.title = item.webUrl;
     els.push(link);
-
-    els.push(makeCopyBtn(item.webUrl, 'Copy URL'));
   }
 
   return els;
+}
+
+
+function cliIconSvg() {
+  return '<svg class="cli-action-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4z"/><path d="m7 10 3 2-3 2"/><path d="M12 15h5"/></svg>';
+}
+
+function makeCliBtn(item) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'card-action-cli';
+  btn.dataset.cliOpen = item.id;
+  btn.innerHTML = cliIconSvg() + '<span>CLI</span>';
+  btn.title = `Open SSH CLI for ${item.name}`;
+  return btn;
 }
 
 function makeCopyBtn(value, label) {
@@ -1668,6 +2142,210 @@ function makeCopyBtn(value, label) {
     });
   });
   return btn;
+}
+
+
+function cliTargetForItem(item) {
+  const ip = item?.ip ? String(item.ip).split('/')[0].trim() : '';
+  const username = item?.credentials?.username ? String(item.credentials.username).trim() : '';
+  const password = item?.credentials?.password ? String(item.credentials.password) : '';
+  return { ip, username, password, target: username ? `${username}@${ip}` : ip };
+}
+
+function activeCliEls() {
+  const mobile = isMobile();
+  return {
+    view: mobile ? mobileCliView : cliDialog,
+    title: mobile ? mobileCliTitle : cliTitle,
+    subtitle: mobile ? mobileCliSubtitle : cliSubtitle,
+    terminal: mobile ? mobileCliTerminal : cliTerminal,
+    input: mobile ? mobileCliInput : cliInput,
+  };
+}
+
+function setCliOutput(text, append = false) {
+  const desktopTerm = cliTerminal;
+  const mobileTerm = mobileCliTerminal;
+  [desktopTerm, mobileTerm].filter(Boolean).forEach((terminal) => {
+    terminal.textContent = append ? `${terminal.textContent}${text}` : text;
+    terminal.scrollTop = terminal.scrollHeight;
+  });
+}
+
+async function openCliSession(item, options = {}) {
+  const { ip, username, password, target } = cliTargetForItem(item);
+  if (!ip) {
+    showToast('No IP address available for CLI.', 'error');
+    return;
+  }
+  cliActiveItem = item;
+  const els = activeCliEls();
+  if (els.title) els.title.textContent = `CLI · ${item.name}`;
+  if (els.subtitle) els.subtitle.textContent = `ssh ${target}`;
+  setCliOutput(`Connecting to ${target}...\n`);
+
+  if (isMobile()) {
+    hideMobileViews?.();
+    mobileCliView?.classList.add('active');
+    document.getElementById('nav-topology')?.classList.remove('active');
+  } else if (cliDialog && !cliDialog.open) {
+    cliDialog.showModal();
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/ssh/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ host: ip, username, password, clearKnownHost: Boolean(options.clearKnownHost) }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Could not start SSH session.');
+    cliSession = data.sessionId;
+    setCliOutput(data.output || `Connected to ${target}.\n`);
+    startCliPolling();
+    els.input?.focus();
+  } catch (err) {
+    const sshUrl = username ? `ssh://${encodeURIComponent(username)}@${ip}` : `ssh://${ip}`;
+    setCliOutput(
+      `Labby could not start the backend SSH session.\n\n` +
+      `You can still launch your system SSH client manually:\nssh ${target}\n\n` +
+      `Reason: ${err.message || err}\n`
+    );
+    const elsNow = activeCliEls();
+    if (elsNow.terminal) {
+      const a = document.createElement('a');
+      a.href = sshUrl;
+      a.textContent = `Open system SSH: ${sshUrl}`;
+      a.className = 'cli-system-link';
+      elsNow.terminal.appendChild(a);
+    }
+  }
+}
+
+function startCliPolling() {
+  stopCliPolling();
+  cliPollTimer = window.setInterval(async () => {
+    if (!cliSession) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(cliSession)}/output`);
+      const data = await res.json();
+      if (data.output) setCliOutput(data.output, true);
+      if (data.closed) {
+        setCliOutput('\n[SSH session closed]\n', true);
+        cliSession = null;
+        stopCliPolling();
+      }
+    } catch {
+      stopCliPolling();
+    }
+  }, 800);
+}
+
+function stopCliPolling() {
+  if (cliPollTimer) window.clearInterval(cliPollTimer);
+  cliPollTimer = null;
+}
+
+async function sendCliInput() {
+  if (!cliSession) return;
+  const els = activeCliEls();
+  const value = els.input?.value || '';
+  if (!value) return;
+  els.input.value = '';
+  setCliOutput(`$ ${value}\n`, true);
+  try {
+    await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(cliSession)}/input`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: `${value}\n` }),
+    });
+  } catch {
+    showToast('Could not send command.', 'error');
+  }
+}
+
+async function copySelectedCliText() {
+  const selection = window.getSelection?.();
+  const text = selection?.toString?.() || '';
+  if (!text.trim()) return;
+  const els = activeCliEls();
+  const terminal = els.terminal;
+  if (!terminal || !selection.rangeCount) return;
+  const range = selection.getRangeAt(0);
+  const inTerminal = terminal.contains(range.commonAncestorContainer)
+    || terminal === range.commonAncestorContainer;
+  if (!inTerminal) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('Selected CLI text copied.');
+  } catch {
+    // Clipboard permission can be unavailable on some browsers; selection still remains usable.
+  }
+}
+
+function attachCliSelectionCopy() {
+  [cliTerminal, mobileCliTerminal].filter(Boolean).forEach((terminal) => {
+    terminal.addEventListener('mouseup', copySelectedCliText);
+    terminal.addEventListener('touchend', () => window.setTimeout(copySelectedCliText, 80), { passive: true });
+    terminal.addEventListener('keyup', (event) => {
+      if (event.key === 'Shift' || event.key.startsWith('Arrow')) copySelectedCliText();
+    });
+  });
+}
+
+attachCliSelectionCopy();
+
+async function stopCliProcessOnly() {
+  const sessionToClose = cliSession;
+  cliSession = null;
+  stopCliPolling();
+  if (sessionToClose) {
+    try { await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(sessionToClose)}/close`, { method: 'POST' }); }
+    catch {}
+  }
+}
+
+async function clearCliKnownHostAndReconnect() {
+  const item = cliActiveItem;
+  const { ip } = cliTargetForItem(item);
+  if (!item || !ip) {
+    showToast('No active SSH target.', 'error');
+    return;
+  }
+  setCliOutput(`
+[clearing SSH host key for ${ip}]
+`, true);
+  await stopCliProcessOnly();
+  try {
+    const res = await fetch(`${API_BASE}/api/ssh/known-host/clear`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ host: ip }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Could not clear SSH key.');
+    showToast('SSH key cleared. Reconnecting...');
+    await openCliSession(item, { clearKnownHost: true });
+  } catch (err) {
+    setCliOutput(`
+[Could not clear SSH key: ${err.message || err}]
+`, true);
+    showToast('Could not clear SSH key.', 'error');
+  }
+}
+
+async function copyCliOutput() {
+  const els = activeCliEls();
+  const text = els.terminal?.innerText || els.terminal?.textContent || '';
+  try { await navigator.clipboard.writeText(text); showToast('CLI output copied.'); }
+  catch { showToast('Could not copy CLI output.', 'error'); }
+}
+
+async function closeCliSession() {
+  await stopCliProcessOnly();
+  if (cliDialog?.open) cliDialog.close();
+  mobileCliView?.classList.remove('active');
+  cliActiveItem = null;
 }
 
 function createCardShell() {
@@ -1885,6 +2563,7 @@ function startEditing(id) {
   document.getElementById('description').value = item.description;
   statusSelect.value = item.status || '';
   notesInput.value = item.notes || '';
+  setCredentialFields(item.credentials);
   ipInput.value = item.ip || '';
   cpuCountSelect.value = String(item.cpuCount || inferCpuCount(item.cpu));
   switchPortsInput.value = item.switchPorts || '';
@@ -1937,6 +2616,7 @@ function stopEditing() {
   formTitle.textContent = 'Add Resource';
   saveBtn.textContent = 'Add item';
   cancelEditBtn.classList.add('hidden');
+  setCredentialFields(null);
 }
 
 async function removeItem(id) {
@@ -1956,9 +2636,25 @@ function showToast(message, kind = 'success') {
   if (!toast) return;
   toast.textContent = message;
   toast.style.borderColor = kind === 'error' ? 'var(--danger)' : 'var(--line)';
+
+  // Native dialogs live in the browser top layer and ignore normal z-index stacking.
+  // Use the Popover API for toasts too, so messages appear above the currently active window.
+  const canUseTopLayer = typeof toast.showPopover === 'function' && typeof toast.hidePopover === 'function';
+  if (canUseTopLayer) {
+    if (!toast.hasAttribute('popover')) toast.setAttribute('popover', 'manual');
+    try {
+      if (!toast.matches(':popover-open')) toast.showPopover();
+    } catch {}
+  }
+
   toast.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove('show');
+    if (canUseTopLayer) {
+      try { if (toast.matches(':popover-open')) toast.hidePopover(); } catch {}
+    }
+  }, 2200);
 }
 
 function setTreeMode(mode) {
@@ -3256,6 +3952,24 @@ function renderCustomizeTab() {
   ];
   const resourceVars = ['--type-hardware', '--type-vm', '--type-lxc', '--type-app', '--type-network'];
   const byKey = new Map(themeVars.map(v => [v.key, v]));
+  const descriptions = {
+    '--bg': 'Main page background behind the whole interface.',
+    '--bg-bottom': 'Lower background tone used in the page gradient.',
+    '--phone': 'Shell and dialog background surface.',
+    '--panel': 'Cards, forms and input field surface color.',
+    '--text': 'Primary text color for headings and content.',
+    '--muted': 'Secondary text for labels, notes and meta info.',
+    '--line': 'Borders, outlines and divider lines.',
+    '--yellow': 'Primary accent color for important buttons.',
+    '--blue': 'Informational boxes and neutral callout areas.',
+    '--mint': 'Highlights, success hints and active states.',
+    '--danger': 'Danger color for revoke, delete and destructive actions.',
+    '--type-hardware': 'Used for hardware cards, chips and markers.',
+    '--type-vm': 'Used for virtual machine cards, chips and markers.',
+    '--type-lxc': 'Used for LXC cards, chips and markers.',
+    '--type-app': 'Used for app cards, chips and markers.',
+    '--type-network': 'Used for network cards, chips and markers.',
+  };
 
   const root = document.createElement('div');
   root.className = 'tb-layout';
@@ -3270,7 +3984,7 @@ function renderCustomizeTab() {
   sections.className = 'tb-section-grid';
   root.appendChild(sections);
 
-  function buildSection(title, keys, extraClass) {
+  function buildSection(title, keys, extraClass, introText) {
     const section = document.createElement('section');
     section.className = 'tb-section' + (extraClass ? ' ' + extraClass : '');
 
@@ -3279,6 +3993,13 @@ function renderCustomizeTab() {
     heading.textContent = title;
     section.appendChild(heading);
 
+    if (introText) {
+      const intro = document.createElement('p');
+      intro.className = 'tb-section-intro';
+      intro.textContent = introText;
+      section.appendChild(intro);
+    }
+
     const grid = document.createElement('div');
     grid.className = 'tb-grid';
     keys.forEach(key => {
@@ -3286,15 +4007,21 @@ function renderCustomizeTab() {
       if (!item) return;
       const row = document.createElement('label');
       row.className = 'tb-color-row';
-      row.innerHTML = '<input type="color" data-var="' + item.key + '" value="' + start[item.key] + '" /><span>' + item.label + '</span>';
+      row.innerHTML = [
+        '<input type="color" data-var="' + item.key + '" value="' + start[item.key] + '" />',
+        '<span class="tb-color-copy">',
+          '<span class="tb-color-label">' + item.label + '</span>',
+          '<span class="tb-color-desc">' + (descriptions[item.key] || '') + '</span>',
+        '</span>'
+      ].join('');
       grid.appendChild(row);
     });
     section.appendChild(grid);
     sections.appendChild(section);
   }
 
-  buildSection('Colors', interfaceVars, 'tb-section-core');
-  buildSection('Resource Colors', resourceVars, 'tb-section-types');
+  buildSection('Colors', interfaceVars, 'tb-section-core', 'Set the main interface colors used across the page, dialogs and buttons.');
+  buildSection('Resource Colors', resourceVars, 'tb-section-types', 'Set the accent colors Labby uses for each resource type.');
 
   const actions = document.createElement('div');
   actions.className = 'tb-actions';
@@ -3658,8 +4385,8 @@ function renderIPInto(container, query) {
 }
 
 const exportBtnMobile = document.getElementById('export-btn-mobile');
-if (exportBtnMobile) exportBtnMobile.addEventListener('click', () => {
-  const config = buildConfigExport();
+if (exportBtnMobile) exportBtnMobile.addEventListener('click', async () => {
+  const config = await buildConfigExport();
   const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -3677,10 +4404,10 @@ if (importFileMobile) importFileMobile.addEventListener('change', async (event) 
   try {
     const text = await file.text();
     const parsed = JSON.parse(text);
-    applyImportedConfig(parsed);
+    await applyImportedConfig(parsed);
     stopEditing();
     await saveItems();
-    showToast('Config imported successfully. API keys are not imported.');
+    showToast('Config imported successfully.');
     render();
     if (typeof renderAgentKeyLists === 'function') renderAgentKeyLists();
   } catch {
@@ -4372,8 +5099,9 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
   el.dataset.u    = u;
   el.dataset.side = side;
   el.draggable    = !isMobile();
-  // Match the CSS --rack-u-height variable exactly
-  const uPx = Math.max(28, Math.min(42, window.innerHeight * 0.018));
+  // Match the visible rack unit height. On mobile CSS uses taller touch rows,
+  // so multi-U components must scale from the same mobile U height as empty rows.
+  const uPx = isMobile() ? 44 : Math.max(28, Math.min(42, window.innerHeight * 0.018));
   const totalH = comp.heightU * uPx;
   el.style.height    = totalH + 'px';
   el.style.minHeight = totalH + 'px';
@@ -4648,7 +5376,7 @@ function equaliseRackHeights() {
 
   // Distribute extra pixels evenly across empty slots (integer math, last slot absorbs remainder)
   const extra = Math.floor(diff / emptySlots.length);
-  const baseU = Math.max(28, Math.min(42, window.innerHeight * 0.018));
+  const baseU = isMobile() ? 44 : Math.max(28, Math.min(42, window.innerHeight * 0.018));
   emptySlots.forEach((slot, i) => {
     const add = i === emptySlots.length - 1 ? diff - extra * i : extra;
     const h = (baseU + add) + 'px';
@@ -4708,22 +5436,8 @@ function enhanceMobileCard(node, item) {
 }
 
 function initMobileFormComfort() {
-  const sectionFields = [computeFields, networkFields, ramModulesWrap, diskListWrap, nasSharesWrap, nasRaidsWrap].filter(Boolean);
-  sectionFields.forEach((field) => {
-    if (field.querySelector('.mobile-section-toggle')) return;
-    const legend = field.querySelector('legend');
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'button secondary mobile-section-toggle';
-    btn.textContent = 'Show details';
-    btn.addEventListener('click', () => {
-      const collapsed = field.classList.toggle('mobile-collapsed');
-      btn.textContent = collapsed ? 'Show details' : 'Hide details';
-    });
-    if (legend) legend.insertAdjacentElement('afterend', btn); else field.prepend(btn);
-    if (field !== networkFields) field.classList.add('mobile-collapsed');
-  });
-
+  // Advanced sections are now always visible inside their dedicated dialog.
+  // Keep mobile comfort scrolling only; no collapsible Show details buttons.
   form?.addEventListener('focusin', (event) => {
     if (!isMobile()) return;
     const target = event.target;
@@ -4870,6 +5584,11 @@ initMobileRackControls();
 initMobileDialogSheets();
 updateRackSelectedComponentUI();
 
+// Theme initialization moved after definitions
+try { initTheme(); } catch(e){ console.error(e); }
+
+
+
 function getDemoLocations() {
   return [
     {
@@ -5001,9 +5720,5 @@ function initDemoBannerMarquee() {
 }
 
 initDemoBannerMarquee();
-
-
-// Theme initialization moved after definitions
-try { initTheme(); } catch(e){ console.error(e); }
 
 

@@ -597,6 +597,7 @@
             <a class="wiki-nav-link" href="#" data-page="treegraph">Tree &amp; Graph View</a>
             <a class="wiki-nav-link" href="#" data-page="ipview">IP View</a>
             <a class="wiki-nav-link" href="#" data-page="themes">Themes</a>
+            <a class="wiki-nav-link" href="#" data-page="console">Console</a>
             <a class="wiki-nav-link" href="#" data-page="agentapi">Agent API Access</a>
           </div>
           <div class="wiki-nav-group">
@@ -650,7 +651,9 @@ btn.addEventListener('click', () => {
         <li>🎨 Built-in themes, custom theme editor and the Matrix theme</li>
         <li>📱 Mobile bottom navigation: Boards, Add, Rack, IP and More</li>
         <li>🧱 Technical Structure page with architecture overview and file layout</li>
-        <li>💾 Export / Import JSON backups including resources, racks, locations, custom themes and active theme</li>
+        <li>⌨️ Browser Console with SSH access from CLI-enabled credentials</li>
+        <li>🔐 Optional encrypted credentials for Hardware, VMs, LXCs and Apps</li>
+        <li>💾 Export / Import JSON backups including resources, racks, locations, custom themes, active theme and encrypted secrets</li>
         <li>🧪 Demo mode with browser-only storage and Load Demo seed data</li>
       </ul>
       <h2>Fast Start</h2>
@@ -664,6 +667,7 @@ docker compose up --build -d</pre>
         <li>Topology Cards</li>
         <li>Mobile UX</li>
         <li>Rack View</li>
+        <li>Console</li>
         <li>Config, Import &amp; Export</li>
       </ol>
     `},
@@ -848,6 +852,8 @@ docker-compose.yml</pre>
     mobileux:{title:'📱 Mobile UX',content:`
       <p>Mobile is designed as its own app-like flow, not a shrunken desktop layout.</p>
       <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-mobile-startscreen.png" alt="Mobile start screen" loading="lazy" /><figcaption>Mobile start screen</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-mobile-menu.png" alt="Mobile menu" loading="lazy" /><figcaption>Mobile menu</figcaption></figure>
       </div>
       <h2>Bottom Navigation</h2>
       <ul>
@@ -880,6 +886,7 @@ docker-compose.yml</pre>
       <p>Topology cards are the main way to browse, edit and understand your homelab resources.</p>
       <div class="wiki-shot-grid">
         <figure class="wiki-shot"><img src="images/labby-topology.png" alt="Topology cards" loading="lazy" /><figcaption>Topology cards</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-advanced-settings.png" alt="Advanced resource settings" loading="lazy" /><figcaption>Advanced resource settings</figcaption></figure>
       </div>
       <h2>Desktop Usage</h2>
       <ul>
@@ -908,7 +915,7 @@ Connected devices are listed on hardware cards</pre>
     `},
 
     agentapi:{title:'🤖 Agent API Access',content:`
-      <p>Agent API Access lets trusted automation tools connect to Labby with scoped API keys. This is useful for inventory import, monitoring agents and infrastructure automation.</p>
+      <p>Agent API Access lets trusted automation tools connect to Labby with scoped API keys. This is useful for inventory import, monitoring agents, status updates, ping checks and infrastructure automation.</p>
       <div class="wiki-shot-grid">
         <figure class="wiki-shot"><img src="images/labby-api-key.png" alt="API Keys dialog" loading="lazy" /><figcaption>API Keys management</figcaption></figure>
       </div>
@@ -918,20 +925,21 @@ Connected devices are listed on hardware cards</pre>
         <li>Write inventory updates when the key has write permission</li>
         <li>Submit live status updates for existing resources</li>
         <li>Run ping checks through the Labby backend when allowed</li>
+        <li>Read or write credentials only when explicit credential scopes are granted</li>
         <li>Synchronize data from external tools or scripts</li>
       </ul>
       <h2>Creating an API Key</h2>
       <ol>
         <li>Open <strong>Config</strong> and choose <strong>API Keys</strong>.</li>
         <li>Enter a descriptive agent name, for example <code>Hermes</code> or <code>OpenClaw</code>.</li>
-        <li>Select the required scopes.</li>
+        <li>Select only the required scopes.</li>
         <li>Select an expiration: <strong>1 day</strong>, <strong>1 week</strong>, <strong>1 month</strong> or <strong>1 year</strong>.</li>
         <li>Create the key and copy it immediately. The token is only shown once and cannot be recovered later.</li>
       </ol>
       <h2>Expiration</h2>
       <p>Every API key has an expiration date. The longest supported lifetime is one year. Expired keys are rejected by the backend and should be revoked or replaced.</p>
       <h2>Backup and Restore</h2>
-      <p>API keys are secrets and are never included in Labby config exports. They cannot be imported through Config Import. After restoring a Labby backup, create new API keys for every trusted agent.</p>
+      <p>API key records can be included in Config Export, but only inside the encrypted secrets bundle. The visible one-time token is never exported. During import, Labby asks for the export key before restoring encrypted credentials or API key records.</p>
       <h2>Scopes</h2>
       <table>
         <thead><tr><th>Scope</th><th>Purpose</th></tr></thead>
@@ -944,6 +952,8 @@ Connected devices are listed on hardware cards</pre>
           <tr><td><code>status:write</code></td><td>Submit status information for resources.</td></tr>
           <tr><td><code>ping:run</code></td><td>Run backend ping checks.</td></tr>
           <tr><td><code>config:read</code></td><td>Read exported configuration data.</td></tr>
+          <tr><td><code>credentials:read</code></td><td>Read stored resource credentials when explicitly allowed.</td></tr>
+          <tr><td><code>credentials:write</code></td><td>Create or update stored resource credentials when explicitly allowed.</td></tr>
         </tbody>
       </table>
       <h2>Authentication</h2>
@@ -981,6 +991,7 @@ When creating or updating inventory, preserve existing fields that you do not ne
 Use PUT /api/agent/inventory only when the key has inventory:write.
 Use POST /api/agent/status to update live status when the key has status:write.
 Use POST /api/agent/ping only when the key has ping:run.
+Only read or write credentials when the key explicitly has credentials:read or credentials:write.
 
 Never print the API key in logs, messages or reports.
 Do not make destructive changes unless I explicitly approve them.
@@ -992,13 +1003,12 @@ Summarize all planned changes before writing them.</pre>
           <div class="arch-card"><strong>API Key</strong><span>Bearer token with selected scopes and expiration.</span></div>
           <div class="arch-card"><strong>Labby Backend</strong><span>Validates the token, expiration and requested scope.</span></div>
         </div>
-        <div class="arch-arrow">Agent → Authorization Header → Expiration Check → Scope Check → Inventory / Status / Ping</div>
+        <div class="arch-arrow">Agent → Authorization Header → Expiration Check → Scope Check → Inventory / Status / Ping / Credentials</div>
       </div>
       <h2>Demo Mode</h2>
-      <p>In the public demo, API key management is shown for evaluation. External network access is intended for the self-hosted backend.</p>
+      <p>In the public demo, API key management is shown for evaluation. External agents and real network access are intended for the self-hosted backend.</p>
       <h2>Security Notes</h2>
       <ul>
-        <li>API keys are not exported or imported by Labby backups.</li>
         <li>Use one key per agent.</li>
         <li>Grant only the scopes that the agent needs.</li>
         <li>Use the shortest practical expiration.</li>
@@ -1006,6 +1016,40 @@ Summarize all planned changes before writing them.</pre>
         <li>Store tokens outside of source code and public repositories.</li>
       </ul>
     `},
+
+    console:{title:'⌨️ Console',content:`
+      <p>The Console opens SSH sessions directly from Labby resources that have CLI credentials enabled. It is designed for quick administration from the Topology view without opening a separate terminal application.</p>
+      <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-console.png" alt="Labby console" loading="lazy" /><figcaption>Browser console</figcaption></figure>
+      </div>
+      <h2>Enable Console Access</h2>
+      <ol>
+        <li>Open a Hardware, VM, LXC or App resource.</li>
+        <li>Open <strong>Advanced Settings</strong>.</li>
+        <li>Add credentials with username and password.</li>
+        <li>Enable the <strong>CLI / SSH</strong> option for those credentials.</li>
+        <li>Save the resource.</li>
+      </ol>
+      <h2>Open a Session</h2>
+      <p>When CLI is enabled, a terminal icon appears next to the resource IP in Topology. Click it to open the browser console.</p>
+      <h2>Desktop Behavior</h2>
+      <ul>
+        <li>Console opens in a large Labby-styled window.</li>
+        <li>The terminal surface stays black with white text.</li>
+        <li><strong>Copy output</strong> copies the complete terminal output.</li>
+        <li>Selecting terminal text copies the selection automatically.</li>
+        <li><strong>Clear SSH key</strong> removes the known-host key for the current target and reconnects.</li>
+        <li><strong>Close SSH</strong> closes the session cleanly.</li>
+      </ul>
+      <h2>Mobile Behavior</h2>
+      <p>On mobile, Console opens as a full page with the normal bottom navigation preserved. The topbar is hidden so the terminal has more vertical space.</p>
+      <h2>Requirements</h2>
+      <p>The self-hosted backend container includes <code>openssh-client</code> and <code>sshpass</code>. Rebuild the container after updating if SSH packages were added in the new version.</p>
+      <pre>docker compose down
+docker compose build --no-cache
+docker compose up -d</pre>
+    `},
+
     rackview:{title:'🗄️ Rack View',content:`
       <p>Rack View documents the physical side of your homelab: locations, racks, rack units and linked resources.</p>
       <div class="wiki-shot-grid">
@@ -1125,12 +1169,16 @@ Summarize all planned changes before writing them.</pre>
         <li>Active selected theme</li>
         <li>Live status data submitted by agents</li>
         <li>Tutorial state and export metadata</li>
+        <li>Encrypted credentials when credentials exist</li>
+        <li>Encrypted API key records when API keys exist</li>
       </ul>
-      <p><strong>API keys are never exported.</strong> They are secret credentials and must be recreated after a restore.</p>
+      <h2>Encrypted Secrets</h2>
+      <p>Credentials and API key records are never written into the export as readable plain text. When the export contains secrets, Labby shows an <strong>Export Key</strong> in a Labby-styled popup. Copy and store this key safely.</p>
+      <p>The export key is required during import to decrypt credentials and API key records. Without the key, Labby can still restore non-secret data, but encrypted secrets cannot be recovered.</p>
       <h2>Import Config</h2>
       <pre>Config → Import Config</pre>
-      <p>Import restores Labby JSON backups on both desktop and mobile. Full config exports include resources, locations, racks, themes and agent-submitted status data.</p>
-      <p>Config Import does not import API keys. Existing API keys on the server stay unchanged, and restored systems need new keys for automation agents.</p>
+      <p>Import restores Labby JSON backups on both desktop and mobile. Full config exports include resources, locations, racks, themes, agent-submitted status data and encrypted secrets when present.</p>
+      <p>If the import contains encrypted credentials or API key records, Labby asks for the export key before restoring them.</p>
       <h2>Clear All</h2>
       <p><strong>Clear All</strong> removes the current inventory and should only be used after exporting a backup.</p>
       <h2>Tutorial</h2>

@@ -7,7 +7,7 @@
  *
  * Security notes for contributors:
  *  - Never persist one-time API key tokens, only hashes and metadata.
- *  - Agent keys are intentionally excluded from config export/import.
+ *  - Agent key records are exported/imported only when encrypted by the client export key.
  *  - Validate scopes before every agent write or ping operation.
  */
 
@@ -121,6 +121,29 @@ function requireAgentScope(scope) {
   };
 }
 
+
+function agentHasScope(key, scope) {
+  const scopes = Array.isArray(key?.scopes) ? key.scopes : [];
+  return scopes.includes(scope) || scopes.includes('*');
+}
+
+function stripCredentialsFromItems(items) {
+  return (Array.isArray(items) ? items : []).map((item) => {
+    const clone = { ...item };
+    delete clone.credentials;
+    return clone;
+  });
+}
+
+function mergeCredentialsFromExisting(nextItems, existingItems) {
+  const existingById = new Map((Array.isArray(existingItems) ? existingItems : []).map((item) => [item.id, item]));
+  return (Array.isArray(nextItems) ? nextItems : []).map((item) => {
+    const existing = existingById.get(item.id);
+    if (existing?.credentials && !item.credentials) return { ...item, credentials: existing.credentials };
+    return item;
+  });
+}
+
 app.get('/api/agent-keys', (req, res) => {
   const data = readDb();
   res.json({ keys: data.agentKeys.map(publicAgentKey) });
@@ -172,13 +195,24 @@ app.delete('/api/agent-keys/:id', (req, res) => {
 
 app.get('/api/agent/inventory', requireAgentScope('inventory:read'), (req, res) => {
   const data = readDb();
-  res.json({ items: data.items, locations: data.locations, racks: data.racks, agentStatus: data.agentStatus });
+  const canReadCredentials = agentHasScope(req.agentKey, 'credentials:read');
+  res.json({
+    items: canReadCredentials ? data.items : stripCredentialsFromItems(data.items),
+    locations: data.locations,
+    racks: data.racks,
+    agentStatus: data.agentStatus,
+    credentials: canReadCredentials ? 'included' : 'excluded',
+  });
 });
 
 app.put('/api/agent/inventory', requireAgentScope('inventory:write'), (req, res) => {
   const body = req.body || {};
   const data = readDb();
-  data.items = Array.isArray(body.items) ? body.items : data.items;
+  if (Array.isArray(body.items)) {
+    data.items = agentHasScope(req.agentKey, 'credentials:write')
+      ? body.items
+      : mergeCredentialsFromExisting(stripCredentialsFromItems(body.items), data.items);
+  }
   data.locations = Array.isArray(body.locations) ? body.locations : data.locations;
   data.racks = Array.isArray(body.racks) ? body.racks : data.racks;
   writeDb(data);
@@ -216,22 +250,154 @@ app.post('/api/agent/ping', requireAgentScope('ping:run'), (req, res) => {
   });
 });
 
+
+
+// ── Browser SSH bridge ─────────────────────────────────────────────────────
+// Starts the system SSH client and streams stdout/stderr through small polling
+// endpoints. When Labby credentials include a password, sshpass is used through
+// the SSHPASS environment variable so the password is not written into the
+// command line or terminal output.
+const { spawn, execFile } = require('child_process');
+const sshSessions = new Map();
+
+function safeSshHost(value) {
+  const host = String(value || '').trim();
+  if (!/^[a-zA-Z0-9_.:-]+$/.test(host)) return '';
+  return host;
+}
+
+function safeSshUser(value) {
+  const user = String(value || '').trim();
+  if (!user) return '';
+  if (!/^[a-zA-Z0-9_.-]+$/.test(user)) return '';
+  return user;
+}
+
+function clearKnownHost(host) {
+  return new Promise((resolve) => {
+    const cleanHost = safeSshHost(host);
+    if (!cleanHost) return resolve({ ok: false, error: 'Valid SSH host/IP is required.' });
+    execFile('ssh-keygen', ['-R', cleanHost], { timeout: 5000 }, (error, stdout, stderr) => {
+      // ssh-keygen -R returns non-zero when the host was not present. For this
+      // workflow that is not fatal: the next SSH connection can still create a
+      // fresh known-host entry through StrictHostKeyChecking=accept-new.
+      resolve({ ok: true, output: `${stdout || ''}${stderr || ''}`.trim() });
+    });
+  });
+}
+
+app.post('/api/ssh/known-host/clear', async (req, res) => {
+  const host = safeSshHost(req.body?.host);
+  if (!host) return res.status(400).json({ error: 'Valid SSH host/IP is required.' });
+  const result = await clearKnownHost(host);
+  if (!result.ok) return res.status(400).json({ error: result.error || 'Could not clear SSH key.' });
+  res.json({ ok: true, output: result.output || '' });
+});
+
+app.post('/api/ssh/start', async (req, res) => {
+  const host = safeSshHost(req.body?.host);
+  const username = safeSshUser(req.body?.username);
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  if (!host) return res.status(400).json({ error: 'Valid SSH host/IP is required.' });
+  if (req.body?.clearKnownHost === true) await clearKnownHost(host);
+
+  const sessionId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const target = username ? `${username}@${host}` : host;
+  const sshArgs = [
+    '-tt',
+    '-o', 'StrictHostKeyChecking=accept-new',
+    '-o', 'ServerAliveInterval=30',
+    '-o', 'NumberOfPasswordPrompts=1',
+    target,
+  ];
+
+  const command = password ? 'sshpass' : 'ssh';
+  const args = password ? ['-e', 'ssh', ...sshArgs] : sshArgs;
+  const env = password ? { ...process.env, SSHPASS: password } : process.env;
+
+  let proc;
+  try {
+    proc = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'], env });
+  } catch (err) {
+    return res.status(500).json({ error: `Unable to start ssh: ${err.message}` });
+  }
+
+  const session = { id: sessionId, proc, output: `ssh ${target}
+`, closed: false, createdAt: Date.now() };
+  sshSessions.set(sessionId, session);
+
+  const collect = (chunk) => {
+    session.output += chunk.toString('utf8');
+    if (session.output.length > 200000) session.output = session.output.slice(-100000);
+  };
+  proc.stdout.on('data', collect);
+  proc.stderr.on('data', collect);
+  proc.on('close', (code) => {
+    session.closed = true;
+    session.output += `
+[process exited with code ${code ?? 'unknown'}]
+`;
+    setTimeout(() => sshSessions.delete(sessionId), 5 * 60 * 1000);
+  });
+  proc.on('error', (err) => {
+    session.closed = true;
+    session.output += `
+[ssh error: ${err.message}]
+`;
+  });
+
+  res.json({ sessionId, output: session.output });
+});
+
+app.get('/api/ssh/:id/output', (req, res) => {
+  const session = sshSessions.get(req.params.id);
+  if (!session) return res.status(404).json({ error: 'SSH session not found.', closed: true });
+  const output = session.output;
+  session.output = '';
+  res.json({ output, closed: session.closed });
+});
+
+app.post('/api/ssh/:id/input', (req, res) => {
+  const session = sshSessions.get(req.params.id);
+  if (!session || session.closed) return res.status(404).json({ error: 'SSH session not found or closed.' });
+  const input = String(req.body?.input || '');
+  if (input) session.proc.stdin.write(input);
+  res.json({ ok: true });
+});
+
+app.post('/api/ssh/:id/close', (req, res) => {
+  const session = sshSessions.get(req.params.id);
+  if (session && !session.closed) {
+    try { session.proc.stdin.write('exit\n'); } catch {}
+    setTimeout(() => {
+      try { if (!session.proc.killed) session.proc.kill('SIGTERM'); } catch {}
+    }, 600);
+    session.closed = true;
+  }
+  sshSessions.delete(req.params.id);
+  res.json({ ok: true });
+});
+
+
 app.get('/api/data', (req, res) => {
   try {
-    if (!fs.existsSync(DB_PATH)) return res.json({ items: [], locations: [], racks: [], agentStatus: {} });
+    if (!fs.existsSync(DB_PATH)) return res.json({ items: [], locations: [], racks: [], agentKeys: [], agentStatus: {} });
     const raw = fs.readFileSync(DB_PATH, 'utf8');
     const parsed = JSON.parse(raw);
+    // Backward-compat: if stored as a bare array, wrap it
     if (Array.isArray(parsed)) {
-      return res.json({ items: parsed, locations: [], racks: [], agentStatus: {} });
+      return res.json({ items: parsed, locations: [], racks: [], agentKeys: [], agentStatus: {} });
     }
     const data = {
-      items:     Array.isArray(parsed.items)     ? parsed.items     : [],
+      items: Array.isArray(parsed.items) ? parsed.items : [],
       locations: Array.isArray(parsed.locations) ? parsed.locations : [],
-      racks:     Array.isArray(parsed.racks)     ? parsed.racks     : [],
+      racks: Array.isArray(parsed.racks) ? parsed.racks : [],
+      agentKeys: Array.isArray(parsed.agentKeys) ? parsed.agentKeys : [],
+      agentStatus: parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {},
     };
     res.json(data);
   } catch {
-    res.json({ items: [], locations: [], racks: [], agentStatus: {} });
+    res.json({ items: [], locations: [], racks: [], agentKeys: [], agentStatus: {} });
   }
 });
 
@@ -239,6 +405,7 @@ app.post('/api/data', (req, res) => {
   const body = req.body;
   let data;
   if (Array.isArray(body)) {
+    // Legacy bare-array format: preserve locations/racks from disk if they exist
     let existing = { locations: [], racks: [], agentKeys: [], agentStatus: {} };
     try {
       if (fs.existsSync(DB_PATH)) {
@@ -254,9 +421,11 @@ app.post('/api/data', (req, res) => {
     data = { items: body, locations: existing.locations, racks: existing.racks, agentKeys: existing.agentKeys, agentStatus: existing.agentStatus };
   } else if (body && typeof body === 'object') {
     data = {
-      items:     Array.isArray(body.items)     ? body.items     : [],
+      items: Array.isArray(body.items) ? body.items : [],
       locations: Array.isArray(body.locations) ? body.locations : [],
-      racks:     Array.isArray(body.racks)     ? body.racks     : [],
+      racks: Array.isArray(body.racks) ? body.racks : [],
+      agentKeys: Array.isArray(body.agentKeys) ? body.agentKeys : (readDb().agentKeys || []),
+      agentStatus: body.agentStatus && typeof body.agentStatus === 'object' ? body.agentStatus : (readDb().agentStatus || {}),
     };
   } else {
     return res.status(400).json({ error: 'Body must be a JSON array or { items, locations, racks } object.' });
@@ -269,34 +438,44 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true });
 });
 
+// Ping endpoint - checks if an IP is reachable
 app.post('/api/ping', (req, res) => {
   const { ip } = req.body;
   if (!ip || typeof ip !== 'string') {
     return res.status(400).json({ error: 'IP address required' });
   }
+
   const { exec } = require('child_process');
-  const pingCmd = process.platform === 'win32'
+  const isWindows = process.platform === 'win32';
+  const pingCmd = isWindows
     ? `ping -n 1 -w 1000 ${ip}`
     : `ping -c 1 -W 1000 ${ip}`;
+
   exec(pingCmd, { timeout: 5000 }, (error) => {
-    res.json({ status: error ? 'offline' : 'online', ip });
+    if (error) {
+      return res.json({ status: 'offline', ip });
+    }
+    res.json({ status: 'online', ip });
   });
 });
 
+// URL check endpoint - checks if a URL is reachable with HTTP
 app.post('/api/check-url', (req, res) => {
   const { url } = req.body;
   if (!url || typeof url !== 'string') {
     return res.status(400).json({ error: 'URL required' });
   }
-  const isHttps = url.startsWith('https');
-  const http = require(isHttps ? 'https' : 'http');
+
+  const https = url.startsWith('https');
+  const http = require(https ? 'https' : 'http');
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 3000);
 
   const request = http.request(url, { method: 'HEAD', signal: controller.signal }, (response) => {
     clearTimeout(timeoutId);
-    const ok = response.statusCode >= 200 && response.statusCode < 400;
-    res.json({ status: ok ? 'online' : 'offline', url, statusCode: response.statusCode });
+    const isSuccess = response.statusCode >= 200 && response.statusCode < 400;
+    res.json({ status: isSuccess ? 'online' : 'offline', url, statusCode: response.statusCode });
   });
 
   request.on('error', () => {

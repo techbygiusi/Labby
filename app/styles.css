@@ -4965,187 +4965,7 @@ dialog.rack-form-dialog:not([open]) {
 }
 
 
-/* Demo site banner and browser-only demo shell */
-.demo-banner {
-  width: 100%;
-  padding: 0.55rem 1rem;
-  border-bottom: 3px solid var(--line);
-  background: var(--yellow) !important;
-  color: #222 !important;
-  text-align: center;
-  font: 800 0.82rem/1.35 'Space Mono', monospace;
-  position: relative;
-  z-index: 1000;
-}
-.demo-banner a {
-  color: #222 !important;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.demo-banner-track {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2.75rem;
-  max-width: 100%;
-  min-width: 0;
-  white-space: nowrap;
-  will-change: transform;
-}
-.demo-banner-message {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  flex: 0 0 auto;
-  white-space: nowrap;
-}
-.demo-banner-message-clone {
-  display: none;
-}
-.demo-banner.is-scrolling {
-  justify-content: flex-start !important;
-}
-.demo-banner.is-scrolling .demo-banner-track {
-  max-width: none;
-  animation: demo-banner-marquee var(--demo-marquee-duration, 14s) linear infinite;
-}
-.demo-banner.is-scrolling .demo-banner-message-clone {
-  display: inline-flex;
-}
-.demo-banner.is-scrolling:hover .demo-banner-track,
-.demo-banner.is-scrolling:focus-within .demo-banner-track {
-  animation-play-state: paused;
-}
-@keyframes demo-banner-marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(calc(-50% - 1.375rem)); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .demo-banner.is-scrolling .demo-banner-track {
-    animation: none;
-    transform: none;
-  }
-}
-
-/* Demo keeps the normal split background; only the banner is accented. */
-.topbar,
-header.topbar {
-  background: transparent !important;
-}
-
-/* Demo click safety: hidden layers must never block mobile nav or dialogs. */
-.mobile-view:not(.active),
-.rack-overview.hidden,
-.rack-editor.hidden,
-#welcome-overlay:not(.active),
-dialog:not([open]) {
-  pointer-events: none !important;
-}
-.mobile-view.active,
-#welcome-overlay.active,
-dialog[open] {
-  pointer-events: auto !important;
-}
-.bottom-nav,
-.bottom-actions,
-.demo-banner {
-  pointer-events: auto;
-}
-
-@media (max-width: 1100px) {
-  .demo-banner {
-    padding-top: max(0.45rem, env(safe-area-inset-top));
-    font-size: 0.72rem;
-  }
-}
-
-/* ================================================================
-   v30 demo: reserve space for demo banner above fixed app views.
-   The demo banner is part of the demo shell, so every fixed mobile
-   page and rack workspace must start below it instead of rendering
-   underneath it.
-   ================================================================ */
-:root {
-  --demo-banner-h: 38px;
-}
-
-.demo-banner {
-  box-sizing: border-box !important;
-  min-height: var(--demo-banner-h) !important;
-  height: var(--demo-banner-h) !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 0 1rem !important;
-  overflow: hidden !important;
-  white-space: nowrap !important;
-  text-overflow: clip !important;
-}
-
-@media (min-width: 1101px) {
-  #rack-overview.rack-overlay,
-  #rack-editor.rack-overlay {
-    top: var(--demo-banner-h) !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    height: calc(100dvh - var(--demo-banner-h)) !important;
-    min-height: 0 !important;
-  }
-
-  #rack-overview .rack-overview-body {
-    height: calc(100dvh - var(--demo-banner-h)) !important;
-  }
-
-  #rack-editor .rack-editor-body {
-    max-height: calc(100dvh - var(--demo-banner-h) - 56px) !important;
-  }
-}
-
-@media (max-width: 1100px) {
-  :root {
-    --demo-banner-h: calc(36px + env(safe-area-inset-top));
-  }
-
-  .demo-banner {
-    font-size: 0.68rem !important;
-    padding: env(safe-area-inset-top) 0.75rem 0 !important;
-    line-height: 1.1 !important;
-  }
-
-  .mobile-view,
-  .rack-overlay {
-    top: var(--demo-banner-h) !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    height: calc(100dvh - var(--demo-banner-h)) !important;
-    min-height: calc(100dvh - var(--demo-banner-h)) !important;
-    max-height: calc(100dvh - var(--demo-banner-h)) !important;
-  }
-
-  .mobile-view-head,
-  .rack-ov-topbar,
-  .rack-overlay-head,
-  .panel-center > .panel-head {
-    padding-top: 0 !important;
-  }
-
-  .mobile-sheet {
-    top: var(--demo-banner-h) !important;
-    height: calc(100dvh - var(--demo-banner-h)) !important;
-  }
-
-  dialog.theme-picker-dialog[open] {
-    top: var(--demo-banner-h) !important;
-    height: calc(100dvh - var(--demo-banner-h)) !important;
-    max-height: calc(100dvh - var(--demo-banner-h)) !important;
-    padding-top: 0 !important;
-  }
-}
-
-/* v31 demo: clean Topology card placeholders and action buttons. */
+/* v28 main: clean Topology card placeholders and action buttons. */
 .card-live-status.hidden,
 .card-actions.hidden,
 .card-live-status:empty,
@@ -5336,7 +5156,7 @@ dialog[open] {
   }
 }
 
-/* v44: desktop Config menu matches the grouped two-column action layout. */
+/* v36: desktop Config menu matches the grouped two-column action layout. */
 @media (min-width: 1101px) {
   #config-dialog.tree-dialog[open] {
     width: min(1280px, calc(100vw - 96px)) !important;
@@ -5543,100 +5363,6 @@ dialog[open] {
   }
 }
 
-/* ================================================================
-   v55: compact desktop theme customizer controls.
-   Keep mobile touch targets large; desktop uses normal form sizing.
-   ================================================================ */
-@media (min-width: 1101px) {
-  .theme-picker-dialog #theme-customize-body.theme-builder-body {
-    min-height: 0 !important;
-    height: auto !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.8rem !important;
-  }
-
-  .theme-picker-dialog #theme-customize-body .tb-base-row {
-    display: grid !important;
-    grid-template-columns: 110px minmax(220px, 420px) !important;
-    justify-content: start !important;
-    align-items: center !important;
-    gap: 0.75rem !important;
-    width: 100% !important;
-    padding: 0 !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-  }
-
-  .theme-picker-dialog #theme-customize-body .tb-base-row input[type='text'],
-  .theme-picker-dialog #theme-customize-body #tb-name {
-    width: min(420px, 100%) !important;
-    min-width: 0 !important;
-    min-height: 36px !important;
-    height: 36px !important;
-    padding: 0.35rem 0.7rem !important;
-    border-radius: 10px !important;
-    font-size: 0.82rem !important;
-  }
-
-  .theme-picker-dialog #theme-customize-body .tb-grid {
-    display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
-    grid-auto-rows: auto !important;
-    gap: 0.55rem 0.75rem !important;
-    align-content: start !important;
-    min-height: 0 !important;
-  }
-
-  .theme-picker-dialog #theme-customize-body .tb-color-row {
-    display: grid !important;
-    grid-template-columns: 44px minmax(0, 1fr) !important;
-    grid-template-rows: auto !important;
-    align-items: center !important;
-    gap: 0.55rem !important;
-    min-height: 46px !important;
-    padding: 0.35rem 0.45rem !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-  }
-
-  .theme-picker-dialog #theme-customize-body .tb-color-row input[type='color'] {
-    width: 44px !important;
-    height: 34px !important;
-    min-height: 34px !important;
-    padding: 2px !important;
-    border: 2px solid var(--line) !important;
-    border-radius: 8px !important;
-    background: var(--panel) !important;
-  }
-
-  .theme-picker-dialog #theme-customize-body .tb-color-row span {
-    min-height: 0 !important;
-    font-size: 0.74rem !important;
-    line-height: 1.15 !important;
-  }
-
-  .theme-picker-dialog #theme-customize-body .tb-actions {
-    display: flex !important;
-    justify-content: flex-end !important;
-    align-items: center !important;
-    padding: 0.35rem 0 0 !important;
-  }
-
-  .theme-picker-dialog #theme-customize-body .tb-actions #tb-save,
-  .theme-picker-dialog #theme-customize-body .tb-actions .button {
-    width: auto !important;
-    min-width: 180px !important;
-    max-width: 260px !important;
-    min-height: 36px !important;
-    height: 36px !important;
-    padding: 0.42rem 0.9rem !important;
-    border-radius: 12px !important;
-    font-size: 0.8rem !important;
-  }
-}
 
 
 /* v45: mobile Agent API should not sit on an extra panel background.
@@ -5935,3 +5661,1409 @@ dialog[open] {
     grid-template-columns: repeat(3, minmax(130px, 1fr)) !important;
   }
 }
+
+
+/* v47: force desktop Theme Customize to use the compact grouped demo layout.
+   This sits last on purpose so the live/main build matches the demo build exactly. */
+@media (min-width: 1101px) {
+  .theme-picker-dialog #theme-customize-body.theme-builder-body {
+    display: block !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow-y: auto !important;
+    padding-top: 0 !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-layout {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 1rem !important;
+    min-height: 0 !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-name-row,
+  .theme-picker-dialog #theme-customize-body .tb-base-row.tb-name-row {
+    display: grid !important;
+    grid-template-columns: 120px minmax(280px, 520px) !important;
+    align-items: center !important;
+    gap: 0.8rem !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-name-row > span,
+  .theme-picker-dialog #theme-customize-body .tb-base-row.tb-name-row > span {
+    font: 700 0.88rem/1.2 'Space Mono', monospace !important;
+    color: var(--text) !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-name-row input[type='text'],
+  .theme-picker-dialog #theme-customize-body #tb-name {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 42px !important;
+    height: 42px !important;
+    padding: 0.55rem 0.8rem !important;
+    border-radius: 12px !important;
+    font: 700 0.86rem/1.2 'Space Mono', monospace !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 2.1fr) minmax(280px, 1fr) !important;
+    gap: 1rem !important;
+    align-items: start !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.9rem !important;
+    padding: 1rem !important;
+    border: 2px solid var(--line) !important;
+    border-radius: 16px !important;
+    background: var(--panel) !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-title {
+    padding-bottom: 0.65rem !important;
+    border-bottom: 2px solid color-mix(in srgb, var(--line) 18%, transparent) !important;
+    font: 900 1rem/1.2 'Space Mono', monospace !important;
+    color: var(--text) !important;
+    margin-bottom: 0 !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-core .tb-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 0.75rem 1rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-types .tb-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.75rem 1rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-color-row {
+    display: grid !important;
+    grid-template-columns: 46px minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 0.58rem !important;
+    min-height: 42px !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font: 700 0.78rem/1.15 'Space Mono', monospace !important;
+    color: var(--muted) !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-color-row input[type='color'] {
+    width: 46px !important;
+    height: 32px !important;
+    min-width: 46px !important;
+    min-height: 32px !important;
+    padding: 3px !important;
+    border: 2px solid var(--line) !important;
+    border-radius: 8px !important;
+    background: var(--panel) !important;
+    cursor: pointer !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-color-row span {
+    min-width: 0 !important;
+    font-size: 0.76rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-actions {
+    display: flex !important;
+    justify-content: flex-end !important;
+    margin-top: 0.35rem !important;
+    padding: 0 !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-actions #tb-save,
+  .theme-picker-dialog #theme-customize-body .tb-actions .button {
+    width: auto !important;
+    min-width: 220px !important;
+    max-width: none !important;
+    min-height: 40px !important;
+    height: 40px !important;
+    padding: 0.5rem 1.1rem !important;
+    border-radius: 12px !important;
+    font-size: 0.84rem !important;
+  }
+}
+
+@media (min-width: 1101px) and (max-width: 1450px) {
+  .theme-picker-dialog #theme-customize-body .tb-section-grid {
+    grid-template-columns: minmax(0, 1.9fr) minmax(300px, 1fr) !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-core .tb-grid {
+    grid-template-columns: repeat(3, minmax(130px, 1fr)) !important;
+  }
+}
+
+/* v48: redesign Theme Customize color picker layout with filled circles and helpful descriptions. */
+.theme-picker-dialog #theme-customize-body .tb-section-intro,
+#mobile-theme-body #theme-customize-body .tb-section-intro {
+  margin: -0.2rem 0 0.15rem !important;
+  color: var(--muted) !important;
+  font: 600 0.74rem/1.45 'Inter', system-ui, sans-serif !important;
+}
+
+.theme-picker-dialog #theme-customize-body .tb-color-copy,
+#mobile-theme-body #theme-customize-body .tb-color-copy {
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.14rem !important;
+}
+
+.theme-picker-dialog #theme-customize-body .tb-color-label,
+#mobile-theme-body #theme-customize-body .tb-color-label {
+  display: block !important;
+  color: var(--text) !important;
+  font: 700 0.8rem/1.15 'Space Mono', monospace !important;
+}
+
+.theme-picker-dialog #theme-customize-body .tb-color-desc,
+#mobile-theme-body #theme-customize-body .tb-color-desc {
+  display: block !important;
+  color: var(--muted) !important;
+  font: 500 0.72rem/1.35 'Inter', system-ui, sans-serif !important;
+}
+
+.theme-picker-dialog #theme-customize-body .tb-color-row input[type='color'],
+#mobile-theme-body #theme-customize-body .tb-color-row input[type='color'] {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  border-radius: 999px !important;
+  overflow: hidden !important;
+  cursor: pointer !important;
+}
+
+.theme-picker-dialog #theme-customize-body .tb-color-row input[type='color']::-webkit-color-swatch-wrapper,
+#mobile-theme-body #theme-customize-body .tb-color-row input[type='color']::-webkit-color-swatch-wrapper {
+  padding: 0 !important;
+}
+
+.theme-picker-dialog #theme-customize-body .tb-color-row input[type='color']::-webkit-color-swatch,
+#mobile-theme-body #theme-customize-body .tb-color-row input[type='color']::-webkit-color-swatch {
+  border: 0 !important;
+  border-radius: 999px !important;
+}
+
+.theme-picker-dialog #theme-customize-body .tb-color-row input[type='color']::-moz-color-swatch,
+#mobile-theme-body #theme-customize-body .tb-color-row input[type='color']::-moz-color-swatch {
+  border: 0 !important;
+  border-radius: 999px !important;
+}
+
+@media (min-width: 1101px) {
+  .theme-picker-dialog #theme-customize-body.theme-builder-body {
+    display: block !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow-y: auto !important;
+    padding-top: 0 !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-layout {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 1rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-name-row,
+  .theme-picker-dialog #theme-customize-body .tb-base-row.tb-name-row {
+    display: grid !important;
+    grid-template-columns: 120px minmax(340px, 640px) !important;
+    align-items: center !important;
+    gap: 1rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-name-row input[type='text'],
+  .theme-picker-dialog #theme-customize-body #tb-name {
+    min-height: 46px !important;
+    height: 46px !important;
+    border-radius: 14px !important;
+    padding: 0.65rem 0.9rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 2.15fr) minmax(320px, 0.95fr) !important;
+    gap: 1rem !important;
+    align-items: start !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section {
+    gap: 0.95rem !important;
+    padding: 1.15rem !important;
+    border-radius: 18px !important;
+    background: color-mix(in srgb, var(--panel) 92%, white) !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-title {
+    padding-bottom: 0.75rem !important;
+    margin-bottom: 0 !important;
+    font: 900 0.98rem/1.2 'Space Mono', monospace !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-core .tb-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.85rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-types .tb-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-color-row {
+    display: grid !important;
+    grid-template-columns: 56px minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 0.8rem !important;
+    min-height: 78px !important;
+    padding: 0.9rem 0.95rem !important;
+    border: 2px solid color-mix(in srgb, var(--line) 80%, transparent) !important;
+    border-radius: 16px !important;
+    background: color-mix(in srgb, var(--phone) 86%, white) !important;
+    box-shadow: none !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-color-row input[type='color'] {
+    width: 56px !important;
+    height: 56px !important;
+    min-width: 56px !important;
+    min-height: 56px !important;
+    padding: 0 !important;
+    border: 3px solid var(--line) !important;
+    background: transparent !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-actions {
+    display: flex !important;
+    justify-content: flex-end !important;
+    padding-top: 0.15rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-actions #tb-save,
+  .theme-picker-dialog #theme-customize-body .tb-actions .button {
+    min-width: 260px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    border-radius: 14px !important;
+  }
+}
+
+@media (min-width: 1101px) and (max-width: 1450px) {
+  .theme-picker-dialog #theme-customize-body .tb-section-grid {
+    grid-template-columns: minmax(0, 1.8fr) minmax(300px, 1fr) !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  #mobile-theme-body #theme-customize-body.theme-builder-body {
+    display: block !important;
+    padding-top: 0 !important;
+  }
+
+  #mobile-theme-body #theme-customize-body .tb-layout {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.9rem !important;
+  }
+
+  #mobile-theme-body #theme-customize-body .tb-name-row,
+  #mobile-theme-body #theme-customize-body .tb-base-row.tb-name-row {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.45rem !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  #mobile-theme-body #theme-customize-body .tb-name-row > span,
+  #mobile-theme-body #theme-customize-body .tb-base-row.tb-name-row > span {
+    color: var(--text) !important;
+    font: 700 0.84rem/1.2 'Space Mono', monospace !important;
+  }
+
+  #mobile-theme-body #theme-customize-body #tb-name {
+    width: 100% !important;
+    min-height: 44px !important;
+    height: 44px !important;
+    padding: 0.55rem 0.8rem !important;
+    border-radius: 14px !important;
+  }
+
+  #mobile-theme-body #theme-customize-body .tb-section-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.9rem !important;
+  }
+
+  #mobile-theme-body #theme-customize-body .tb-section {
+    padding: 0.95rem !important;
+    border: 2px solid var(--line) !important;
+    border-radius: 18px !important;
+    background: color-mix(in srgb, var(--panel) 92%, white) !important;
+  }
+
+  #mobile-theme-body #theme-customize-body .tb-section-title {
+    margin-bottom: 0.35rem !important;
+    padding-bottom: 0.6rem !important;
+    border-bottom: 2px solid color-mix(in srgb, var(--line) 18%, transparent) !important;
+  }
+
+  #mobile-theme-body #theme-customize-body .tb-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.7rem !important;
+  }
+
+  #mobile-theme-body #theme-customize-body .tb-color-row {
+    display: grid !important;
+    grid-template-columns: 52px minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+    min-height: 70px !important;
+    padding: 0.75rem 0.8rem !important;
+    border: 2px solid color-mix(in srgb, var(--line) 80%, transparent) !important;
+    border-radius: 16px !important;
+    background: color-mix(in srgb, var(--phone) 90%, white) !important;
+  }
+
+  #mobile-theme-body #theme-customize-body .tb-color-row input[type='color'] {
+    width: 52px !important;
+    height: 52px !important;
+    min-width: 52px !important;
+    min-height: 52px !important;
+    padding: 0 !important;
+    border: 3px solid var(--line) !important;
+    background: transparent !important;
+  }
+
+  #mobile-theme-body #theme-customize-body .tb-color-label {
+    font-size: 0.82rem !important;
+  }
+
+  #mobile-theme-body #theme-customize-body .tb-color-desc,
+  #mobile-theme-body #theme-customize-body .tb-section-intro {
+    display: none !important;
+  }
+
+  #mobile-theme-body #theme-customize-body .tb-actions {
+    display: flex !important;
+    justify-content: stretch !important;
+    padding-top: 0.2rem !important;
+  }
+
+  #mobile-theme-body #theme-customize-body .tb-actions #tb-save,
+  #mobile-theme-body #theme-customize-body .tb-actions .button {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 46px !important;
+    height: 46px !important;
+    border-radius: 14px !important;
+  }
+}
+
+/* v49: progressive Add/Edit form with an Advanced Settings dialog. */
+.advanced-resource-dialog {
+  width: min(1280px, calc(100vw - 96px));
+  height: min(760px, calc(100dvh - 96px));
+  max-width: calc(100vw - 96px);
+  max-height: calc(100dvh - 96px);
+  border: 3px solid var(--line);
+  border-radius: 18px;
+  background: var(--phone);
+  color: var(--text);
+  padding: 0.95rem;
+  margin: auto;
+  overflow: hidden;
+}
+
+.advanced-resource-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.advanced-resource-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.advanced-resource-head {
+  border-bottom: 2px solid var(--line);
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.advanced-resource-subtitle {
+  margin: 0.3rem 0 0;
+  color: var(--muted);
+  font: 600 0.78rem/1.4 'Inter', system-ui, sans-serif;
+}
+
+.advanced-resource-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.15rem 0.2rem 0.8rem 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+  align-content: start;
+}
+
+.advanced-resource-body > label,
+.advanced-resource-body > fieldset {
+  margin: 0;
+  min-width: 0;
+}
+
+.advanced-resource-body > fieldset {
+  grid-column: 1 / -1;
+}
+
+.advanced-resource-body .nested-fields {
+  grid-column: auto;
+}
+
+.advanced-resource-body select[multiple] {
+  min-height: 132px;
+}
+
+.advanced-resource-footer {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+  padding-top: 0.85rem;
+  border-top: 2px solid var(--line);
+  margin-top: 0.7rem;
+}
+
+.advanced-resource-footer .button {
+  width: 100%;
+}
+
+#advanced-settings-btn {
+  background: var(--mint);
+}
+
+@media (max-width: 1100px) {
+  .advanced-resource-dialog,
+  dialog.advanced-resource-dialog[open] {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    padding: calc(env(safe-area-inset-top, 0px) + 0.8rem) 1rem calc(env(safe-area-inset-bottom, 0px) + 1rem);
+  }
+
+  .advanced-resource-dialog .sheet-handle {
+    display: block;
+  }
+
+  .advanced-resource-head {
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+  }
+
+  .advanced-resource-head .button {
+    display: none;
+  }
+
+  .advanced-resource-body {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+    padding-right: 0.15rem;
+  }
+
+  .advanced-resource-footer {
+    grid-template-columns: 1fr;
+    gap: 0.7rem;
+  }
+}
+
+/* v50: Advanced Resource Settings polish and credentials UI. */
+#advanced-resource-close-top {
+  display: none !important;
+}
+
+#advanced-settings-btn {
+  background: var(--mint) !important;
+}
+
+.mobile-section-toggle {
+  display: none !important;
+}
+
+#resource-form .mobile-collapsed > :not(legend):not(.mobile-section-toggle) {
+  display: revert !important;
+}
+
+@media (min-width: 1101px) {
+  .advanced-resource-dialog,
+  dialog.advanced-resource-dialog[open] {
+    width: min(1180px, calc(100vw - 128px)) !important;
+    height: min(680px, calc(100dvh - 128px)) !important;
+    max-width: calc(100vw - 128px) !important;
+    max-height: calc(100dvh - 128px) !important;
+    padding: 1rem 1.15rem !important;
+    border-radius: 18px !important;
+  }
+
+  .advanced-resource-head {
+    display: block !important;
+    margin-bottom: 0.9rem !important;
+    padding-bottom: 0.7rem !important;
+  }
+
+  .advanced-resource-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.75rem !important;
+    padding-right: 0.35rem !important;
+  }
+
+  .advanced-resource-body > fieldset {
+    padding: 0.8rem !important;
+    border-radius: 14px !important;
+  }
+
+  .advanced-resource-footer {
+    padding-top: 0.7rem !important;
+    margin-top: 0.65rem !important;
+  }
+
+  .advanced-resource-footer .button {
+    min-height: 36px !important;
+    height: auto !important;
+    border-radius: 12px !important;
+    padding: 0.42rem 0.75rem !important;
+  }
+}
+
+.credentials-fieldset {
+  grid-column: 1 / -1 !important;
+}
+
+.advanced-section-note {
+  margin: 0 0 0.7rem;
+  color: var(--muted);
+  font: 600 0.78rem/1.45 'Inter', system-ui, sans-serif;
+}
+
+.credential-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin-bottom: 0.8rem;
+}
+
+.credential-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.credential-input-row:has(.credential-eye) {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.credential-input-row .button {
+  min-height: 40px;
+  white-space: nowrap;
+}
+
+.credential-eye {
+  min-width: 48px;
+  padding-inline: 0.55rem !important;
+}
+
+@media (max-width: 1100px) {
+  .advanced-resource-dialog,
+  dialog.advanced-resource-dialog[open] {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+  }
+
+  .advanced-resource-head .button {
+    display: none !important;
+  }
+
+  .advanced-resource-body {
+    grid-template-columns: 1fr !important;
+  }
+
+  .credential-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .credential-input-row,
+  .credential-input-row:has(.credential-eye) {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+  }
+
+  .credential-input-row:has(.credential-eye) .credential-eye {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .credential-input-row:has(.credential-eye) [data-credential-copy] {
+    grid-column: 1 / -1;
+  }
+}
+
+/* v51: credentials polish, secret export modal and SVG eye icon. */
+.credential-eye-svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  margin: 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.credential-eye {
+  display: inline-grid !important;
+  place-items: center !important;
+}
+
+.secret-key-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(20, 22, 24, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.secret-key-card {
+  width: min(640px, calc(100vw - 2rem));
+  max-height: min(90dvh, 720px);
+  overflow: auto;
+  padding: 1.25rem;
+  border: 3px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 20px 50px rgba(0,0,0,.22);
+}
+
+.secret-key-head h3 {
+  margin: 0 0 0.45rem;
+  font: 900 1.15rem/1.2 'Space Mono', monospace;
+}
+
+.secret-key-head p {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font: 600 0.86rem/1.5 'Inter', system-ui, sans-serif;
+}
+
+.secret-key-row input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.7rem 0.85rem;
+  border: 3px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--text);
+  font: 700 0.86rem/1.35 'Space Mono', monospace;
+  overflow-wrap: anywhere;
+}
+
+.secret-key-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 640px) {
+  .secret-key-card {
+    padding: 1rem;
+    border-radius: 16px;
+  }
+
+  .secret-key-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* v52: Credentials access flags and SSH/CLI window. */
+.credential-access-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+}
+
+.credential-access-option {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 58px;
+  margin: 0 !important;
+  padding: 0.65rem 0.75rem !important;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel) 92%, white);
+}
+
+.credential-access-option input[type='checkbox'] {
+  width: 22px;
+  height: 22px;
+}
+
+.credential-access-option strong,
+.credential-access-option small {
+  display: block;
+}
+
+.credential-access-option small {
+  margin-top: 0.18rem;
+  color: var(--muted);
+  font: 600 0.72rem/1.25 'Inter', system-ui, sans-serif;
+}
+
+.card-action-cli {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 34px;
+  max-width: min(100%, 260px);
+  padding: 0.42rem 0.68rem;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: var(--mint);
+  color: var(--text);
+  cursor: pointer;
+  font: 700 0.7rem/1.15 'Space Mono', monospace;
+}
+
+.cli-action-svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cli-dialog {
+  width: min(1180px, calc(100vw - 128px));
+  height: min(760px, calc(100dvh - 96px));
+  max-width: calc(100vw - 96px);
+  max-height: calc(100dvh - 96px);
+  margin: auto;
+  padding: 0;
+  border: 3px solid var(--line);
+  border-radius: 20px;
+  background: var(--phone);
+  color: var(--text);
+  overflow: hidden;
+}
+
+.cli-dialog[open] {
+  display: block;
+}
+
+.cli-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.cli-shell {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  gap: 0.8rem;
+  padding: 1rem;
+}
+
+.cli-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--line);
+}
+
+.cli-head h3 {
+  margin: 0;
+  font: 900 1.05rem/1.2 'Space Mono', monospace;
+}
+
+.cli-subtitle {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font: 700 0.75rem/1.25 'Space Mono', monospace;
+}
+
+.cli-terminal {
+  min-height: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
+  background: #05070a;
+  color: #d4f7d4;
+  border: 3px solid var(--line);
+  border-radius: 16px;
+  padding: 1rem;
+  font: 700 0.82rem/1.5 'Space Mono', ui-monospace, monospace;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+}
+
+.cli-terminal::selection,
+.cli-terminal *::selection {
+  background: #f4d371;
+  color: #05070a;
+}
+
+.cli-system-link {
+  display: inline-block;
+  margin-top: 0.7rem;
+  color: #9eff9e;
+  text-decoration: underline;
+}
+
+.cli-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.7rem;
+}
+
+.cli-input-row input {
+  background: #05070a !important;
+  color: #d4f7d4 !important;
+  border-color: var(--line) !important;
+  font-family: 'Space Mono', ui-monospace, monospace !important;
+}
+
+.cli-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.7rem;
+  padding-top: 0.75rem;
+  border-top: 2px solid var(--line);
+}
+
+@media (max-width: 1100px) {
+  .credential-access-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card-action-cli {
+    min-height: 46px !important;
+    height: 46px !important;
+    border-radius: 14px !important;
+    font-size: 0.86rem !important;
+  }
+
+  #mobile-cli {
+    padding-top: 0 !important;
+  }
+
+  #mobile-cli.active {
+    display: flex !important;
+  }
+
+  #mobile-cli .mobile-view-body,
+  .mobile-cli-body {
+    padding: 0 0 calc(76px + env(safe-area-inset-bottom)) 0 !important;
+    height: 100dvh !important;
+    overflow: hidden !important;
+  }
+
+  .mobile-cli-shell {
+    height: calc(100dvh - 76px - env(safe-area-inset-bottom));
+    padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem 0.75rem;
+    border-radius: 0;
+  }
+
+  .mobile-cli-head {
+    padding-bottom: 0.55rem;
+  }
+
+  .cli-terminal {
+    border-radius: 14px;
+    padding: 0.85rem;
+    font-size: 0.78rem;
+  }
+
+  .cli-input-row {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+
+  .cli-footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.55rem;
+  }
+
+  .cli-footer #mobile-cli-close {
+    grid-column: 1 / -1;
+  }
+}
+
+
+/* v54: Secret export/import key popup must use the browser dialog top layer,
+   otherwise it can appear behind Config/Themes dialogs. */
+.secret-key-modal {
+  width: 100vw !important;
+  height: 100dvh !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  border: 0 !important;
+  padding: 1rem !important;
+  background: rgba(20, 22, 24, 0.55) !important;
+  color: var(--text) !important;
+}
+
+.secret-key-modal::backdrop {
+  background: rgba(20, 22, 24, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.secret-key-modal[open] {
+  display: grid !important;
+  place-items: center !important;
+}
+
+/* v55: Mobile Advanced Settings is a full mobile page, not a modal popup. */
+@media (max-width: 1100px) {
+  .advanced-resource-dialog.mobile-page-open,
+  dialog.advanced-resource-dialog.mobile-page-open[open] {
+    display: flex !important;
+    position: fixed !important;
+    inset: 0 0 calc(74px + max(0.5rem, env(safe-area-inset-bottom))) 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: var(--phone) !important;
+    color: var(--text) !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    z-index: 110 !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open::backdrop {
+    display: none !important;
+    background: transparent !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open .sheet-handle {
+    display: none !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-head {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.75rem !important;
+    min-height: 92px !important;
+    padding: calc(env(safe-area-inset-top, 0px) + 1rem) max(1rem, env(safe-area-inset-right)) 0.85rem max(1rem, env(safe-area-inset-left)) !important;
+    margin: 0 !important;
+    border-bottom: 3px solid var(--line) !important;
+    background: var(--phone) !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-head h3 {
+    margin: 0 !important;
+    font: 900 1.15rem/1.2 'Space Mono', monospace !important;
+    color: var(--text) !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-subtitle {
+    margin: 0.35rem 0 0 !important;
+    color: var(--muted) !important;
+    font-size: 0.78rem !important;
+    line-height: 1.35 !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem !important;
+    padding: 1rem max(1rem, env(safe-area-inset-right)) 1rem max(1rem, env(safe-area-inset-left)) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+    background: var(--phone) !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-footer {
+    flex: 0 0 auto !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.7rem !important;
+    margin: 0 !important;
+    padding: 0.75rem max(1rem, env(safe-area-inset-right)) 0.85rem max(1rem, env(safe-area-inset-left)) !important;
+    border-top: 3px solid var(--line) !important;
+    background: var(--phone) !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-footer .button {
+    width: 100% !important;
+    min-height: 48px !important;
+    height: auto !important;
+    border-radius: 14px !important;
+    padding: 0.6rem 0.75rem !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-body > label,
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-body > fieldset {
+    width: 100% !important;
+  }
+
+  body:has(.advanced-resource-dialog.mobile-page-open) .bottom-nav {
+    z-index: 120 !important;
+  }
+}
+
+
+/* v57: CLI text selection copies automatically; Ctrl+C action button was removed. */
+.cli-terminal {
+  cursor: text;
+}
+
+.cli-footer {
+  gap: 0.75rem;
+}
+
+/* v58: keep toast notifications above every overlay and tighten mobile advanced footer spacing. */
+.toast {
+  z-index: 2147483647 !important;
+  top: max(14px, calc(env(safe-area-inset-top, 0px) + 10px)) !important;
+}
+
+.toast.show {
+  pointer-events: none !important;
+}
+
+@media (max-width: 1100px) {
+  .advanced-resource-dialog.mobile-page-open,
+  dialog.advanced-resource-dialog.mobile-page-open[open] {
+    inset: 0 0 calc(62px + env(safe-area-inset-bottom, 0px)) 0 !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-footer {
+    padding: 0.55rem max(1rem, env(safe-area-inset-right)) 0.45rem max(1rem, env(safe-area-inset-left)) !important;
+    gap: 0.55rem !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-footer .button {
+    min-height: 46px !important;
+    padding: 0.5rem 0.7rem !important;
+  }
+}
+
+
+/* v59: keep CLI output readable and align mobile rack side heights by rack units. */
+.cli-terminal,
+.cli-terminal *,
+.mobile-cli-shell .cli-terminal,
+.mobile-cli-shell .cli-terminal * {
+  color: #ffffff !important;
+}
+
+.cli-input-row input,
+.mobile-cli-shell .cli-input-row input {
+  color: #ffffff !important;
+  caret-color: #ffffff !important;
+}
+
+@media (max-width: 1100px) {
+  .rack-slot.occupied {
+    min-height: calc(44px * var(--rack-slot-u, 1)) !important;
+  }
+}
+
+/* v60: restore mobile advanced footer spacing to match the Edit Resource action area. */
+@media (max-width: 1100px) {
+  .advanced-resource-dialog.mobile-page-open,
+  dialog.advanced-resource-dialog.mobile-page-open[open] {
+    inset: 0 0 calc(74px + max(0.5rem, env(safe-area-inset-bottom, 0px))) 0 !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-footer {
+    padding: 0.7rem max(1rem, env(safe-area-inset-right)) 0.75rem max(1rem, env(safe-area-inset-left)) !important;
+    gap: 0.65rem !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-footer .button {
+    min-height: 48px !important;
+    padding: 0.6rem 0.75rem !important;
+  }
+}
+
+/* v61: place toast messages in the browser top layer, above active dialogs. */
+.toast[popover] {
+  position: fixed !important;
+  inset: unset !important;
+  top: max(14px, calc(env(safe-area-inset-top, 0px) + 10px)) !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: max-content !important;
+  max-width: min(90vw, 520px) !important;
+  margin: 0 !important;
+  transform: translate(-50%, -20px) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: 2147483647 !important;
+}
+
+.toast[popover]::backdrop {
+  display: none !important;
+  background: transparent !important;
+}
+
+.toast[popover].show {
+  opacity: 1 !important;
+  transform: translate(-50%, 0) !important;
+  transition: transform 170ms ease, opacity 170ms ease !important;
+}
+  }
+
+  #mobile-tree {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+
+/* Demo site banner and browser-only demo shell */
+.demo-banner {
+  width: 100%;
+  padding: 0.55rem 1rem;
+  border-bottom: 3px solid var(--line);
+  background: var(--yellow) !important;
+  color: #222 !important;
+  text-align: center;
+  font: 800 0.82rem/1.35 'Space Mono', monospace;
+  position: relative;
+  z-index: 1000;
+}
+.demo-banner a {
+  color: #222 !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.demo-banner-track {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2.75rem;
+  max-width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+  will-change: transform;
+}
+.demo-banner-message {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.demo-banner-message-clone {
+  display: none;
+}
+.demo-banner.is-scrolling {
+  justify-content: flex-start !important;
+}
+.demo-banner.is-scrolling .demo-banner-track {
+  max-width: none;
+  animation: demo-banner-marquee var(--demo-marquee-duration, 14s) linear infinite;
+}
+.demo-banner.is-scrolling .demo-banner-message-clone {
+  display: inline-flex;
+}
+.demo-banner.is-scrolling:hover .demo-banner-track,
+.demo-banner.is-scrolling:focus-within .demo-banner-track {
+  animation-play-state: paused;
+}
+@keyframes demo-banner-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(-50% - 1.375rem)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .demo-banner.is-scrolling .demo-banner-track {
+    animation: none;
+    transform: none;
+  }
+}
+
+/* Demo keeps the normal split background; only the banner is accented. */
+.topbar,
+header.topbar {
+  background: transparent !important;
+}
+
+/* Demo click safety: hidden layers must never block mobile nav or dialogs. */
+.mobile-view:not(.active),
+.rack-overview.hidden,
+.rack-editor.hidden,
+#welcome-overlay:not(.active),
+dialog:not([open]) {
+  pointer-events: none !important;
+}
+.mobile-view.active,
+#welcome-overlay.active,
+dialog[open] {
+  pointer-events: auto !important;
+}
+.bottom-nav,
+.bottom-actions,
+.demo-banner {
+  pointer-events: auto;
+}
+
+@media (max-width: 1100px) {
+  .demo-banner {
+    padding-top: max(0.45rem, env(safe-area-inset-top));
+    font-size: 0.72rem;
+  }
+}
+
+/* ================================================================
+   v30 demo: reserve space for demo banner above fixed app views.
+   The demo banner is part of the demo shell, so every fixed mobile
+   page and rack workspace must start below it instead of rendering
+   underneath it.
+   ================================================================ */
+:root {
+  --demo-banner-h: 38px;
+}
+
+.demo-banner {
+  box-sizing: border-box !important;
+  min-height: var(--demo-banner-h) !important;
+  height: var(--demo-banner-h) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 1rem !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: clip !important;
+}
+
+@media (min-width: 1101px) {
+  #rack-overview.rack-overlay,
+  #rack-editor.rack-overlay {
+    top: var(--demo-banner-h) !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: calc(100dvh - var(--demo-banner-h)) !important;
+    min-height: 0 !important;
+  }
+
+  #rack-overview .rack-overview-body {
+    height: calc(100dvh - var(--demo-banner-h)) !important;
+  }
+
+  #rack-editor .rack-editor-body {
+    max-height: calc(100dvh - var(--demo-banner-h) - 56px) !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  :root {
+    --demo-banner-h: calc(36px + env(safe-area-inset-top));
+  }
+
+  .demo-banner {
+    font-size: 0.68rem !important;
+    padding: env(safe-area-inset-top) 0.75rem 0 !important;
+    line-height: 1.1 !important;
+  }
+
+  .mobile-view,
+  .rack-overlay {
+    top: var(--demo-banner-h) !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: calc(100dvh - var(--demo-banner-h)) !important;
+    min-height: calc(100dvh - var(--demo-banner-h)) !important;
+    max-height: calc(100dvh - var(--demo-banner-h)) !important;
+  }
+
+  .mobile-view-head,
+  .rack-ov-topbar,
+  .rack-overlay-head,
+  .panel-center > .panel-head {
+    padding-top: 0 !important;
+  }
+
+  .mobile-sheet {
+    top: var(--demo-banner-h) !important;
+    height: calc(100dvh - var(--demo-banner-h)) !important;
+  }
+
+  dialog.theme-picker-dialog[open] {
+    top: var(--demo-banner-h) !important;
+    height: calc(100dvh - var(--demo-banner-h)) !important;
+    max-height: calc(100dvh - var(--demo-banner-h)) !important;
+    padding-top: 0 !important;
+  }
+}
+
+/* v31 demo: clean Topology card placeholders and action buttons. */
+.card-live-status.hidden,
+.card-actions.hidden,
+.card-live-status:empty,
+.card-actions:empty,
+.card-desc:empty,
+.card-notes:empty,
+.card-ip:empty,
