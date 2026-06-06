@@ -95,7 +95,7 @@ const cliTerminal = document.getElementById('cli-terminal');
 const cliInput = document.getElementById('cli-input');
 const cliSend = document.getElementById('cli-send');
 const cliCopy = document.getElementById('cli-copy');
-const cliCtrlC = document.getElementById('cli-ctrl-c');
+const cliClearKey = document.getElementById('cli-clear-key');
 const cliClose = document.getElementById('cli-close');
 const mobileCliView = document.getElementById('mobile-cli');
 const mobileCliTitle = document.getElementById('mobile-cli-title');
@@ -104,7 +104,7 @@ const mobileCliTerminal = document.getElementById('mobile-cli-terminal');
 const mobileCliInput = document.getElementById('mobile-cli-input');
 const mobileCliSend = document.getElementById('mobile-cli-send');
 const mobileCliCopy = document.getElementById('mobile-cli-copy');
-const mobileCliCtrlC = document.getElementById('mobile-cli-ctrl-c');
+const mobileCliClearKey = document.getElementById('mobile-cli-clear-key');
 const mobileCliClose = document.getElementById('mobile-cli-close');
 let cliSession = null;
 let cliPollTimer = null;
@@ -425,8 +425,8 @@ document.addEventListener('click', (event) => {
     }
   });
 });
+[cliClearKey, mobileCliClearKey].filter(Boolean).forEach((btn) => btn.addEventListener('click', clearCliKnownHostAndReconnect));
 [cliCopy, mobileCliCopy].filter(Boolean).forEach((btn) => btn.addEventListener('click', copyCliOutput));
-[cliCtrlC, mobileCliCtrlC].filter(Boolean).forEach((btn) => btn.addEventListener('click', () => sendCliControl('ctrl-c')));
 [cliClose, mobileCliClose].filter(Boolean).forEach((btn) => btn.addEventListener('click', closeCliSession));
 if (cliDialog) {
   cliDialog.addEventListener('cancel', (event) => {
@@ -848,7 +848,8 @@ async function loadRawAgentKeysForExport() {
 
 function openKeyPopup({ title, message, key = '', mode = 'copy' } = {}) {
   return new Promise((resolve) => {
-    const overlay = document.createElement('div');
+    const supportsDialog = typeof HTMLDialogElement !== 'undefined';
+    const overlay = supportsDialog ? document.createElement('dialog') : document.createElement('div');
     overlay.className = 'secret-key-modal';
     const inputType = mode === 'input' ? 'password' : 'text';
     const actionLabel = mode === 'input' ? 'Import' : 'Copy key';
@@ -868,14 +869,21 @@ function openKeyPopup({ title, message, key = '', mode = 'copy' } = {}) {
       </div>
     `;
     document.body.appendChild(overlay);
+    if (supportsDialog && typeof overlay.showModal === 'function') overlay.showModal();
     const field = overlay.querySelector('#secret-key-field');
     if (mode === 'input') field.removeAttribute('readonly');
     window.setTimeout(() => { field.focus(); field.select(); }, 30);
 
     const done = (value) => {
+      if (supportsDialog && overlay.open) overlay.close();
       overlay.remove();
       resolve(value);
     };
+
+    overlay.addEventListener('cancel', (event) => {
+      event.preventDefault();
+      done(mode === 'input' ? '' : key);
+    });
 
     overlay.addEventListener('click', async (event) => {
       if (event.target === overlay || event.target.closest('[data-secret-close]')) {
@@ -1886,12 +1894,20 @@ function openAdvancedResourceSettings() {
   refreshAppHostOptions();
   refreshHardwareConnectionOptions();
   if (advancedResourceDialog && !advancedResourceDialog.open) {
-    advancedResourceDialog.showModal();
+    if (window.innerWidth <= 1100) {
+      advancedResourceDialog.setAttribute('open', '');
+      advancedResourceDialog.classList.add('mobile-page-open');
+    } else {
+      advancedResourceDialog.showModal();
+    }
   }
 }
 
 function closeAdvancedResourceSettings() {
-  if (advancedResourceDialog?.open) advancedResourceDialog.close();
+  if (!advancedResourceDialog?.open) return;
+  advancedResourceDialog.classList.remove('mobile-page-open');
+  if (advancedResourceDialog.matches(':modal')) advancedResourceDialog.close();
+  else advancedResourceDialog.removeAttribute('open');
 }
 
 function render() {
@@ -2080,7 +2096,8 @@ function makeCopyBtn(value, label) {
 function cliTargetForItem(item) {
   const ip = item?.ip ? String(item.ip).split('/')[0].trim() : '';
   const username = item?.credentials?.username ? String(item.credentials.username).trim() : '';
-  return { ip, username, target: username ? `${username}@${ip}` : ip };
+  const password = item?.credentials?.password ? String(item.credentials.password) : '';
+  return { ip, username, password, target: username ? `${username}@${ip}` : ip };
 }
 
 function activeCliEls() {
@@ -2103,8 +2120,8 @@ function setCliOutput(text, append = false) {
   });
 }
 
-async function openCliSession(item) {
-  const { ip, username, target } = cliTargetForItem(item);
+async function openCliSession(item, options = {}) {
+  const { ip, username, password, target } = cliTargetForItem(item);
   if (!ip) {
     showToast('No IP address available for CLI.', 'error');
     return;
@@ -2127,7 +2144,7 @@ async function openCliSession(item) {
     const res = await fetch(`${API_BASE}/api/ssh/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ host: ip, username }),
+      body: JSON.stringify({ host: ip, username, password, clearKnownHost: Boolean(options.clearKnownHost) }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Could not start SSH session.');
@@ -2195,16 +2212,73 @@ async function sendCliInput() {
   }
 }
 
-async function sendCliControl(control) {
-  if (!cliSession) return;
+async function copySelectedCliText() {
+  const selection = window.getSelection?.();
+  const text = selection?.toString?.() || '';
+  if (!text.trim()) return;
+  const els = activeCliEls();
+  const terminal = els.terminal;
+  if (!terminal || !selection.rangeCount) return;
+  const range = selection.getRangeAt(0);
+  const inTerminal = terminal.contains(range.commonAncestorContainer)
+    || terminal === range.commonAncestorContainer;
+  if (!inTerminal) return;
   try {
-    await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(cliSession)}/input`, {
+    await navigator.clipboard.writeText(text);
+    showToast('Selected CLI text copied.');
+  } catch {
+    // Clipboard permission can be unavailable on some browsers; selection still remains usable.
+  }
+}
+
+function attachCliSelectionCopy() {
+  [cliTerminal, mobileCliTerminal].filter(Boolean).forEach((terminal) => {
+    terminal.addEventListener('mouseup', copySelectedCliText);
+    terminal.addEventListener('touchend', () => window.setTimeout(copySelectedCliText, 80), { passive: true });
+    terminal.addEventListener('keyup', (event) => {
+      if (event.key === 'Shift' || event.key.startsWith('Arrow')) copySelectedCliText();
+    });
+  });
+}
+
+attachCliSelectionCopy();
+
+async function stopCliProcessOnly() {
+  const sessionToClose = cliSession;
+  cliSession = null;
+  stopCliPolling();
+  if (sessionToClose) {
+    try { await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(sessionToClose)}/close`, { method: 'POST' }); }
+    catch {}
+  }
+}
+
+async function clearCliKnownHostAndReconnect() {
+  const item = cliActiveItem;
+  const { ip } = cliTargetForItem(item);
+  if (!item || !ip) {
+    showToast('No active SSH target.', 'error');
+    return;
+  }
+  setCliOutput(`
+[clearing SSH host key for ${ip}]
+`, true);
+  await stopCliProcessOnly();
+  try {
+    const res = await fetch(`${API_BASE}/api/ssh/known-host/clear`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ input: control === 'ctrl-c' ? '\u0003' : '' }),
+      body: JSON.stringify({ host: ip }),
     });
-  } catch {
-    showToast('Could not send control input.', 'error');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Could not clear SSH key.');
+    showToast('SSH key cleared. Reconnecting...');
+    await openCliSession(item, { clearKnownHost: true });
+  } catch (err) {
+    setCliOutput(`
+[Could not clear SSH key: ${err.message || err}]
+`, true);
+    showToast('Could not clear SSH key.', 'error');
   }
 }
 
@@ -2216,13 +2290,7 @@ async function copyCliOutput() {
 }
 
 async function closeCliSession() {
-  const sessionToClose = cliSession;
-  cliSession = null;
-  stopCliPolling();
-  if (sessionToClose) {
-    try { await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(sessionToClose)}/close`, { method: 'POST' }); }
-    catch {}
-  }
+  await stopCliProcessOnly();
   if (cliDialog?.open) cliDialog.close();
   mobileCliView?.classList.remove('active');
   cliActiveItem = null;

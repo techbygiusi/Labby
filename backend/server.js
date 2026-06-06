@@ -253,10 +253,11 @@ app.post('/api/agent/ping', requireAgentScope('ping:run'), (req, res) => {
 
 
 // ── Browser SSH bridge ─────────────────────────────────────────────────────
-// This intentionally avoids extra npm dependencies. It starts the system ssh
-// client and streams stdout/stderr through small polling endpoints. Public-key
-// auth works best; password prompts depend on the host image and ssh client.
-const { spawn } = require('child_process');
+// Starts the system SSH client and streams stdout/stderr through small polling
+// endpoints. When Labby credentials include a password, sshpass is used through
+// the SSHPASS environment variable so the password is not written into the
+// command line or terminal output.
+const { spawn, execFile } = require('child_process');
 const sshSessions = new Map();
 
 function safeSshHost(value) {
@@ -272,28 +273,57 @@ function safeSshUser(value) {
   return user;
 }
 
-app.post('/api/ssh/start', (req, res) => {
+function clearKnownHost(host) {
+  return new Promise((resolve) => {
+    const cleanHost = safeSshHost(host);
+    if (!cleanHost) return resolve({ ok: false, error: 'Valid SSH host/IP is required.' });
+    execFile('ssh-keygen', ['-R', cleanHost], { timeout: 5000 }, (error, stdout, stderr) => {
+      // ssh-keygen -R returns non-zero when the host was not present. For this
+      // workflow that is not fatal: the next SSH connection can still create a
+      // fresh known-host entry through StrictHostKeyChecking=accept-new.
+      resolve({ ok: true, output: `${stdout || ''}${stderr || ''}`.trim() });
+    });
+  });
+}
+
+app.post('/api/ssh/known-host/clear', async (req, res) => {
+  const host = safeSshHost(req.body?.host);
+  if (!host) return res.status(400).json({ error: 'Valid SSH host/IP is required.' });
+  const result = await clearKnownHost(host);
+  if (!result.ok) return res.status(400).json({ error: result.error || 'Could not clear SSH key.' });
+  res.json({ ok: true, output: result.output || '' });
+});
+
+app.post('/api/ssh/start', async (req, res) => {
   const host = safeSshHost(req.body?.host);
   const username = safeSshUser(req.body?.username);
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
   if (!host) return res.status(400).json({ error: 'Valid SSH host/IP is required.' });
+  if (req.body?.clearKnownHost === true) await clearKnownHost(host);
 
   const sessionId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const target = username ? `${username}@${host}` : host;
-  const args = [
+  const sshArgs = [
     '-tt',
     '-o', 'StrictHostKeyChecking=accept-new',
     '-o', 'ServerAliveInterval=30',
+    '-o', 'NumberOfPasswordPrompts=1',
     target,
   ];
 
+  const command = password ? 'sshpass' : 'ssh';
+  const args = password ? ['-e', 'ssh', ...sshArgs] : sshArgs;
+  const env = password ? { ...process.env, SSHPASS: password } : process.env;
+
   let proc;
   try {
-    proc = spawn('ssh', args, { stdio: ['pipe', 'pipe', 'pipe'] });
+    proc = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'], env });
   } catch (err) {
     return res.status(500).json({ error: `Unable to start ssh: ${err.message}` });
   }
 
-  const session = { id: sessionId, proc, output: `ssh ${target}\n`, closed: false, createdAt: Date.now() };
+  const session = { id: sessionId, proc, output: `ssh ${target}
+`, closed: false, createdAt: Date.now() };
   sshSessions.set(sessionId, session);
 
   const collect = (chunk) => {
@@ -304,12 +334,16 @@ app.post('/api/ssh/start', (req, res) => {
   proc.stderr.on('data', collect);
   proc.on('close', (code) => {
     session.closed = true;
-    session.output += `\n[process exited with code ${code ?? 'unknown'}]\n`;
+    session.output += `
+[process exited with code ${code ?? 'unknown'}]
+`;
     setTimeout(() => sshSessions.delete(sessionId), 5 * 60 * 1000);
   });
   proc.on('error', (err) => {
     session.closed = true;
-    session.output += `\n[ssh error: ${err.message}]\n`;
+    session.output += `
+[ssh error: ${err.message}]
+`;
   });
 
   res.json({ sessionId, output: session.output });
