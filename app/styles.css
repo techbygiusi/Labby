@@ -7088,3 +7088,23 @@ dialog[open] {
 .demo-banner a {
   color: #202126 !important;
 }
+
+/* v66 demo: force the browser-only banner back to the fixed accent strip. */
+html body .demo-banner,
+html body .demo-banner.is-scrolling {
+  background: #f4d371 !important;
+  background-color: #f4d371 !important;
+  background-image: none !important;
+  color: #202126 !important;
+  border-bottom: 3px solid #2e2f36 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+  position: relative !important;
+  z-index: 2147483000 !important;
+}
+
+html body .demo-banner a,
+html body .demo-banner span {
+  color: #202126 !important;
+}
