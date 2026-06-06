@@ -344,6 +344,12 @@
       color: var(--muted);
       font: 700 .75rem/1.25 'Space Mono', monospace;
     }
+    .api-spotlight-reverse {
+      grid-template-columns: minmax(320px, .95fr) minmax(0, 1.05fr);
+    }
+    .api-spotlight-reverse .api-spotlight-shot {
+      order: -1;
+    }
 
     /* ── screenshots gallery ── */
     .gallery {
@@ -831,7 +837,7 @@
   <div class="wrap">
     <p class="section-label">What Labby does</p>
     <h2 class="section-title">Everything for your homelab map</h2>
-    <p class="section-desc">One dashboard for all your infrastructure. From bare-metal servers to containerized apps -add it, connect it, visualize it.</p>
+    <p class="section-desc">One dashboard for all your infrastructure. From bare-metal servers to containerized apps -add it, connect it, visualize it and style it with the new theme customizer.</p>
 
     <div class="features-grid">
       <div class="feature-card">
@@ -865,9 +871,24 @@
         <p class="feature-desc">Open SSH sessions from resources with CLI credentials, copy output and manage known-host keys from the browser.</p>
       </div>
       <div class="feature-card">
+        <span class="feature-icon">🤖</span>
+        <p class="feature-title">Agent API Keys</p>
+        <p class="feature-desc">Create scoped, time-limited API keys for trusted agents, monitoring scripts and automation workflows.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🔐</span>
+        <p class="feature-title">Saved Credentials</p>
+        <p class="feature-desc">Store editable credentials for Hardware, VMs, LXCs and Apps, then mark them for Web or CLI access.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🧩</span>
+        <p class="feature-title">Encrypted Import / Export</p>
+        <p class="feature-desc">Backups can include encrypted credentials and API key records protected by a one-time export key.</p>
+      </div>
+      <div class="feature-card">
         <span class="feature-icon">🎨</span>
         <p class="feature-title">10+ Themes</p>
-        <p class="feature-desc">Built-in Light, Dark, Ocean, Nord, Grape and more -plus a full custom theme editor with export support.</p>
+        <p class="feature-desc">Built-in Light, Dark, Ocean, Nord, Grape and more -plus the new custom theme editor with filled color circles, desktop descriptions and export support.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon">💾</span>
@@ -895,7 +916,7 @@
       Labby opens the session in a designed terminal window on desktop and a full mobile console page on phones.
     </p>
 
-    <div class="api-spotlight">
+    <div class="api-spotlight api-spotlight-reverse">
       <div class="api-spotlight-copy">
         <p class="section-label">Browser Console</p>
         <h3 class="section-title">CLI access without leaving Labby</h3>
@@ -1049,41 +1070,6 @@
           <p class="gallery-caption">🤖 API Keys</p>
         </button>
         <a class="gallery-wiki-link" href="wiki.html#agentapi" aria-label="Open wiki entry for API Keys">Read Agent API Access</a>
-      </article>
-      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-mobile-startscreen.png" data-shot-title="Mobile Startscreen" data-wiki-href="wiki.html#mobileux" aria-label="Open screenshot: Mobile Startscreen">
-        <button class="gallery-open" type="button">
-          <img src="images/labby-mobile-startscreen.png" alt="Mobile Startscreen" loading="lazy" />
-          <p class="gallery-caption">📱 Mobile Startscreen</p>
-        </button>
-        <a class="gallery-wiki-link" href="wiki.html#mobileux" aria-label="Open wiki entry for Mobile UX">Read Mobile UX</a>
-      </article>
-      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-mobile-menu.png" data-shot-title="Mobile Menu" data-wiki-href="wiki.html#mobileux" aria-label="Open screenshot: Mobile Menu">
-        <button class="gallery-open" type="button">
-          <img src="images/labby-mobile-menu.png" alt="Mobile Menu" loading="lazy" />
-          <p class="gallery-caption">📱 Mobile Menu</p>
-        </button>
-        <a class="gallery-wiki-link" href="wiki.html#mobileux" aria-label="Open wiki entry for Mobile UX">Read Mobile UX</a>
-      </article>
-      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-mobile-rack-view.png" data-shot-title="Mobile Rack View" data-wiki-href="wiki.html#rackview" aria-label="Open screenshot: Mobile Rack View">
-        <button class="gallery-open" type="button">
-          <img src="images/labby-mobile-rack-view.png" alt="Mobile Rack View" loading="lazy" />
-          <p class="gallery-caption">📱 Mobile Rack View</p>
-        </button>
-        <a class="gallery-wiki-link" href="wiki.html#rackview" aria-label="Open wiki entry for Rack View">Read Rack View</a>
-      </article>
-      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-mobile-ip-view.png" data-shot-title="Mobile IP View" data-wiki-href="wiki.html#ipview" aria-label="Open screenshot: Mobile IP View">
-        <button class="gallery-open" type="button">
-          <img src="images/labby-mobile-ip-view.png" alt="Mobile IP View" loading="lazy" />
-          <p class="gallery-caption">📱 Mobile IP View</p>
-        </button>
-        <a class="gallery-wiki-link" href="wiki.html#ipview" aria-label="Open wiki entry for IP View">Read IP View</a>
-      </article>
-      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-mobile-config.png" data-shot-title="Mobile Config" data-wiki-href="wiki.html#config" aria-label="Open screenshot: Mobile Config">
-        <button class="gallery-open" type="button">
-          <img src="images/labby-mobile-config.png" alt="Mobile Config" loading="lazy" />
-          <p class="gallery-caption">📱 Mobile Config</p>
-        </button>
-        <a class="gallery-wiki-link" href="wiki.html#config" aria-label="Open wiki entry for Config">Read Config</a>
       </article>
     </div>
   </div>

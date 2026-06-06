@@ -648,7 +648,7 @@ btn.addEventListener('click', () => {
         <li>🌐 Topology cards with inline details, Edit/Delete actions and optional live checks</li>
         <li>🌳 Relationship Tree view for host, guest, app and network structure</li>
         <li>🗄️ Rack View with locations, racks, front/rear layouts and linked resources</li>
-        <li>🎨 Built-in themes, custom theme editor and the Matrix theme</li>
+        <li>🎨 Built-in themes, the redesigned custom theme editor and the Matrix theme</li>
         <li>📱 Mobile bottom navigation: Boards, Add, Rack, IP and More</li>
         <li>🧱 Technical Structure page with architecture overview and file layout</li>
         <li>⌨️ Browser Console with SSH access from CLI-enabled credentials</li>
@@ -836,6 +836,8 @@ docker-compose.yml</pre>
         <li>🧠 Automatic network matching by IP/CIDR</li>
         <li>📡 Optional Live IP and Live URL checks</li>
         <li>🤖 Agent API Access for trusted automation tools</li>
+        <li>🔑 Scoped API keys for automation agents</li>
+        <li>🧾 Saved credentials for Web and CLI access</li>
         <li>💾 Persistent server-side storage in self-hosted Labby</li>
       </ul>
       <h2>Resource Metadata</h2>
@@ -851,10 +853,6 @@ docker-compose.yml</pre>
     `},
     mobileux:{title:'📱 Mobile UX',content:`
       <p>Mobile is designed as its own app-like flow, not a shrunken desktop layout.</p>
-      <div class="wiki-shot-grid">
-        <figure class="wiki-shot"><img src="images/labby-mobile-startscreen.png" alt="Mobile start screen" loading="lazy" /><figcaption>Mobile start screen</figcaption></figure>
-        <figure class="wiki-shot"><img src="images/labby-mobile-menu.png" alt="Mobile menu" loading="lazy" /><figcaption>Mobile menu</figcaption></figure>
-      </div>
       <h2>Bottom Navigation</h2>
       <ul>
         <li><strong>Boards</strong> - opens the Topology card view</li>
@@ -939,7 +937,7 @@ Connected devices are listed on hardware cards</pre>
       <h2>Expiration</h2>
       <p>Every API key has an expiration date. The longest supported lifetime is one year. Expired keys are rejected by the backend and should be revoked or replaced.</p>
       <h2>Backup and Restore</h2>
-      <p>API key records can be included in Config Export, but only inside the encrypted secrets bundle. The visible one-time token is never exported. During import, Labby asks for the export key before restoring encrypted credentials or API key records.</p>
+      <p>API key records can be included in Config Export, but only inside the encrypted secrets bundle. The visible one-time token is never exported in readable form. During import, Labby asks for the export key before restoring encrypted credentials or API key records.</p>
       <h2>Scopes</h2>
       <table>
         <thead><tr><th>Scope</th><th>Purpose</th></tr></thead>
@@ -1145,13 +1143,13 @@ docker compose up -d</pre>
       <h2>Theme Selection</h2>
       <p>Open <strong>Themes</strong> from Config or from the mobile More sheet. Select a preset card to apply it.</p>
       <h2>Custom Themes</h2>
-      <p>The custom theme editor lets you change background, bottom background, panel surface, card/input surface, text, muted text, borders, accent buttons, info boxes, highlights, danger color and resource type colors.</p>
+      <p>The redesigned custom theme editor uses fully filled color circles. On desktop, colors are grouped into interface colors and resource colors, and every setting includes a short description. On mobile, the same color controls are optimized for touch with compact labels.</p>
       <h2>Desktop Customize Layout</h2>
       <p>On desktop, the customizer uses the available dialog width with larger color cards. <strong>Save Theme</strong> is a full-width action above the Close footer.</p>
       <h2>Mobile Customize Layout</h2>
       <p>On mobile, the name input uses the full width and color controls use a two-column card grid. <strong>Save Theme</strong> is placed inline as the final action below the color controls.</p>
       <h2>Import and Export</h2>
-      <p>Custom themes and the active theme are included in config exports and restored on import.</p>
+      <p>You can change background, bottom background, panel surface, card/input surface, text, muted text, borders, accent buttons, info boxes, highlights, danger color and resource type colors. Custom themes and the active theme are included in config exports and restored on import.</p>
     `},
     config:{title:'💾 Config, Import and Export',content:`
       <p>Labby supports app-level JSON backup and restore.</p>
@@ -1169,7 +1167,7 @@ docker compose up -d</pre>
         <li>Active selected theme</li>
         <li>Live status data submitted by agents</li>
         <li>Tutorial state and export metadata</li>
-        <li>Encrypted credentials when credentials exist</li>
+        <li>Encrypted credentials when credentials exist, including Web/CLI credential flags</li>
         <li>Encrypted API key records when API keys exist</li>
       </ul>
       <h2>Encrypted Secrets</h2>
@@ -1199,7 +1197,7 @@ docker compose up -d</pre>
   alpine tar xzf /backup/labby-backup.tar.gz -C /</pre>
       <h2>App-Level Backup</h2>
       <pre>Config → Export Config</pre>
-      <p>This is the easiest portable backup. It contains inventory, locations, racks, themes and active theme. API keys are never part of app-level exports.</p>
+      <p>This is the easiest portable backup. It contains inventory, locations, racks, themes and the active theme. When secrets exist, credentials and API key records are included only in the encrypted secrets bundle and require the export key during import.</p>
       <h2>Demo Backup</h2>
       <p>The demo stores changes in your browser only. Use Export Config before clearing browser storage or loading the demo seed again.</p>
     `},

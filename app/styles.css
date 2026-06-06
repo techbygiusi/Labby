@@ -808,6 +808,16 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   outline-offset: 2px;
 }
 
+.website-link {
+  left: 132px;
+}
+
+.website-link svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
 @media (max-width: 1100px) {
   body { height: auto; min-height: 100vh; overflow: auto; }
   .topbar,
@@ -7067,3 +7077,14 @@ dialog[open] {
 .card-desc:empty,
 .card-notes:empty,
 .card-ip:empty,
+
+
+/* v64 demo: keep the demo notice on the active theme accent color. */
+.demo-banner {
+  background: var(--yellow) !important;
+  color: #202126 !important;
+  border-bottom-color: var(--line) !important;
+}
+.demo-banner a {
+  color: #202126 !important;
+}
