@@ -5031,8 +5031,9 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
   el.dataset.u    = u;
   el.dataset.side = side;
   el.draggable    = !isMobile();
-  // Match the CSS --rack-u-height variable exactly
-  const uPx = Math.max(28, Math.min(42, window.innerHeight * 0.018));
+  // Match the visible rack unit height. On mobile CSS uses taller touch rows,
+  // so multi-U components must scale from the same mobile U height as empty rows.
+  const uPx = isMobile() ? 44 : Math.max(28, Math.min(42, window.innerHeight * 0.018));
   const totalH = comp.heightU * uPx;
   el.style.height    = totalH + 'px';
   el.style.minHeight = totalH + 'px';
@@ -5307,7 +5308,7 @@ function equaliseRackHeights() {
 
   // Distribute extra pixels evenly across empty slots (integer math, last slot absorbs remainder)
   const extra = Math.floor(diff / emptySlots.length);
-  const baseU = Math.max(28, Math.min(42, window.innerHeight * 0.018));
+  const baseU = isMobile() ? 44 : Math.max(28, Math.min(42, window.innerHeight * 0.018));
   emptySlots.forEach((slot, i) => {
     const add = i === emptySlots.length - 1 ? diff - extra * i : extra;
     const h = (baseU + add) + 'px';

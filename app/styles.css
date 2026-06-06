@@ -6777,3 +6777,51 @@ dialog.rack-form-dialog:not([open]) {
 .cli-footer {
   gap: 0.75rem;
 }
+
+/* v58: keep toast notifications above every overlay and tighten mobile advanced footer spacing. */
+.toast {
+  z-index: 2147483647 !important;
+  top: max(14px, calc(env(safe-area-inset-top, 0px) + 10px)) !important;
+}
+
+.toast.show {
+  pointer-events: none !important;
+}
+
+@media (max-width: 1100px) {
+  .advanced-resource-dialog.mobile-page-open,
+  dialog.advanced-resource-dialog.mobile-page-open[open] {
+    inset: 0 0 calc(62px + env(safe-area-inset-bottom, 0px)) 0 !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-footer {
+    padding: 0.55rem max(1rem, env(safe-area-inset-right)) 0.45rem max(1rem, env(safe-area-inset-left)) !important;
+    gap: 0.55rem !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-footer .button {
+    min-height: 46px !important;
+    padding: 0.5rem 0.7rem !important;
+  }
+}
+
+
+/* v59: keep CLI output readable and align mobile rack side heights by rack units. */
+.cli-terminal,
+.cli-terminal *,
+.mobile-cli-shell .cli-terminal,
+.mobile-cli-shell .cli-terminal * {
+  color: #ffffff !important;
+}
+
+.cli-input-row input,
+.mobile-cli-shell .cli-input-row input {
+  color: #ffffff !important;
+  caret-color: #ffffff !important;
+}
+
+@media (max-width: 1100px) {
+  .rack-slot.occupied {
+    min-height: calc(44px * var(--rack-slot-u, 1)) !important;
+  }
+}
