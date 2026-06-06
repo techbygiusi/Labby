@@ -800,12 +800,13 @@ document.getElementById('agent-api-close')?.addEventListener('click', () => {
 });
 
 clearAll.addEventListener('click', async () => {
-  if (!confirm('Delete all resources? This also clears all rack, location and custom theme data.')) return;
+  if (!confirm('Delete all resources? This also clears all rack, location, custom theme and API key data.')) return;
   items = []; locations = []; racks = [];
   localStorage.removeItem('labby-custom-themes');
+  await clearAllAgentKeys();
   stopEditing();
   await saveItems();
-  showToast('All resources and custom themes cleared.');
+  showToast('All resources, custom themes and API keys cleared.');
   render();
   if (typeof renderThemeLists === 'function') renderThemeLists();
 });
@@ -1165,6 +1166,16 @@ async function deleteAgentKey(id) {
   } catch {
     setLocalAgentKeys(getLocalAgentKeys().filter(k => k.id !== id));
   }
+}
+
+async function clearAllAgentKeys() {
+  // Clear All must reset automation access as well as inventory data.
+  // Delete backend records one by one, then clear the local/demo fallback store.
+  const keys = await loadAgentKeys();
+  await Promise.allSettled(keys.map((key) => deleteAgentKey(key.id)));
+  try { localStorage.removeItem(agentKeyStorage); } catch {}
+  clearAgentTokenBox();
+  if (typeof renderAgentKeyLists === 'function') await renderAgentKeyLists();
 }
 
 function renderAgentScopeGrid(target) {
@@ -4482,12 +4493,15 @@ if (importFileMobile) importFileMobile.addEventListener('change', async (event) 
 
 const clearAllMobile = document.getElementById('clear-all-mobile');
 if (clearAllMobile) clearAllMobile.addEventListener('click', async () => {
-  if (!confirm('Delete all resources? This also clears all rack and location data.')) return;
+  if (!confirm('Delete all resources? This also clears all rack, location, custom theme and API key data.')) return;
   items = []; locations = []; racks = [];
+  localStorage.removeItem('labby-custom-themes');
+  await clearAllAgentKeys();
   stopEditing();
   await saveItems();
-  showToast('All resources cleared.');
+  showToast('All resources, custom themes and API keys cleared.');
   render();
+  if (typeof renderThemeLists === 'function') renderThemeLists();
   hideMobileViews();
 });
 

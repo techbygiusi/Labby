@@ -605,6 +605,10 @@
             <a class="wiki-nav-link" href="#" data-page="config">Config, Import &amp; Export</a>
             <a class="wiki-nav-link" href="#" data-page="backup">Data &amp; Backup</a>
           </div>
+          <div class="wiki-nav-group">
+            <p class="wiki-nav-heading">Security</p>
+            <a class="wiki-nav-link" href="#" data-page="externalaccess">External Reachability</a>
+          </div>
         </nav>
         <a class="btn btn-secondary" href="#" data-page="home" style="justify-content:center;font-size:.72rem;">Wiki Home</a>
       </aside>
@@ -669,6 +673,7 @@ docker compose up --build -d</pre>
         <li>Rack View</li>
         <li>Console</li>
         <li>Config, Import &amp; Export</li>
+        <li>External Reachability and access protection</li>
       </ol>
     `},
     installation:{title:'🚀 Installation',content:`
@@ -1182,6 +1187,27 @@ docker compose up -d</pre>
       <p><strong>Clear All</strong> removes the current inventory and should only be used after exporting a backup.</p>
       <h2>Tutorial</h2>
       <p>Open <strong>Tutorial</strong> from Config to view the guided quick-start help.</p>
+    `},
+
+    externalaccess:{title:'🔐 External Reachability',content:`
+      <p>Labby is intended for trusted homelab environments. If you make Labby reachable from outside your private network, protect it before exposing it.</p>
+      <h2>No Built-in Login System</h2>
+      <p>Labby does not include its own user login system. The app can contain sensitive infrastructure data, saved credentials, API-key records and console access. Do not publish an unprotected Labby instance directly to the internet.</p>
+      <h2>Recommended Protection</h2>
+      <ul>
+        <li>Put Labby behind an authentication layer such as <strong>Cloudflare Access</strong>.</li>
+        <li>Expose Labby only through a private overlay network such as <strong>Tailscale</strong>.</li>
+        <li>Alternatively use a reverse proxy with strong authentication in front of Labby.</li>
+        <li>Use HTTPS when Labby is reachable outside localhost or a fully trusted LAN.</li>
+        <li>Grant Agent API keys only to trusted systems and keep expiration times short.</li>
+      </ul>
+      <h2>Example Setups</h2>
+      <pre>Internet → Cloudflare Access → Reverse Proxy → Labby</pre>
+      <pre>Your Devices → Tailscale Network → Labby</pre>
+      <h2>Why This Matters</h2>
+      <p>Labby can store infrastructure metadata, rack layouts, IP addresses, URLs, encrypted credentials and scoped Agent API key records. Even when secrets are encrypted in exports, a running Labby instance should be treated as an internal administration tool.</p>
+      <h2>Practical Rule</h2>
+      <p>If Labby is not limited to your own trusted network, place an access-control layer in front of it first.</p>
     `},
     backup:{title:'🗄️ Data and Backup',content:`
       <p>The self-hosted version stores data server-side in a JSON file inside Docker volume <code>labby-data</code>.</p>
