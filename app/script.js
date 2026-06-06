@@ -1874,10 +1874,9 @@ function initAdvancedResourceSettings() {
     credentialFields.className = 'network-fields advanced-resource-field credentials-fieldset hidden';
     credentialFields.innerHTML = `
       <legend>Credentials</legend>
-      <p class="advanced-section-note">Store password or SSH private-key credentials for this resource. Secrets are hidden by default and included only in encrypted config exports.</p>
       <div class="credential-grid">
         <label>
-          Username <span class="advanced-section-note">optional for SSH keys</span>
+          Username
           <div class="credential-input-row">
             <input id="credential-username" type="text" autocomplete="off" placeholder="optional, e.g. admin" />
             <button class="button secondary" type="button" data-credential-copy="credential-username">Copy</button>
