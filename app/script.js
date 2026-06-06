@@ -156,6 +156,7 @@ let pollingInterval = null;
 let liveStatusData = {}; // Store live status data { itemId: { ipStatus: 'online'|'offline', urlStatus: 'online'|'offline' } }
 let importedAgentKeysForSave = null;
 const agentKeyStorage = 'labby-agent-keys';
+const DEMO_INTERACTIVE_SECURITY_DISABLED = true;
 const agentScopes = [
   ['inventory:read', 'Read inventory'],
   ['inventory:write', 'Write inventory'],
@@ -1103,10 +1104,12 @@ function setLocalAgentKeys(keys) {
 }
 
 function createLocalAgentToken() {
-  const bytes = new Uint8Array(24);
+  // Demo tokens are deliberately visual-only placeholders. They are never accepted
+  // by the demo backend and cannot be used for inventory, status, ping or credential APIs.
+  const bytes = new Uint8Array(8);
   if (crypto?.getRandomValues) crypto.getRandomValues(bytes);
   else bytes.forEach((_, i) => bytes[i] = Math.floor(Math.random() * 256));
-  return 'labby_demo_' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  return 'labby_demo_visual_only_' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 async function agentApiRequest(path, options = {}) {
@@ -1139,7 +1142,8 @@ async function createAgentKey(name, scopes, expiresAt) {
       enabled: true,
       createdAt: new Date().toISOString(),
       expiresAt,
-      lastUsed: '',
+      lastUsed: 'demo only',
+      demoOnly: true,
     };
     const keys = getLocalAgentKeys();
     keys.push(key);
@@ -1205,7 +1209,7 @@ function showAgentToken(box, token) {
   box.hidden = false;
   const inputId = `agent-token-copy-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   box.innerHTML = `
-    <strong>Copy this key now. It is shown once and cannot be recovered later:</strong>
+    <strong>Demo-only placeholder key. It is shown once for UI testing and is not accepted by any API endpoint:</strong>
     <div class="agent-token-copy-row">
       <input id="${inputId}" type="text" readonly value="${escapeAttr(token)}" aria-label="New API key" />
       <button class="button secondary" type="button" data-copy-agent-token="${inputId}">Copy</button>
@@ -1225,7 +1229,7 @@ async function renderAgentKeyLists() {
       <article class="agent-key-card" data-agent-key="${escapeAttr(key.id)}">
         <div>
           <strong>${escapeAttr(key.name)}</strong>
-          <div class="agent-key-meta">${key.enabled === false ? 'Disabled' : 'Enabled'} · ${escapeAttr(key.prefix || 'labby_…')} · ${escapeAttr((key.scopes || []).join(', '))}</div>
+          <div class="agent-key-meta">${key.demoOnly ? 'Demo only · not usable' : (key.enabled === false ? 'Disabled' : 'Enabled')} · ${escapeAttr(key.prefix || 'labby_…')} · ${escapeAttr((key.scopes || []).join(', '))}</div>
           <div class="agent-key-meta">Created: ${escapeAttr(key.createdAt || '-')} · Expires: ${escapeAttr(key.expiresAt || '-')} · Last used: ${escapeAttr(key.lastUsed || 'never')}</div>
         </div>
         <div class="agent-key-actions">
@@ -1255,7 +1259,7 @@ function bindAgentKeyForm(formId, nameId, tokenId, expiryId) {
     nameNode.value = '';
     showAgentToken(tokenNode, result.token);
     await renderAgentKeyLists();
-    showToast('Agent API key created.');
+    showToast('Demo API key placeholder created. It is not usable for API access.');
   });
 }
 
@@ -1926,10 +1930,9 @@ function initAdvancedResourceSettings() {
     credentialFields.className = 'network-fields advanced-resource-field credentials-fieldset hidden';
     credentialFields.innerHTML = `
       <legend>Credentials</legend>
-      <p class="advanced-section-note">Store password or SSH private-key credentials for this resource. Secrets are hidden by default and included only in encrypted config exports.</p>
       <div class="credential-grid">
         <label>
-          Username <span class="advanced-section-note">optional for SSH keys</span>
+          Username
           <div class="credential-input-row">
             <input id="credential-username" type="text" autocomplete="off" placeholder="optional, e.g. admin" />
             <button class="button secondary" type="button" data-credential-copy="credential-username">Copy</button>
@@ -2264,6 +2267,38 @@ async function openCliSession(item, options = {}) {
     document.getElementById('nav-topology')?.classList.remove('active');
   } else if (cliDialog && !cliDialog.open) {
     cliDialog.showModal();
+  }
+
+  if (DEMO_INTERACTIVE_SECURITY_DISABLED) {
+    cliSession = null;
+    stopCliPolling();
+    [cliInput, mobileCliInput].filter(Boolean).forEach((input) => {
+      input.value = '';
+      input.disabled = true;
+      input.placeholder = 'Demo mode: SSH input disabled';
+    });
+    [cliSend, mobileCliSend, cliClearKey, mobileCliClearKey].filter(Boolean).forEach((button) => {
+      button.disabled = true;
+      button.title = 'Disabled in the public demo';
+    });
+    setCliOutput(
+      `Labby public demo mode
+
+` +
+      `No SSH connection is opened from my-labby.com.
+` +
+      `This protects visitors, the demo host and third-party systems from misuse.
+
+` +
+      `Configured target shown for preview only:
+ssh ${target}
+
+` +
+      `Run the self-hosted Main version to use the real browser console.
+`
+    );
+    showToast('CLI is disabled in the public demo.');
+    return;
   }
 
   try {

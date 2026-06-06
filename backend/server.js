@@ -36,6 +36,17 @@ app.use((req, res, next) => {
 
 
 
+// Public demo safety: my-labby.com is intentionally visual/browser-only.
+// Do not allow this demo backend to open SSH sessions or accept Agent API keys.
+function rejectDemoRuntimeApi(req, res) {
+  res.status(403).json({
+    error: 'Disabled in the public Labby demo. Use the self-hosted Main version for real SSH and Agent API access.',
+    demoOnly: true,
+  });
+}
+
+app.use(['/api/ssh', '/api/agent', '/api/agent-keys'], rejectDemoRuntimeApi);
+
 // ── Agent API keys and automation endpoints ────────────────────────────────
 const crypto = require('crypto');
 
