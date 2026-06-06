@@ -913,18 +913,19 @@ Connected devices are listed on hardware cards</pre>
     `},
 
     agentapi:{title:'🤖 Agent API Access',content:`
-      <p>Agent API Access lets trusted automation tools connect to Labby with scoped API keys. This is useful for inventory import, monitoring agents, status updates, ping checks and infrastructure automation.</p>
+      <p>Agent API Access lets trusted automation tools connect to Labby with scoped API keys. This is useful for inventory import, rack automation, monitoring agents, status updates, ping checks and credential workflows.</p>
       <div class="wiki-shot-grid">
         <figure class="wiki-shot"><img src="images/labby-api-key.png" alt="API Keys dialog" loading="lazy" /><figcaption>API Keys management</figcaption></figure>
       </div>
       <h2>What Agents Can Do</h2>
       <ul>
         <li>Read the current inventory, locations and racks</li>
-        <li>Write inventory updates when the key has write permission</li>
+        <li>Write inventory or rack updates when the key has write permission</li>
         <li>Submit live status updates for existing resources</li>
         <li>Run ping checks through the Labby backend when allowed</li>
-        <li>Read or write credentials only when explicit credential scopes are granted</li>
+        <li>Read or write saved credentials, including SSH private keys, only when explicit credential scopes are granted</li>
         <li>Synchronize data from external tools or scripts</li>
+        <li>Restore encrypted API key records through Config Import when the export key is available</li>
       </ul>
       <h2>Creating an API Key</h2>
       <ol>
@@ -937,7 +938,7 @@ Connected devices are listed on hardware cards</pre>
       <h2>Expiration</h2>
       <p>Every API key has an expiration date. The longest supported lifetime is one year. Expired keys are rejected by the backend and should be revoked or replaced.</p>
       <h2>Backup and Restore</h2>
-      <p>API key records can be included in Config Export, but only inside the encrypted secrets bundle. The visible one-time token is never exported in readable form. During import, Labby asks for the export key before restoring encrypted credentials or API key records.</p>
+      <p>API key records are included in Config Export only inside the encrypted secrets bundle. Tokens are never exported as readable plain text. During import, Labby asks for the export key before restoring encrypted credentials or API key records.</p>
       <h2>Scopes</h2>
       <table>
         <thead><tr><th>Scope</th><th>Purpose</th></tr></thead>
@@ -950,8 +951,8 @@ Connected devices are listed on hardware cards</pre>
           <tr><td><code>status:write</code></td><td>Submit status information for resources.</td></tr>
           <tr><td><code>ping:run</code></td><td>Run backend ping checks.</td></tr>
           <tr><td><code>config:read</code></td><td>Read exported configuration data.</td></tr>
-          <tr><td><code>credentials:read</code></td><td>Read stored resource credentials when explicitly allowed.</td></tr>
-          <tr><td><code>credentials:write</code></td><td>Create or update stored resource credentials when explicitly allowed.</td></tr>
+          <tr><td><code>credentials:read</code></td><td>Read stored usernames, passwords, SSH private keys, passphrases and credential flags when explicitly allowed.</td></tr>
+          <tr><td><code>credentials:write</code></td><td>Create or update stored credentials, including SSH keys, when explicitly allowed.</td></tr>
         </tbody>
       </table>
       <h2>Authentication</h2>
@@ -1024,7 +1025,7 @@ Summarize all planned changes before writing them.</pre>
       <ol>
         <li>Open a Hardware, VM, LXC or App resource.</li>
         <li>Open <strong>Advanced Settings</strong>.</li>
-        <li>Add credentials with username and password.</li>
+        <li>Add credentials and choose <strong>Password</strong> or <strong>SSH private key</strong> as the authentication method. Username is recommended; if it is left empty, OpenSSH uses the backend container user for the SSH attempt.</li>
         <li>Enable the <strong>CLI / SSH</strong> option for those credentials.</li>
         <li>Save the resource.</li>
       </ol>
@@ -1042,7 +1043,7 @@ Summarize all planned changes before writing them.</pre>
       <h2>Mobile Behavior</h2>
       <p>On mobile, Console opens as a full page with the normal bottom navigation preserved. The topbar is hidden so the terminal has more vertical space.</p>
       <h2>Requirements</h2>
-      <p>The self-hosted backend container includes <code>openssh-client</code> and <code>sshpass</code>. Rebuild the container after updating if SSH packages were added in the new version.</p>
+      <p>The self-hosted backend container includes <code>openssh-client</code> and <code>sshpass</code>. Password login uses the stored password. SSH private-key login writes the key to a temporary backend file for the session, sets secure file permissions and removes it again when the session closes. Optional key passphrases are passed through an askpass helper. Credentials are part of encrypted config exports only, never readable plain JSON. Rebuild the container after updating if SSH packages were added in the new version.</p>
       <pre>docker compose down
 docker compose build --no-cache
 docker compose up -d</pre>
@@ -1167,16 +1168,16 @@ docker compose up -d</pre>
         <li>Active selected theme</li>
         <li>Live status data submitted by agents</li>
         <li>Tutorial state and export metadata</li>
-        <li>Encrypted credentials when credentials exist, including Web/CLI credential flags</li>
-        <li>Encrypted API key records when API keys exist</li>
+        <li>Encrypted credentials when credentials exist, including usernames, passwords, SSH private keys, optional key passphrases and Web/CLI credential flags</li>
+        <li>Encrypted API key records when API keys exist, including scopes, expiration, enabled/disabled state and hashed token data</li>
       </ul>
       <h2>Encrypted Secrets</h2>
-      <p>Credentials and API key records are never written into the export as readable plain text. When the export contains secrets, Labby shows an <strong>Export Key</strong> in a Labby-styled popup. Copy and store this key safely.</p>
+      <p>Credentials and API key records are never written into the export as readable plain text. When the export contains secrets, Labby shows an <strong>Export Key</strong> in a Labby-styled popup. Copy and store this key safely; it is required to decrypt saved passwords, SSH private keys, key passphrases and API key records during import.</p>
       <p>The export key is required during import to decrypt credentials and API key records. Without the key, Labby can still restore non-secret data, but encrypted secrets cannot be recovered.</p>
       <h2>Import Config</h2>
       <pre>Config → Import Config</pre>
       <p>Import restores Labby JSON backups on both desktop and mobile. Full config exports include resources, locations, racks, themes, agent-submitted status data and encrypted secrets when present.</p>
-      <p>If the import contains encrypted credentials or API key records, Labby asks for the export key before restoring them.</p>
+      <p>If the import contains encrypted credentials or API key records, Labby asks for the export key before restoring them. Without the correct key, Labby restores the normal inventory data but skips encrypted secrets.</p>
       <h2>Clear All</h2>
       <p><strong>Clear All</strong> removes the current inventory and should only be used after exporting a backup.</p>
       <h2>Tutorial</h2>

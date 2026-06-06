@@ -471,6 +471,11 @@ document.addEventListener('click', async (event) => {
 });
 
 
+
+document.addEventListener('change', (event) => {
+  if (event.target?.id === 'credential-auth-method') updateCredentialAuthVisibility();
+});
+
 document.addEventListener('click', (event) => {
   const cliBtn = event.target.closest?.('[data-cli-open]');
   if (!cliBtn) return;
@@ -828,14 +833,19 @@ function getActiveThemeId() {
   return document.documentElement.dataset.theme || localStorage.getItem(themeKey) || 'light';
 }
 
+function credentialHasSecretOrMetadata(credentials) {
+  const c = normalizeCredentials(credentials);
+  return Boolean(c && (c.username || c.password || c.privateKey || c.keyPassphrase || c.note || c.cli || c.web));
+}
+
 function hasAnyCredentials(list = items) {
-  return list.some((item) => item?.credentials && (item.credentials.username || item.credentials.password));
+  return list.some((item) => item?.credentials && credentialHasSecretOrMetadata(item.credentials));
 }
 
 function credentialsByItemId(list = items) {
   return Object.fromEntries(list
-    .filter((item) => item?.id && item.credentials && (item.credentials.username || item.credentials.password))
-    .map((item) => [item.id, item.credentials]));
+    .filter((item) => item?.id && item.credentials && credentialHasSecretOrMetadata(item.credentials))
+    .map((item) => [item.id, normalizeCredentials(item.credentials)]));
 }
 
 function itemsWithoutCredentials(list = items) {
@@ -1539,11 +1549,17 @@ function normalizeCredentials(value) {
   if (!value || typeof value !== 'object') return null;
   const username = String(value.username || '').trim();
   const password = String(value.password || '');
+  const privateKey = String(value.privateKey || value.sshPrivateKey || '');
+  const keyPassphrase = String(value.keyPassphrase || value.sshKeyPassphrase || '');
   const note = String(value.note || '').trim();
   const cli = Boolean(value.cli || value.accessCli);
   const web = Boolean(value.web || value.accessWeb);
-  if (!username && !password && !note && !cli && !web) return null;
-  return { username, password, note, cli, web };
+  const requestedAuth = String(value.authMethod || value.sshAuthMethod || '').trim();
+  const authMethod = requestedAuth === 'key' || requestedAuth === 'password'
+    ? requestedAuth
+    : (privateKey ? 'key' : 'password');
+  if (!username && !password && !privateKey && !keyPassphrase && !note && !cli && !web) return null;
+  return { username, password, privateKey, keyPassphrase, authMethod, note, cli, web };
 }
 
 function credentialEyeSvg(isOpen = false) {
@@ -1560,6 +1576,9 @@ function getCredentialFields() {
   return normalizeCredentials({
     username: credentialInput('credential-username')?.value || '',
     password: credentialInput('credential-password')?.value || '',
+    privateKey: credentialInput('credential-private-key')?.value || '',
+    keyPassphrase: credentialInput('credential-key-passphrase')?.value || '',
+    authMethod: credentialInput('credential-auth-method')?.value || 'password',
     note: credentialInput('credential-note')?.value || '',
     cli: credentialInput('credential-cli')?.checked || false,
     web: credentialInput('credential-web')?.checked || false,
@@ -1570,14 +1589,28 @@ function setCredentialFields(credentials) {
   const normalized = normalizeCredentials(credentials);
   const username = credentialInput('credential-username');
   const password = credentialInput('credential-password');
+  const privateKey = credentialInput('credential-private-key');
+  const keyPassphrase = credentialInput('credential-key-passphrase');
+  const authMethod = credentialInput('credential-auth-method');
   const note = credentialInput('credential-note');
   const cli = credentialInput('credential-cli');
   const web = credentialInput('credential-web');
   if (username) username.value = normalized?.username || '';
   if (password) password.value = normalized?.password || '';
+  if (privateKey) privateKey.value = normalized?.privateKey || '';
+  if (keyPassphrase) keyPassphrase.value = normalized?.keyPassphrase || '';
+  if (authMethod) authMethod.value = normalized?.authMethod || (normalized?.privateKey ? 'key' : 'password');
   if (note) note.value = normalized?.note || '';
   if (cli) cli.checked = Boolean(normalized?.cli);
   if (web) web.checked = Boolean(normalized?.web);
+  updateCredentialAuthVisibility();
+}
+
+function updateCredentialAuthVisibility() {
+  const method = credentialInput('credential-auth-method')?.value || 'password';
+  document.querySelectorAll('[data-credential-auth-panel]').forEach((panel) => {
+    panel.classList.toggle('hidden', panel.dataset.credentialAuthPanel !== method);
+  });
 }
 
 function defaultSymbol(type, hardwareKind = 'server') {
@@ -1882,21 +1915,47 @@ function initAdvancedResourceSettings() {
     credentialFields.className = 'network-fields advanced-resource-field credentials-fieldset hidden';
     credentialFields.innerHTML = `
       <legend>Credentials</legend>
-      <p class="advanced-section-note">Store username and password for this resource. Passwords are hidden by default and included in encrypted config exports.</p>
+      <p class="advanced-section-note">Store password or SSH private-key credentials for this resource. Secrets are hidden by default and included only in encrypted config exports.</p>
       <div class="credential-grid">
         <label>
-          Username
+          Username <span class="advanced-section-note">optional for SSH keys</span>
           <div class="credential-input-row">
-            <input id="credential-username" type="text" autocomplete="off" placeholder="e.g. admin" />
+            <input id="credential-username" type="text" autocomplete="off" placeholder="optional, e.g. admin" />
             <button class="button secondary" type="button" data-credential-copy="credential-username">Copy</button>
           </div>
         </label>
+        <label>
+          Auth method
+          <select id="credential-auth-method">
+            <option value="password">Password</option>
+            <option value="key">SSH private key</option>
+          </select>
+        </label>
+      </div>
+      <div class="credential-auth-panel" data-credential-auth-panel="password">
         <label>
           Password
           <div class="credential-input-row">
             <input id="credential-password" type="password" autocomplete="new-password" placeholder="••••••••" />
             <button class="button secondary credential-eye" type="button" data-credential-toggle="credential-password" aria-label="Show password">${credentialEyeSvg(false)}</button>
             <button class="button secondary" type="button" data-credential-copy="credential-password">Copy</button>
+          </div>
+        </label>
+      </div>
+      <div class="credential-auth-panel hidden" data-credential-auth-panel="key">
+        <label>
+          SSH private key
+          <div class="credential-input-row credential-key-row">
+            <textarea id="credential-private-key" rows="7" autocomplete="off" spellcheck="false" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
+            <button class="button secondary" type="button" data-credential-copy="credential-private-key">Copy</button>
+          </div>
+        </label>
+        <label>
+          Key passphrase optional
+          <div class="credential-input-row">
+            <input id="credential-key-passphrase" type="password" autocomplete="new-password" placeholder="optional passphrase" />
+            <button class="button secondary credential-eye" type="button" data-credential-toggle="credential-key-passphrase" aria-label="Show passphrase">${credentialEyeSvg(false)}</button>
+            <button class="button secondary" type="button" data-credential-copy="credential-key-passphrase">Copy</button>
           </div>
         </label>
       </div>
@@ -2147,9 +2206,13 @@ function makeCopyBtn(value, label) {
 
 function cliTargetForItem(item) {
   const ip = item?.ip ? String(item.ip).split('/')[0].trim() : '';
-  const username = item?.credentials?.username ? String(item.credentials.username).trim() : '';
-  const password = item?.credentials?.password ? String(item.credentials.password) : '';
-  return { ip, username, password, target: username ? `${username}@${ip}` : ip };
+  const credentials = normalizeCredentials(item?.credentials);
+  const username = credentials?.username ? String(credentials.username).trim() : '';
+  const password = credentials?.password ? String(credentials.password) : '';
+  const privateKey = credentials?.privateKey ? String(credentials.privateKey) : '';
+  const keyPassphrase = credentials?.keyPassphrase ? String(credentials.keyPassphrase) : '';
+  const authMethod = credentials?.authMethod === 'key' || (privateKey && !password) ? 'key' : 'password';
+  return { ip, username, password, privateKey, keyPassphrase, authMethod, target: username ? `${username}@${ip}` : ip };
 }
 
 function activeCliEls() {
@@ -2173,7 +2236,7 @@ function setCliOutput(text, append = false) {
 }
 
 async function openCliSession(item, options = {}) {
-  const { ip, username, password, target } = cliTargetForItem(item);
+  const { ip, username, password, privateKey, keyPassphrase, authMethod, target } = cliTargetForItem(item);
   if (!ip) {
     showToast('No IP address available for CLI.', 'error');
     return;
@@ -2196,7 +2259,7 @@ async function openCliSession(item, options = {}) {
     const res = await fetch(`${API_BASE}/api/ssh/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ host: ip, username, password, clearKnownHost: Boolean(options.clearKnownHost) }),
+      body: JSON.stringify({ host: ip, username, password, privateKey, keyPassphrase, authMethod, clearKnownHost: Boolean(options.clearKnownHost) }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Could not start SSH session.');

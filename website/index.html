@@ -868,22 +868,22 @@
       <div class="feature-card">
         <span class="feature-icon">⌨️</span>
         <p class="feature-title">Browser Console</p>
-        <p class="feature-desc">Open SSH sessions from resources with CLI credentials, copy output and manage known-host keys from the browser.</p>
+        <p class="feature-desc">Open SSH sessions with password or SSH private-key credentials, auto-copy selected terminal text and clear known-host keys per target.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon">🤖</span>
         <p class="feature-title">Agent API Keys</p>
-        <p class="feature-desc">Create scoped, time-limited API keys for trusted agents, monitoring scripts and automation workflows.</p>
+        <p class="feature-desc">Create scoped, time-limited API keys for trusted agents with inventory, rack, status, ping and credential permissions.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon">🔐</span>
         <p class="feature-title">Saved Credentials</p>
-        <p class="feature-desc">Store editable credentials for Hardware, VMs, LXCs and Apps, then mark them for Web or CLI access.</p>
+        <p class="feature-desc">Store editable usernames, passwords, SSH private keys and passphrases for Hardware, VMs, LXCs and Apps, then mark them for Web or CLI access.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon">🧩</span>
         <p class="feature-title">Encrypted Import / Export</p>
-        <p class="feature-desc">Backups can include encrypted credentials and API key records protected by a one-time export key.</p>
+        <p class="feature-desc">Backups include resources, racks, themes and, when present, encrypted credentials plus encrypted API key records protected by a one-time export key.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon">🎨</span>
@@ -921,11 +921,11 @@
         <p class="section-label">Browser Console</p>
         <h3 class="section-title">CLI access without leaving Labby</h3>
         <p class="section-desc">
-          Store CLI credentials on Hardware, VMs, LXCs or Apps, mark them for CLI access, and connect by clicking the terminal icon in Topology.
+          Store password or SSH private-key credentials on Hardware, VMs, LXCs or Apps, mark them for CLI access, and connect by clicking the terminal icon in Topology.
           Terminal output can be copied, selected text auto-copies, and known-host keys can be cleared for a specific target.
         </p>
         <ul class="api-list">
-          <li>CLI credential flag per resource</li>
+          <li>Password or SSH private-key authentication per resource</li>
           <li>Desktop console window with black terminal surface</li>
           <li>Mobile full-page console with bottom navigation preserved</li>
           <li>Clear SSH known-host key for the current target</li>
@@ -965,10 +965,11 @@
         </p>
         <ul class="api-list">
           <li>Read inventory, locations and racks</li>
-          <li>Write inventory updates only when explicitly allowed</li>
+          <li>Write inventory and rack updates only when explicitly allowed</li>
           <li>Submit live status updates from external monitoring agents</li>
           <li>Run ping checks with scoped permission</li>
-          <li>Read or write credentials only with explicit credential scopes</li>
+          <li>Read or write saved credentials, including SSH keys, only with explicit credential scopes</li>
+          <li>Restore encrypted API key records through config import when the export key is provided</li>
         </ul>
         <div class="api-spotlight-actions">
           <a class="btn btn-primary" href="wiki.html#agentapi">📚 Read Agent API Wiki</a>
@@ -1014,20 +1015,6 @@
           <p class="gallery-caption">⚙️ Advanced Settings</p>
         </button>
         <a class="gallery-wiki-link" href="wiki.html#topologycards" aria-label="Open wiki entry for Advanced Settings">Read Resource Settings</a>
-      </article>
-      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-rack-view.png" data-shot-title="Rack View" data-wiki-href="wiki.html#rackview" aria-label="Open screenshot: Rack View">
-        <button class="gallery-open" type="button">
-          <img src="images/labby-rack-view.png" alt="Rack View" loading="lazy" />
-          <p class="gallery-caption">🗄️ Rack View</p>
-        </button>
-        <a class="gallery-wiki-link" href="wiki.html#rackview" aria-label="Open wiki entry for Rack View">Read Rack View</a>
-      </article>
-      <article class="gallery-item" tabindex="0" data-shot-src="images/labby-rack-editor.png" data-shot-title="Rack Editor" data-wiki-href="wiki.html#rackview" aria-label="Open screenshot: Rack Editor">
-        <button class="gallery-open" type="button">
-          <img src="images/labby-rack-editor.png" alt="Rack Editor" loading="lazy" />
-          <p class="gallery-caption">🔧 Rack Editor</p>
-        </button>
-        <a class="gallery-wiki-link" href="wiki.html#rackview" aria-label="Open wiki entry for Rack Editor">Read Rack View</a>
       </article>
       <article class="gallery-item" tabindex="0" data-shot-src="images/labby-ip-view.png" data-shot-title="IP View" data-wiki-href="wiki.html#ipview" aria-label="Open screenshot: IP View">
         <button class="gallery-open" type="button">

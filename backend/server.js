@@ -259,6 +259,17 @@ app.post('/api/agent/ping', requireAgentScope('ping:run'), (req, res) => {
 // command line or terminal output.
 const { spawn, execFile } = require('child_process');
 const sshSessions = new Map();
+const SSH_TMP_DIR = '/tmp/labby-ssh';
+
+function ensureSshTmpDir() {
+  try { fs.mkdirSync(SSH_TMP_DIR, { recursive: true, mode: 0o700 }); } catch {}
+}
+
+function cleanupSessionFiles(session) {
+  if (!session?.tempDir) return;
+  try { fs.rmSync(session.tempDir, { recursive: true, force: true }); } catch {}
+}
+
 
 function safeSshHost(value) {
   const host = String(value || '').trim();
@@ -298,31 +309,68 @@ app.post('/api/ssh/start', async (req, res) => {
   const host = safeSshHost(req.body?.host);
   const username = safeSshUser(req.body?.username);
   const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  const privateKey = typeof req.body?.privateKey === 'string' ? req.body.privateKey.trim() : '';
+  // A private key is enough to select key-based auth. Username is optional:
+  // when empty, OpenSSH uses the backend container's default SSH user.
+  const authMethod = req.body?.authMethod === 'key' || privateKey ? 'key' : 'password';
+  const keyPassphrase = typeof req.body?.keyPassphrase === 'string' ? req.body.keyPassphrase : '';
   if (!host) return res.status(400).json({ error: 'Valid SSH host/IP is required.' });
   if (req.body?.clearKnownHost === true) await clearKnownHost(host);
 
   const sessionId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const target = username ? `${username}@${host}` : host;
+  let tempDir = '';
+  let keyPath = '';
+  let askPassPath = '';
+
+  if (authMethod === 'key') {
+    if (!privateKey || !privateKey.includes('PRIVATE KEY')) {
+      return res.status(400).json({ error: 'A valid SSH private key is required.' });
+    }
+    ensureSshTmpDir();
+    tempDir = path.join(SSH_TMP_DIR, sessionId);
+    fs.mkdirSync(tempDir, { recursive: true, mode: 0o700 });
+    keyPath = path.join(tempDir, 'id_key');
+    fs.writeFileSync(keyPath, privateKey.endsWith('\n') ? privateKey : `${privateKey}\n`, { mode: 0o600 });
+    try { fs.chmodSync(keyPath, 0o600); } catch {}
+    if (keyPassphrase) {
+      askPassPath = path.join(tempDir, 'askpass.sh');
+      fs.writeFileSync(askPassPath, `#!/bin/sh
+printf '%s\n' "$LABBY_SSH_KEY_PASSPHRASE"
+`, { mode: 0o700 });
+      try { fs.chmodSync(askPassPath, 0o700); } catch {}
+    }
+  }
+
   const sshArgs = [
     '-tt',
     '-o', 'StrictHostKeyChecking=accept-new',
     '-o', 'ServerAliveInterval=30',
     '-o', 'NumberOfPasswordPrompts=1',
-    target,
   ];
+  if (keyPath) sshArgs.push('-i', keyPath, '-o', 'IdentitiesOnly=yes', '-o', 'PreferredAuthentications=publickey');
+  sshArgs.push(target);
 
-  const command = password ? 'sshpass' : 'ssh';
-  const args = password ? ['-e', 'ssh', ...sshArgs] : sshArgs;
-  const env = password ? { ...process.env, SSHPASS: password } : process.env;
+  const command = authMethod === 'password' && password ? 'sshpass' : 'ssh';
+  const args = command === 'sshpass' ? ['-e', 'ssh', ...sshArgs] : sshArgs;
+  const env = { ...process.env };
+  if (command === 'sshpass') env.SSHPASS = password;
+  if (askPassPath) {
+    env.SSH_ASKPASS = askPassPath;
+    env.SSH_ASKPASS_REQUIRE = 'force';
+    env.DISPLAY = env.DISPLAY || ':0';
+    env.LABBY_SSH_KEY_PASSPHRASE = keyPassphrase;
+  }
 
   let proc;
   try {
     proc = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'], env });
   } catch (err) {
+    if (tempDir) cleanupSessionFiles({ tempDir });
     return res.status(500).json({ error: `Unable to start ssh: ${err.message}` });
   }
 
-  const session = { id: sessionId, proc, output: `ssh ${target}
+  const session = { id: sessionId, proc, tempDir, output: `ssh ${target}${authMethod === 'key' ? ' [key]' : ''}
 `, closed: false, createdAt: Date.now() };
   sshSessions.set(sessionId, session);
 
@@ -337,10 +385,11 @@ app.post('/api/ssh/start', async (req, res) => {
     session.output += `
 [process exited with code ${code ?? 'unknown'}]
 `;
-    setTimeout(() => sshSessions.delete(sessionId), 5 * 60 * 1000);
+    setTimeout(() => { cleanupSessionFiles(session); sshSessions.delete(sessionId); }, 5 * 60 * 1000);
   });
   proc.on('error', (err) => {
     session.closed = true;
+    cleanupSessionFiles(session);
     session.output += `
 [ssh error: ${err.message}]
 `;
@@ -374,6 +423,7 @@ app.post('/api/ssh/:id/close', (req, res) => {
     }, 600);
     session.closed = true;
   }
+  cleanupSessionFiles(session);
   sshSessions.delete(req.params.id);
   res.json({ ok: true });
 });
