@@ -1866,9 +1866,9 @@ function initAdvancedResourceSettings() {
       <p class="advanced-section-note">Store password or SSH private-key credentials for this resource. Secrets are hidden by default and included only in encrypted config exports.</p>
       <div class="credential-grid">
         <label>
-          Username
+          Username <span class="advanced-section-note">optional for SSH keys</span>
           <div class="credential-input-row">
-            <input id="credential-username" type="text" autocomplete="off" placeholder="e.g. admin" />
+            <input id="credential-username" type="text" autocomplete="off" placeholder="optional, e.g. admin" />
             <button class="button secondary" type="button" data-credential-copy="credential-username">Copy</button>
           </div>
         </label>
@@ -2159,7 +2159,7 @@ function cliTargetForItem(item) {
   const password = credentials?.password ? String(credentials.password) : '';
   const privateKey = credentials?.privateKey ? String(credentials.privateKey) : '';
   const keyPassphrase = credentials?.keyPassphrase ? String(credentials.keyPassphrase) : '';
-  const authMethod = credentials?.authMethod || (privateKey ? 'key' : 'password');
+  const authMethod = credentials?.authMethod === 'key' || (privateKey && !password) ? 'key' : 'password';
   return { ip, username, password, privateKey, keyPassphrase, authMethod, target: username ? `${username}@${ip}` : ip };
 }
 

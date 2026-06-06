@@ -309,8 +309,10 @@ app.post('/api/ssh/start', async (req, res) => {
   const host = safeSshHost(req.body?.host);
   const username = safeSshUser(req.body?.username);
   const password = typeof req.body?.password === 'string' ? req.body.password : '';
-  const authMethod = req.body?.authMethod === 'key' ? 'key' : 'password';
   const privateKey = typeof req.body?.privateKey === 'string' ? req.body.privateKey.trim() : '';
+  // A private key is enough to select key-based auth. Username is optional:
+  // when empty, OpenSSH uses the backend container's default SSH user.
+  const authMethod = req.body?.authMethod === 'key' || privateKey ? 'key' : 'password';
   const keyPassphrase = typeof req.body?.keyPassphrase === 'string' ? req.body.keyPassphrase : '';
   if (!host) return res.status(400).json({ error: 'Valid SSH host/IP is required.' });
   if (req.body?.clearKnownHost === true) await clearKnownHost(host);
@@ -346,7 +348,7 @@ printf '%s\n' "$LABBY_SSH_KEY_PASSPHRASE"
     '-o', 'ServerAliveInterval=30',
     '-o', 'NumberOfPasswordPrompts=1',
   ];
-  if (keyPath) sshArgs.push('-i', keyPath, '-o', 'IdentitiesOnly=yes');
+  if (keyPath) sshArgs.push('-i', keyPath, '-o', 'IdentitiesOnly=yes', '-o', 'PreferredAuthentications=publickey');
   sshArgs.push(target);
 
   const command = authMethod === 'password' && password ? 'sshpass' : 'ssh';
