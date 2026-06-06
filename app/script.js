@@ -3199,6 +3199,24 @@ function renderCustomizeTab() {
   ];
   const resourceVars = ['--type-hardware', '--type-vm', '--type-lxc', '--type-app', '--type-network'];
   const byKey = new Map(themeVars.map(v => [v.key, v]));
+  const descriptions = {
+    '--bg': 'Main page background behind the whole interface.',
+    '--bg-bottom': 'Lower background tone used in the page gradient.',
+    '--phone': 'Shell and dialog background surface.',
+    '--panel': 'Cards, forms and input field surface color.',
+    '--text': 'Primary text color for headings and content.',
+    '--muted': 'Secondary text for labels, notes and meta info.',
+    '--line': 'Borders, outlines and divider lines.',
+    '--yellow': 'Primary accent color for important buttons.',
+    '--blue': 'Informational boxes and neutral callout areas.',
+    '--mint': 'Highlights, success hints and active states.',
+    '--danger': 'Danger color for revoke, delete and destructive actions.',
+    '--type-hardware': 'Used for hardware cards, chips and markers.',
+    '--type-vm': 'Used for virtual machine cards, chips and markers.',
+    '--type-lxc': 'Used for LXC cards, chips and markers.',
+    '--type-app': 'Used for app cards, chips and markers.',
+    '--type-network': 'Used for network cards, chips and markers.',
+  };
 
   const root = document.createElement('div');
   root.className = 'tb-layout';
@@ -3213,7 +3231,7 @@ function renderCustomizeTab() {
   sections.className = 'tb-section-grid';
   root.appendChild(sections);
 
-  function buildSection(title, keys, extraClass) {
+  function buildSection(title, keys, extraClass, introText) {
     const section = document.createElement('section');
     section.className = 'tb-section' + (extraClass ? ' ' + extraClass : '');
 
@@ -3222,6 +3240,13 @@ function renderCustomizeTab() {
     heading.textContent = title;
     section.appendChild(heading);
 
+    if (introText) {
+      const intro = document.createElement('p');
+      intro.className = 'tb-section-intro';
+      intro.textContent = introText;
+      section.appendChild(intro);
+    }
+
     const grid = document.createElement('div');
     grid.className = 'tb-grid';
     keys.forEach(key => {
@@ -3229,15 +3254,21 @@ function renderCustomizeTab() {
       if (!item) return;
       const row = document.createElement('label');
       row.className = 'tb-color-row';
-      row.innerHTML = '<input type="color" data-var="' + item.key + '" value="' + start[item.key] + '" /><span>' + item.label + '</span>';
+      row.innerHTML = [
+        '<input type="color" data-var="' + item.key + '" value="' + start[item.key] + '" />',
+        '<span class="tb-color-copy">',
+          '<span class="tb-color-label">' + item.label + '</span>',
+          '<span class="tb-color-desc">' + (descriptions[item.key] || '') + '</span>',
+        '</span>'
+      ].join('');
       grid.appendChild(row);
     });
     section.appendChild(grid);
     sections.appendChild(section);
   }
 
-  buildSection('Colors', interfaceVars, 'tb-section-core');
-  buildSection('Resource Colors', resourceVars, 'tb-section-types');
+  buildSection('Colors', interfaceVars, 'tb-section-core', 'Set the main interface colors used across the page, dialogs and buttons.');
+  buildSection('Resource Colors', resourceVars, 'tb-section-types', 'Set the accent colors Labby uses for each resource type.');
 
   const actions = document.createElement('div');
   actions.className = 'tb-actions';
