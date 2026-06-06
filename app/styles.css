@@ -6905,3 +6905,29 @@ dialog.rack-form-dialog:not([open]) {
     min-height: 160px;
   }
 }
+
+
+/* v64/v69: normalize credential auth select height and spacing. */
+#credentials-wrap #credential-auth-method {
+  min-height: 42px !important;
+  height: 42px !important;
+  max-height: 42px !important;
+  padding: 0.42rem 0.72rem !important;
+  align-self: end !important;
+}
+
+#credentials-wrap .credential-grid > label:has(#credential-auth-method) {
+  align-content: end !important;
+}
+
+#credentials-wrap .credential-grid > label:has(#credential-auth-method) select {
+  margin-top: 0.35rem !important;
+}
+
+@media (max-width: 1100px) {
+  #credentials-wrap #credential-auth-method {
+    min-height: 44px !important;
+    height: 44px !important;
+    max-height: 44px !important;
+  }
+}
