@@ -253,12 +253,12 @@ After closing the API Key view, the full token cannot be recovered. Revoke the o
 
 ### API key backup policy
 
-API keys are secrets and are never included in Labby config exports.
+API key records are included in Labby config exports only inside the encrypted secrets bundle. Full one-time tokens are never exported as readable plain text.
 
-- API keys are not exported
-- API keys are not imported
-- `agentKeys` from manually edited import files are ignored
-- Existing server-side API keys remain unchanged during import
+- API key records are exported only encrypted
+- API key records are restored only when the correct export key is provided during import
+- One-time API tokens cannot be recovered from an export
+- Credentials, SSH private keys and API-key metadata share the same encrypted export flow
 
 ---
 
@@ -532,9 +532,33 @@ Inside Labby:
 Config → Export Config
 ```
 
-This exports a JSON file containing resources, locations, racks, agent status values, custom themes and the active theme.
+This exports a JSON file containing resources, locations, racks, agent status values, custom themes and the active theme. If saved credentials or API key records exist, they are included only in the encrypted secrets bundle and require the export key during import.
 
-API keys are not included in app-level exports.
+---
+
+## 🔐 External Reachability
+
+Labby is an internal administration tool and does **not** include a built-in user login system. If you make Labby reachable from outside your trusted private network, protect it first.
+
+Recommended options:
+
+- Put Labby behind **Cloudflare Access** or a similar identity-aware proxy
+- Expose Labby only through a private overlay network such as **Tailscale**
+- Use a reverse proxy with strong authentication in front of Labby
+- Use HTTPS for any access outside localhost or a fully trusted LAN
+- Keep Agent API keys scoped tightly and use short expiration times
+
+Example layouts:
+
+```text
+Internet → Cloudflare Access → Reverse Proxy → Labby
+```
+
+```text
+Your devices → Tailscale Network → Labby
+```
+
+Do not publish an unprotected Labby instance directly to the internet. Labby may contain infrastructure details, IP addresses, URLs, encrypted credentials, API-key records and console access.
 
 ---
 
@@ -575,7 +599,7 @@ General rules:
 - Keep mobile changes behind responsive CSS or width checks
 - Do not add dependencies unless clearly needed
 - Preserve import/export compatibility
-- Keep API keys and secrets out of exports
+- Keep API tokens and raw secrets out of logs, source code and screenshots
 - Add clear comments for new complex UI flows
 
 ---
@@ -587,7 +611,7 @@ General rules:
 - Old localStorage exports from older Labby versions can be imported via **Config → Import Config**
 - For multi-user or team setups, run Labby behind a reverse proxy with authentication
 - Rack data, custom themes, active theme and agent status are included in JSON export/import
-- API keys are server-side secrets and are not included in JSON export/import
+- API key records and credentials are included in JSON export/import only as encrypted secrets when an export key is used
 
 ---
 
