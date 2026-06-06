@@ -121,6 +121,29 @@ function requireAgentScope(scope) {
   };
 }
 
+
+function agentHasScope(key, scope) {
+  const scopes = Array.isArray(key?.scopes) ? key.scopes : [];
+  return scopes.includes(scope) || scopes.includes('*');
+}
+
+function stripCredentialsFromItems(items) {
+  return (Array.isArray(items) ? items : []).map((item) => {
+    const clone = { ...item };
+    delete clone.credentials;
+    return clone;
+  });
+}
+
+function mergeCredentialsFromExisting(nextItems, existingItems) {
+  const existingById = new Map((Array.isArray(existingItems) ? existingItems : []).map((item) => [item.id, item]));
+  return (Array.isArray(nextItems) ? nextItems : []).map((item) => {
+    const existing = existingById.get(item.id);
+    if (existing?.credentials && !item.credentials) return { ...item, credentials: existing.credentials };
+    return item;
+  });
+}
+
 app.get('/api/agent-keys', (req, res) => {
   const data = readDb();
   res.json({ keys: data.agentKeys.map(publicAgentKey) });
@@ -172,13 +195,24 @@ app.delete('/api/agent-keys/:id', (req, res) => {
 
 app.get('/api/agent/inventory', requireAgentScope('inventory:read'), (req, res) => {
   const data = readDb();
-  res.json({ items: data.items, locations: data.locations, racks: data.racks, agentStatus: data.agentStatus });
+  const canReadCredentials = agentHasScope(req.agentKey, 'credentials:read');
+  res.json({
+    items: canReadCredentials ? data.items : stripCredentialsFromItems(data.items),
+    locations: data.locations,
+    racks: data.racks,
+    agentStatus: data.agentStatus,
+    credentials: canReadCredentials ? 'included' : 'excluded',
+  });
 });
 
 app.put('/api/agent/inventory', requireAgentScope('inventory:write'), (req, res) => {
   const body = req.body || {};
   const data = readDb();
-  data.items = Array.isArray(body.items) ? body.items : data.items;
+  if (Array.isArray(body.items)) {
+    data.items = agentHasScope(req.agentKey, 'credentials:write')
+      ? body.items
+      : mergeCredentialsFromExisting(stripCredentialsFromItems(body.items), data.items);
+  }
   data.locations = Array.isArray(body.locations) ? body.locations : data.locations;
   data.racks = Array.isArray(body.racks) ? body.racks : data.racks;
   writeDb(data);

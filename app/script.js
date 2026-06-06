@@ -88,6 +88,7 @@ const advancedResourceTitle = document.getElementById('advanced-resource-title')
 const advancedResourceClose = document.getElementById('advanced-resource-close');
 const advancedResourceCloseTop = document.getElementById('advanced-resource-close-top');
 const advancedResourceSave = document.getElementById('advanced-resource-save');
+let credentialFields = null;
 const formTitle = document.getElementById('form-title');
 const searchInput = document.getElementById('search');
 const filterType = document.getElementById('filter-type');
@@ -138,6 +139,8 @@ const agentScopes = [
   ['status:write', 'Write status'],
   ['ping:run', 'Run ping'],
   ['config:read', 'Read config'],
+  ['credentials:read', 'Read credentials'],
+  ['credentials:write', 'Write credentials'],
 ];
 const agentExpiryOptions = {
   '1d': { label: '1 day', ms: 24 * 60 * 60 * 1000 },
@@ -359,6 +362,24 @@ if (advancedResourceDialog) {
   });
 }
 
+document.addEventListener('click', async (event) => {
+  const copyBtn = event.target.closest?.('[data-credential-copy]');
+  if (copyBtn) {
+    const field = document.getElementById(copyBtn.dataset.credentialCopy);
+    if (!field) return;
+    try { await navigator.clipboard.writeText(field.value || ''); showToast('Copied.'); }
+    catch { field.select(); document.execCommand?.('copy'); showToast('Selected for copy.'); }
+    return;
+  }
+  const toggleBtn = event.target.closest?.('[data-credential-toggle]');
+  if (toggleBtn) {
+    const field = document.getElementById(toggleBtn.dataset.credentialToggle);
+    if (!field) return;
+    field.type = field.type === 'password' ? 'text' : 'password';
+    toggleBtn.textContent = field.type === 'password' ? '👁️' : '🙈';
+  }
+});
+
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
 
@@ -429,6 +450,7 @@ form.addEventListener('submit', async (event) => {
         : [],
     ipStatus: ipStatusSelect.value || '',
     urlStatus: urlStatusSelect.value || '',
+    credentials: supportsCredentials(type) ? getCredentialFields() : null,
   };
 
   const wasEditing = Boolean(editingId);
@@ -455,6 +477,7 @@ form.addEventListener('submit', async (event) => {
   ipStatusSelect.value = '';
   urlStatusSelect.value = '';
   resetDynamicHardwareFields();
+  setCredentialFields(null);
   setMultiValues(routerSwitches, []);
   setMultiValues(switchLinks, []);
   setMultiValues(switchDeviceLinks, []);
@@ -472,6 +495,7 @@ cancelEditBtn.addEventListener('click', () => {
   ipStatusSelect.value = '';
   urlStatusSelect.value = '';
   resetDynamicHardwareFields();
+  setCredentialFields(null);
   setMultiValues(routerSwitches, []);
   setMultiValues(switchLinks, []);
   setMultiValues(switchDeviceLinks, []);
@@ -685,17 +709,98 @@ function getActiveThemeId() {
   return document.documentElement.dataset.theme || localStorage.getItem(themeKey) || 'light';
 }
 
-function buildConfigExport() {
-  const activeTheme = getActiveThemeId();
+function hasAnyCredentials(list = items) {
+  return list.some((item) => item?.credentials && (item.credentials.username || item.credentials.password));
+}
+
+function credentialsByItemId(list = items) {
+  return Object.fromEntries(list
+    .filter((item) => item?.id && item.credentials && (item.credentials.username || item.credentials.password))
+    .map((item) => [item.id, item.credentials]));
+}
+
+function itemsWithoutCredentials(list = items) {
+  return list.map((item) => {
+    const clone = { ...item };
+    delete clone.credentials;
+    return clone;
+  });
+}
+
+function bytesToBase64(bytes) {
+  return btoa(String.fromCharCode(...bytes));
+}
+
+function base64ToBytes(value) {
+  return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+}
+
+function hexToBytes(value) {
+  const clean = String(value || '').trim().replace(/\s+/g, '');
+  if (!/^[0-9a-fA-F]{64}$/.test(clean)) throw new Error('Invalid credential export key.');
+  const bytes = new Uint8Array(32);
+  for (let i = 0; i < 32; i += 1) bytes[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
+  return bytes;
+}
+
+function bytesToHex(bytes) {
+  return Array.from(bytes).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function importAesKeyFromHex(hex) {
+  return crypto.subtle.importKey('raw', hexToBytes(hex), 'AES-GCM', false, ['encrypt', 'decrypt']);
+}
+
+function generateCredentialExportKey() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return bytesToHex(bytes);
+}
+
+async function encryptCredentialBundle(bundle, keyHex) {
+  const iv = new Uint8Array(12);
+  crypto.getRandomValues(iv);
+  const key = await importAesKeyFromHex(keyHex);
+  const plaintext = new TextEncoder().encode(JSON.stringify(bundle));
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext);
   return {
-    schemaVersion: 2,
+    version: 1,
+    algorithm: 'AES-GCM-256',
+    iv: bytesToBase64(iv),
+    ciphertext: bytesToBase64(new Uint8Array(ciphertext)),
+  };
+}
+
+async function decryptCredentialBundle(payload, keyHex) {
+  if (!payload || payload.algorithm !== 'AES-GCM-256') throw new Error('Unsupported credential payload.');
+  const key = await importAesKeyFromHex(keyHex);
+  const iv = base64ToBytes(payload.iv || '');
+  const ciphertext = base64ToBytes(payload.ciphertext || '');
+  const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+  return JSON.parse(new TextDecoder().decode(decrypted));
+}
+
+async function buildConfigExport() {
+  const activeTheme = getActiveThemeId();
+  const exportHasCredentials = hasAnyCredentials(items);
+  let exportedItems = items;
+  let encryptedCredentials = null;
+  if (exportHasCredentials) {
+    const key = generateCredentialExportKey();
+    encryptedCredentials = await encryptCredentialBundle(credentialsByItemId(items), key);
+    exportedItems = itemsWithoutCredentials(items);
+    window.prompt('Copy this credential export key now. You need it to decrypt credentials during import:', key);
+  }
+  return {
+    schemaVersion: 3,
     app: 'Labby',
     exportedAt: new Date().toISOString(),
-    items,
+    items: exportedItems,
     locations,
     racks,
     agentStatus: liveStatusData,
     secretsExcluded: ['agentKeys'],
+    credentialsEncrypted: encryptedCredentials,
     customThemes: getCustomThemes(),
     activeTheme,
     // Kept for older imports that only looked for `theme`.
@@ -716,7 +821,7 @@ function applyImportedThemeFromConfig(parsed) {
   }
 }
 
-function applyImportedConfig(parsed) {
+async function applyImportedConfig(parsed) {
   // Legacy export support: old Labby exports were a bare items array.
   if (Array.isArray(parsed)) {
     items = sanitizeItems(parsed);
@@ -729,7 +834,18 @@ function applyImportedConfig(parsed) {
     throw new Error('Invalid Labby config');
   }
 
-  items     = sanitizeItems(parsed.items || []);
+  let importedItems = sanitizeItems(parsed.items || []);
+  if (parsed.credentialsEncrypted) {
+    const key = window.prompt('This export contains encrypted credentials. Paste the credential export key to import them:');
+    if (!key) throw new Error('Credential export key required.');
+    const credentialMap = await decryptCredentialBundle(parsed.credentialsEncrypted, key.trim());
+    importedItems = importedItems.map((item) => ({
+      ...item,
+      credentials: normalizeCredentials(credentialMap[item.id]),
+    }));
+  }
+
+  items     = importedItems;
   locations = Array.isArray(parsed.locations) ? parsed.locations : [];
   racks     = Array.isArray(parsed.racks) ? parsed.racks : [];
   liveStatusData = parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {};
@@ -951,8 +1067,8 @@ function initAgentApiPanel() {
 }
 
 
-exportBtn.addEventListener('click', () => {
-  const config = buildConfigExport();
+exportBtn.addEventListener('click', async () => {
+  const config = await buildConfigExport();
   const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -969,7 +1085,7 @@ importFile.addEventListener('change', async (event) => {
   try {
     const text = await file.text();
     const parsed = JSON.parse(text);
-    applyImportedConfig(parsed);
+    await applyImportedConfig(parsed);
     stopEditing();
     await saveItems();
     showToast('Config imported successfully. API keys are not imported.');
@@ -1201,6 +1317,41 @@ function supportsComputeDetails(type, hardwareKind = hardwareKindSelect.value) {
   return ['vm', 'lxc'].includes(type);
 }
 
+function supportsCredentials(type) {
+  return ['hardware', 'vm', 'app'].includes(type);
+}
+
+function normalizeCredentials(value) {
+  if (!value || typeof value !== 'object') return null;
+  const username = String(value.username || '').trim();
+  const password = String(value.password || '');
+  const note = String(value.note || '').trim();
+  if (!username && !password && !note) return null;
+  return { username, password, note };
+}
+
+function credentialInput(id) {
+  return document.getElementById(id);
+}
+
+function getCredentialFields() {
+  return normalizeCredentials({
+    username: credentialInput('credential-username')?.value || '',
+    password: credentialInput('credential-password')?.value || '',
+    note: credentialInput('credential-note')?.value || '',
+  });
+}
+
+function setCredentialFields(credentials) {
+  const normalized = normalizeCredentials(credentials);
+  const username = credentialInput('credential-username');
+  const password = credentialInput('credential-password');
+  const note = credentialInput('credential-note');
+  if (username) username.value = normalized?.username || '';
+  if (password) password.value = normalized?.password || '';
+  if (note) note.value = normalized?.note || '';
+}
+
 function defaultSymbol(type, hardwareKind = 'server') {
   if (type === 'hardware') {
     return {
@@ -1231,6 +1382,7 @@ function sanitizeItems(raw) {
       status: ['online','offline','maintenance'].includes(item.status) ? item.status : '',
       description: item.description ? String(item.description) : '',
       notes: item.notes ? String(item.notes) : '',
+      credentials: normalizeCredentials(item.credentials),
       connections: Array.isArray(item.connections) ? [...new Set(item.connections.map(String))] : [],
       ip: item.ip ? String(item.ip) : '',
       cpu: item.cpu ? String(item.cpu) : '',
@@ -1277,6 +1429,8 @@ function normalizeList(list) {
     const next = { ...item };
     next.connections = next.connections.filter((id) => known.has(id) && id !== next.id);
     if (!supportsNotes(next.type)) next.notes = '';
+    if (!supportsCredentials(next.type)) next.credentials = null;
+    else next.credentials = normalizeCredentials(next.credentials);
     if (!['hardware', 'vm', 'lxc'].includes(next.type)) {
       next.ip = '';
       next.os = '';
@@ -1493,11 +1647,46 @@ function initAdvancedResourceSettings() {
       node.classList.add('advanced-resource-field');
       advancedResourceBody.appendChild(node);
     });
+
+  if (!document.getElementById('credentials-wrap')) {
+    credentialFields = document.createElement('fieldset');
+    credentialFields.id = 'credentials-wrap';
+    credentialFields.className = 'network-fields advanced-resource-field credentials-fieldset hidden';
+    credentialFields.innerHTML = `
+      <legend>Credentials</legend>
+      <p class="advanced-section-note">Store username and password for this resource. Passwords are hidden by default and included in encrypted config exports.</p>
+      <div class="credential-grid">
+        <label>
+          Username
+          <div class="credential-input-row">
+            <input id="credential-username" type="text" autocomplete="off" placeholder="e.g. admin" />
+            <button class="button secondary" type="button" data-credential-copy="credential-username">Copy</button>
+          </div>
+        </label>
+        <label>
+          Password
+          <div class="credential-input-row">
+            <input id="credential-password" type="password" autocomplete="new-password" placeholder="••••••••" />
+            <button class="button secondary credential-eye" type="button" data-credential-toggle="credential-password">👁️</button>
+            <button class="button secondary" type="button" data-credential-copy="credential-password">Copy</button>
+          </div>
+        </label>
+      </div>
+      <label>
+        Credential note
+        <input id="credential-note" type="text" placeholder="e.g. stored in vault, local admin, recovery user" />
+      </label>
+    `;
+    advancedResourceBody.prepend(credentialFields);
+  } else {
+    credentialFields = document.getElementById('credentials-wrap');
+  }
 }
 
 function updateAdvancedResourceControls(type, hardwareKind) {
   const hasAdvanced = ['hardware', 'vm', 'lxc', 'app'].includes(type);
   advancedSettingsBtn?.classList.toggle('hidden', !hasAdvanced);
+  document.getElementById('credentials-wrap')?.classList.toggle('hidden', !supportsCredentials(type));
   if (advancedResourceSave) advancedResourceSave.textContent = editingId ? 'Save changes' : 'Add item';
   if (advancedResourceTitle) {
     const typeTitle = type === 'hardware' ? hardwareTypeLabel(hardwareKind) : label(type);
@@ -1902,6 +2091,7 @@ function startEditing(id) {
   document.getElementById('description').value = item.description;
   statusSelect.value = item.status || '';
   notesInput.value = item.notes || '';
+  setCredentialFields(item.credentials);
   ipInput.value = item.ip || '';
   cpuCountSelect.value = String(item.cpuCount || inferCpuCount(item.cpu));
   switchPortsInput.value = item.switchPorts || '';
@@ -1954,6 +2144,7 @@ function stopEditing() {
   formTitle.textContent = 'Add Resource';
   saveBtn.textContent = 'Add item';
   cancelEditBtn.classList.add('hidden');
+  setCredentialFields(null);
 }
 
 async function removeItem(id) {
@@ -3706,8 +3897,8 @@ function renderIPInto(container, query) {
 }
 
 const exportBtnMobile = document.getElementById('export-btn-mobile');
-if (exportBtnMobile) exportBtnMobile.addEventListener('click', () => {
-  const config = buildConfigExport();
+if (exportBtnMobile) exportBtnMobile.addEventListener('click', async () => {
+  const config = await buildConfigExport();
   const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -3725,7 +3916,7 @@ if (importFileMobile) importFileMobile.addEventListener('change', async (event) 
   try {
     const text = await file.text();
     const parsed = JSON.parse(text);
-    applyImportedConfig(parsed);
+    await applyImportedConfig(parsed);
     stopEditing();
     await saveItems();
     showToast('Config imported successfully. API keys are not imported.');
@@ -4756,22 +4947,8 @@ function enhanceMobileCard(node, item) {
 }
 
 function initMobileFormComfort() {
-  const sectionFields = [computeFields, networkFields, ramModulesWrap, diskListWrap, nasSharesWrap, nasRaidsWrap].filter(Boolean);
-  sectionFields.forEach((field) => {
-    if (field.querySelector('.mobile-section-toggle')) return;
-    const legend = field.querySelector('legend');
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'button secondary mobile-section-toggle';
-    btn.textContent = 'Show details';
-    btn.addEventListener('click', () => {
-      const collapsed = field.classList.toggle('mobile-collapsed');
-      btn.textContent = collapsed ? 'Show details' : 'Hide details';
-    });
-    if (legend) legend.insertAdjacentElement('afterend', btn); else field.prepend(btn);
-    if (field !== networkFields) field.classList.add('mobile-collapsed');
-  });
-
+  // Advanced sections are now always visible inside their dedicated dialog.
+  // Keep mobile comfort scrolling only; no collapsible Show details buttons.
   form?.addEventListener('focusin', (event) => {
     if (!isMobile()) return;
     const target = event.target;
