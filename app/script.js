@@ -81,6 +81,13 @@ const gatewayInput = document.getElementById('gateway');
 const colorPicker = document.getElementById('network-color-picker');
 const cancelEditBtn = document.getElementById('cancel-edit');
 const saveBtn = document.getElementById('save-btn');
+const advancedSettingsBtn = document.getElementById('advanced-settings-btn');
+const advancedResourceDialog = document.getElementById('advanced-resource-dialog');
+const advancedResourceBody = document.getElementById('advanced-resource-body');
+const advancedResourceTitle = document.getElementById('advanced-resource-title');
+const advancedResourceClose = document.getElementById('advanced-resource-close');
+const advancedResourceCloseTop = document.getElementById('advanced-resource-close-top');
+const advancedResourceSave = document.getElementById('advanced-resource-save');
 const formTitle = document.getElementById('form-title');
 const searchInput = document.getElementById('search');
 const filterType = document.getElementById('filter-type');
@@ -207,6 +214,7 @@ appendRamModuleRow();
 appendDiskRow();
 appendRaidRow();
 symbolInput.value = defaultSymbol('hardware', 'server');
+initAdvancedResourceSettings();
 // initTheme moved to end
 
 applyTypeVisibility();
@@ -340,6 +348,16 @@ if (treeModeTree && treeModeGraph) {
   treeModeTree.addEventListener('click', () => setTreeMode('tree'));
   treeModeGraph.addEventListener('click', () => setTreeMode('graph'));
 }
+if (advancedSettingsBtn) advancedSettingsBtn.addEventListener('click', openAdvancedResourceSettings);
+[advancedResourceClose, advancedResourceCloseTop].filter(Boolean).forEach((btn) => {
+  btn.addEventListener('click', closeAdvancedResourceSettings);
+});
+if (advancedResourceDialog) {
+  advancedResourceDialog.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    closeAdvancedResourceSettings();
+  });
+}
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -427,6 +445,7 @@ form.addEventListener('submit', async (event) => {
   normalizeItems();
   await saveItems();
   showToast(wasEditing ? 'Resource updated.' : 'Resource added.');
+  closeAdvancedResourceSettings();
   form.reset();
   statusSelect.value = '';
   hardwareWebUrlInput.value = '';
@@ -445,6 +464,7 @@ form.addEventListener('submit', async (event) => {
 });
 
 cancelEditBtn.addEventListener('click', () => {
+  closeAdvancedResourceSettings();
   stopEditing();
   form.reset();
   symbolInput.value = defaultSymbol('hardware', 'server');
@@ -1444,7 +1464,61 @@ function applyTypeVisibility() {
   lastTypeSelection = type;
   lastHardwareKindSelection = hardwareKind;
 
+  updateAdvancedResourceControls(type, hardwareKind);
   refreshHardwareConnectionOptions();
+}
+
+function initAdvancedResourceSettings() {
+  if (!advancedResourceBody) return;
+  const advancedIds = [
+    'manufacturer-wrap',
+    'os-wrap',
+    'ip-status-wrap',
+    'url-status-wrap',
+    'compute-fields',
+    'switch-ports-wrap',
+    'router-switches-wrap',
+    'switch-links-wrap',
+    'switch-device-links-wrap',
+    'nas-shares-wrap',
+    'nas-raids-wrap',
+    'hosted-on-wrap',
+    'app-hosted-on-wrap',
+  ];
+
+  advancedIds
+    .map((id) => document.getElementById(id))
+    .filter(Boolean)
+    .forEach((node) => {
+      node.classList.add('advanced-resource-field');
+      advancedResourceBody.appendChild(node);
+    });
+}
+
+function updateAdvancedResourceControls(type, hardwareKind) {
+  const hasAdvanced = ['hardware', 'vm', 'lxc', 'app'].includes(type);
+  advancedSettingsBtn?.classList.toggle('hidden', !hasAdvanced);
+  if (advancedResourceSave) advancedResourceSave.textContent = editingId ? 'Save changes' : 'Add item';
+  if (advancedResourceTitle) {
+    const typeTitle = type === 'hardware' ? hardwareTypeLabel(hardwareKind) : label(type);
+    advancedResourceTitle.textContent = `${typeTitle} Settings`;
+  }
+}
+
+function openAdvancedResourceSettings() {
+  const type = typeSelect.value;
+  if (type === 'network') return;
+  applyTypeVisibility();
+  refreshHostOptions();
+  refreshAppHostOptions();
+  refreshHardwareConnectionOptions();
+  if (advancedResourceDialog && !advancedResourceDialog.open) {
+    advancedResourceDialog.showModal();
+  }
+}
+
+function closeAdvancedResourceSettings() {
+  if (advancedResourceDialog?.open) advancedResourceDialog.close();
 }
 
 function render() {
