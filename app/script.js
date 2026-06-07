@@ -565,7 +565,7 @@ form.addEventListener('submit', async (event) => {
     networkColor: type === 'network' ? selectedNetworkColor : '',
     hostedOn: ['vm', 'lxc'].includes(type) ? hostedOn : '',
     appHostedOn: type === 'app' ? appHostedOn : '',
-    switchPorts: type === 'hardware' && hardwareKind === 'switch' ? switchPorts : '',
+    switchPorts: type === 'hardware' && ['router-gateway', 'switch'].includes(hardwareKind) ? switchPorts : '',
     nasShares: supportsStorageGroups(type, hardwareKind) ? shareList : [],
     nasRaids: supportsStorageGroups(type, hardwareKind) ? raidList : [],
     connections: type === 'hardware' && hardwareKind === 'router-gateway'
@@ -1736,7 +1736,7 @@ function normalizeList(list) {
       next.ramModules = [];
       next.diskRows = [];
     }
-    if (!(next.type === 'hardware' && next.hardwareKind === 'switch')) next.switchPorts = '';
+    if (!(next.type === 'hardware' && ['router-gateway', 'switch'].includes(next.hardwareKind))) next.switchPorts = '';
     if (!supportsStorageGroups(next.type, next.hardwareKind)) {
       next.nasShares = [];
       next.nasRaids = [];
@@ -1864,7 +1864,7 @@ function applyTypeVisibility() {
   hostedOnWrap.classList.toggle('hidden', !isVmOrLxc);
   appHostedOnWrap.classList.toggle('hidden', !isApp);
   ipInput.closest('label').classList.toggle('hidden', !supportsIp);
-  switchPortsWrap.classList.toggle('hidden', !isSwitch);
+  switchPortsWrap.classList.toggle('hidden', !(isSwitch || isRouter));
   routerSwitchesWrap.classList.toggle('hidden', !isRouter);
   switchLinksWrap.classList.toggle('hidden', !isSwitch);
   switchDeviceLinksWrap.classList.toggle('hidden', !isSwitch);
@@ -1882,7 +1882,7 @@ function applyTypeVisibility() {
 
   subnetInput.required = isNetwork;
   gatewayInput.required = isNetwork;
-  switchPortsInput.required = isSwitch;
+  switchPortsInput.required = isSwitch || isRouter;
 
   const nextDefaultSymbol = defaultSymbol(type, hardwareKind);
   const previousDefaultSymbol = defaultSymbol(lastTypeSelection, lastHardwareKindSelection);
@@ -2547,7 +2547,7 @@ function hardwareDetailsLabel(item) {
   const bits = [];
   bits.push(`Hardware type: ${hardwareTypeLabel(item.hardwareKind || 'server')}`);
   if (item.manufacturer) bits.push(`Manufacturer: ${item.manufacturer}`);
-  if (item.hardwareKind === 'switch' && item.switchPorts) bits.push(`Ports: ${item.switchPorts}`);
+  if (['router-gateway', 'switch'].includes(item.hardwareKind) && item.switchPorts) bits.push(`Ports: ${item.switchPorts}`);
   if (supportsStorageGroups(item.type, item.hardwareKind) && item.nasShares?.length) {
     bits.push(`${item.hardwareKind === 'backup' ? 'Backup shares' : 'Shares'}: ${item.nasShares.map((share) => `${share.name} (${share.link || 'no link'})`).join(', ')}`);
   }
@@ -2623,36 +2623,83 @@ function refreshAppHostOptions() {
   appHostedOnSelect.value = selected;
 }
 
+function hardwareInfraOptions() {
+  return items.filter((item) => item.type === 'hardware' && ['router-gateway', 'switch'].includes(item.hardwareKind) && item.id !== editingId);
+}
+
+function formatInfraOption(item, selectedIds = []) {
+  const ports = item.switchPorts ? ` (${item.switchPorts} ports)` : '';
+  return `${selectedIds.includes(item.id) ? '✓ ' : ''}${item.name} (${hardwareTypeLabel(item.hardwareKind)})${ports}`;
+}
+
+function formatConnectionDeviceOption(item, selectedIds = []) {
+  return `${selectedIds.includes(item.id) ? '✓ ' : ''}${item.name} (${hardwareTypeLabel(item.hardwareKind)})`;
+}
+
+function updateConnectionSelectLabels(select) {
+  if (!select) return;
+  const selected = getMultiValues(select);
+  [...select.options].forEach((option) => {
+    const item = findById(option.value);
+    if (!item) return;
+    option.textContent = select === switchDeviceLinks
+      ? formatConnectionDeviceOption(item, selected)
+      : formatInfraOption(item, selected);
+  });
+}
+
 function refreshHardwareConnectionOptions() {
   const selectedRouter = getMultiValues(routerSwitches);
-  const selectedSwitches = getMultiValues(switchLinks);
+  const selectedInfra = getMultiValues(switchLinks);
   const selectedDevices = getMultiValues(switchDeviceLinks);
 
-  const switches = items.filter((item) => item.type === 'hardware' && item.hardwareKind === 'switch' && item.id !== editingId);
+  const infra = hardwareInfraOptions();
   routerSwitches.innerHTML = '';
   switchLinks.innerHTML = '';
-  switches.forEach((sw) => {
+  infra.forEach((entry) => {
     const option = document.createElement('option');
-    option.value = sw.id;
-    option.textContent = sw.name;
-    routerSwitches.appendChild(option.cloneNode(true));
-    switchLinks.appendChild(option);
+    option.value = entry.id;
+    option.textContent = formatInfraOption(entry, selectedRouter);
+    const switchOption = document.createElement('option');
+    switchOption.value = entry.id;
+    switchOption.textContent = formatInfraOption(entry, selectedInfra);
+    routerSwitches.appendChild(option);
+    switchLinks.appendChild(switchOption);
   });
 
   switchDeviceLinks.innerHTML = '';
   items
-    .filter((item) => item.type === 'hardware' && item.id !== editingId)
+    .filter((item) => item.type === 'hardware' && !['router-gateway', 'switch'].includes(item.hardwareKind) && item.id !== editingId)
     .forEach((device) => {
       const option = document.createElement('option');
       option.value = device.id;
-      option.textContent = `${device.name} (${hardwareTypeLabel(device.hardwareKind)})`;
+      option.textContent = formatConnectionDeviceOption(device, selectedDevices);
       switchDeviceLinks.appendChild(option);
     });
 
   setMultiValues(routerSwitches, selectedRouter);
-  setMultiValues(switchLinks, selectedSwitches);
+  setMultiValues(switchLinks, selectedInfra);
   setMultiValues(switchDeviceLinks, selectedDevices);
+  updateConnectionSelectLabels(routerSwitches);
+  updateConnectionSelectLabels(switchLinks);
+  updateConnectionSelectLabels(switchDeviceLinks);
 }
+
+function enableToggleMultiSelect(select) {
+  if (!select) return;
+  select.addEventListener('mousedown', (event) => {
+    if (event.target?.tagName !== 'OPTION') return;
+    event.preventDefault();
+    const option = event.target;
+    option.selected = !option.selected;
+    updateConnectionSelectLabels(select);
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    requestAnimationFrame(() => updateConnectionSelectLabels(select));
+  });
+  select.addEventListener('change', () => updateConnectionSelectLabels(select));
+}
+
+[routerSwitches, switchLinks, switchDeviceLinks].forEach(enableToggleMultiSelect);
 
 function startEditing(id) {
   const item = findById(id);
@@ -2693,10 +2740,15 @@ function startEditing(id) {
     setMultiValues(routerSwitches, item.connections || []);
   }
   if (item.type === 'hardware' && item.hardwareKind === 'switch') {
-    const switchIds = items.filter((entry) => entry.type === 'hardware' && entry.hardwareKind === 'switch').map((entry) => entry.id);
-    setMultiValues(switchLinks, (item.connections || []).filter((id) => switchIds.includes(id)));
-    setMultiValues(switchDeviceLinks, (item.connections || []).filter((id) => !switchIds.includes(id)));
+    const infraIds = items
+      .filter((entry) => entry.type === 'hardware' && ['router-gateway', 'switch'].includes(entry.hardwareKind))
+      .map((entry) => entry.id);
+    setMultiValues(switchLinks, (item.connections || []).filter((id) => infraIds.includes(id)));
+    setMultiValues(switchDeviceLinks, (item.connections || []).filter((id) => !infraIds.includes(id)));
   }
+  updateConnectionSelectLabels(routerSwitches);
+  updateConnectionSelectLabels(switchLinks);
+  updateConnectionSelectLabels(switchDeviceLinks);
   nasShares.innerHTML = '';
   nasRaids.innerHTML = '';
   ramModules.innerHTML = '';
@@ -4664,6 +4716,7 @@ let rackFormPendingLocationId = null;
 // ---- DOM refs ----
 const rackOverview     = document.getElementById('rack-overview');
 const rackEditor       = document.getElementById('rack-editor');
+const rackEditorBody   = document.getElementById('rack-editor-body');
 const rackFormDialog   = document.getElementById('rack-form-dialog');
 const rackFormPage     = rackFormDialog; // alias for compatibility
 const rackToggleBtn    = document.getElementById('rack-toggle');
@@ -4695,8 +4748,19 @@ function locationById(id) { return locations.find(l => l.id === id); }
 
 async function saveRackData() { await saveItemsToAPI(items); }
 
+function openDefaultRackWorkspace() {
+  if (racks.length === 0) {
+    renderRackOverview();
+    showRackOverlay('rack-overview');
+    return;
+  }
+  const current = rackEditorRackId && rackById(rackEditorRackId) ? rackEditorRackId : racks[0].id;
+  openRackEditor(current);
+}
+
 function showRackOverlay(id) {
   // Only toggle the full-screen overlays — never the form dialog
+  if (id !== 'rack-editor') closeLinkPanel();
   [rackOverview, rackEditor].forEach(el => el && el.classList.add('hidden'));
   if (id !== 'rack-editor') closeRackPaletteSheet();
   if (phoneGrid) phoneGrid.style.display = '';
@@ -4710,9 +4774,13 @@ function showRackOverlay(id) {
 // ---- Main toggle ----
 if (rackToggleBtn) {
   rackToggleBtn.addEventListener('click', () => {
-    renderRackOverview();
-    showRackOverlay('rack-overview');
-    if (isMobile()) setActiveMobileNav('nav-rack');
+    if (isMobile()) {
+      renderRackOverview();
+      showRackOverlay('rack-overview');
+      setActiveMobileNav('nav-rack');
+      return;
+    }
+    openDefaultRackWorkspace();
   });
 }
 // Header buttons are now rendered dynamically inside renderRackOverview()
@@ -5027,14 +5095,68 @@ function openRackForm(existingId, preselectedLocationId) {
 }
 
 // ---- Rack Editor ----
+
+function renderRackEditorSidebar() {
+  if (!rackEditorBody) return;
+  let sidebar = document.getElementById('rack-editor-sidebar');
+  if (!sidebar) {
+    sidebar = document.createElement('aside');
+    sidebar.id = 'rack-editor-sidebar';
+    sidebar.className = 'rack-editor-sidebar';
+    const views = rackEditorBody.querySelector('.rack-views-wrap');
+    rackEditorBody.insertBefore(sidebar, views || rackEditorBody.firstChild);
+  }
+
+  const activeRack = rackById(rackEditorRackId);
+  const activeLocationId = activeRack?.locationId || locations[0]?.id || '';
+  const locationMarkup = locations.map(loc => {
+    const locRacks = racks.filter(r => r.locationId === loc.id);
+    const rackRows = locRacks.length ? locRacks.map(r => `
+      <button class="rack-editor-rack-row ${r.id === rackEditorRackId ? 'active' : ''}" type="button" data-rack-id="${r.id}">
+        <span class="rack-editor-rack-name">${escapeHtml(r.name)}</span>
+        <span class="rack-editor-rack-meta">${r.heightUnits || 42}U · ${r.formFactor === '10inch' ? '10″' : '19″'}</span>
+      </button>`).join('') : '<p class="rack-editor-empty-list">No racks here.</p>';
+    return `
+      <section class="rack-editor-location-group ${loc.id === activeLocationId ? 'active' : ''}">
+        <div class="rack-editor-location-name">📍 ${escapeHtml(loc.name)}</div>
+        <div class="rack-editor-rack-list">${rackRows}</div>
+      </section>`;
+  }).join('');
+
+  sidebar.innerHTML = `
+    <div class="rack-editor-sidebar-head">
+      <span class="rack-editor-sidebar-title">Locations & Racks</span>
+      <div class="rack-editor-sidebar-actions">
+        <button class="button secondary" id="rack-sidebar-add-location" type="button">+ Location</button>
+        <button class="button" id="rack-sidebar-add-rack" type="button">+ Rack</button>
+      </div>
+    </div>
+    <div class="rack-editor-sidebar-content">
+      ${locationMarkup || '<p class="rack-editor-empty-list">No locations yet.</p>'}
+    </div>
+  `;
+
+  sidebar.querySelector('#rack-sidebar-add-location')?.addEventListener('click', () => openLocationForm(null, null));
+  sidebar.querySelector('#rack-sidebar-add-rack')?.addEventListener('click', () => openRackForm(null, activeLocationId || null));
+  sidebar.querySelectorAll('[data-rack-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      autoSaveRack();
+      openRackEditor(btn.dataset.rackId);
+    });
+  });
+}
+
 function openRackEditor(rackId) {
+  closeLinkPanel();
   rackEditorRackId = rackId;
   const rack = rackById(rackId);
   if (!rack) return;
   const loc = locationById(rack.locationId);
   rackEditorName.textContent = rack.name;
   rackEditorLocBadge.textContent = loc ? `📍 ${loc.name}` : '';
+  if (rackEditorBack) rackEditorBack.textContent = isMobile() ? '← Rack Overview' : '← Boards';
   renderPalette();
+  renderRackEditorSidebar();
   renderRackDiagram('front');
   renderRackDiagram('rear');
   updateRackMobileSide(currentRackMobileSide || 'front');
@@ -5047,8 +5169,12 @@ function openRackEditor(rackId) {
 if (rackEditorBack) {
   rackEditorBack.addEventListener('click', () => {
     autoSaveRack();
-    renderRackOverview();
-    showRackOverlay('rack-overview');
+    if (isMobile()) {
+      renderRackOverview();
+      showRackOverlay('rack-overview');
+      return;
+    }
+    showRackOverlay(null);
   });
 }
 
@@ -5166,6 +5292,7 @@ function placeRackComponentAt(side, u, rack) {
     isPDU: rackDragComponent.isPDU || false,
     pduPorts: rackDragComponent.pduPorts || null,
     pduLinks: rackDragComponent.pduLinks || null,
+    switchPortLinks: rackDragComponent.switchPortLinks || null,
     isBlank: rackDragComponent.isBlank || false,
     isPassive: rackDragComponent.isPassive || false,
   };
@@ -5213,11 +5340,15 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
   el.draggable    = !isMobile();
   // Match the visible rack unit height. On mobile CSS uses taller touch rows,
   // so multi-U components must scale from the same mobile U height as empty rows.
-  const uPx = isMobile() ? 44 : Math.max(28, Math.min(42, window.innerHeight * 0.018));
+  const uPx = getRackUnitPx();
   const totalH = comp.heightU * uPx;
-  el.style.height    = totalH + 'px';
-  el.style.minHeight = totalH + 'px';
-  el.style.maxHeight = totalH + 'px';
+  el.style.setProperty('--rack-slot-u', String(comp.heightU || 1));
+  // Inline !important is required because mobile rack rows have protective
+  // height rules for touch ergonomics. Multi-U components must still occupy
+  // their real rack height so front and rear stay equal.
+  el.style.setProperty('height', totalH + 'px', 'important');
+  el.style.setProperty('min-height', totalH + 'px', 'important');
+  el.style.setProperty('max-height', totalH + 'px', 'important');
 
   // Build device label(s) — consistent plain-text style for all types
   let deviceHtml = '';
@@ -5234,6 +5365,9 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
     if (dev) deviceHtml = `<span class="rack-slot-device">${escapeHtml((dev.symbol || '') + ' ' + dev.name)}</span>`;
   } else if (comp.isPDU && comp.pduPorts) {
     deviceHtml = `<span class="rack-slot-device">${comp.pduPorts} ports</span>`;
+  } else if (isRackSwitchComponent(comp)) {
+    const portCount = getRackSwitchPortCount(comp);
+    if (portCount) deviceHtml = `<span class="rack-slot-device">${portCount} ports</span>`;
   }
 
   el.innerHTML = `
@@ -5257,7 +5391,7 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
     renderRackDiagram(side);
   });
   el.addEventListener('dragstart', e => {
-    rackDragComponent = { componentType: comp.componentType, heightU: comp.heightU, label: comp.label, category: comp.category || 'compute', linkedDeviceId: comp.linkedDeviceId || null, multiDevice: comp.multiDevice || null, linkedDevices: comp.linkedDevices || null, isPDU: comp.isPDU || false, pduPorts: comp.pduPorts || null, pduLinks: comp.pduLinks || null, isBlank: comp.isBlank || false, isPassive: comp.isPassive || false, fromSlot: slotKey, source: 'rack' };
+    rackDragComponent = { componentType: comp.componentType, heightU: comp.heightU, label: comp.label, category: comp.category || 'compute', linkedDeviceId: comp.linkedDeviceId || null, multiDevice: comp.multiDevice || null, linkedDevices: comp.linkedDevices || null, isPDU: comp.isPDU || false, pduPorts: comp.pduPorts || null, pduLinks: comp.pduLinks || null, switchPortLinks: comp.switchPortLinks || null, isBlank: comp.isBlank || false, isPassive: comp.isPassive || false, fromSlot: slotKey, source: 'rack' };
     e.dataTransfer.effectAllowed = 'move';
     setTimeout(() => el.style.opacity = '0.4', 0);
   });
@@ -5295,11 +5429,48 @@ function canFit(side, startU, heightU, rack, excludeSlot) {
 // Closing: only via OK / Skip / Escape — NO outside-click-to-close, because
 // that interferes with native <select> dropdowns on every platform.
 
+
+function isRackSwitchComponent(comp) {
+  return !!comp && String(comp.componentType || '').includes('switch');
+}
+
+function isRackRouterComponent(comp) {
+  return !!comp && String(comp.componentType || '').includes('router');
+}
+
+function isRackNetworkPortComponent(comp) {
+  return isRackSwitchComponent(comp) || isRackRouterComponent(comp);
+}
+
+function rackPortHardwareKind(comp) {
+  return isRackRouterComponent(comp) ? 'router-gateway' : 'switch';
+}
+
+function getRackLinkedPortDevice(comp) {
+  if (!comp?.linkedDeviceId) return null;
+  const dev = findById(comp.linkedDeviceId);
+  const expectedKind = rackPortHardwareKind(comp);
+  return dev && dev.type === 'hardware' && dev.hardwareKind === expectedKind ? dev : null;
+}
+
+function getRackSwitchPortCount(comp) {
+  const device = getRackLinkedPortDevice(comp);
+  if (!device) return 0;
+  const match = String(device.switchPorts || '').match(/\d+/);
+  const count = match ? parseInt(match[0], 10) : 0;
+  return Number.isFinite(count) && count > 0 ? Math.min(count, 96) : 0;
+}
+
 function showLinkPanel(slotKey, side) {
   closeLinkPanel();
   const rack = rackById(rackEditorRackId);
   if (!rack || !rack.slots[slotKey]) return;
   const comp = rack.slots[slotKey];
+
+  if (!isMobile()) {
+    showRackLinkModal(slotKey, side, comp);
+    return;
+  }
 
   const container = side === 'front' ? rackFront : rackRear;
   const u = parseInt(slotKey.split('-')[1], 10);
@@ -5366,6 +5537,61 @@ function showLinkPanel(slotKey, side) {
       const selects = panel.querySelectorAll('.rack-link-multi');
       comp.linkedDevices  = Array.from(selects).map(s => s.value || null);
       comp.linkedDeviceId = comp.linkedDevices[0];
+      saveRackData(); closeLinkPanel(); renderRackDiagram(side);
+    });
+    panel.querySelector('#rack-link-skip').addEventListener('click', () => closeLinkPanel());
+    return;
+  }
+
+  // ── Network ports: port count is inherited from linked router/switch hardware ─────
+  if (isRackNetworkPortComponent(comp)) {
+    const expectedKind = rackPortHardwareKind(comp);
+    const switchItems = hardwareItems.filter(itm => itm.type === 'hardware' && itm.hardwareKind === expectedKind);
+    function buildSwitchOpts(selectedId) {
+      return switchItems.map(itm =>
+        `<option value="${itm.id}" ${selectedId === itm.id ? 'selected' : ''}>${escapeHtml((itm.symbol || '') + ' ' + itm.name)}${itm.switchPorts ? ` · ${escapeHtml(String(itm.switchPorts))} ports` : ''}</option>`
+      ).join('');
+    }
+    function buildSwitchPortRows() {
+      const count = getRackSwitchPortCount(comp);
+      if (!comp.linkedDeviceId) return `<p class="note rack-link-note">Choose a ${expectedKind === 'router-gateway' ? 'router / gateway' : 'switch'} first. The port count is read from its hardware settings.</p>`;
+      if (!count) return `<p class="note rack-link-note">This ${expectedKind === 'router-gateway' ? 'router / gateway' : 'switch'} has no port count configured.</p>`;
+      comp.switchPortLinks = comp.switchPortLinks || {};
+      return Array.from({ length: count }, (_, i) => `
+        <div class="rack-link-row">
+          <span class="rack-link-row-label">Port ${i + 1}:</span>
+          <select class="rack-switch-port" data-port="${i}">
+            <option value="">— empty —</option>${buildHwOpts(comp.switchPortLinks[i] || null)}
+          </select>
+        </div>`).join('');
+    }
+    panel.innerHTML = `
+      <div class="rack-link-multi-wrap">
+        <div class="rack-link-row">
+          <span class="rack-link-row-label">${expectedKind === 'router-gateway' ? 'Router / Gateway:' : 'Switch:'}</span>
+          <select id="rack-switch-device">
+            <option value="">— none —</option>${buildSwitchOpts(comp.linkedDeviceId)}
+          </select>
+        </div>
+        <div id="rack-switch-port-rows">${buildSwitchPortRows()}</div>
+        <div class="rack-link-actions">
+          <button class="button" id="rack-link-ok" type="button">✓ OK</button>
+          <button class="button secondary" id="rack-link-skip" type="button">Skip</button>
+        </div>
+      </div>`;
+    document.body.appendChild(panel);
+    rackLinkPanelTarget = { slotKey, side };
+    panel.querySelector('#rack-switch-device').addEventListener('change', function() {
+      comp.linkedDeviceId = this.value || null;
+      comp.switchPortLinks = {};
+      panel.querySelector('#rack-switch-port-rows').innerHTML = buildSwitchPortRows();
+    });
+    panel.querySelector('#rack-link-ok').addEventListener('click', () => {
+      comp.linkedDeviceId = panel.querySelector('#rack-switch-device').value || null;
+      comp.switchPortLinks = {};
+      panel.querySelectorAll('.rack-switch-port').forEach(s => {
+        comp.switchPortLinks[parseInt(s.dataset.port, 10)] = s.value || null;
+      });
       saveRackData(); closeLinkPanel(); renderRackDiagram(side);
     });
     panel.querySelector('#rack-link-skip').addEventListener('click', () => closeLinkPanel());
@@ -5445,7 +5671,174 @@ function showLinkPanel(slotKey, side) {
   panel.querySelector('#rack-link-skip').addEventListener('click', () => closeLinkPanel());
 }
 
+function showRackLinkModal(slotKey, side, comp) {
+  const rack = rackById(rackEditorRackId);
+  if (!rack || !comp) return;
+  closeLinkPanel();
+
+  const hardwareItems = items.filter(i => i.type === 'hardware');
+  const deviceName = id => {
+    const itm = hardwareItems.find(h => h.id === id);
+    return itm ? `${itm.symbol || ''} ${itm.name}`.trim() : '— empty —';
+  };
+  const escapeAttr = v => escapeHtml(String(v || ''));
+
+  const panel = document.createElement('div');
+  panel.className = 'rack-link-panel rack-link-modal';
+  panel.id = 'rack-link-panel-active';
+  document.body.appendChild(panel);
+  rackLinkPanelTarget = { slotKey, side };
+
+  function openDevicePicker(title, selectedId, onPick, choiceItems = hardwareItems) {
+    const oldPicker = document.getElementById('rack-device-picker-active');
+    if (oldPicker) oldPicker.remove();
+
+    const picker = document.createElement('div');
+    picker.className = 'rack-device-picker';
+    picker.id = 'rack-device-picker-active';
+    const choices = [
+      `<button class="rack-device-choice ${!selectedId ? 'selected' : ''}" data-id="" type="button">— empty —</button>`,
+      ...choiceItems.map(itm => `<button class="rack-device-choice ${selectedId === itm.id ? 'selected' : ''}" data-id="${escapeAttr(itm.id)}" type="button">${escapeHtml(`${itm.symbol || ''} ${itm.name}`.trim())}${['router-gateway', 'switch'].includes(itm.hardwareKind) && itm.switchPorts ? ` · ${escapeHtml(String(itm.switchPorts))} ports` : ''}</button>`)
+    ].join('');
+    picker.innerHTML = `
+      <div class="rack-device-picker-card">
+        <div class="rack-device-picker-head">
+          <strong>${escapeHtml(title)}</strong>
+          <button class="button secondary rack-device-picker-close" type="button">× Close</button>
+        </div>
+        <div class="rack-device-choice-list">${choices}</div>
+      </div>
+    `;
+    document.body.appendChild(picker);
+    picker.querySelector('.rack-device-picker-close')?.addEventListener('click', () => picker.remove());
+    picker.querySelectorAll('.rack-device-choice').forEach(btn => {
+      btn.addEventListener('click', () => {
+        onPick(btn.dataset.id || null);
+        picker.remove();
+        renderModal();
+      });
+    });
+  }
+
+  function pickerButton(label, title, selectedId, field, idx = null, filter = '') {
+    const idAttr = idx === null ? '' : ` data-idx="${idx}"`;
+    const filterAttr = filter ? ` data-filter="${filter}"` : '';
+    return `
+      <div class="rack-link-row rack-link-picker-row">
+        <span class="rack-link-row-label">${escapeHtml(label)}</span>
+        <button class="rack-link-picker-button" data-field="${field}"${idAttr}${filterAttr} type="button">${escapeHtml(deviceName(selectedId))}</button>
+      </div>`;
+  }
+
+  function bindPickerButtons() {
+    panel.querySelectorAll('.rack-link-picker-button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const field = btn.dataset.field;
+        const idx = btn.dataset.idx !== undefined ? parseInt(btn.dataset.idx, 10) : null;
+        const title = idx === null ? 'Choose linked device' : `Choose device for ${field === 'pdu' ? `Port ${idx + 1}` : `PC ${idx + 1}`}`;
+        const selected = field === 'single' || field === 'switch-link'
+          ? comp.linkedDeviceId
+          : field === 'multi'
+            ? (comp.linkedDevices || [])[idx]
+            : field === 'switch-port'
+              ? (comp.switchPortLinks || {})[idx]
+              : (comp.pduLinks || {})[idx];
+        const choiceItems = btn.dataset.filter
+          ? hardwareItems.filter(itm => itm.type === 'hardware' && itm.hardwareKind === btn.dataset.filter)
+          : hardwareItems;
+        openDevicePicker(title, selected || null, id => {
+          if (field === 'single') {
+            comp.linkedDeviceId = id;
+          } else if (field === 'switch-link') {
+            comp.linkedDeviceId = id;
+            comp.switchPortLinks = {};
+          } else if (field === 'multi') {
+            const count = comp.multiDevice || 2;
+            const arr = comp.linkedDevices || Array(count).fill(null);
+            arr[idx] = id;
+            comp.linkedDevices = arr;
+            comp.linkedDeviceId = arr[0] || null;
+          } else if (field === 'switch-port') {
+            comp.switchPortLinks = comp.switchPortLinks || {};
+            comp.switchPortLinks[idx] = id;
+          } else if (field === 'pdu') {
+            comp.pduLinks = comp.pduLinks || {};
+            comp.pduLinks[idx] = id;
+          }
+        }, choiceItems);
+      });
+    });
+  }
+
+  function renderModal() {
+    const title = comp.isPDU ? 'Assign PDU Ports' : isRackNetworkPortComponent(comp) ? `Assign ${isRackRouterComponent(comp) ? 'Router / Gateway' : 'Switch'} Ports` : comp.multiDevice ? 'Assign Multi-Device Slot' : 'Assign Rack Device';
+    let body = '';
+
+    if (comp.multiDevice) {
+      const count = comp.multiDevice;
+      const devs = comp.linkedDevices || Array(count).fill(null);
+      body = Array.from({ length: count }, (_, i) => pickerButton(`PC ${i + 1}:`, title, devs[i], 'multi', i)).join('');
+    } else if (isRackNetworkPortComponent(comp)) {
+      const expectedKind = rackPortHardwareKind(comp);
+      const switchDevice = getRackLinkedPortDevice(comp);
+      const portCount = getRackSwitchPortCount(comp);
+      const rows = portCount
+        ? Array.from({ length: portCount }, (_, i) => pickerButton(`Port ${i + 1}:`, title, (comp.switchPortLinks || {})[i], 'switch-port', i)).join('')
+        : `<p class="note rack-link-note">Choose a switch hardware resource with a configured port count first.</p>`;
+      body = `
+        ${pickerButton(expectedKind === 'router-gateway' ? 'Router / Gateway:' : 'Switch:', expectedKind === 'router-gateway' ? 'Choose router / gateway hardware' : 'Choose switch hardware', comp.linkedDeviceId, 'switch-link', null, expectedKind)}
+        <div class="rack-link-note">${switchDevice ? `${escapeHtml(String(switchDevice.switchPorts || portCount))} ports from hardware config` : `Port count is inherited from the ${expectedKind === 'router-gateway' ? 'router / gateway' : 'switch'} hardware settings.`}</div>
+        ${rows}`;
+    } else if (comp.isPDU) {
+      const currentPorts = comp.pduPorts || 8;
+      const portCounts = [4, 6, 8, 10, 12, 16, 20, 24];
+      const countButtons = portCounts.map(n => `<button class="rack-port-count-button ${currentPorts === n ? 'selected' : ''}" data-count="${n}" type="button">${n} ports</button>`).join('');
+      const rows = Array.from({ length: currentPorts }, (_, i) => pickerButton(`Port ${i + 1}:`, title, (comp.pduLinks || {})[i], 'pdu', i)).join('');
+      body = `
+        <div class="rack-port-count-row"><span class="rack-link-row-label">Ports:</span><div class="rack-port-count-options">${countButtons}</div></div>
+        ${rows}`;
+    } else {
+      body = pickerButton('Device:', title, comp.linkedDeviceId, 'single');
+    }
+
+    panel.innerHTML = `
+      <div class="rack-link-multi-wrap">
+        <div class="rack-link-modal-head">
+          <strong>${escapeHtml(title)}</strong>
+          <span>${escapeHtml(comp.label || '')}</span>
+        </div>
+        ${body}
+        <div class="rack-link-actions">
+          <button class="button" id="rack-link-ok" type="button">✓ OK</button>
+          <button class="button secondary" id="rack-link-skip" type="button">Skip</button>
+        </div>
+      </div>`;
+
+    panel.querySelectorAll('.rack-port-count-button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        comp.pduPorts = parseInt(btn.dataset.count, 10);
+        comp.pduLinks = comp.pduLinks || {};
+        Object.keys(comp.pduLinks).forEach(k => {
+          if (parseInt(k, 10) >= comp.pduPorts) delete comp.pduLinks[k];
+        });
+        renderModal();
+      });
+    });
+    bindPickerButtons();
+    panel.querySelector('#rack-link-ok').addEventListener('click', () => {
+      saveRackData();
+      closeLinkPanel();
+      renderRackDiagram(side);
+    });
+    panel.querySelector('#rack-link-skip').addEventListener('click', () => closeLinkPanel());
+  }
+
+  renderModal();
+}
+
 function closeLinkPanel() {
+  const picker = document.getElementById('rack-device-picker-active');
+  if (picker) picker.remove();
   const existing = document.getElementById('rack-link-panel-active');
   if (existing) existing.remove();
   rackLinkPanelTarget = null;
@@ -5458,16 +5851,33 @@ document.addEventListener('keydown', e => {
 
 // ---- Utility ----
 
+
+function getRackUnitPx() {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue('--rack-u-height').trim();
+  const probe = document.createElement('div');
+  probe.style.position = 'absolute';
+  probe.style.visibility = 'hidden';
+  probe.style.height = raw || '44px';
+  document.body.appendChild(probe);
+  const px = probe.getBoundingClientRect().height || (isMobile() ? 44 : 32);
+  probe.remove();
+  return Math.max(24, Math.round(px));
+}
+
 // Make front and rear rack frames the same height.
 // Strategy: set minHeight on the shorter frame so it matches the taller one,
 // and distribute the extra space evenly among its empty slots.
 function equaliseRackHeights() {
-  if (!rackFront || !rackRear) return;
+  if (!rackFront || !rackRear || isMobile()) return;
 
   // 1. Reset any previous overrides so we measure natural height
   [rackFront, rackRear].forEach(f => {
     f.style.minHeight = '';
-    f.querySelectorAll('.rack-slot.empty').forEach(s => s.style.minHeight = '');
+    f.querySelectorAll('.rack-slot.empty').forEach(s => {
+      s.style.height = '';
+      s.style.minHeight = '';
+      s.style.maxHeight = '';
+    });
   });
 
   const hFront = rackFront.scrollHeight;
@@ -5488,7 +5898,7 @@ function equaliseRackHeights() {
 
   // Distribute extra pixels evenly across empty slots (integer math, last slot absorbs remainder)
   const extra = Math.floor(diff / emptySlots.length);
-  const baseU = isMobile() ? 44 : Math.max(28, Math.min(42, window.innerHeight * 0.018));
+  const baseU = getRackUnitPx();
   emptySlots.forEach((slot, i) => {
     const add = i === emptySlots.length - 1 ? diff - extra * i : extra;
     const h = (baseU + add) + 'px';

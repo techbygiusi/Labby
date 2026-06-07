@@ -7238,3 +7238,554 @@ html body .demo-banner span {
     max-height: 44px !important;
   }
 }
+
+/* v74: compact desktop Theme Customize color cards.
+   Keep mobile touch targets large; desktop cards should feel like the API-key scope tiles. */
+@media (min-width: 1101px) {
+  .theme-picker-dialog #theme-customize-body .tb-section {
+    gap: 0.65rem !important;
+    padding: 0.85rem !important;
+    border-radius: 14px !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-title {
+    padding-bottom: 0.5rem !important;
+    font-size: 0.9rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-intro {
+    margin: -0.15rem 0 0 !important;
+    font-size: 0.68rem !important;
+    line-height: 1.3 !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-core .tb-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 0.55rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-types .tb-grid {
+    gap: 0.55rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-color-row {
+    grid-template-columns: 38px minmax(0, 1fr) !important;
+    gap: 0.58rem !important;
+    min-height: 54px !important;
+    padding: 0.52rem 0.62rem !important;
+    border-radius: 12px !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-color-row input[type='color'] {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    border-width: 2px !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-color-label {
+    font-size: 0.74rem !important;
+    line-height: 1.1 !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-color-desc {
+    font-size: 0.66rem !important;
+    line-height: 1.22 !important;
+  }
+}
+
+
+/* v70: rack workspace polish and consistent mobile rack unit height */
+@media (min-width: 1101px) {
+  #rack-editor .rack-editor-body {
+    display: grid !important;
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr) minmax(170px, 220px) !important;
+    overflow: hidden !important;
+  }
+
+  #rack-editor .rack-editor-sidebar {
+    display: flex !important;
+    flex-direction: column;
+    min-width: 0;
+    border-right: 2px solid var(--line);
+    background: var(--phone);
+    overflow: hidden;
+  }
+
+  #rack-editor .rack-editor-sidebar-head {
+    padding: 0.6rem 0.65rem;
+    border-bottom: 2px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  #rack-editor .rack-editor-sidebar-title {
+    font: 700 0.72rem/1.2 'Space Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  #rack-editor .rack-editor-sidebar-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem;
+  }
+
+  #rack-editor .rack-editor-sidebar-actions .button {
+    padding: 0.35rem 0.45rem;
+    min-height: 32px;
+    font-size: 0.66rem;
+    border-width: 2px;
+  }
+
+  #rack-editor .rack-editor-sidebar-content {
+    flex: 1;
+    overflow: auto;
+    padding: 0.45rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  #rack-editor .rack-editor-location-group {
+    border: 2px solid color-mix(in srgb, var(--line) 45%, transparent);
+    border-radius: 12px;
+    padding: 0.4rem;
+    background: color-mix(in srgb, var(--panel) 72%, transparent);
+  }
+
+  #rack-editor .rack-editor-location-group.active {
+    border-color: var(--line);
+    background: color-mix(in srgb, var(--mint) 18%, var(--panel));
+  }
+
+  #rack-editor .rack-editor-location-name {
+    font: 700 0.72rem/1.2 'Space Mono', monospace;
+    margin-bottom: 0.35rem;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #rack-editor .rack-editor-rack-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+  }
+
+  #rack-editor .rack-editor-rack-row {
+    border: 2px solid var(--line);
+    border-radius: 9px;
+    background: var(--panel);
+    color: var(--text);
+    text-align: left;
+    padding: 0.34rem 0.42rem;
+    font: 700 0.68rem/1.15 'Space Mono', monospace;
+    cursor: pointer;
+  }
+
+  #rack-editor .rack-editor-rack-row.active,
+  #rack-editor .rack-editor-rack-row:hover {
+    background: var(--yellow);
+  }
+
+  #rack-editor .rack-editor-rack-name,
+  #rack-editor .rack-editor-rack-meta {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #rack-editor .rack-editor-rack-meta {
+    margin-top: 0.1rem;
+    font-size: 0.58rem;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  #rack-editor .rack-editor-empty-list {
+    margin: 0;
+    color: var(--muted);
+    font: 0.68rem/1.35 'Space Mono', monospace;
+  }
+
+  #rack-editor .rack-views-wrap {
+    order: 2;
+    min-width: 0;
+  }
+
+  #rack-editor .rack-palette {
+    order: 3;
+    width: auto !important;
+    border-right: 0 !important;
+    border-left: 2px solid var(--line) !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  :root { --rack-u-height: 44px; }
+  #rack-editor .rack-editor-sidebar { display: none !important; }
+  #rack-editor .rack-slot,
+  #rack-editor .rack-slot.empty,
+  #rack-editor .rack-slot.occupied {
+    height: var(--rack-u-height) !important;
+    min-height: var(--rack-u-height) !important;
+    max-height: var(--rack-u-height) !important;
+  }
+}
+
+
+/* v76 rack assignment modal */
+@media (min-width: 1101px) {
+  .rack-link-panel.rack-link-modal {
+    position: fixed !important;
+    left: 50% !important;
+    top: 50% !important;
+    width: min(720px, calc(100vw - 56px)) !important;
+    max-height: min(78vh, 760px);
+    transform: translate(-50%, -50%);
+    border: 3px solid var(--line);
+    border-radius: 18px;
+    padding: 1rem;
+    z-index: 1200;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.34);
+  }
+  .rack-link-modal::before {
+    content: '';
+    position: fixed;
+    inset: -100vmax;
+    background: rgba(15, 25, 18, 0.35);
+    z-index: -1;
+  }
+  .rack-link-modal-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: baseline;
+    padding-bottom: 0.65rem;
+    margin-bottom: 0.45rem;
+    border-bottom: 2px solid color-mix(in srgb, var(--line) 40%, transparent);
+  }
+  .rack-link-modal-head strong {
+    font: 800 0.88rem/1.2 'Space Mono', monospace;
+  }
+  .rack-link-modal-head span {
+    color: var(--muted);
+    font: 700 0.7rem/1.2 'Space Mono', monospace;
+  }
+  .rack-link-picker-row {
+    align-items: stretch;
+  }
+  .rack-link-picker-button {
+    flex: 1;
+    min-height: 38px;
+    border: 2px solid var(--line);
+    border-radius: 10px;
+    background: var(--panel);
+    color: var(--text);
+    font: 700 0.74rem/1.25 'Space Mono', monospace;
+    text-align: left;
+    padding: 0.45rem 0.65rem;
+    cursor: pointer;
+  }
+  .rack-link-picker-button:hover,
+  .rack-link-picker-button:focus-visible {
+    background: color-mix(in srgb, var(--yellow) 34%, var(--panel));
+    outline: none;
+  }
+  .rack-port-count-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+  }
+  .rack-port-count-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .rack-port-count-button {
+    border: 2px solid var(--line);
+    border-radius: 9px;
+    background: var(--panel);
+    color: var(--text);
+    font: 700 0.68rem/1.1 'Space Mono', monospace;
+    padding: 0.35rem 0.55rem;
+    cursor: pointer;
+  }
+  .rack-port-count-button.selected {
+    background: var(--yellow);
+  }
+  .rack-device-picker {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    background: rgba(15, 25, 18, 0.28);
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+  }
+  .rack-device-picker-card {
+    width: min(560px, calc(100vw - 48px));
+    max-height: min(72vh, 640px);
+    overflow: auto;
+    border: 3px solid var(--line);
+    border-radius: 18px;
+    background: var(--phone);
+    box-shadow: 0 22px 70px rgba(0,0,0,0.34);
+    padding: 0.9rem;
+  }
+  .rack-device-picker-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 0.65rem;
+    padding-bottom: 0.55rem;
+    border-bottom: 2px solid color-mix(in srgb, var(--line) 40%, transparent);
+  }
+  .rack-device-choice-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.4rem;
+  }
+  .rack-device-choice {
+    border: 2px solid var(--line);
+    border-radius: 10px;
+    background: var(--panel);
+    color: var(--text);
+    text-align: left;
+    min-height: 38px;
+    padding: 0.45rem 0.6rem;
+    font: 700 0.7rem/1.2 'Space Mono', monospace;
+    cursor: pointer;
+  }
+  .rack-device-choice:hover,
+  .rack-device-choice.selected {
+    background: var(--yellow);
+  }
+}
+
+
+/* v72/v77: make desktop Theme Customize cards uniform and keep mobile rack units true-to-U. */
+@media (min-width: 1101px) {
+  .theme-picker-dialog #theme-customize-body .tb-section-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-core .tb-grid,
+  .theme-picker-dialog #theme-customize-body .tb-section-types .tb-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 0.62rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section {
+    gap: 0.7rem !important;
+    padding: 0.9rem !important;
+    border-radius: 15px !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-title {
+    padding-bottom: 0.5rem !important;
+    font-size: 0.9rem !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-section-intro {
+    margin: -0.1rem 0 0 !important;
+    font-size: 0.68rem !important;
+    line-height: 1.3 !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-color-row {
+    grid-template-columns: 40px minmax(0, 1fr) !important;
+    gap: 0.62rem !important;
+    min-height: 58px !important;
+    height: 58px !important;
+    padding: 0.54rem 0.66rem !important;
+    border: 2px solid color-mix(in srgb, var(--line) 80%, transparent) !important;
+    border-radius: 13px !important;
+    background: color-mix(in srgb, var(--phone) 86%, white) !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-color-row input[type='color'] {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    padding: 0 !important;
+    border: 2px solid var(--line) !important;
+    border-radius: 999px !important;
+    background: transparent !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-color-label {
+    font-size: 0.72rem !important;
+    line-height: 1.12 !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body .tb-color-desc {
+    font-size: 0.64rem !important;
+    line-height: 1.2 !important;
+  }
+}
+
+@media (min-width: 1500px) {
+  .theme-picker-dialog #theme-customize-body .tb-section-core .tb-grid,
+  .theme-picker-dialog #theme-customize-body .tb-section-types .tb-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  #rack-editor .rack-slot.empty {
+    height: var(--rack-u-height) !important;
+    min-height: var(--rack-u-height) !important;
+    max-height: var(--rack-u-height) !important;
+  }
+}
+
+
+/* v73/v78: repair desktop rack assignment modal and theme customizer layout. */
+@media (min-width: 1101px) {
+  .rack-link-panel.rack-link-modal {
+    background: var(--phone) !important;
+    color: var(--text) !important;
+    border: 3px solid var(--line) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28) !important;
+    padding: 1rem !important;
+    max-height: min(72vh, 620px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain !important;
+  }
+  .rack-link-modal::before {
+    display: none !important;
+    content: none !important;
+  }
+  .rack-link-panel.rack-link-modal .rack-link-multi-wrap {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .rack-device-picker {
+    overflow: hidden !important;
+  }
+  .rack-device-picker-card {
+    background: var(--phone) !important;
+    color: var(--text) !important;
+    max-height: min(70vh, 600px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body.theme-builder-body {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-bottom: 5rem !important;
+  }
+  .theme-picker-dialog #theme-customize-body .tb-section-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  .theme-picker-dialog #theme-customize-body .tb-section {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.85rem !important;
+    padding: 1rem !important;
+    overflow: visible !important;
+  }
+  .theme-picker-dialog #theme-customize-body .tb-section-core .tb-grid,
+  .theme-picker-dialog #theme-customize-body .tb-section-types .tb-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 0.75rem !important;
+    align-items: stretch !important;
+  }
+  .theme-picker-dialog #theme-customize-body .tb-color-row {
+    display: grid !important;
+    grid-template-columns: 48px minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 0.8rem !important;
+    min-height: 86px !important;
+    height: auto !important;
+    padding: 0.72rem 0.82rem !important;
+    border: 2px solid var(--line) !important;
+    border-radius: 14px !important;
+    background: var(--panel) !important;
+    overflow: hidden !important;
+  }
+  .theme-picker-dialog #theme-customize-body .tb-color-row input[type='color'] {
+    width: 46px !important;
+    height: 46px !important;
+    min-width: 46px !important;
+    min-height: 46px !important;
+    align-self: center !important;
+    justify-self: center !important;
+    margin: 0 !important;
+    transform: none !important;
+    position: relative !important;
+    z-index: 1 !important;
+  }
+  .theme-picker-dialog #theme-customize-body .tb-color-copy {
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.32rem !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+  }
+  .theme-picker-dialog #theme-customize-body .tb-color-label {
+    font-size: 0.74rem !important;
+    line-height: 1.15 !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+  .theme-picker-dialog #theme-customize-body .tb-color-desc {
+    font-size: 0.66rem !important;
+    line-height: 1.28 !important;
+    white-space: normal !important;
+    color: var(--muted) !important;
+  }
+}
+
+@media (min-width: 1500px) {
+  .theme-picker-dialog #theme-customize-body .tb-section-core .tb-grid,
+  .theme-picker-dialog #theme-customize-body .tb-section-types .tb-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+/* v74/v79: normalize Config section headings and rack switch assignment notes. */
+#config-dialog .config-section-title,
+#mobile-config .config-section-title {
+  font: 700 0.8rem/1.2 'Space Mono', monospace !important;
+  letter-spacing: 0 !important;
+  color: var(--text) !important;
+}
+@media (min-width: 1101px) {
+  #config-dialog .config-section-title {
+    min-height: 36px !important;
+    padding: 0.42rem 0.75rem !important;
+  }
+}
+.rack-link-note {
+  margin: 0.2rem 0 0.7rem !important;
+  color: var(--muted) !important;
+  font: 700 0.72rem/1.35 'Inter', system-ui, sans-serif !important;
+}
+.rack-link-modal .rack-link-note {
+  grid-column: 1 / -1;
+}
+
+.connection-summary {
+  display: none;
+}
