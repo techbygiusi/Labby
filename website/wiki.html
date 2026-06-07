@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" type="image/svg+xml" href="../app/images/logo.svg" />
-  <link rel="apple-touch-icon" href="../app/images/logo.svg" />
+  <link rel="icon" type="image/svg+xml" href="images/logo.svg" />
+  <link rel="apple-touch-icon" href="images/logo.svg" />
   <title>Labby Wiki</title>
   <meta name="description" content="Labby documentation -installation, features, rack editor, IP view, themes and more." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -143,6 +143,8 @@
       color: var(--text);
     }
     .demo-transition.is-active { display: grid; }
+    .demo-transition.is-active .demo-loader-fill { animation: demoProgress 2.65s ease-in-out forwards; }
+    .demo-transition.is-active .demo-loader-logo { animation: demoLogoRide 2.65s ease-in-out forwards; }
     .demo-loader {
       width: min(420px, calc(100vw - 2rem));
       text-align: center;
@@ -165,7 +167,6 @@
       inset: 0 auto 0 0;
       width: 0%;
       background: var(--yellow);
-      animation: demoProgress 2.55s ease-in-out forwards;
     }
     .demo-loader-logo {
       position: absolute;
@@ -174,7 +175,6 @@
       width: 28px;
       height: 28px;
       transform: translate(-2px, -50%);
-      animation: demoLogoRide 2.55s ease-in-out forwards;
       filter: drop-shadow(0 2px 4px rgba(0,0,0,.18));
     }
     .demo-loader-note {
@@ -281,10 +281,10 @@
       justify-content: center;
       min-height: 0;
       flex: 1;
-      overflow: hidden;
-      border: 2px solid var(--line);
-      border-radius: 18px;
-      background: color-mix(in srgb, var(--phone) 94%, white);
+      overflow: visible;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
     }
     .shot-viewer-stage {
       width: 100%;
@@ -296,6 +296,10 @@
       padding: 0;
       touch-action: pan-x pan-y;
       overscroll-behavior: contain;
+      border: 3px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 12%, transparent);
     }
     .shot-viewer-stage img {
       display: block;
@@ -303,9 +307,10 @@
       height: 100%;
       max-width: none;
       max-height: none;
-      object-fit: contain;
-      border-radius: 14px;
-      background: color-mix(in srgb, var(--phone) 94%, white);
+      object-fit: cover;
+      object-position: center;
+      border-radius: 0;
+      background: var(--panel);
       user-select: none;
       -webkit-user-drag: none;
     }
@@ -787,7 +792,7 @@
 <nav>
   <div class="wrap">
     <a class="nav-brand" href="index.html" aria-label="Home">
-      <img class="nav-logo" src="../app/images/logo.svg" alt="" />
+      <img class="nav-logo" src="images/logo.svg" alt="" />
       <span class="nav-name">Home</span>
       <span class="nav-badge">Wiki</span>
     </a>
@@ -815,7 +820,7 @@
     <p class="demo-loader-title">Opening Labby Demo</p>
     <div class="demo-loader-track">
       <div class="demo-loader-fill"></div>
-      <img class="demo-loader-logo" src="../app/images/logo.svg" alt="" />
+      <img class="demo-loader-logo" src="images/logo.svg" alt="" />
     </div>
     <p class="demo-loader-note">Preparing the browser-only demo workspace...</p>
   </div>
@@ -1499,6 +1504,26 @@ docker compose up -d</pre>
   const COPY_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
   const CHECK_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 
+
+  function openDemoWithTransition(event) {
+    const link = event.currentTarget;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || link.target === '_blank') return;
+    event.preventDefault();
+    const transition = document.getElementById('demo-transition');
+    const target = link.getAttribute('href') || '/demo/';
+    if (!transition) { window.location.href = target; return; }
+    transition.classList.remove('is-active');
+    void transition.offsetWidth;
+    transition.classList.add('is-active');
+    transition.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    window.setTimeout(() => { window.location.href = target; }, 2850);
+  }
+
+  Array.from(document.querySelectorAll('a[href="/demo/"], a[href="demo/"], a[href="./demo/"]')).forEach((link) => {
+    link.addEventListener('click', openDemoWithTransition);
+  });
+
   function normalizeWikiShotGrids() {
     content.querySelectorAll('.wiki-shot-grid').forEach(grid => {
       const shots = grid.querySelectorAll('.wiki-shot');
@@ -1585,10 +1610,36 @@ docker compose up -d</pre>
         if (!img) return;
         img.classList.add('image-zoomable');
         img.tabIndex = 0;
-        img.addEventListener('click', () => openWikiViewer(shots, index));
+        const openGrouped = (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          openWikiViewer(shots, index);
+        };
+        img.addEventListener('click', openGrouped);
         img.addEventListener('keydown', (event) => {
-          if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); img.click(); }
+          if (event.key === 'Enter' || event.key === ' ') openGrouped(event);
         });
+      });
+    });
+
+    // Also support future standalone documentation images that are not placed
+    // inside a wiki-shot-grid. They open as a single image without wiki linking.
+    content.querySelectorAll('img').forEach((img) => {
+      if (img.closest('.wiki-shot-grid') || img.closest('.shot-viewer')) return;
+      if (img.dataset.lightboxBound === 'true') return;
+      const src = img.currentSrc || img.getAttribute('src') || img.src;
+      if (!src) return;
+      img.dataset.lightboxBound = 'true';
+      img.classList.add('image-zoomable');
+      img.tabIndex = 0;
+      const openStandalone = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        openWikiViewer([{ src, title: img.alt || 'Image', caption: img.alt || 'Image' }], 0);
+      };
+      img.addEventListener('click', openStandalone);
+      img.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') openStandalone(event);
       });
     });
   }

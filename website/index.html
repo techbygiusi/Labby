@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" type="image/svg+xml" href="../app/images/logo.svg" />
-  <link rel="apple-touch-icon" href="../app/images/logo.svg" />
+  <link rel="icon" type="image/svg+xml" href="images/logo.svg" />
+  <link rel="apple-touch-icon" href="images/logo.svg" />
   <title>Labby - Map Your Homelab</title>
   <meta name="description" content="Labby is a lightweight homelab inventory, rack and topology tool. Track hardware, VMs, LXCs, apps and networks. Self-host with Docker." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -157,6 +157,8 @@
       color: var(--text);
     }
     .demo-transition.is-active { display: grid; }
+    .demo-transition.is-active .demo-loader-fill { animation: demoProgress 2.65s ease-in-out forwards; }
+    .demo-transition.is-active .demo-loader-logo { animation: demoLogoRide 2.65s ease-in-out forwards; }
     .demo-loader {
       width: min(420px, calc(100vw - 2rem));
       text-align: center;
@@ -179,7 +181,6 @@
       inset: 0 auto 0 0;
       width: 0%;
       background: var(--yellow);
-      animation: demoProgress 2.55s ease-in-out forwards;
     }
     .demo-loader-logo {
       position: absolute;
@@ -188,7 +189,6 @@
       width: 28px;
       height: 28px;
       transform: translate(-2px, -50%);
-      animation: demoLogoRide 2.55s ease-in-out forwards;
       filter: drop-shadow(0 2px 4px rgba(0,0,0,.18));
     }
     .demo-loader-note {
@@ -544,10 +544,10 @@
       justify-content: center;
       min-height: 0;
       flex: 1;
-      overflow: hidden;
-      border: 2px solid var(--line);
-      border-radius: 18px;
-      background: color-mix(in srgb, var(--phone) 94%, white);
+      overflow: visible;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
     }
     .shot-viewer-stage {
       width: 100%;
@@ -561,6 +561,10 @@
       touch-action: pan-x pan-y;
       overscroll-behavior: contain;
       scrollbar-gutter: stable both-edges;
+      border: 3px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 12%, transparent);
     }
     .shot-viewer-stage img {
       display: block;
@@ -568,9 +572,10 @@
       height: 100%;
       max-width: none;
       max-height: none;
-      object-fit: contain;
-      border-radius: 14px;
-      background: color-mix(in srgb, var(--phone) 94%, white);
+      object-fit: cover;
+      object-position: center;
+      border-radius: 0;
+      background: var(--panel);
       user-select: none;
       -webkit-user-drag: none;
     }
@@ -870,7 +875,7 @@
 <nav>
   <div class="wrap">
     <a class="nav-brand" href="index.html" aria-label="Home">
-      <img class="nav-logo" src="../app/images/logo.svg" alt="" />
+      <img class="nav-logo" src="images/logo.svg" alt="" />
       <span class="nav-name">Home</span>
     </a>
     <div class="nav-links">
@@ -895,7 +900,7 @@
     <p class="demo-loader-title">Opening Labby Demo</p>
     <div class="demo-loader-track">
       <div class="demo-loader-fill"></div>
-      <img class="demo-loader-logo" src="../app/images/logo.svg" alt="" />
+      <img class="demo-loader-logo" src="images/logo.svg" alt="" />
     </div>
     <p class="demo-loader-note">Preparing the browser-only demo workspace...</p>
   </div>
@@ -1317,6 +1322,27 @@ docker compose up --build -d</pre>
     localStorage.setItem('labby-site-theme', !isDark ? 'dark' : 'light');
   });
 
+
+  function openDemoWithTransition(event) {
+    const link = event.currentTarget;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || link.target === '_blank') return;
+    event.preventDefault();
+    const transition = document.getElementById('demo-transition');
+    const target = link.getAttribute('href') || '/demo/';
+    if (!transition) { window.location.href = target; return; }
+    transition.classList.remove('is-active');
+    // Force a reflow so the progress bar and logo animation replay on every click.
+    void transition.offsetWidth;
+    transition.classList.add('is-active');
+    transition.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    window.setTimeout(() => { window.location.href = target; }, 2850);
+  }
+
+  Array.from(document.querySelectorAll('a[href="/demo/"], a[href="demo/"], a[href="./demo/"]')).forEach((link) => {
+    link.addEventListener('click', openDemoWithTransition);
+  });
+
   const galleryButtons = Array.from(document.querySelectorAll('.gallery-item[data-shot-src]'));
   const viewer = document.getElementById('shot-viewer');
   const viewerImage = document.getElementById('shot-viewer-image');
@@ -1417,20 +1443,26 @@ docker compose up --build -d</pre>
 
   buildViewerThumbs();
 
-  Array.from(document.querySelectorAll('main img, section img')).forEach((img) => {
-    if (img.closest('.gallery-item') || img.closest('.shot-viewer') || img.classList.contains('nav-logo') || img.classList.contains('demo-loader-logo')) return;
-    img.classList.add('image-zoomable');
-    img.tabIndex = 0;
-    img.addEventListener('click', () => {
-      openViewer(0, [{ src: img.currentSrc || img.src, title: img.alt || 'Image', caption: img.alt || 'Image', wikiHref: '' }], false);
-    });
-    img.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
+  function enhanceStandaloneImages() {
+    Array.from(document.querySelectorAll('img')).forEach((img) => {
+      if (img.dataset.lightboxBound === 'true') return;
+      if (img.closest('.gallery-item') || img.closest('.shot-viewer') || img.classList.contains('nav-logo') || img.classList.contains('demo-loader-logo')) return;
+      if (!img.currentSrc && !img.getAttribute('src')) return;
+      img.dataset.lightboxBound = 'true';
+      img.classList.add('image-zoomable');
+      img.tabIndex = 0;
+      const openStandalone = (event) => {
         event.preventDefault();
-        img.click();
-      }
+        event.stopPropagation();
+        openViewer(0, [{ src: img.currentSrc || img.src, title: img.alt || 'Image', caption: img.alt || 'Image', wikiHref: '' }], false);
+      };
+      img.addEventListener('click', openStandalone);
+      img.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') openStandalone(event);
+      });
     });
-  });
+  }
+  enhanceStandaloneImages();
 
   viewerPrev.addEventListener('click', () => showShot(activeShotIndex - 1));
   viewerNext.addEventListener('click', () => showShot(activeShotIndex + 1));
