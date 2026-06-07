@@ -155,11 +155,11 @@
     }
     .demo-loader-track {
       position: relative;
-      height: 34px;
+      height: 40px;
       border: 3px solid var(--line);
       border-radius: 999px;
       background: var(--panel);
-      overflow: hidden;
+      overflow: visible;
       box-shadow: var(--shadow);
     }
     .demo-loader-fill {
@@ -172,10 +172,12 @@
       position: absolute;
       left: 0;
       top: 50%;
-      width: 28px;
-      height: 28px;
-      transform: translate(-2px, -50%);
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,.18));
+      z-index: 2;
+      width: 50px;
+      height: 50px;
+      transform: translate(-10px, -50%);
+      filter: drop-shadow(0 3px 6px rgba(0,0,0,.18));
+      pointer-events: none;
     }
     .demo-loader-note {
       margin-top: .85rem;
@@ -187,8 +189,8 @@
       to { width: 100%; }
     }
     @keyframes demoLogoRide {
-      from { left: 0%; transform: translate(-2px, -50%); }
-      to { left: 100%; transform: translate(calc(-100% + 2px), -50%); }
+      from { left: 0%; transform: translate(-10px, -50%); }
+      to { left: 100%; transform: translate(calc(-100% + 10px), -50%); }
     }
 
     .nav-badge {
@@ -254,7 +256,7 @@
     }
     .shot-viewer-dialog {
       position: relative;
-      width: min(1180px, 100%);
+      width: min(1180px, calc(100vw - 2.5rem));
       max-height: min(90vh, 100%);
       display: flex;
       flex-direction: column;
@@ -263,7 +265,7 @@
       border: 3px solid var(--line);
       border-radius: 22px;
       box-shadow: 0 24px 60px rgba(0,0,0,.28);
-      padding: 1rem;
+      padding: .7rem;
     }
     .shot-viewer-toolbar {
       display: flex;
@@ -296,10 +298,10 @@
       padding: 0;
       touch-action: pan-x pan-y;
       overscroll-behavior: contain;
-      border: 3px solid var(--line);
+      border: 0;
       border-radius: 18px;
-      background: var(--panel);
-      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 12%, transparent);
+      background: transparent;
+      box-shadow: none;
     }
     .shot-viewer-stage img {
       display: block;
@@ -309,7 +311,7 @@
       max-height: none;
       object-fit: cover;
       object-position: center;
-      border-radius: 0;
+      border-radius: 18px;
       background: var(--panel);
       user-select: none;
       -webkit-user-drag: none;
@@ -791,15 +793,13 @@
 
 <nav>
   <div class="wrap">
-    <a class="nav-brand" href="index.html" aria-label="Home">
+    <a class="nav-brand" href="index.html" aria-label="Labby website">
       <img class="nav-logo" src="images/logo.svg" alt="" />
-      <span class="nav-name">Home</span>
       <span class="nav-badge">Wiki</span>
     </a>
     <div class="nav-links">
       <a class="btn btn-secondary" href="index.html">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.75L12 3l9 6.75V21a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.75z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        <span class="btn-label">Home</span>
       </a>
       <a class="btn btn-secondary" href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -866,6 +866,26 @@
 
       <div class="wiki-content" id="wiki-content"></div>
     </div>
+  </div>
+</div>
+
+
+<div class="shot-viewer" id="shot-viewer" aria-hidden="true">
+  <div class="shot-viewer-backdrop" data-close-viewer></div>
+  <div class="shot-viewer-dialog" role="dialog" aria-modal="true" aria-labelledby="shot-viewer-title">
+    <div class="shot-viewer-toolbar">
+      <div>
+        <div class="shot-viewer-title" id="shot-viewer-title">Image Viewer</div>
+        <div class="shot-viewer-meta" id="shot-viewer-meta">1 / 1</div>
+      </div>
+      <button class="btn btn-secondary shot-viewer-close" type="button" id="shot-viewer-close">✕ Close</button>
+    </div>
+    <div class="shot-viewer-main">
+      <button class="shot-viewer-nav shot-viewer-prev" type="button" id="shot-viewer-prev" aria-label="Previous image">‹</button>
+      <div class="shot-viewer-stage" id="shot-viewer-stage"><img id="shot-viewer-image" src="" alt="" /></div>
+      <button class="shot-viewer-nav shot-viewer-next" type="button" id="shot-viewer-next" aria-label="Next image">›</button>
+    </div>
+    <div class="shot-viewer-footer"><div class="shot-viewer-thumbs" id="shot-viewer-thumbs"></div></div>
   </div>
 </div>
 
@@ -1185,7 +1205,6 @@ Connected devices are listed on hardware cards</pre>
         <li>Write inventory or rack updates when the key has write permission</li>
         <li>Submit live status updates for existing resources</li>
         <li>Run ping checks through the Labby backend when allowed</li>
-        <li>Read or write saved credentials, including SSH private keys, only when explicit credential scopes are granted</li>
         <li>Synchronize data from external tools or scripts</li>
         <li>Restore encrypted API key records through Config Import when the export key is available</li>
       </ul>
@@ -1603,20 +1622,23 @@ docker compose up -d</pre>
       const shots = figures.map((figure) => {
         const img = figure.querySelector('img');
         const caption = figure.querySelector('figcaption')?.textContent?.trim() || img?.alt || 'Image';
-        return { src: img?.getAttribute('src') || img?.src, title: img?.alt || caption, caption };
-      }).filter(shot => shot.src);
+        const rawSrc = img?.currentSrc || img?.getAttribute('src') || img?.src;
+        return rawSrc ? { src: new URL(rawSrc, window.location.href).href, title: img?.alt || caption, caption } : null;
+      }).filter(Boolean);
       figures.forEach((figure, index) => {
         const img = figure.querySelector('img');
-        if (!img) return;
+        if (!img || img.dataset.lightboxBound === 'true') return;
+        img.dataset.lightboxBound = 'true';
         img.classList.add('image-zoomable');
-        img.tabIndex = 0;
+        figure.classList.add('image-zoomable-trigger');
+        figure.tabIndex = 0;
         const openGrouped = (event) => {
           event.preventDefault();
           event.stopPropagation();
           openWikiViewer(shots, index);
         };
-        img.addEventListener('click', openGrouped);
-        img.addEventListener('keydown', (event) => {
+        figure.addEventListener('click', openGrouped);
+        figure.addEventListener('keydown', (event) => {
           if (event.key === 'Enter' || event.key === ' ') openGrouped(event);
         });
       });
@@ -1627,18 +1649,21 @@ docker compose up -d</pre>
     content.querySelectorAll('img').forEach((img) => {
       if (img.closest('.wiki-shot-grid') || img.closest('.shot-viewer')) return;
       if (img.dataset.lightboxBound === 'true') return;
-      const src = img.currentSrc || img.getAttribute('src') || img.src;
-      if (!src) return;
+      const rawSrc = img.currentSrc || img.getAttribute('src') || img.src;
+      if (!rawSrc) return;
+      const src = new URL(rawSrc, window.location.href).href;
       img.dataset.lightboxBound = 'true';
       img.classList.add('image-zoomable');
-      img.tabIndex = 0;
+      const trigger = img.closest('a, figure') || img;
+      trigger.classList.add('image-zoomable-trigger');
+      if (trigger.tagName !== 'A') trigger.tabIndex = 0;
       const openStandalone = (event) => {
         event.preventDefault();
         event.stopPropagation();
         openWikiViewer([{ src, title: img.alt || 'Image', caption: img.alt || 'Image' }], 0);
       };
-      img.addEventListener('click', openStandalone);
-      img.addEventListener('keydown', (event) => {
+      trigger.addEventListener('click', openStandalone);
+      trigger.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' || event.key === ' ') openStandalone(event);
       });
     });
@@ -1711,25 +1736,6 @@ docker compose up -d</pre>
 })();
 </script>
 
-
-<div class="shot-viewer" id="shot-viewer" aria-hidden="true">
-  <div class="shot-viewer-backdrop" data-close-viewer></div>
-  <div class="shot-viewer-dialog" role="dialog" aria-modal="true" aria-labelledby="shot-viewer-title">
-    <div class="shot-viewer-toolbar">
-      <div>
-        <div class="shot-viewer-title" id="shot-viewer-title">Image Viewer</div>
-        <div class="shot-viewer-meta" id="shot-viewer-meta">1 / 1</div>
-      </div>
-      <button class="btn btn-secondary shot-viewer-close" type="button" id="shot-viewer-close">✕ Close</button>
-    </div>
-    <div class="shot-viewer-main">
-      <button class="shot-viewer-nav shot-viewer-prev" type="button" id="shot-viewer-prev" aria-label="Previous image">‹</button>
-      <div class="shot-viewer-stage" id="shot-viewer-stage"><img id="shot-viewer-image" src="" alt="" /></div>
-      <button class="shot-viewer-nav shot-viewer-next" type="button" id="shot-viewer-next" aria-label="Next image">›</button>
-    </div>
-    <div class="shot-viewer-footer"><div class="shot-viewer-thumbs" id="shot-viewer-thumbs"></div></div>
-  </div>
-</div>
 
 <!-- mobile FAB + drawer -->
 <button class="wiki-fab" id="wiki-fab" aria-label="Open wiki menu">

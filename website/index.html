@@ -169,11 +169,11 @@
     }
     .demo-loader-track {
       position: relative;
-      height: 34px;
+      height: 40px;
       border: 3px solid var(--line);
       border-radius: 999px;
       background: var(--panel);
-      overflow: hidden;
+      overflow: visible;
       box-shadow: var(--shadow);
     }
     .demo-loader-fill {
@@ -186,10 +186,12 @@
       position: absolute;
       left: 0;
       top: 50%;
-      width: 28px;
-      height: 28px;
-      transform: translate(-2px, -50%);
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,.18));
+      z-index: 2;
+      width: 50px;
+      height: 50px;
+      transform: translate(-10px, -50%);
+      filter: drop-shadow(0 3px 6px rgba(0,0,0,.18));
+      pointer-events: none;
     }
     .demo-loader-note {
       margin-top: .85rem;
@@ -201,8 +203,8 @@
       to { width: 100%; }
     }
     @keyframes demoLogoRide {
-      from { left: 0%; transform: translate(-2px, -50%); }
-      to { left: 100%; transform: translate(calc(-100% + 2px), -50%); }
+      from { left: 0%; transform: translate(-10px, -50%); }
+      to { left: 100%; transform: translate(calc(-100% + 10px), -50%); }
     }
 
     .nav-links { display: flex; gap: .5rem; }
@@ -511,7 +513,7 @@
     }
     .shot-viewer-dialog {
       position: relative;
-      width: min(1180px, 100%);
+      width: min(1180px, calc(100vw - 2.5rem));
       max-height: min(90vh, 100%);
       display: flex;
       flex-direction: column;
@@ -520,7 +522,7 @@
       border: 3px solid var(--line);
       border-radius: 22px;
       box-shadow: 0 24px 60px rgba(0,0,0,.28);
-      padding: 1rem;
+      padding: .7rem;
     }
     .shot-viewer-toolbar {
       display: flex;
@@ -561,10 +563,10 @@
       touch-action: pan-x pan-y;
       overscroll-behavior: contain;
       scrollbar-gutter: stable both-edges;
-      border: 3px solid var(--line);
+      border: 0;
       border-radius: 18px;
-      background: var(--panel);
-      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 12%, transparent);
+      background: transparent;
+      box-shadow: none;
     }
     .shot-viewer-stage img {
       display: block;
@@ -574,7 +576,7 @@
       max-height: none;
       object-fit: cover;
       object-position: center;
-      border-radius: 0;
+      border-radius: 18px;
       background: var(--panel);
       user-select: none;
       -webkit-user-drag: none;
@@ -876,7 +878,6 @@
   <div class="wrap">
     <a class="nav-brand" href="index.html" aria-label="Home">
       <img class="nav-logo" src="images/logo.svg" alt="" />
-      <span class="nav-name">Home</span>
     </a>
     <div class="nav-links">
       <a class="btn btn-secondary" href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener">
@@ -1071,7 +1072,6 @@
           <li>Write inventory and rack updates only when explicitly allowed</li>
           <li>Submit live status updates from external monitoring agents</li>
           <li>Run ping checks with scoped permission</li>
-          <li>Read or write saved credentials, including SSH keys, only with explicit credential scopes</li>
           <li>Restore encrypted API key records through config import when the export key is provided</li>
         </ul>
         <div class="api-spotlight-actions">
@@ -1447,17 +1447,21 @@ docker compose up --build -d</pre>
     Array.from(document.querySelectorAll('img')).forEach((img) => {
       if (img.dataset.lightboxBound === 'true') return;
       if (img.closest('.gallery-item') || img.closest('.shot-viewer') || img.classList.contains('nav-logo') || img.classList.contains('demo-loader-logo')) return;
-      if (!img.currentSrc && !img.getAttribute('src')) return;
+      const rawSrc = img.currentSrc || img.getAttribute('src') || img.src;
+      if (!rawSrc) return;
+      const src = new URL(rawSrc, window.location.href).href;
       img.dataset.lightboxBound = 'true';
       img.classList.add('image-zoomable');
-      img.tabIndex = 0;
+      const trigger = img.closest('a, figure, .screenshot-card, .api-spotlight-shot') || img;
+      trigger.classList.add('image-zoomable-trigger');
+      if (trigger.tagName !== 'A') trigger.tabIndex = 0;
       const openStandalone = (event) => {
         event.preventDefault();
         event.stopPropagation();
-        openViewer(0, [{ src: img.currentSrc || img.src, title: img.alt || 'Image', caption: img.alt || 'Image', wikiHref: '' }], false);
+        openViewer(0, [{ src, title: img.alt || 'Image', caption: img.alt || 'Image', wikiHref: '' }], false);
       };
-      img.addEventListener('click', openStandalone);
-      img.addEventListener('keydown', (event) => {
+      trigger.addEventListener('click', openStandalone);
+      trigger.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' || event.key === ' ') openStandalone(event);
       });
     });
