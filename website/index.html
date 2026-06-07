@@ -142,6 +142,69 @@
       font: 700 1rem/1 'Space Mono', monospace;
       color: var(--text);
     }
+    .nav-logo {
+      width: 24px;
+      height: 24px;
+      display: block;
+    }
+    .demo-transition {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: none;
+      place-items: center;
+      background: color-mix(in srgb, var(--phone) 96%, white);
+      color: var(--text);
+    }
+    .demo-transition.is-active { display: grid; }
+    .demo-loader {
+      width: min(420px, calc(100vw - 2rem));
+      text-align: center;
+    }
+    .demo-loader-title {
+      font: 700 1rem/1.3 'Space Mono', monospace;
+      margin-bottom: 1.15rem;
+    }
+    .demo-loader-track {
+      position: relative;
+      height: 34px;
+      border: 3px solid var(--line);
+      border-radius: 999px;
+      background: var(--panel);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .demo-loader-fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 0%;
+      background: var(--yellow);
+      animation: demoProgress 2.55s ease-in-out forwards;
+    }
+    .demo-loader-logo {
+      position: absolute;
+      left: 0;
+      top: 50%;
+      width: 28px;
+      height: 28px;
+      transform: translate(-2px, -50%);
+      animation: demoLogoRide 2.55s ease-in-out forwards;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,.18));
+    }
+    .demo-loader-note {
+      margin-top: .85rem;
+      color: var(--muted);
+      font: 700 .75rem/1.4 'Space Mono', monospace;
+    }
+    @keyframes demoProgress {
+      from { width: 0%; }
+      to { width: 100%; }
+    }
+    @keyframes demoLogoRide {
+      from { left: 0%; transform: translate(-2px, -50%); }
+      to { left: 100%; transform: translate(calc(-100% + 2px), -50%); }
+    }
+
     .nav-links { display: flex; gap: .5rem; }
 
     /* ── button ── */
@@ -414,6 +477,14 @@
       color: var(--muted);
       font: 700 .72rem/1.45 'Space Mono', monospace;
     }
+    .image-zoomable {
+      cursor: zoom-in;
+      transition: transform .15s ease, filter .15s ease;
+    }
+    .image-zoomable:hover {
+      filter: saturate(1.04) contrast(1.02);
+      transform: translateY(-1px);
+    }
 
     /* ── screenshot viewer ── */
     .shot-viewer {
@@ -480,25 +551,26 @@
     }
     .shot-viewer-stage {
       width: 100%;
-      height: 100%;
+      height: min(68vh, 720px);
       display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: auto;
+      align-items: stretch;
+      justify-content: stretch;
+      overflow: hidden;
       -webkit-overflow-scrolling: touch;
-      padding: .35rem;
+      padding: 0;
       touch-action: pan-x pan-y;
       overscroll-behavior: contain;
       scrollbar-gutter: stable both-edges;
     }
     .shot-viewer-stage img {
       display: block;
-      width: auto;
-      height: auto;
-      max-width: 100%;
-      max-height: calc(90vh - 210px);
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      max-height: none;
       object-fit: contain;
-      border-radius: 12px;
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--phone) 94%, white);
       user-select: none;
       -webkit-user-drag: none;
     }
@@ -537,6 +609,19 @@
       padding-bottom: .2rem;
       scroll-snap-type: x proximity;
       -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scrollbar-color: var(--yellow) color-mix(in srgb, var(--phone) 72%, var(--panel));
+    }
+    .shot-viewer-thumbs::-webkit-scrollbar { height: 12px; }
+    .shot-viewer-thumbs::-webkit-scrollbar-track {
+      background: color-mix(in srgb, var(--phone) 72%, var(--panel));
+      border: 2px solid var(--line);
+      border-radius: 999px;
+    }
+    .shot-viewer-thumbs::-webkit-scrollbar-thumb {
+      background: var(--yellow);
+      border: 2px solid var(--line);
+      border-radius: 999px;
     }
     .shot-viewer-thumb {
       flex: 0 0 120px;
@@ -563,6 +648,7 @@
     .shot-viewer-close {
       flex: 0 0 auto;
     }
+    .shot-viewer-wiki-link.is-hidden { display: none; }
 
     /* ── install ── */
     .install-block {
@@ -783,8 +869,9 @@
 <!-- ── nav ── -->
 <nav>
   <div class="wrap">
-    <a class="nav-brand" href="#">
-      <span class="nav-name">Labby</span>
+    <a class="nav-brand" href="index.html" aria-label="Home">
+      <img class="nav-logo" src="../app/images/logo.svg" alt="" />
+      <span class="nav-name">Home</span>
     </a>
     <div class="nav-links">
       <a class="btn btn-secondary" href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener">
@@ -802,6 +889,17 @@
     </div>
   </div>
 </nav>
+
+<div class="demo-transition" id="demo-transition" aria-hidden="true">
+  <div class="demo-loader" role="status" aria-live="polite">
+    <p class="demo-loader-title">Opening Labby Demo</p>
+    <div class="demo-loader-track">
+      <div class="demo-loader-fill"></div>
+      <img class="demo-loader-logo" src="../app/images/logo.svg" alt="" />
+    </div>
+    <p class="demo-loader-note">Preparing the browser-only demo workspace...</p>
+  </div>
+</div>
 
 <!-- ── hero ── -->
 <div class="wrap">
@@ -852,7 +950,7 @@
       </div>
       <div class="feature-card">
         <span class="feature-icon">🗄️</span>
-        <p class="feature-title">Rack View</p>
+        <p class="feature-title">Rack Editor</p>
         <p class="feature-desc">Create locations and racks. Drag components into front and rear rack slots and link them to Labby resources.</p>
       </div>
       <div class="feature-card">
@@ -1234,13 +1332,15 @@ docker compose up --build -d</pre>
   let touchStartX = 0;
   let touchStartY = 0;
 
-  const shots = galleryButtons.map((button, index) => ({
+  let shots = galleryButtons.map((button, index) => ({
     index,
     src: button.dataset.shotSrc,
     title: button.dataset.shotTitle || `Screenshot ${index + 1}`,
     caption: button.querySelector('.gallery-caption')?.textContent?.trim() || button.dataset.shotTitle || `Screenshot ${index + 1}`,
     wikiHref: button.dataset.wikiHref || 'wiki.html'
   }));
+  const galleryShots = shots.slice();
+  let viewerShowsWikiLink = true;
 
   function buildViewerThumbs() {
     viewerThumbs.innerHTML = '';
@@ -1263,7 +1363,10 @@ docker compose up --build -d</pre>
     viewerImage.alt = shot.title;
     viewerTitle.textContent = shot.caption;
     viewerMeta.textContent = `${activeShotIndex + 1} / ${shots.length}`;
-    if (viewerWikiLink) viewerWikiLink.href = shot.wikiHref;
+    if (viewerWikiLink) {
+      viewerWikiLink.href = shot.wikiHref || '#';
+      viewerWikiLink.classList.toggle('is-hidden', !viewerShowsWikiLink || !shot.wikiHref);
+    }
     viewerStage.scrollTo({ left: 0, top: 0, behavior: 'auto' });
     Array.from(viewerThumbs.children).forEach((thumb, thumbIndex) => {
       thumb.classList.toggle('active', thumbIndex === activeShotIndex);
@@ -1273,7 +1376,18 @@ docker compose up --build -d</pre>
     });
   }
 
-  function openViewer(index) {
+  function openViewer(index, overrideShots = null, showWikiLink = true) {
+    if (overrideShots) {
+      shots = overrideShots;
+      viewerShowsWikiLink = showWikiLink;
+      buildViewerThumbs();
+    } else if (shots !== galleryShots) {
+      shots = galleryShots;
+      viewerShowsWikiLink = true;
+      buildViewerThumbs();
+    } else {
+      viewerShowsWikiLink = true;
+    }
     if (!shots.length) return;
     viewer.classList.add('open');
     viewer.setAttribute('aria-hidden', 'false');
@@ -1302,6 +1416,21 @@ docker compose up --build -d</pre>
   });
 
   buildViewerThumbs();
+
+  Array.from(document.querySelectorAll('main img, section img')).forEach((img) => {
+    if (img.closest('.gallery-item') || img.closest('.shot-viewer') || img.classList.contains('nav-logo') || img.classList.contains('demo-loader-logo')) return;
+    img.classList.add('image-zoomable');
+    img.tabIndex = 0;
+    img.addEventListener('click', () => {
+      openViewer(0, [{ src: img.currentSrc || img.src, title: img.alt || 'Image', caption: img.alt || 'Image', wikiHref: '' }], false);
+    });
+    img.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        img.click();
+      }
+    });
+  });
 
   viewerPrev.addEventListener('click', () => showShot(activeShotIndex - 1));
   viewerNext.addEventListener('click', () => showShot(activeShotIndex + 1));

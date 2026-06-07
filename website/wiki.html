@@ -6,7 +6,7 @@
   <link rel="icon" type="image/svg+xml" href="../app/images/logo.svg" />
   <link rel="apple-touch-icon" href="../app/images/logo.svg" />
   <title>Labby Wiki</title>
-  <meta name="description" content="Labby documentation -installation, features, rack view, IP view, themes and more." />
+  <meta name="description" content="Labby documentation -installation, features, rack editor, IP view, themes and more." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
@@ -128,6 +128,69 @@
     nav .wrap { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
     .nav-brand { display: flex; align-items: center; gap: .65rem; text-decoration: none; }
     .nav-name { font: 700 1rem/1 'Space Mono', monospace; color: var(--text); }
+    .nav-logo {
+      width: 24px;
+      height: 24px;
+      display: block;
+    }
+    .demo-transition {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: none;
+      place-items: center;
+      background: color-mix(in srgb, var(--phone) 96%, white);
+      color: var(--text);
+    }
+    .demo-transition.is-active { display: grid; }
+    .demo-loader {
+      width: min(420px, calc(100vw - 2rem));
+      text-align: center;
+    }
+    .demo-loader-title {
+      font: 700 1rem/1.3 'Space Mono', monospace;
+      margin-bottom: 1.15rem;
+    }
+    .demo-loader-track {
+      position: relative;
+      height: 34px;
+      border: 3px solid var(--line);
+      border-radius: 999px;
+      background: var(--panel);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .demo-loader-fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 0%;
+      background: var(--yellow);
+      animation: demoProgress 2.55s ease-in-out forwards;
+    }
+    .demo-loader-logo {
+      position: absolute;
+      left: 0;
+      top: 50%;
+      width: 28px;
+      height: 28px;
+      transform: translate(-2px, -50%);
+      animation: demoLogoRide 2.55s ease-in-out forwards;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,.18));
+    }
+    .demo-loader-note {
+      margin-top: .85rem;
+      color: var(--muted);
+      font: 700 .75rem/1.4 'Space Mono', monospace;
+    }
+    @keyframes demoProgress {
+      from { width: 0%; }
+      to { width: 100%; }
+    }
+    @keyframes demoLogoRide {
+      from { left: 0%; transform: translate(-2px, -50%); }
+      to { left: 100%; transform: translate(calc(-100% + 2px), -50%); }
+    }
+
     .nav-badge {
       font: 700 .68rem/1 'Space Mono', monospace;
       background: var(--yellow);
@@ -163,6 +226,156 @@
     .theme-toggle:hover { transform: translateY(-1px); }
 
 
+
+
+    .wiki-shot img.image-zoomable,
+    .wiki-shot-grid img.image-zoomable { cursor: zoom-in; }
+    .wiki-shot img.image-zoomable:hover,
+    .wiki-shot-grid img.image-zoomable:hover { filter: saturate(1.04) contrast(1.02); }
+
+    .shot-viewer {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.25rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .18s ease;
+    }
+    .shot-viewer.open { opacity: 1; pointer-events: auto; }
+    .shot-viewer-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(13, 16, 21, .84);
+      backdrop-filter: blur(4px);
+    }
+    .shot-viewer-dialog {
+      position: relative;
+      width: min(1180px, 100%);
+      max-height: min(90vh, 100%);
+      display: flex;
+      flex-direction: column;
+      gap: .8rem;
+      background: color-mix(in srgb, var(--panel) 96%, white);
+      border: 3px solid var(--line);
+      border-radius: 22px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.28);
+      padding: 1rem;
+    }
+    .shot-viewer-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .75rem;
+      flex-wrap: wrap;
+    }
+    .shot-viewer-title { font: 700 .92rem/1.2 'Space Mono', monospace; color: var(--text); }
+    .shot-viewer-meta { font: 700 .72rem/1.2 'Space Mono', monospace; color: var(--muted); }
+    .shot-viewer-main {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+      flex: 1;
+      overflow: hidden;
+      border: 2px solid var(--line);
+      border-radius: 18px;
+      background: color-mix(in srgb, var(--phone) 94%, white);
+    }
+    .shot-viewer-stage {
+      width: 100%;
+      height: min(68vh, 720px);
+      display: flex;
+      align-items: stretch;
+      justify-content: stretch;
+      overflow: hidden;
+      padding: 0;
+      touch-action: pan-x pan-y;
+      overscroll-behavior: contain;
+    }
+    .shot-viewer-stage img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      max-height: none;
+      object-fit: contain;
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--phone) 94%, white);
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    .shot-viewer-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 48px;
+      height: 48px;
+      border-radius: 999px;
+      border: 2px solid var(--line);
+      background: color-mix(in srgb, var(--panel) 92%, white);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      font: 700 1.2rem/1 'Space Mono', monospace;
+    }
+    .shot-viewer-nav:hover { transform: translateY(-50%) scale(1.03); }
+    .shot-viewer-prev { left: .9rem; }
+    .shot-viewer-next { right: .9rem; }
+    .shot-viewer-footer { display: flex; align-items: center; justify-content: space-between; gap: .85rem; flex-wrap: wrap; }
+    .shot-viewer-thumbs {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      gap: .65rem;
+      overflow-x: auto;
+      padding-bottom: .35rem;
+      scroll-snap-type: x proximity;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scrollbar-color: var(--yellow) color-mix(in srgb, var(--phone) 72%, var(--panel));
+    }
+    .shot-viewer-thumbs::-webkit-scrollbar { height: 12px; }
+    .shot-viewer-thumbs::-webkit-scrollbar-track {
+      background: color-mix(in srgb, var(--phone) 72%, var(--panel));
+      border: 2px solid var(--line);
+      border-radius: 999px;
+    }
+    .shot-viewer-thumbs::-webkit-scrollbar-thumb {
+      background: var(--yellow);
+      border: 2px solid var(--line);
+      border-radius: 999px;
+    }
+    .shot-viewer-thumb {
+      flex: 0 0 120px;
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+      overflow: hidden;
+      cursor: pointer;
+      opacity: .78;
+      transition: opacity .15s ease, transform .15s ease, border-color .15s ease;
+      scroll-snap-align: start;
+    }
+    .shot-viewer-thumb.active { opacity: 1; border-color: var(--yellow); transform: translateY(-1px); }
+    .shot-viewer-thumb img { width: 100%; height: 68px; object-fit: cover; display: block; }
+    .shot-viewer-close { flex: 0 0 auto; }
+    @media (max-width: 720px) {
+      .shot-viewer { padding: .65rem; }
+      .shot-viewer-dialog { border-radius: 18px; padding: .75rem; max-height: 94vh; }
+      .shot-viewer-stage { height: min(62vh, 620px); }
+      .shot-viewer-nav { width: 42px; height: 42px; }
+      .shot-viewer-prev { left: .45rem; }
+      .shot-viewer-next { right: .45rem; }
+      .shot-viewer-thumb { flex-basis: 96px; }
+      .shot-viewer-thumb img { height: 56px; }
+    }
 
     /* ── footer ── */
     footer {
@@ -321,6 +534,26 @@
       color: var(--muted);
       font: 700 .7rem/1.35 'Space Mono', monospace;
     }
+
+    .wiki-shot-grid.mobile-ux-row {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: .65rem;
+    }
+    .wiki-shot-grid.mobile-ux-row .wiki-shot img {
+      aspect-ratio: 9 / 16;
+      object-fit: cover;
+      object-position: top center;
+    }
+    .wiki-shot-grid.mobile-ux-row .wiki-shot figcaption {
+      font-size: .62rem;
+      padding: .45rem .5rem;
+    }
+    @media (max-width: 640px) {
+      .wiki-shot-grid.mobile-ux-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .35rem; }
+      .wiki-shot-grid.mobile-ux-row .wiki-shot { border-radius: 10px; }
+      .wiki-shot-grid.mobile-ux-row .wiki-shot figcaption { font-size: .52rem; padding: .35rem .3rem; }
+    }
+
     @media (max-width: 640px) {
       .wiki-shot-grid { grid-template-columns: 1fr; }
     }
@@ -526,7 +759,8 @@
 
     @media (max-width: 640px) {
       nav .wrap { gap: .5rem; }
-      .nav-brand { display: none; }
+      .nav-brand .nav-name,
+      .nav-brand .nav-badge { display: none; }
       .wrap { width: min(calc(100% - 1.25rem), 1100px); }
       .nav-links, .footer-links { gap: .45rem; }
       .nav-links .btn,
@@ -552,8 +786,9 @@
 
 <nav>
   <div class="wrap">
-    <a class="nav-brand" href="index.html">
-      <span class="nav-name">Labby</span>
+    <a class="nav-brand" href="index.html" aria-label="Home">
+      <img class="nav-logo" src="../app/images/logo.svg" alt="" />
+      <span class="nav-name">Home</span>
       <span class="nav-badge">Wiki</span>
     </a>
     <div class="nav-links">
@@ -575,6 +810,17 @@
   </div>
 </nav>
 
+<div class="demo-transition" id="demo-transition" aria-hidden="true">
+  <div class="demo-loader" role="status" aria-live="polite">
+    <p class="demo-loader-title">Opening Labby Demo</p>
+    <div class="demo-loader-track">
+      <div class="demo-loader-fill"></div>
+      <img class="demo-loader-logo" src="../app/images/logo.svg" alt="" />
+    </div>
+    <p class="demo-loader-note">Preparing the browser-only demo workspace...</p>
+  </div>
+</div>
+
 <div class="wiki-page">
   <div class="wrap">
     <div class="wiki-layout">
@@ -593,7 +839,7 @@
             <a class="wiki-nav-link" href="#" data-page="features">Features</a>
             <a class="wiki-nav-link" href="#" data-page="mobileux">Mobile UX</a>
             <a class="wiki-nav-link" href="#" data-page="topologycards">Topology Cards</a>
-            <a class="wiki-nav-link" href="#" data-page="rackview">Rack View</a>
+            <a class="wiki-nav-link" href="#" data-page="rackview">Rack Editor</a>
             <a class="wiki-nav-link" href="#" data-page="treegraph">Tree &amp; Graph View</a>
             <a class="wiki-nav-link" href="#" data-page="ipview">IP View</a>
             <a class="wiki-nav-link" href="#" data-page="themes">Themes</a>
@@ -651,7 +897,7 @@ btn.addEventListener('click', () => {
         <li>🖥️ Resource tracking for Hardware, VMs, LXCs, Apps and Networks</li>
         <li>🌐 Topology cards with inline details, Edit/Delete actions and optional live checks</li>
         <li>🌳 Relationship Tree view for host, guest, app and network structure</li>
-        <li>🗄️ Rack View with locations, racks, front/rear layouts and linked resources</li>
+        <li>🗄️ Rack Editor with locations, racks, front/rear layouts and linked resources</li>
         <li>🎨 Built-in themes, the redesigned custom theme editor and the Matrix theme</li>
         <li>📱 Mobile bottom navigation: Boards, Add, Rack, IP and More</li>
         <li>🧱 Technical Structure page with architecture overview and file layout</li>
@@ -670,7 +916,7 @@ docker compose up --build -d</pre>
         <li>Quick Start</li>
         <li>Topology Cards</li>
         <li>Mobile UX</li>
-        <li>Rack View</li>
+        <li>Rack Editor</li>
         <li>Console</li>
         <li>Config, Import &amp; Export</li>
         <li>External Reachability and access protection</li>
@@ -790,7 +1036,7 @@ Hosted on: docker-01</pre>
       <div class="arch-list">
         <div>
           <strong>Frontend</strong>
-          <p>Contains the complete UI: Topology, Add/Edit forms, Rack View, IP View, Tree View, Config, Themes and mobile navigation.</p>
+          <p>Contains the complete UI: Topology, Add/Edit forms, Rack Editor, IP View, Tree View, Config, Themes and mobile navigation.</p>
         </div>
         <div>
           <strong>Backend</strong>
@@ -836,7 +1082,7 @@ docker-compose.yml</pre>
         <li>🖥️ Resource tracking for Hardware, VMs, LXCs, Apps and Networks</li>
         <li>🌐 Topology cards with Search, Type filter, Details, Edit and Delete</li>
         <li>🌳 Tree relationship view</li>
-        <li>🗄️ Rack View with physical rack placement</li>
+        <li>🗄️ Rack Editor with physical rack placement</li>
         <li>🎨 Theme presets and custom theme editor</li>
         <li>🧠 Automatic network matching by IP/CIDR</li>
         <li>📡 Optional Live IP and Live URL checks</li>
@@ -858,11 +1104,16 @@ docker-compose.yml</pre>
     `},
     mobileux:{title:'📱 Mobile UX',content:`
       <p>Mobile is designed as its own app-like flow, not a shrunken desktop layout.</p>
+      <div class="wiki-shot-grid mobile-ux-row">
+        <figure class="wiki-shot"><img src="images/labby-mobile-startscreen.png" alt="Mobile start screen" loading="lazy" /><figcaption>Start</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-mobile-menu.png" alt="Mobile More menu" loading="lazy" /><figcaption>More</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-mobile-config.png" alt="Mobile config" loading="lazy" /><figcaption>Config</figcaption></figure>
+      </div>
       <h2>Bottom Navigation</h2>
       <ul>
         <li><strong>Boards</strong> - opens the Topology card view</li>
         <li><strong>Add</strong> - opens the resource form without auto-focusing the first field</li>
-        <li><strong>Rack</strong> - opens Rack View and Rack Editor</li>
+        <li><strong>Rack</strong> - opens the Rack Editor</li>
         <li><strong>IP</strong> - opens the IP overview</li>
         <li><strong>More</strong> - opens Tree, Config and Themes in a clean sheet</li>
       </ul>
@@ -1056,27 +1307,21 @@ docker compose build --no-cache
 docker compose up -d</pre>
     `},
 
-    rackview:{title:'🗄️ Rack View',content:`
-      <p>Rack View documents the physical side of your homelab: locations, racks, rack units and linked resources.</p>
+    rackview:{title:'🗄️ Rack Editor',content:`
+      <p>Rack Editor documents the physical side of your homelab: locations, racks, rack units, front/rear layouts, components and linked resources. There is no separate Rack View anymore; the Rack tab opens the editor workspace directly.</p>
       <div class="wiki-shot-grid">
-        <figure class="wiki-shot"><img src="images/labby-rack-editor.png" alt="Rack Editor" loading="lazy" /><figcaption>Rack Editor</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-rack-editor.png" alt="Rack Editor" loading="lazy" /><figcaption>Rack Editor workspace</figcaption></figure>
       </div>
-      <h2>Desktop Rack View</h2>
-      <ul>
-        <li>Create and edit locations</li>
-        <li>Create and edit racks</li>
-        <li>Select a location and open rack cards</li>
-        <li>Open the Rack Editor from a rack card</li>
-      </ul>
       <h2>Desktop Rack Editor</h2>
       <ul>
-        <li>Component palette on the left</li>
-        <li>Front and rear rack layouts side by side</li>
+        <li>Locations and racks are managed in the left column</li>
+        <li>Front and rear rack layouts are shown in the main workspace</li>
+        <li>Components are available from the component palette</li>
         <li>Drag components into free rack slots</li>
-        <li>Remove components with the slot remove action</li>
-        <li>Link placed components to Labby resources</li>
+        <li>Assign placed components to Labby resources with the centered assignment popup</li>
+        <li>Assign router, gateway, switch and PDU ports to connected devices where port data is configured</li>
       </ul>
-      <h2>Mobile Rack View</h2>
+      <h2>Mobile Rack Editor</h2>
       <ul>
         <li>Rack has its own bottom-nav tab</li>
         <li>Front and Rear are switched with tabs</li>
@@ -1088,7 +1333,7 @@ docker compose up -d</pre>
       <h2>Supported Rack Components</h2>
       <ul>
         <li>1U / 2U / 4U servers and multi-PC rows</li>
-        <li>Router, Switch, Patch Panel</li>
+        <li>Router, Gateway, Switch, Patch Panel</li>
         <li>Cable Management, UPS, PDU, KVM and Blank panels</li>
       </ul>
       <h2>Backup</h2>
@@ -1234,6 +1479,19 @@ docker compose up -d</pre>
 
   const content = document.getElementById('wiki-content');
   const links   = document.querySelectorAll('.wiki-nav-link');
+  const viewer = document.getElementById('shot-viewer');
+  const viewerImage = document.getElementById('shot-viewer-image');
+  const viewerTitle = document.getElementById('shot-viewer-title');
+  const viewerMeta = document.getElementById('shot-viewer-meta');
+  const viewerThumbs = document.getElementById('shot-viewer-thumbs');
+  const viewerStage = document.getElementById('shot-viewer-stage');
+  const viewerClose = document.getElementById('shot-viewer-close');
+  const viewerPrev = document.getElementById('shot-viewer-prev');
+  const viewerNext = document.getElementById('shot-viewer-next');
+  let wikiViewerShots = [];
+  let wikiViewerIndex = 0;
+  let wikiTouchStartX = 0;
+  let wikiTouchStartY = 0;
 
   function openDrawer()  { document.getElementById('wiki-drawer').classList.add('open'); document.getElementById('drawer-overlay').classList.add('open'); }
   function closeDrawer() { document.getElementById('wiki-drawer').classList.remove('open'); document.getElementById('drawer-overlay').classList.remove('open'); }
@@ -1270,11 +1528,77 @@ docker compose up -d</pre>
     });
   }
 
+
+  function buildWikiViewerThumbs() {
+    viewerThumbs.innerHTML = '';
+    wikiViewerShots.forEach((shot, index) => {
+      const thumb = document.createElement('button');
+      thumb.type = 'button';
+      thumb.className = 'shot-viewer-thumb';
+      thumb.setAttribute('aria-label', `Open ${shot.title}`);
+      thumb.innerHTML = `<img src="${shot.src}" alt="${shot.title}" />`;
+      thumb.addEventListener('click', () => showWikiViewerShot(index));
+      viewerThumbs.appendChild(thumb);
+    });
+  }
+
+  function showWikiViewerShot(index) {
+    if (!wikiViewerShots.length) return;
+    wikiViewerIndex = (index + wikiViewerShots.length) % wikiViewerShots.length;
+    const shot = wikiViewerShots[wikiViewerIndex];
+    viewerImage.src = shot.src;
+    viewerImage.alt = shot.title;
+    viewerTitle.textContent = shot.caption || shot.title;
+    viewerMeta.textContent = `${wikiViewerIndex + 1} / ${wikiViewerShots.length}`;
+    Array.from(viewerThumbs.children).forEach((thumb, thumbIndex) => {
+      thumb.classList.toggle('active', thumbIndex === wikiViewerIndex);
+      if (thumbIndex === wikiViewerIndex) thumb.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    });
+    viewerStage.scrollTo({ left: 0, top: 0, behavior: 'auto' });
+  }
+
+  function openWikiViewer(shots, index = 0) {
+    wikiViewerShots = shots;
+    buildWikiViewerThumbs();
+    viewer.classList.add('open');
+    viewer.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    showWikiViewerShot(index);
+  }
+
+  function closeWikiViewer() {
+    viewer.classList.remove('open');
+    viewer.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+
+  function enhanceWikiImages() {
+    content.querySelectorAll('.wiki-shot-grid').forEach(grid => {
+      const figures = Array.from(grid.querySelectorAll('.wiki-shot'));
+      const shots = figures.map((figure) => {
+        const img = figure.querySelector('img');
+        const caption = figure.querySelector('figcaption')?.textContent?.trim() || img?.alt || 'Image';
+        return { src: img?.getAttribute('src') || img?.src, title: img?.alt || caption, caption };
+      }).filter(shot => shot.src);
+      figures.forEach((figure, index) => {
+        const img = figure.querySelector('img');
+        if (!img) return;
+        img.classList.add('image-zoomable');
+        img.tabIndex = 0;
+        img.addEventListener('click', () => openWikiViewer(shots, index));
+        img.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); img.click(); }
+        });
+      });
+    });
+  }
+
   function showPage(id, updateHash = true) {
     const p = PAGES[id]; if (!p) return;
     content.innerHTML = '<h1>' + p.title + '</h1>' + p.content;
     normalizeWikiShotGrids();
     wrapCodeBlocks();
+    enhanceWikiImages();
     // update active on both sidebar and drawer
     document.querySelectorAll('.wiki-nav-link').forEach(l =>
       l.classList.toggle('active', l.dataset.page === id)
@@ -1289,6 +1613,30 @@ docker compose up -d</pre>
 
   showPage(location.hash ? location.hash.slice(1) : 'home', false);
   window.addEventListener('hashchange', () => showPage(location.hash.slice(1) || 'home', false));
+  viewerPrev.addEventListener('click', () => showWikiViewerShot(wikiViewerIndex - 1));
+  viewerNext.addEventListener('click', () => showWikiViewerShot(wikiViewerIndex + 1));
+  viewerClose.addEventListener('click', closeWikiViewer);
+  viewer.querySelectorAll('[data-close-viewer]').forEach(node => node.addEventListener('click', closeWikiViewer));
+  document.addEventListener('keydown', (event) => {
+    if (!viewer.classList.contains('open')) return;
+    if (event.key === 'Escape') closeWikiViewer();
+    if (event.key === 'ArrowLeft') showWikiViewerShot(wikiViewerIndex - 1);
+    if (event.key === 'ArrowRight') showWikiViewerShot(wikiViewerIndex + 1);
+  });
+  viewerStage.addEventListener('touchstart', (event) => {
+    const touch = event.changedTouches[0];
+    wikiTouchStartX = touch.clientX;
+    wikiTouchStartY = touch.clientY;
+  }, { passive: true });
+  viewerStage.addEventListener('touchend', (event) => {
+    const touch = event.changedTouches[0];
+    const diffX = touch.clientX - wikiTouchStartX;
+    const diffY = touch.clientY - wikiTouchStartY;
+    if (Math.abs(diffX) > 45 && Math.abs(diffX) > Math.abs(diffY)) {
+      if (diffX < 0) showWikiViewerShot(wikiViewerIndex + 1);
+      else showWikiViewerShot(wikiViewerIndex - 1);
+    }
+  }, { passive: true });
 
   // wire up FAB + drawer AFTER full DOM is ready
   document.addEventListener('DOMContentLoaded', function() {
@@ -1311,6 +1659,26 @@ docker compose up -d</pre>
   });
 })();
 </script>
+
+
+<div class="shot-viewer" id="shot-viewer" aria-hidden="true">
+  <div class="shot-viewer-backdrop" data-close-viewer></div>
+  <div class="shot-viewer-dialog" role="dialog" aria-modal="true" aria-labelledby="shot-viewer-title">
+    <div class="shot-viewer-toolbar">
+      <div>
+        <div class="shot-viewer-title" id="shot-viewer-title">Image Viewer</div>
+        <div class="shot-viewer-meta" id="shot-viewer-meta">1 / 1</div>
+      </div>
+      <button class="btn btn-secondary shot-viewer-close" type="button" id="shot-viewer-close">✕ Close</button>
+    </div>
+    <div class="shot-viewer-main">
+      <button class="shot-viewer-nav shot-viewer-prev" type="button" id="shot-viewer-prev" aria-label="Previous image">‹</button>
+      <div class="shot-viewer-stage" id="shot-viewer-stage"><img id="shot-viewer-image" src="" alt="" /></div>
+      <button class="shot-viewer-nav shot-viewer-next" type="button" id="shot-viewer-next" aria-label="Next image">›</button>
+    </div>
+    <div class="shot-viewer-footer"><div class="shot-viewer-thumbs" id="shot-viewer-thumbs"></div></div>
+  </div>
+</div>
 
 <!-- mobile FAB + drawer -->
 <button class="wiki-fab" id="wiki-fab" aria-label="Open wiki menu">
