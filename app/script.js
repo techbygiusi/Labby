@@ -55,9 +55,6 @@ const switchLinksWrap = document.getElementById('switch-links-wrap');
 const switchLinks = document.getElementById('switch-links');
 const switchDeviceLinksWrap = document.getElementById('switch-device-links-wrap');
 const switchDeviceLinks = document.getElementById('switch-device-links');
-const routerSwitchesSummary = document.getElementById('router-switches-summary');
-const switchLinksSummary = document.getElementById('switch-links-summary');
-const switchDeviceLinksSummary = document.getElementById('switch-device-links-summary');
 const nasSharesWrap = document.getElementById('nas-shares-wrap');
 const nasShares = document.getElementById('nas-shares');
 const addShareBtn = document.getElementById('add-share');
@@ -2538,55 +2535,83 @@ function refreshAppHostOptions() {
   appHostedOnSelect.value = selected;
 }
 
+function hardwareInfraOptions() {
+  return items.filter((item) => item.type === 'hardware' && ['router-gateway', 'switch'].includes(item.hardwareKind) && item.id !== editingId);
+}
+
+function formatInfraOption(item, selectedIds = []) {
+  const ports = item.switchPorts ? ` (${item.switchPorts} ports)` : '';
+  return `${selectedIds.includes(item.id) ? '✓ ' : ''}${item.name} (${hardwareTypeLabel(item.hardwareKind)})${ports}`;
+}
+
+function formatConnectionDeviceOption(item, selectedIds = []) {
+  return `${selectedIds.includes(item.id) ? '✓ ' : ''}${item.name} (${hardwareTypeLabel(item.hardwareKind)})`;
+}
+
+function updateConnectionSelectLabels(select) {
+  if (!select) return;
+  const selected = getMultiValues(select);
+  [...select.options].forEach((option) => {
+    const item = findById(option.value);
+    if (!item) return;
+    option.textContent = select === switchDeviceLinks
+      ? formatConnectionDeviceOption(item, selected)
+      : formatInfraOption(item, selected);
+  });
+}
+
 function refreshHardwareConnectionOptions() {
   const selectedRouter = getMultiValues(routerSwitches);
-  const selectedSwitches = getMultiValues(switchLinks);
+  const selectedInfra = getMultiValues(switchLinks);
   const selectedDevices = getMultiValues(switchDeviceLinks);
 
-  const switches = items.filter((item) => item.type === 'hardware' && item.hardwareKind === 'switch' && item.id !== editingId);
+  const infra = hardwareInfraOptions();
   routerSwitches.innerHTML = '';
   switchLinks.innerHTML = '';
-  switches.forEach((sw) => {
+  infra.forEach((entry) => {
     const option = document.createElement('option');
-    option.value = sw.id;
-    option.textContent = `${selectedRouter.includes(sw.id) ? '✓ ' : ''}${sw.name}${sw.switchPorts ? ` (${sw.switchPorts} ports)` : ''}`;
-    const switchOption = option.cloneNode(true);
-    switchOption.textContent = `${selectedSwitches.includes(sw.id) ? '✓ ' : ''}${sw.name}${sw.switchPorts ? ` (${sw.switchPorts} ports)` : ''}`;
+    option.value = entry.id;
+    option.textContent = formatInfraOption(entry, selectedRouter);
+    const switchOption = document.createElement('option');
+    switchOption.value = entry.id;
+    switchOption.textContent = formatInfraOption(entry, selectedInfra);
     routerSwitches.appendChild(option);
     switchLinks.appendChild(switchOption);
   });
 
   switchDeviceLinks.innerHTML = '';
   items
-    .filter((item) => item.type === 'hardware' && item.id !== editingId)
+    .filter((item) => item.type === 'hardware' && !['router-gateway', 'switch'].includes(item.hardwareKind) && item.id !== editingId)
     .forEach((device) => {
       const option = document.createElement('option');
       option.value = device.id;
-      option.textContent = `${selectedDevices.includes(device.id) ? '✓ ' : ''}${device.name} (${hardwareTypeLabel(device.hardwareKind)})${device.switchPorts ? ` · ${device.switchPorts} ports` : ''}`;
+      option.textContent = formatConnectionDeviceOption(device, selectedDevices);
       switchDeviceLinks.appendChild(option);
     });
 
   setMultiValues(routerSwitches, selectedRouter);
-  setMultiValues(switchLinks, selectedSwitches);
+  setMultiValues(switchLinks, selectedInfra);
   setMultiValues(switchDeviceLinks, selectedDevices);
-  updateConnectionSummaries();
+  updateConnectionSelectLabels(routerSwitches);
+  updateConnectionSelectLabels(switchLinks);
+  updateConnectionSelectLabels(switchDeviceLinks);
 }
 
-function updateConnectionSummaries() {
-  const namesFor = (ids) => ids.map(id => findById(id)?.name).filter(Boolean);
-  const setSummary = (el, ids, emptyText = 'Nothing connected yet.') => {
-    if (!el) return;
-    const names = namesFor(ids);
-    el.textContent = names.length ? `Connected: ${names.join(', ')}` : emptyText;
-  };
-  setSummary(routerSwitchesSummary, getMultiValues(routerSwitches), 'No switches connected yet.');
-  setSummary(switchLinksSummary, getMultiValues(switchLinks), 'No upstream switches connected yet.');
-  setSummary(switchDeviceLinksSummary, getMultiValues(switchDeviceLinks), 'No hardware devices connected yet.');
+function enableToggleMultiSelect(select) {
+  if (!select) return;
+  select.addEventListener('mousedown', (event) => {
+    if (event.target?.tagName !== 'OPTION') return;
+    event.preventDefault();
+    const option = event.target;
+    option.selected = !option.selected;
+    updateConnectionSelectLabels(select);
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    requestAnimationFrame(() => updateConnectionSelectLabels(select));
+  });
+  select.addEventListener('change', () => updateConnectionSelectLabels(select));
 }
 
-[routerSwitches, switchLinks, switchDeviceLinks].filter(Boolean).forEach((select) => {
-  select.addEventListener('change', updateConnectionSummaries);
-});
+[routerSwitches, switchLinks, switchDeviceLinks].forEach(enableToggleMultiSelect);
 
 function startEditing(id) {
   const item = findById(id);
@@ -2627,10 +2652,15 @@ function startEditing(id) {
     setMultiValues(routerSwitches, item.connections || []);
   }
   if (item.type === 'hardware' && item.hardwareKind === 'switch') {
-    const switchIds = items.filter((entry) => entry.type === 'hardware' && entry.hardwareKind === 'switch').map((entry) => entry.id);
-    setMultiValues(switchLinks, (item.connections || []).filter((id) => switchIds.includes(id)));
-    setMultiValues(switchDeviceLinks, (item.connections || []).filter((id) => !switchIds.includes(id)));
+    const infraIds = items
+      .filter((entry) => entry.type === 'hardware' && ['router-gateway', 'switch'].includes(entry.hardwareKind))
+      .map((entry) => entry.id);
+    setMultiValues(switchLinks, (item.connections || []).filter((id) => infraIds.includes(id)));
+    setMultiValues(switchDeviceLinks, (item.connections || []).filter((id) => !infraIds.includes(id)));
   }
+  updateConnectionSelectLabels(routerSwitches);
+  updateConnectionSelectLabels(switchLinks);
+  updateConnectionSelectLabels(switchDeviceLinks);
   nasShares.innerHTML = '';
   nasRaids.innerHTML = '';
   ramModules.innerHTML = '';

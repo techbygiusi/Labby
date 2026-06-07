@@ -7550,8 +7550,5 @@ dialog.rack-form-dialog:not([open]) {
 }
 
 .connection-summary {
-  margin-top: 0.35rem;
-  color: var(--muted);
-  font-size: 0.82rem;
-  line-height: 1.35;
+  display: none;
 }
