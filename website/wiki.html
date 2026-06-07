@@ -129,8 +129,8 @@
     .nav-brand { display: flex; align-items: center; gap: .65rem; text-decoration: none; }
     .nav-name { font: 700 1rem/1 'Space Mono', monospace; color: var(--text); }
     .nav-logo {
-      width: 24px;
-      height: 24px;
+      width: 38px;
+      height: 38px;
       display: block;
     }
     .demo-transition {
@@ -160,13 +160,23 @@
       border-radius: 999px;
       background: var(--panel);
       overflow: visible;
+      isolation: isolate;
       box-shadow: var(--shadow);
+    }
+    .demo-loader-fill-clip {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      border-radius: inherit;
+      z-index: 1;
     }
     .demo-loader-fill {
       position: absolute;
       inset: 0 auto 0 0;
       width: 0%;
+      height: 100%;
       background: var(--yellow);
+      border-radius: 999px;
     }
     .demo-loader-logo {
       position: absolute;
@@ -333,8 +343,8 @@
       font: 700 1.2rem/1 'Space Mono', monospace;
     }
     .shot-viewer-nav:hover { transform: translateY(-50%) scale(1.03); }
-    .shot-viewer-prev { left: .9rem; }
-    .shot-viewer-next { right: .9rem; }
+    .shot-viewer-prev { left: 1.1rem; }
+    .shot-viewer-next { right: 1.1rem; }
     .shot-viewer-footer { display: flex; align-items: center; justify-content: space-between; gap: .85rem; flex-wrap: wrap; }
     .shot-viewer-thumbs {
       flex: 1;
@@ -819,7 +829,7 @@
   <div class="demo-loader" role="status" aria-live="polite">
     <p class="demo-loader-title">Opening Labby Demo</p>
     <div class="demo-loader-track">
-      <div class="demo-loader-fill"></div>
+      <div class="demo-loader-fill-clip"><div class="demo-loader-fill"></div></div>
       <img class="demo-loader-logo" src="images/logo.svg" alt="" />
     </div>
     <p class="demo-loader-note">Preparing the browser-only demo workspace...</p>
@@ -1514,6 +1524,15 @@ docker compose up -d</pre>
   const viewerNext = document.getElementById('shot-viewer-next');
   let wikiViewerShots = [];
   let wikiViewerIndex = 0;
+
+  function syncViewerStageMode() {
+    const naturalWidth = viewerImage.naturalWidth || 0;
+    const naturalHeight = viewerImage.naturalHeight || 0;
+    const isPortrait = naturalHeight > naturalWidth * 1.02;
+    viewerStage.classList.toggle('is-portrait', isPortrait);
+  }
+
+  viewerImage.addEventListener('load', syncViewerStageMode);
   let wikiTouchStartX = 0;
   let wikiTouchStartY = 0;
 
@@ -1592,12 +1611,14 @@ docker compose up -d</pre>
     const shot = wikiViewerShots[wikiViewerIndex];
     viewerImage.src = shot.src;
     viewerImage.alt = shot.title;
+    viewerStage.classList.remove('is-portrait');
     viewerTitle.textContent = shot.caption || shot.title;
     viewerMeta.textContent = `${wikiViewerIndex + 1} / ${wikiViewerShots.length}`;
     Array.from(viewerThumbs.children).forEach((thumb, thumbIndex) => {
       thumb.classList.toggle('active', thumbIndex === wikiViewerIndex);
       if (thumbIndex === wikiViewerIndex) thumb.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
     });
+    if (viewerImage.complete) syncViewerStageMode();
     viewerStage.scrollTo({ left: 0, top: 0, behavior: 'auto' });
   }
 

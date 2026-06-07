@@ -143,8 +143,8 @@
       color: var(--text);
     }
     .nav-logo {
-      width: 24px;
-      height: 24px;
+      width: 38px;
+      height: 38px;
       display: block;
     }
     .demo-transition {
@@ -174,13 +174,23 @@
       border-radius: 999px;
       background: var(--panel);
       overflow: visible;
+      isolation: isolate;
       box-shadow: var(--shadow);
+    }
+    .demo-loader-fill-clip {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      border-radius: inherit;
+      z-index: 1;
     }
     .demo-loader-fill {
       position: absolute;
       inset: 0 auto 0 0;
       width: 0%;
+      height: 100%;
       background: var(--yellow);
+      border-radius: 999px;
     }
     .demo-loader-logo {
       position: absolute;
@@ -547,26 +557,27 @@
       min-height: 0;
       flex: 1;
       overflow: visible;
-      border: 0;
-      border-radius: 0;
-      background: transparent;
+      border: 3px solid var(--line);
+      border-radius: 20px;
+      background: color-mix(in srgb, var(--phone) 86%, var(--panel));
+      padding: .8rem 4.2rem;
     }
     .shot-viewer-stage {
       width: 100%;
       height: min(68vh, 720px);
       display: flex;
-      align-items: stretch;
-      justify-content: stretch;
+      align-items: center;
+      justify-content: center;
       overflow: hidden;
       -webkit-overflow-scrolling: touch;
-      padding: 0;
+      padding: .4rem;
       touch-action: pan-x pan-y;
       overscroll-behavior: contain;
       scrollbar-gutter: stable both-edges;
-      border: 0;
+      border: 3px solid var(--line);
       border-radius: 18px;
-      background: transparent;
-      box-shadow: none;
+      background: var(--panel);
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.04);
     }
     .shot-viewer-stage img {
       display: block;
@@ -576,10 +587,17 @@
       max-height: none;
       object-fit: cover;
       object-position: center;
-      border-radius: 18px;
+      border: 3px solid var(--line);
+      border-radius: 14px;
       background: var(--panel);
       user-select: none;
       -webkit-user-drag: none;
+    }
+    .shot-viewer-stage.is-portrait {
+      background: color-mix(in srgb, var(--phone) 88%, var(--panel));
+    }
+    .shot-viewer-stage.is-portrait img {
+      object-fit: contain;
     }
     .shot-viewer-nav {
       position: absolute;
@@ -598,8 +616,8 @@
       font: 700 1.2rem/1 'Space Mono', monospace;
     }
     .shot-viewer-nav:hover { transform: translateY(-50%) scale(1.03); }
-    .shot-viewer-prev { left: .9rem; }
-    .shot-viewer-next { right: .9rem; }
+    .shot-viewer-prev { left: 1.1rem; }
+    .shot-viewer-next { right: 1.1rem; }
     .shot-viewer-footer {
       display: flex;
       align-items: center;
@@ -900,7 +918,7 @@
   <div class="demo-loader" role="status" aria-live="polite">
     <p class="demo-loader-title">Opening Labby Demo</p>
     <div class="demo-loader-track">
-      <div class="demo-loader-fill"></div>
+      <div class="demo-loader-fill-clip"><div class="demo-loader-fill"></div></div>
       <img class="demo-loader-logo" src="images/logo.svg" alt="" />
     </div>
     <p class="demo-loader-note">Preparing the browser-only demo workspace...</p>
@@ -1358,6 +1376,15 @@ docker compose up --build -d</pre>
   let touchStartX = 0;
   let touchStartY = 0;
 
+  function syncViewerStageMode() {
+    const naturalWidth = viewerImage.naturalWidth || 0;
+    const naturalHeight = viewerImage.naturalHeight || 0;
+    const isPortrait = naturalHeight > naturalWidth * 1.02;
+    viewerStage.classList.toggle('is-portrait', isPortrait);
+  }
+
+  viewerImage.addEventListener('load', syncViewerStageMode);
+
   let shots = galleryButtons.map((button, index) => ({
     index,
     src: button.dataset.shotSrc,
@@ -1387,12 +1414,14 @@ docker compose up --build -d</pre>
     const shot = shots[activeShotIndex];
     viewerImage.src = shot.src;
     viewerImage.alt = shot.title;
+    viewerStage.classList.remove('is-portrait');
     viewerTitle.textContent = shot.caption;
     viewerMeta.textContent = `${activeShotIndex + 1} / ${shots.length}`;
     if (viewerWikiLink) {
       viewerWikiLink.href = shot.wikiHref || '#';
       viewerWikiLink.classList.toggle('is-hidden', !viewerShowsWikiLink || !shot.wikiHref);
     }
+    if (viewerImage.complete) syncViewerStageMode();
     viewerStage.scrollTo({ left: 0, top: 0, behavior: 'auto' });
     Array.from(viewerThumbs.children).forEach((thumb, thumbIndex) => {
       thumb.classList.toggle('active', thumbIndex === activeShotIndex);
