@@ -51,6 +51,32 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
 
+
+    /* ── themed page scrollbar ── */
+    html {
+      scrollbar-width: thin;
+      scrollbar-color: var(--yellow) color-mix(in srgb, var(--phone) 78%, var(--panel));
+    }
+    body::-webkit-scrollbar {
+      width: 14px;
+      height: 14px;
+    }
+    body::-webkit-scrollbar-track {
+      background: color-mix(in srgb, var(--phone) 78%, var(--panel));
+      border-left: 2px solid var(--line);
+    }
+    body::-webkit-scrollbar-thumb {
+      background: var(--yellow);
+      border: 3px solid color-mix(in srgb, var(--phone) 78%, var(--panel));
+      border-radius: 999px;
+    }
+    body::-webkit-scrollbar-thumb:hover {
+      background: color-mix(in srgb, var(--yellow) 86%, var(--text));
+    }
+    body::-webkit-scrollbar-corner {
+      background: color-mix(in srgb, var(--phone) 78%, var(--panel));
+    }
+
     body {
       font-family: Inter, system-ui, sans-serif;
       background: var(--bg-b);
