@@ -836,6 +836,15 @@
       .shot-viewer-prev { left: .45rem; }
       .shot-viewer-next { right: .45rem; }
     }
+
+    .wiki-content .wiki-shot,
+    .wiki-content .wiki-shot img,
+    .wiki-content img {
+      cursor: default;
+      transform: none !important;
+      filter: none !important;
+    }
+
   </style>
 </head>
 <body>
@@ -1676,62 +1685,11 @@ docker compose up -d</pre>
     viewer.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
   }
-
   function enhanceWikiImages() {
-    content.querySelectorAll('.wiki-shot-grid').forEach(grid => {
-      const figures = Array.from(grid.querySelectorAll('.wiki-shot')).filter((figure) => {
-        const img = figure.querySelector('img');
-        const rawSrc = img?.currentSrc || img?.getAttribute('src') || img?.src || '';
-        return !/labby-mobile-/i.test(rawSrc);
-      });
-      const shots = figures.map((figure) => {
-        const img = figure.querySelector('img');
-        const caption = figure.querySelector('figcaption')?.textContent?.trim() || img?.alt || 'Image';
-        const rawSrc = img?.currentSrc || img?.getAttribute('src') || img?.src;
-        return rawSrc ? { src: new URL(rawSrc, window.location.href).href, title: img?.alt || caption, caption } : null;
-      }).filter(Boolean);
-      if (!shots.length) return;
-      figures.forEach((figure, index) => {
-        const img = figure.querySelector('img');
-        if (!img || img.dataset.lightboxBound === 'true') return;
-        img.dataset.lightboxBound = 'true';
-        img.classList.add('image-zoomable');
-        figure.classList.add('image-zoomable-trigger');
-        figure.tabIndex = 0;
-        const openGrouped = (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          openWikiViewer(shots, index);
-        };
-        figure.addEventListener('click', openGrouped);
-        figure.addEventListener('keydown', (event) => {
-          if (event.key === 'Enter' || event.key === ' ') openGrouped(event);
-        });
-      });
-    });
-
-    // Also support future standalone documentation images that are not placed
-    // inside a wiki-shot-grid. They open as a single image without wiki linking.
-    content.querySelectorAll('img').forEach((img) => {
-      if (img.closest('.wiki-shot-grid') || img.closest('.shot-viewer')) return;
-      if (img.dataset.lightboxBound === 'true') return;
-      const rawSrc = img.currentSrc || img.getAttribute('src') || img.src;
-      if (!rawSrc || /labby-mobile-/i.test(rawSrc)) return;
-      const src = new URL(rawSrc, window.location.href).href;
-      img.dataset.lightboxBound = 'true';
-      img.classList.add('image-zoomable');
-      const trigger = img.closest('a, figure') || img;
-      trigger.classList.add('image-zoomable-trigger');
-      if (trigger.tagName !== 'A') trigger.tabIndex = 0;
-      const openStandalone = (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        openWikiViewer([{ src, title: img.alt || 'Image', caption: img.alt || 'Image' }], 0);
-      };
-      trigger.addEventListener('click', openStandalone);
-      trigger.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') openStandalone(event);
-      });
+    content.querySelectorAll('.image-zoomable, .image-zoomable-trigger').forEach((node) => {
+      node.classList.remove('image-zoomable', 'image-zoomable-trigger');
+      node.removeAttribute('tabindex');
+      if (node.dataset) delete node.dataset.lightboxBound;
     });
   }
 
