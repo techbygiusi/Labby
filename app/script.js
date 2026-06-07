@@ -4576,6 +4576,7 @@ let rackFormPendingLocationId = null;
 // ---- DOM refs ----
 const rackOverview     = document.getElementById('rack-overview');
 const rackEditor       = document.getElementById('rack-editor');
+const rackEditorBody   = document.getElementById('rack-editor-body');
 const rackFormDialog   = document.getElementById('rack-form-dialog');
 const rackFormPage     = rackFormDialog; // alias for compatibility
 const rackToggleBtn    = document.getElementById('rack-toggle');
@@ -4939,6 +4940,57 @@ function openRackForm(existingId, preselectedLocationId) {
 }
 
 // ---- Rack Editor ----
+
+function renderRackEditorSidebar() {
+  if (!rackEditorBody) return;
+  let sidebar = document.getElementById('rack-editor-sidebar');
+  if (!sidebar) {
+    sidebar = document.createElement('aside');
+    sidebar.id = 'rack-editor-sidebar';
+    sidebar.className = 'rack-editor-sidebar';
+    const views = rackEditorBody.querySelector('.rack-views-wrap');
+    rackEditorBody.insertBefore(sidebar, views || rackEditorBody.firstChild);
+  }
+
+  const activeRack = rackById(rackEditorRackId);
+  const activeLocationId = activeRack?.locationId || locations[0]?.id || '';
+  const locationMarkup = locations.map(loc => {
+    const locRacks = racks.filter(r => r.locationId === loc.id);
+    const rackRows = locRacks.length ? locRacks.map(r => `
+      <button class="rack-editor-rack-row ${r.id === rackEditorRackId ? 'active' : ''}" type="button" data-rack-id="${r.id}">
+        <span class="rack-editor-rack-name">${escapeHtml(r.name)}</span>
+        <span class="rack-editor-rack-meta">${r.heightUnits || 42}U · ${r.formFactor === '10inch' ? '10″' : '19″'}</span>
+      </button>`).join('') : '<p class="rack-editor-empty-list">No racks here.</p>';
+    return `
+      <section class="rack-editor-location-group ${loc.id === activeLocationId ? 'active' : ''}">
+        <div class="rack-editor-location-name">📍 ${escapeHtml(loc.name)}</div>
+        <div class="rack-editor-rack-list">${rackRows}</div>
+      </section>`;
+  }).join('');
+
+  sidebar.innerHTML = `
+    <div class="rack-editor-sidebar-head">
+      <span class="rack-editor-sidebar-title">Locations & Racks</span>
+      <div class="rack-editor-sidebar-actions">
+        <button class="button secondary" id="rack-sidebar-add-location" type="button">+ Location</button>
+        <button class="button" id="rack-sidebar-add-rack" type="button">+ Rack</button>
+      </div>
+    </div>
+    <div class="rack-editor-sidebar-content">
+      ${locationMarkup || '<p class="rack-editor-empty-list">No locations yet.</p>'}
+    </div>
+  `;
+
+  sidebar.querySelector('#rack-sidebar-add-location')?.addEventListener('click', () => openLocationForm(null, null));
+  sidebar.querySelector('#rack-sidebar-add-rack')?.addEventListener('click', () => openRackForm(null, activeLocationId || null));
+  sidebar.querySelectorAll('[data-rack-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      autoSaveRack();
+      openRackEditor(btn.dataset.rackId);
+    });
+  });
+}
+
 function openRackEditor(rackId) {
   rackEditorRackId = rackId;
   const rack = rackById(rackId);
@@ -4947,6 +4999,7 @@ function openRackEditor(rackId) {
   rackEditorName.textContent = rack.name;
   rackEditorLocBadge.textContent = loc ? `📍 ${loc.name}` : '';
   renderPalette();
+  renderRackEditorSidebar();
   renderRackDiagram('front');
   renderRackDiagram('rear');
   updateRackMobileSide(currentRackMobileSide || 'front');
@@ -5125,7 +5178,7 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
   el.draggable    = !isMobile();
   // Match the visible rack unit height. On mobile CSS uses taller touch rows,
   // so multi-U components must scale from the same mobile U height as empty rows.
-  const uPx = isMobile() ? 44 : Math.max(28, Math.min(42, window.innerHeight * 0.018));
+  const uPx = getRackUnitPx();
   const totalH = comp.heightU * uPx;
   el.style.height    = totalH + 'px';
   el.style.minHeight = totalH + 'px';
@@ -5370,16 +5423,33 @@ document.addEventListener('keydown', e => {
 
 // ---- Utility ----
 
+
+function getRackUnitPx() {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue('--rack-u-height').trim();
+  const probe = document.createElement('div');
+  probe.style.position = 'absolute';
+  probe.style.visibility = 'hidden';
+  probe.style.height = raw || '44px';
+  document.body.appendChild(probe);
+  const px = probe.getBoundingClientRect().height || (isMobile() ? 44 : 32);
+  probe.remove();
+  return Math.max(24, Math.round(px));
+}
+
 // Make front and rear rack frames the same height.
 // Strategy: set minHeight on the shorter frame so it matches the taller one,
 // and distribute the extra space evenly among its empty slots.
 function equaliseRackHeights() {
-  if (!rackFront || !rackRear) return;
+  if (!rackFront || !rackRear || isMobile()) return;
 
   // 1. Reset any previous overrides so we measure natural height
   [rackFront, rackRear].forEach(f => {
     f.style.minHeight = '';
-    f.querySelectorAll('.rack-slot.empty').forEach(s => s.style.minHeight = '');
+    f.querySelectorAll('.rack-slot.empty').forEach(s => {
+      s.style.height = '';
+      s.style.minHeight = '';
+      s.style.maxHeight = '';
+    });
   });
 
   const hFront = rackFront.scrollHeight;
@@ -5400,7 +5470,7 @@ function equaliseRackHeights() {
 
   // Distribute extra pixels evenly across empty slots (integer math, last slot absorbs remainder)
   const extra = Math.floor(diff / emptySlots.length);
-  const baseU = isMobile() ? 44 : Math.max(28, Math.min(42, window.innerHeight * 0.018));
+  const baseU = getRackUnitPx();
   emptySlots.forEach((slot, i) => {
     const add = i === emptySlots.length - 1 ? diff - extra * i : extra;
     const h = (baseU + add) + 'px';
