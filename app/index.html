@@ -148,20 +148,23 @@
             </fieldset>
           </fieldset>
           <label id="switch-ports-wrap" class="hidden">
-            Number of ports (Switch)
+            Number of ports
             <input id="switch-ports" type="number" min="1" placeholder="e.g. 24" />
           </label>
           <label id="router-switches-wrap" class="hidden">
             Connected switches
             <select id="router-switches" multiple></select>
+            <div id="router-switches-summary" class="connection-summary"></div>
           </label>
           <label id="switch-links-wrap" class="hidden">
             Connected switches
             <select id="switch-links" multiple></select>
+            <div id="switch-links-summary" class="connection-summary"></div>
           </label>
           <label id="switch-device-links-wrap" class="hidden">
             Connected hardware devices
             <select id="switch-device-links" multiple></select>
+            <div id="switch-device-links-summary" class="connection-summary"></div>
           </label>
           <fieldset id="nas-shares-wrap" class="network-fields hidden">
             <legend>NAS shares</legend>

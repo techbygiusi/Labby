@@ -55,6 +55,9 @@ const switchLinksWrap = document.getElementById('switch-links-wrap');
 const switchLinks = document.getElementById('switch-links');
 const switchDeviceLinksWrap = document.getElementById('switch-device-links-wrap');
 const switchDeviceLinks = document.getElementById('switch-device-links');
+const routerSwitchesSummary = document.getElementById('router-switches-summary');
+const switchLinksSummary = document.getElementById('switch-links-summary');
+const switchDeviceLinksSummary = document.getElementById('switch-device-links-summary');
 const nasSharesWrap = document.getElementById('nas-shares-wrap');
 const nasShares = document.getElementById('nas-shares');
 const addShareBtn = document.getElementById('add-share');
@@ -500,7 +503,7 @@ form.addEventListener('submit', async (event) => {
     networkColor: type === 'network' ? selectedNetworkColor : '',
     hostedOn: ['vm', 'lxc'].includes(type) ? hostedOn : '',
     appHostedOn: type === 'app' ? appHostedOn : '',
-    switchPorts: type === 'hardware' && hardwareKind === 'switch' ? switchPorts : '',
+    switchPorts: type === 'hardware' && ['router-gateway', 'switch'].includes(hardwareKind) ? switchPorts : '',
     nasShares: supportsStorageGroups(type, hardwareKind) ? shareList : [],
     nasRaids: supportsStorageGroups(type, hardwareKind) ? raidList : [],
     connections: type === 'hardware' && hardwareKind === 'router-gateway'
@@ -1680,7 +1683,7 @@ function normalizeList(list) {
       next.ramModules = [];
       next.diskRows = [];
     }
-    if (!(next.type === 'hardware' && next.hardwareKind === 'switch')) next.switchPorts = '';
+    if (!(next.type === 'hardware' && ['router-gateway', 'switch'].includes(next.hardwareKind))) next.switchPorts = '';
     if (!supportsStorageGroups(next.type, next.hardwareKind)) {
       next.nasShares = [];
       next.nasRaids = [];
@@ -1808,7 +1811,7 @@ function applyTypeVisibility() {
   hostedOnWrap.classList.toggle('hidden', !isVmOrLxc);
   appHostedOnWrap.classList.toggle('hidden', !isApp);
   ipInput.closest('label').classList.toggle('hidden', !supportsIp);
-  switchPortsWrap.classList.toggle('hidden', !isSwitch);
+  switchPortsWrap.classList.toggle('hidden', !(isSwitch || isRouter));
   routerSwitchesWrap.classList.toggle('hidden', !isRouter);
   switchLinksWrap.classList.toggle('hidden', !isSwitch);
   switchDeviceLinksWrap.classList.toggle('hidden', !isSwitch);
@@ -1826,7 +1829,7 @@ function applyTypeVisibility() {
 
   subnetInput.required = isNetwork;
   gatewayInput.required = isNetwork;
-  switchPortsInput.required = isSwitch;
+  switchPortsInput.required = isSwitch || isRouter;
 
   const nextDefaultSymbol = defaultSymbol(type, hardwareKind);
   const previousDefaultSymbol = defaultSymbol(lastTypeSelection, lastHardwareKindSelection);
@@ -2459,7 +2462,7 @@ function hardwareDetailsLabel(item) {
   const bits = [];
   bits.push(`Hardware type: ${hardwareTypeLabel(item.hardwareKind || 'server')}`);
   if (item.manufacturer) bits.push(`Manufacturer: ${item.manufacturer}`);
-  if (item.hardwareKind === 'switch' && item.switchPorts) bits.push(`Ports: ${item.switchPorts}`);
+  if (['router-gateway', 'switch'].includes(item.hardwareKind) && item.switchPorts) bits.push(`Ports: ${item.switchPorts}`);
   if (supportsStorageGroups(item.type, item.hardwareKind) && item.nasShares?.length) {
     bits.push(`${item.hardwareKind === 'backup' ? 'Backup shares' : 'Shares'}: ${item.nasShares.map((share) => `${share.name} (${share.link || 'no link'})`).join(', ')}`);
   }
@@ -2546,9 +2549,11 @@ function refreshHardwareConnectionOptions() {
   switches.forEach((sw) => {
     const option = document.createElement('option');
     option.value = sw.id;
-    option.textContent = sw.name;
-    routerSwitches.appendChild(option.cloneNode(true));
-    switchLinks.appendChild(option);
+    option.textContent = `${selectedRouter.includes(sw.id) ? '✓ ' : ''}${sw.name}${sw.switchPorts ? ` (${sw.switchPorts} ports)` : ''}`;
+    const switchOption = option.cloneNode(true);
+    switchOption.textContent = `${selectedSwitches.includes(sw.id) ? '✓ ' : ''}${sw.name}${sw.switchPorts ? ` (${sw.switchPorts} ports)` : ''}`;
+    routerSwitches.appendChild(option);
+    switchLinks.appendChild(switchOption);
   });
 
   switchDeviceLinks.innerHTML = '';
@@ -2557,14 +2562,31 @@ function refreshHardwareConnectionOptions() {
     .forEach((device) => {
       const option = document.createElement('option');
       option.value = device.id;
-      option.textContent = `${device.name} (${hardwareTypeLabel(device.hardwareKind)})`;
+      option.textContent = `${selectedDevices.includes(device.id) ? '✓ ' : ''}${device.name} (${hardwareTypeLabel(device.hardwareKind)})${device.switchPorts ? ` · ${device.switchPorts} ports` : ''}`;
       switchDeviceLinks.appendChild(option);
     });
 
   setMultiValues(routerSwitches, selectedRouter);
   setMultiValues(switchLinks, selectedSwitches);
   setMultiValues(switchDeviceLinks, selectedDevices);
+  updateConnectionSummaries();
 }
+
+function updateConnectionSummaries() {
+  const namesFor = (ids) => ids.map(id => findById(id)?.name).filter(Boolean);
+  const setSummary = (el, ids, emptyText = 'Nothing connected yet.') => {
+    if (!el) return;
+    const names = namesFor(ids);
+    el.textContent = names.length ? `Connected: ${names.join(', ')}` : emptyText;
+  };
+  setSummary(routerSwitchesSummary, getMultiValues(routerSwitches), 'No switches connected yet.');
+  setSummary(switchLinksSummary, getMultiValues(switchLinks), 'No upstream switches connected yet.');
+  setSummary(switchDeviceLinksSummary, getMultiValues(switchDeviceLinks), 'No hardware devices connected yet.');
+}
+
+[routerSwitches, switchLinks, switchDeviceLinks].filter(Boolean).forEach((select) => {
+  select.addEventListener('change', updateConnectionSummaries);
+});
 
 function startEditing(id) {
   const item = findById(id);
@@ -5152,6 +5174,7 @@ function placeRackComponentAt(side, u, rack) {
     isPDU: rackDragComponent.isPDU || false,
     pduPorts: rackDragComponent.pduPorts || null,
     pduLinks: rackDragComponent.pduLinks || null,
+    switchPortLinks: rackDragComponent.switchPortLinks || null,
     isBlank: rackDragComponent.isBlank || false,
     isPassive: rackDragComponent.isPassive || false,
   };
@@ -5224,6 +5247,9 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
     if (dev) deviceHtml = `<span class="rack-slot-device">${escapeHtml((dev.symbol || '') + ' ' + dev.name)}</span>`;
   } else if (comp.isPDU && comp.pduPorts) {
     deviceHtml = `<span class="rack-slot-device">${comp.pduPorts} ports</span>`;
+  } else if (isRackSwitchComponent(comp)) {
+    const portCount = getRackSwitchPortCount(comp);
+    if (portCount) deviceHtml = `<span class="rack-slot-device">${portCount} ports</span>`;
   }
 
   el.innerHTML = `
@@ -5247,7 +5273,7 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
     renderRackDiagram(side);
   });
   el.addEventListener('dragstart', e => {
-    rackDragComponent = { componentType: comp.componentType, heightU: comp.heightU, label: comp.label, category: comp.category || 'compute', linkedDeviceId: comp.linkedDeviceId || null, multiDevice: comp.multiDevice || null, linkedDevices: comp.linkedDevices || null, isPDU: comp.isPDU || false, pduPorts: comp.pduPorts || null, pduLinks: comp.pduLinks || null, isBlank: comp.isBlank || false, isPassive: comp.isPassive || false, fromSlot: slotKey, source: 'rack' };
+    rackDragComponent = { componentType: comp.componentType, heightU: comp.heightU, label: comp.label, category: comp.category || 'compute', linkedDeviceId: comp.linkedDeviceId || null, multiDevice: comp.multiDevice || null, linkedDevices: comp.linkedDevices || null, isPDU: comp.isPDU || false, pduPorts: comp.pduPorts || null, pduLinks: comp.pduLinks || null, switchPortLinks: comp.switchPortLinks || null, isBlank: comp.isBlank || false, isPassive: comp.isPassive || false, fromSlot: slotKey, source: 'rack' };
     e.dataTransfer.effectAllowed = 'move';
     setTimeout(() => el.style.opacity = '0.4', 0);
   });
@@ -5284,6 +5310,38 @@ function canFit(side, startU, heightU, rack, excludeSlot) {
 // gets clipped by overflow:hidden ancestors (rack-frame, rack-editor-body).
 // Closing: only via OK / Skip / Escape — NO outside-click-to-close, because
 // that interferes with native <select> dropdowns on every platform.
+
+
+function isRackSwitchComponent(comp) {
+  return !!comp && String(comp.componentType || '').includes('switch');
+}
+
+function isRackRouterComponent(comp) {
+  return !!comp && String(comp.componentType || '').includes('router');
+}
+
+function isRackNetworkPortComponent(comp) {
+  return isRackSwitchComponent(comp) || isRackRouterComponent(comp);
+}
+
+function rackPortHardwareKind(comp) {
+  return isRackRouterComponent(comp) ? 'router-gateway' : 'switch';
+}
+
+function getRackLinkedPortDevice(comp) {
+  if (!comp?.linkedDeviceId) return null;
+  const dev = findById(comp.linkedDeviceId);
+  const expectedKind = rackPortHardwareKind(comp);
+  return dev && dev.type === 'hardware' && dev.hardwareKind === expectedKind ? dev : null;
+}
+
+function getRackSwitchPortCount(comp) {
+  const device = getRackLinkedPortDevice(comp);
+  if (!device) return 0;
+  const match = String(device.switchPorts || '').match(/\d+/);
+  const count = match ? parseInt(match[0], 10) : 0;
+  return Number.isFinite(count) && count > 0 ? Math.min(count, 96) : 0;
+}
 
 function showLinkPanel(slotKey, side) {
   closeLinkPanel();
@@ -5361,6 +5419,61 @@ function showLinkPanel(slotKey, side) {
       const selects = panel.querySelectorAll('.rack-link-multi');
       comp.linkedDevices  = Array.from(selects).map(s => s.value || null);
       comp.linkedDeviceId = comp.linkedDevices[0];
+      saveRackData(); closeLinkPanel(); renderRackDiagram(side);
+    });
+    panel.querySelector('#rack-link-skip').addEventListener('click', () => closeLinkPanel());
+    return;
+  }
+
+  // ── Network ports: port count is inherited from linked router/switch hardware ─────
+  if (isRackNetworkPortComponent(comp)) {
+    const expectedKind = rackPortHardwareKind(comp);
+    const switchItems = hardwareItems.filter(itm => itm.type === 'hardware' && itm.hardwareKind === expectedKind);
+    function buildSwitchOpts(selectedId) {
+      return switchItems.map(itm =>
+        `<option value="${itm.id}" ${selectedId === itm.id ? 'selected' : ''}>${escapeHtml((itm.symbol || '') + ' ' + itm.name)}${itm.switchPorts ? ` · ${escapeHtml(String(itm.switchPorts))} ports` : ''}</option>`
+      ).join('');
+    }
+    function buildSwitchPortRows() {
+      const count = getRackSwitchPortCount(comp);
+      if (!comp.linkedDeviceId) return `<p class="note rack-link-note">Choose a ${expectedKind === 'router-gateway' ? 'router / gateway' : 'switch'} first. The port count is read from its hardware settings.</p>`;
+      if (!count) return `<p class="note rack-link-note">This ${expectedKind === 'router-gateway' ? 'router / gateway' : 'switch'} has no port count configured.</p>`;
+      comp.switchPortLinks = comp.switchPortLinks || {};
+      return Array.from({ length: count }, (_, i) => `
+        <div class="rack-link-row">
+          <span class="rack-link-row-label">Port ${i + 1}:</span>
+          <select class="rack-switch-port" data-port="${i}">
+            <option value="">— empty —</option>${buildHwOpts(comp.switchPortLinks[i] || null)}
+          </select>
+        </div>`).join('');
+    }
+    panel.innerHTML = `
+      <div class="rack-link-multi-wrap">
+        <div class="rack-link-row">
+          <span class="rack-link-row-label">${expectedKind === 'router-gateway' ? 'Router / Gateway:' : 'Switch:'}</span>
+          <select id="rack-switch-device">
+            <option value="">— none —</option>${buildSwitchOpts(comp.linkedDeviceId)}
+          </select>
+        </div>
+        <div id="rack-switch-port-rows">${buildSwitchPortRows()}</div>
+        <div class="rack-link-actions">
+          <button class="button" id="rack-link-ok" type="button">✓ OK</button>
+          <button class="button secondary" id="rack-link-skip" type="button">Skip</button>
+        </div>
+      </div>`;
+    document.body.appendChild(panel);
+    rackLinkPanelTarget = { slotKey, side };
+    panel.querySelector('#rack-switch-device').addEventListener('change', function() {
+      comp.linkedDeviceId = this.value || null;
+      comp.switchPortLinks = {};
+      panel.querySelector('#rack-switch-port-rows').innerHTML = buildSwitchPortRows();
+    });
+    panel.querySelector('#rack-link-ok').addEventListener('click', () => {
+      comp.linkedDeviceId = panel.querySelector('#rack-switch-device').value || null;
+      comp.switchPortLinks = {};
+      panel.querySelectorAll('.rack-switch-port').forEach(s => {
+        comp.switchPortLinks[parseInt(s.dataset.port, 10)] = s.value || null;
+      });
       saveRackData(); closeLinkPanel(); renderRackDiagram(side);
     });
     panel.querySelector('#rack-link-skip').addEventListener('click', () => closeLinkPanel());
@@ -5458,7 +5571,7 @@ function showRackLinkModal(slotKey, side, comp) {
   document.body.appendChild(panel);
   rackLinkPanelTarget = { slotKey, side };
 
-  function openDevicePicker(title, selectedId, onPick) {
+  function openDevicePicker(title, selectedId, onPick, choiceItems = hardwareItems) {
     const oldPicker = document.getElementById('rack-device-picker-active');
     if (oldPicker) oldPicker.remove();
 
@@ -5467,7 +5580,7 @@ function showRackLinkModal(slotKey, side, comp) {
     picker.id = 'rack-device-picker-active';
     const choices = [
       `<button class="rack-device-choice ${!selectedId ? 'selected' : ''}" data-id="" type="button">— empty —</button>`,
-      ...hardwareItems.map(itm => `<button class="rack-device-choice ${selectedId === itm.id ? 'selected' : ''}" data-id="${escapeAttr(itm.id)}" type="button">${escapeHtml(`${itm.symbol || ''} ${itm.name}`.trim())}</button>`)
+      ...choiceItems.map(itm => `<button class="rack-device-choice ${selectedId === itm.id ? 'selected' : ''}" data-id="${escapeAttr(itm.id)}" type="button">${escapeHtml(`${itm.symbol || ''} ${itm.name}`.trim())}${['router-gateway', 'switch'].includes(itm.hardwareKind) && itm.switchPorts ? ` · ${escapeHtml(String(itm.switchPorts))} ports` : ''}</button>`)
     ].join('');
     picker.innerHTML = `
       <div class="rack-device-picker-card">
@@ -5489,12 +5602,13 @@ function showRackLinkModal(slotKey, side, comp) {
     });
   }
 
-  function pickerButton(label, title, selectedId, field, idx = null) {
+  function pickerButton(label, title, selectedId, field, idx = null, filter = '') {
     const idAttr = idx === null ? '' : ` data-idx="${idx}"`;
+    const filterAttr = filter ? ` data-filter="${filter}"` : '';
     return `
       <div class="rack-link-row rack-link-picker-row">
         <span class="rack-link-row-label">${escapeHtml(label)}</span>
-        <button class="rack-link-picker-button" data-field="${field}"${idAttr} type="button">${escapeHtml(deviceName(selectedId))}</button>
+        <button class="rack-link-picker-button" data-field="${field}"${idAttr}${filterAttr} type="button">${escapeHtml(deviceName(selectedId))}</button>
       </div>`;
   }
 
@@ -5504,37 +5618,59 @@ function showRackLinkModal(slotKey, side, comp) {
         const field = btn.dataset.field;
         const idx = btn.dataset.idx !== undefined ? parseInt(btn.dataset.idx, 10) : null;
         const title = idx === null ? 'Choose linked device' : `Choose device for ${field === 'pdu' ? `Port ${idx + 1}` : `PC ${idx + 1}`}`;
-        const selected = field === 'single'
+        const selected = field === 'single' || field === 'switch-link'
           ? comp.linkedDeviceId
           : field === 'multi'
             ? (comp.linkedDevices || [])[idx]
-            : (comp.pduLinks || {})[idx];
+            : field === 'switch-port'
+              ? (comp.switchPortLinks || {})[idx]
+              : (comp.pduLinks || {})[idx];
+        const choiceItems = btn.dataset.filter
+          ? hardwareItems.filter(itm => itm.type === 'hardware' && itm.hardwareKind === btn.dataset.filter)
+          : hardwareItems;
         openDevicePicker(title, selected || null, id => {
           if (field === 'single') {
             comp.linkedDeviceId = id;
+          } else if (field === 'switch-link') {
+            comp.linkedDeviceId = id;
+            comp.switchPortLinks = {};
           } else if (field === 'multi') {
             const count = comp.multiDevice || 2;
             const arr = comp.linkedDevices || Array(count).fill(null);
             arr[idx] = id;
             comp.linkedDevices = arr;
             comp.linkedDeviceId = arr[0] || null;
+          } else if (field === 'switch-port') {
+            comp.switchPortLinks = comp.switchPortLinks || {};
+            comp.switchPortLinks[idx] = id;
           } else if (field === 'pdu') {
             comp.pduLinks = comp.pduLinks || {};
             comp.pduLinks[idx] = id;
           }
-        });
+        }, choiceItems);
       });
     });
   }
 
   function renderModal() {
-    const title = comp.isPDU ? 'Assign PDU Ports' : comp.multiDevice ? 'Assign Multi-Device Slot' : 'Assign Rack Device';
+    const title = comp.isPDU ? 'Assign PDU Ports' : isRackNetworkPortComponent(comp) ? `Assign ${isRackRouterComponent(comp) ? 'Router / Gateway' : 'Switch'} Ports` : comp.multiDevice ? 'Assign Multi-Device Slot' : 'Assign Rack Device';
     let body = '';
 
     if (comp.multiDevice) {
       const count = comp.multiDevice;
       const devs = comp.linkedDevices || Array(count).fill(null);
       body = Array.from({ length: count }, (_, i) => pickerButton(`PC ${i + 1}:`, title, devs[i], 'multi', i)).join('');
+    } else if (isRackNetworkPortComponent(comp)) {
+      const expectedKind = rackPortHardwareKind(comp);
+      const switchDevice = getRackLinkedPortDevice(comp);
+      const portCount = getRackSwitchPortCount(comp);
+      const rows = portCount
+        ? Array.from({ length: portCount }, (_, i) => pickerButton(`Port ${i + 1}:`, title, (comp.switchPortLinks || {})[i], 'switch-port', i)).join('')
+        : `<p class="note rack-link-note">Choose a switch hardware resource with a configured port count first.</p>`;
+      body = `
+        ${pickerButton(expectedKind === 'router-gateway' ? 'Router / Gateway:' : 'Switch:', expectedKind === 'router-gateway' ? 'Choose router / gateway hardware' : 'Choose switch hardware', comp.linkedDeviceId, 'switch-link', null, expectedKind)}
+        <div class="rack-link-note">${switchDevice ? `${escapeHtml(String(switchDevice.switchPorts || portCount))} ports from hardware config` : `Port count is inherited from the ${expectedKind === 'router-gateway' ? 'router / gateway' : 'switch'} hardware settings.`}</div>
+        ${rows}`;
     } else if (comp.isPDU) {
       const currentPorts = comp.pduPorts || 8;
       const portCounts = [4, 6, 8, 10, 12, 16, 20, 24];

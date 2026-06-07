@@ -7526,3 +7526,32 @@ dialog.rack-form-dialog:not([open]) {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
 }
+
+/* v74/v79: normalize Config section headings and rack switch assignment notes. */
+#config-dialog .config-section-title,
+#mobile-config .config-section-title {
+  font: 700 0.8rem/1.2 'Space Mono', monospace !important;
+  letter-spacing: 0 !important;
+  color: var(--text) !important;
+}
+@media (min-width: 1101px) {
+  #config-dialog .config-section-title {
+    min-height: 36px !important;
+    padding: 0.42rem 0.75rem !important;
+  }
+}
+.rack-link-note {
+  margin: 0.2rem 0 0.7rem !important;
+  color: var(--muted) !important;
+  font: 700 0.72rem/1.35 'Inter', system-ui, sans-serif !important;
+}
+.rack-link-modal .rack-link-note {
+  grid-column: 1 / -1;
+}
+
+.connection-summary {
+  margin-top: 0.35rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
