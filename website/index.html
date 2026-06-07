@@ -143,8 +143,8 @@
       color: var(--text);
     }
     .nav-logo {
-      width: 38px;
-      height: 38px;
+      width: 56px;
+      height: 56px;
       display: block;
     }
     .demo-transition {
@@ -557,27 +557,27 @@
       min-height: 0;
       flex: 1;
       overflow: visible;
-      border: 3px solid var(--line);
-      border-radius: 20px;
-      background: color-mix(in srgb, var(--phone) 86%, var(--panel));
-      padding: .8rem 4.2rem;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      padding: 0 3.8rem;
     }
     .shot-viewer-stage {
       width: 100%;
       height: min(68vh, 720px);
       display: flex;
-      align-items: center;
-      justify-content: center;
+      align-items: stretch;
+      justify-content: stretch;
       overflow: hidden;
       -webkit-overflow-scrolling: touch;
-      padding: .4rem;
+      padding: 0;
       touch-action: pan-x pan-y;
       overscroll-behavior: contain;
       scrollbar-gutter: stable both-edges;
       border: 3px solid var(--line);
       border-radius: 18px;
-      background: var(--panel);
-      box-shadow: inset 0 0 0 1px rgba(0,0,0,.04);
+      background: var(--line);
+      box-shadow: none;
     }
     .shot-viewer-stage img {
       display: block;
@@ -587,14 +587,11 @@
       max-height: none;
       object-fit: cover;
       object-position: center;
-      border: 3px solid var(--line);
+      border: 0;
       border-radius: 14px;
       background: var(--panel);
       user-select: none;
       -webkit-user-drag: none;
-    }
-    .shot-viewer-stage.is-portrait {
-      background: color-mix(in srgb, var(--phone) 88%, var(--panel));
     }
     .shot-viewer-stage.is-portrait img {
       object-fit: contain;
@@ -616,8 +613,8 @@
       font: 700 1.2rem/1 'Space Mono', monospace;
     }
     .shot-viewer-nav:hover { transform: translateY(-50%) scale(1.03); }
-    .shot-viewer-prev { left: 1.1rem; }
-    .shot-viewer-next { right: 1.1rem; }
+    .shot-viewer-prev { left: .9rem; }
+    .shot-viewer-next { right: .9rem; }
     .shot-viewer-footer {
       display: flex;
       align-items: center;
@@ -675,6 +672,15 @@
     }
     .shot-viewer-wiki-link.is-hidden { display: none; }
 
+
+    @media (max-width: 760px) {
+      .shot-viewer-dialog { width: min(100%, calc(100vw - 1rem)); padding: .55rem; }
+      .shot-viewer-main { padding: 0 2.6rem; }
+      .shot-viewer-stage { height: min(66vh, 620px); }
+      .shot-viewer-nav { width: 42px; height: 42px; }
+      .shot-viewer-prev { left: .45rem; }
+      .shot-viewer-next { right: .45rem; }
+    }
     /* ── install ── */
     .install-block {
       background: color-mix(in srgb, var(--phone) 92%, white);
@@ -1477,7 +1483,7 @@ docker compose up --build -d</pre>
       if (img.dataset.lightboxBound === 'true') return;
       if (img.closest('.gallery-item') || img.closest('.shot-viewer') || img.classList.contains('nav-logo') || img.classList.contains('demo-loader-logo')) return;
       const rawSrc = img.currentSrc || img.getAttribute('src') || img.src;
-      if (!rawSrc) return;
+      if (!rawSrc || /labby-mobile-/i.test(rawSrc)) return;
       const src = new URL(rawSrc, window.location.href).href;
       img.dataset.lightboxBound = 'true';
       img.classList.add('image-zoomable');

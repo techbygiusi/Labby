@@ -129,8 +129,8 @@
     .nav-brand { display: flex; align-items: center; gap: .65rem; text-decoration: none; }
     .nav-name { font: 700 1rem/1 'Space Mono', monospace; color: var(--text); }
     .nav-logo {
-      width: 38px;
-      height: 38px;
+      width: 56px;
+      height: 56px;
       display: block;
     }
     .demo-transition {
@@ -297,6 +297,7 @@
       border: 0;
       border-radius: 0;
       background: transparent;
+      padding: 0 3.8rem;
     }
     .shot-viewer-stage {
       width: 100%;
@@ -308,9 +309,9 @@
       padding: 0;
       touch-action: pan-x pan-y;
       overscroll-behavior: contain;
-      border: 0;
+      border: 3px solid var(--line);
       border-radius: 18px;
-      background: transparent;
+      background: var(--line);
       box-shadow: none;
     }
     .shot-viewer-stage img {
@@ -321,10 +322,14 @@
       max-height: none;
       object-fit: cover;
       object-position: center;
-      border-radius: 18px;
+      border: 0;
+      border-radius: 14px;
       background: var(--panel);
       user-select: none;
       -webkit-user-drag: none;
+    }
+    .shot-viewer-stage.is-portrait img {
+      object-fit: contain;
     }
     .shot-viewer-nav {
       position: absolute;
@@ -343,8 +348,8 @@
       font: 700 1.2rem/1 'Space Mono', monospace;
     }
     .shot-viewer-nav:hover { transform: translateY(-50%) scale(1.03); }
-    .shot-viewer-prev { left: 1.1rem; }
-    .shot-viewer-next { right: 1.1rem; }
+    .shot-viewer-prev { left: .9rem; }
+    .shot-viewer-next { right: .9rem; }
     .shot-viewer-footer { display: flex; align-items: center; justify-content: space-between; gap: .85rem; flex-wrap: wrap; }
     .shot-viewer-thumbs {
       flex: 1;
@@ -795,6 +800,15 @@
       .nav-links svg,
       .footer-links svg { display: block; }
       footer .wrap { flex-direction: column; align-items: flex-end; text-align: right; }
+    }
+
+    @media (max-width: 760px) {
+      .shot-viewer-dialog { width: min(100%, calc(100vw - 1rem)); padding: .55rem; }
+      .shot-viewer-main { padding: 0 2.6rem; }
+      .shot-viewer-stage { height: min(66vh, 620px); }
+      .shot-viewer-nav { width: 42px; height: 42px; }
+      .shot-viewer-prev { left: .45rem; }
+      .shot-viewer-next { right: .45rem; }
     }
   </style>
 </head>
@@ -1639,13 +1653,18 @@ docker compose up -d</pre>
 
   function enhanceWikiImages() {
     content.querySelectorAll('.wiki-shot-grid').forEach(grid => {
-      const figures = Array.from(grid.querySelectorAll('.wiki-shot'));
+      const figures = Array.from(grid.querySelectorAll('.wiki-shot')).filter((figure) => {
+        const img = figure.querySelector('img');
+        const rawSrc = img?.currentSrc || img?.getAttribute('src') || img?.src || '';
+        return !/labby-mobile-/i.test(rawSrc);
+      });
       const shots = figures.map((figure) => {
         const img = figure.querySelector('img');
         const caption = figure.querySelector('figcaption')?.textContent?.trim() || img?.alt || 'Image';
         const rawSrc = img?.currentSrc || img?.getAttribute('src') || img?.src;
         return rawSrc ? { src: new URL(rawSrc, window.location.href).href, title: img?.alt || caption, caption } : null;
       }).filter(Boolean);
+      if (!shots.length) return;
       figures.forEach((figure, index) => {
         const img = figure.querySelector('img');
         if (!img || img.dataset.lightboxBound === 'true') return;
@@ -1671,7 +1690,7 @@ docker compose up -d</pre>
       if (img.closest('.wiki-shot-grid') || img.closest('.shot-viewer')) return;
       if (img.dataset.lightboxBound === 'true') return;
       const rawSrc = img.currentSrc || img.getAttribute('src') || img.src;
-      if (!rawSrc) return;
+      if (!rawSrc || /labby-mobile-/i.test(rawSrc)) return;
       const src = new URL(rawSrc, window.location.href).href;
       img.dataset.lightboxBound = 'true';
       img.classList.add('image-zoomable');
