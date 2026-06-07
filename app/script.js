@@ -4608,6 +4608,16 @@ function locationById(id) { return locations.find(l => l.id === id); }
 
 async function saveRackData() { await saveItemsToAPI(items); }
 
+function openDefaultRackWorkspace() {
+  if (racks.length === 0) {
+    renderRackOverview();
+    showRackOverlay('rack-overview');
+    return;
+  }
+  const current = rackEditorRackId && rackById(rackEditorRackId) ? rackEditorRackId : racks[0].id;
+  openRackEditor(current);
+}
+
 function showRackOverlay(id) {
   // Only toggle the full-screen overlays — never the form dialog
   [rackOverview, rackEditor].forEach(el => el && el.classList.add('hidden'));
@@ -4623,9 +4633,13 @@ function showRackOverlay(id) {
 // ---- Main toggle ----
 if (rackToggleBtn) {
   rackToggleBtn.addEventListener('click', () => {
-    renderRackOverview();
-    showRackOverlay('rack-overview');
-    if (isMobile()) setActiveMobileNav('nav-rack');
+    if (isMobile()) {
+      renderRackOverview();
+      showRackOverlay('rack-overview');
+      setActiveMobileNav('nav-rack');
+      return;
+    }
+    openDefaultRackWorkspace();
   });
 }
 // Header buttons are now rendered dynamically inside renderRackOverview()
@@ -4998,6 +5012,7 @@ function openRackEditor(rackId) {
   const loc = locationById(rack.locationId);
   rackEditorName.textContent = rack.name;
   rackEditorLocBadge.textContent = loc ? `📍 ${loc.name}` : '';
+  if (rackEditorBack) rackEditorBack.textContent = isMobile() ? '← Rack Overview' : '← Boards';
   renderPalette();
   renderRackEditorSidebar();
   renderRackDiagram('front');
@@ -5012,8 +5027,12 @@ function openRackEditor(rackId) {
 if (rackEditorBack) {
   rackEditorBack.addEventListener('click', () => {
     autoSaveRack();
-    renderRackOverview();
-    showRackOverlay('rack-overview');
+    if (isMobile()) {
+      renderRackOverview();
+      showRackOverlay('rack-overview');
+      return;
+    }
+    showRackOverlay(null);
   });
 }
 
@@ -5180,9 +5199,13 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
   // so multi-U components must scale from the same mobile U height as empty rows.
   const uPx = getRackUnitPx();
   const totalH = comp.heightU * uPx;
-  el.style.height    = totalH + 'px';
-  el.style.minHeight = totalH + 'px';
-  el.style.maxHeight = totalH + 'px';
+  el.style.setProperty('--rack-slot-u', String(comp.heightU || 1));
+  // Inline !important is required because mobile rack rows have protective
+  // height rules for touch ergonomics. Multi-U components must still occupy
+  // their real rack height so front and rear stay equal.
+  el.style.setProperty('height', totalH + 'px', 'important');
+  el.style.setProperty('min-height', totalH + 'px', 'important');
+  el.style.setProperty('max-height', totalH + 'px', 'important');
 
   // Build device label(s) — consistent plain-text style for all types
   let deviceHtml = '';
@@ -5265,6 +5288,11 @@ function showLinkPanel(slotKey, side) {
   const rack = rackById(rackEditorRackId);
   if (!rack || !rack.slots[slotKey]) return;
   const comp = rack.slots[slotKey];
+
+  if (!isMobile()) {
+    showRackLinkModal(slotKey, side, comp);
+    return;
+  }
 
   const container = side === 'front' ? rackFront : rackRear;
   const u = parseInt(slotKey.split('-')[1], 10);
@@ -5410,7 +5438,151 @@ function showLinkPanel(slotKey, side) {
   panel.querySelector('#rack-link-skip').addEventListener('click', () => closeLinkPanel());
 }
 
+function showRackLinkModal(slotKey, side, comp) {
+  const rack = rackById(rackEditorRackId);
+  if (!rack || !comp) return;
+  closeLinkPanel();
+
+  const hardwareItems = items.filter(i => i.type === 'hardware');
+  const deviceName = id => {
+    const itm = hardwareItems.find(h => h.id === id);
+    return itm ? `${itm.symbol || ''} ${itm.name}`.trim() : '— empty —';
+  };
+  const escapeAttr = v => escapeHtml(String(v || ''));
+
+  const panel = document.createElement('div');
+  panel.className = 'rack-link-panel rack-link-modal';
+  panel.id = 'rack-link-panel-active';
+  document.body.appendChild(panel);
+  rackLinkPanelTarget = { slotKey, side };
+
+  function openDevicePicker(title, selectedId, onPick) {
+    const oldPicker = document.getElementById('rack-device-picker-active');
+    if (oldPicker) oldPicker.remove();
+
+    const picker = document.createElement('div');
+    picker.className = 'rack-device-picker';
+    picker.id = 'rack-device-picker-active';
+    const choices = [
+      `<button class="rack-device-choice ${!selectedId ? 'selected' : ''}" data-id="" type="button">— empty —</button>`,
+      ...hardwareItems.map(itm => `<button class="rack-device-choice ${selectedId === itm.id ? 'selected' : ''}" data-id="${escapeAttr(itm.id)}" type="button">${escapeHtml(`${itm.symbol || ''} ${itm.name}`.trim())}</button>`)
+    ].join('');
+    picker.innerHTML = `
+      <div class="rack-device-picker-card">
+        <div class="rack-device-picker-head">
+          <strong>${escapeHtml(title)}</strong>
+          <button class="button secondary rack-device-picker-close" type="button">× Close</button>
+        </div>
+        <div class="rack-device-choice-list">${choices}</div>
+      </div>
+    `;
+    document.body.appendChild(picker);
+    picker.querySelector('.rack-device-picker-close')?.addEventListener('click', () => picker.remove());
+    picker.querySelectorAll('.rack-device-choice').forEach(btn => {
+      btn.addEventListener('click', () => {
+        onPick(btn.dataset.id || null);
+        picker.remove();
+        renderModal();
+      });
+    });
+  }
+
+  function pickerButton(label, title, selectedId, field, idx = null) {
+    const idAttr = idx === null ? '' : ` data-idx="${idx}"`;
+    return `
+      <div class="rack-link-row rack-link-picker-row">
+        <span class="rack-link-row-label">${escapeHtml(label)}</span>
+        <button class="rack-link-picker-button" data-field="${field}"${idAttr} type="button">${escapeHtml(deviceName(selectedId))}</button>
+      </div>`;
+  }
+
+  function bindPickerButtons() {
+    panel.querySelectorAll('.rack-link-picker-button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const field = btn.dataset.field;
+        const idx = btn.dataset.idx !== undefined ? parseInt(btn.dataset.idx, 10) : null;
+        const title = idx === null ? 'Choose linked device' : `Choose device for ${field === 'pdu' ? `Port ${idx + 1}` : `PC ${idx + 1}`}`;
+        const selected = field === 'single'
+          ? comp.linkedDeviceId
+          : field === 'multi'
+            ? (comp.linkedDevices || [])[idx]
+            : (comp.pduLinks || {})[idx];
+        openDevicePicker(title, selected || null, id => {
+          if (field === 'single') {
+            comp.linkedDeviceId = id;
+          } else if (field === 'multi') {
+            const count = comp.multiDevice || 2;
+            const arr = comp.linkedDevices || Array(count).fill(null);
+            arr[idx] = id;
+            comp.linkedDevices = arr;
+            comp.linkedDeviceId = arr[0] || null;
+          } else if (field === 'pdu') {
+            comp.pduLinks = comp.pduLinks || {};
+            comp.pduLinks[idx] = id;
+          }
+        });
+      });
+    });
+  }
+
+  function renderModal() {
+    const title = comp.isPDU ? 'Assign PDU Ports' : comp.multiDevice ? 'Assign Multi-Device Slot' : 'Assign Rack Device';
+    let body = '';
+
+    if (comp.multiDevice) {
+      const count = comp.multiDevice;
+      const devs = comp.linkedDevices || Array(count).fill(null);
+      body = Array.from({ length: count }, (_, i) => pickerButton(`PC ${i + 1}:`, title, devs[i], 'multi', i)).join('');
+    } else if (comp.isPDU) {
+      const currentPorts = comp.pduPorts || 8;
+      const portCounts = [4, 6, 8, 10, 12, 16, 20, 24];
+      const countButtons = portCounts.map(n => `<button class="rack-port-count-button ${currentPorts === n ? 'selected' : ''}" data-count="${n}" type="button">${n} ports</button>`).join('');
+      const rows = Array.from({ length: currentPorts }, (_, i) => pickerButton(`Port ${i + 1}:`, title, (comp.pduLinks || {})[i], 'pdu', i)).join('');
+      body = `
+        <div class="rack-port-count-row"><span class="rack-link-row-label">Ports:</span><div class="rack-port-count-options">${countButtons}</div></div>
+        ${rows}`;
+    } else {
+      body = pickerButton('Device:', title, comp.linkedDeviceId, 'single');
+    }
+
+    panel.innerHTML = `
+      <div class="rack-link-multi-wrap">
+        <div class="rack-link-modal-head">
+          <strong>${escapeHtml(title)}</strong>
+          <span>${escapeHtml(comp.label || '')}</span>
+        </div>
+        ${body}
+        <div class="rack-link-actions">
+          <button class="button" id="rack-link-ok" type="button">✓ OK</button>
+          <button class="button secondary" id="rack-link-skip" type="button">Skip</button>
+        </div>
+      </div>`;
+
+    panel.querySelectorAll('.rack-port-count-button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        comp.pduPorts = parseInt(btn.dataset.count, 10);
+        comp.pduLinks = comp.pduLinks || {};
+        Object.keys(comp.pduLinks).forEach(k => {
+          if (parseInt(k, 10) >= comp.pduPorts) delete comp.pduLinks[k];
+        });
+        renderModal();
+      });
+    });
+    bindPickerButtons();
+    panel.querySelector('#rack-link-ok').addEventListener('click', () => {
+      saveRackData();
+      closeLinkPanel();
+      renderRackDiagram(side);
+    });
+    panel.querySelector('#rack-link-skip').addEventListener('click', () => closeLinkPanel());
+  }
+
+  renderModal();
+}
+
 function closeLinkPanel() {
+  const picker = document.getElementById('rack-device-picker-active');
+  if (picker) picker.remove();
   const existing = document.getElementById('rack-link-panel-active');
   if (existing) existing.remove();
   rackLinkPanelTarget = null;
