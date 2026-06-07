@@ -4620,6 +4620,7 @@ function openDefaultRackWorkspace() {
 
 function showRackOverlay(id) {
   // Only toggle the full-screen overlays — never the form dialog
+  if (id !== 'rack-editor') closeLinkPanel();
   [rackOverview, rackEditor].forEach(el => el && el.classList.add('hidden'));
   if (id !== 'rack-editor') closeRackPaletteSheet();
   if (phoneGrid) phoneGrid.style.display = '';
@@ -5006,6 +5007,7 @@ function renderRackEditorSidebar() {
 }
 
 function openRackEditor(rackId) {
+  closeLinkPanel();
   rackEditorRackId = rackId;
   const rack = rackById(rackId);
   if (!rack) return;

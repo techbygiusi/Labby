@@ -7413,3 +7413,116 @@ dialog.rack-form-dialog:not([open]) {
     max-height: var(--rack-u-height) !important;
   }
 }
+
+
+/* v73/v78: repair desktop rack assignment modal and theme customizer layout. */
+@media (min-width: 1101px) {
+  .rack-link-panel.rack-link-modal {
+    background: var(--phone) !important;
+    color: var(--text) !important;
+    border: 3px solid var(--line) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28) !important;
+    padding: 1rem !important;
+    max-height: min(72vh, 620px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain !important;
+  }
+  .rack-link-modal::before {
+    display: none !important;
+    content: none !important;
+  }
+  .rack-link-panel.rack-link-modal .rack-link-multi-wrap {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .rack-device-picker {
+    overflow: hidden !important;
+  }
+  .rack-device-picker-card {
+    background: var(--phone) !important;
+    color: var(--text) !important;
+    max-height: min(70vh, 600px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain !important;
+  }
+
+  .theme-picker-dialog #theme-customize-body.theme-builder-body {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-bottom: 5rem !important;
+  }
+  .theme-picker-dialog #theme-customize-body .tb-section-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  .theme-picker-dialog #theme-customize-body .tb-section {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.85rem !important;
+    padding: 1rem !important;
+    overflow: visible !important;
+  }
+  .theme-picker-dialog #theme-customize-body .tb-section-core .tb-grid,
+  .theme-picker-dialog #theme-customize-body .tb-section-types .tb-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 0.75rem !important;
+    align-items: stretch !important;
+  }
+  .theme-picker-dialog #theme-customize-body .tb-color-row {
+    display: grid !important;
+    grid-template-columns: 48px minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 0.8rem !important;
+    min-height: 86px !important;
+    height: auto !important;
+    padding: 0.72rem 0.82rem !important;
+    border: 2px solid var(--line) !important;
+    border-radius: 14px !important;
+    background: var(--panel) !important;
+    overflow: hidden !important;
+  }
+  .theme-picker-dialog #theme-customize-body .tb-color-row input[type='color'] {
+    width: 46px !important;
+    height: 46px !important;
+    min-width: 46px !important;
+    min-height: 46px !important;
+    align-self: center !important;
+    justify-self: center !important;
+    margin: 0 !important;
+    transform: none !important;
+    position: relative !important;
+    z-index: 1 !important;
+  }
+  .theme-picker-dialog #theme-customize-body .tb-color-copy {
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.32rem !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+  }
+  .theme-picker-dialog #theme-customize-body .tb-color-label {
+    font-size: 0.74rem !important;
+    line-height: 1.15 !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+  .theme-picker-dialog #theme-customize-body .tb-color-desc {
+    font-size: 0.66rem !important;
+    line-height: 1.28 !important;
+    white-space: normal !important;
+    color: var(--muted) !important;
+  }
+}
+
+@media (min-width: 1500px) {
+  .theme-picker-dialog #theme-customize-body .tb-section-core .tb-grid,
+  .theme-picker-dialog #theme-customize-body .tb-section-types .tb-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
