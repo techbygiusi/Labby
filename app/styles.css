@@ -7564,165 +7564,46 @@ dialog.rack-form-dialog:not([open]) {
 }
 
 
-@media (min-width: 1101px) {
-  .cli-dialog {
-    width: min(1500px, calc(100vw - 96px));
-  }
-
-  .cli-shell-desktop {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
-    grid-template-rows: minmax(0, 1fr);
-    gap: 1rem;
-    padding: 1rem;
-  }
-
-  .cli-main {
-    min-width: 0;
-    min-height: 0;
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto auto;
-    gap: 0.8rem;
-  }
-
-  .cli-command-panel {
-    min-width: 0;
-    min-height: 0;
-    display: grid;
-    grid-template-rows: auto auto minmax(0, 1fr) auto;
-    gap: 0.75rem;
-    border: 3px solid var(--line);
-    border-radius: 18px;
-    background: var(--panel);
-    padding: 0.85rem;
-    box-shadow: var(--shadow);
-  }
-
-  .cli-command-head h3 {
-    margin: 0;
-    font: 900 0.98rem/1.2 'Space Mono', monospace;
-  }
-
-  .cli-command-head p {
-    margin: 0.35rem 0 0;
-    color: var(--muted);
-    font: 700 0.7rem/1.35 'Space Mono', monospace;
-  }
-
-  .cli-command-search {
-    width: 100%;
-    min-height: 42px;
-  }
-
-  .cli-command-list {
-    min-height: 0;
-    overflow: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 0.55rem;
-    padding-right: 0.2rem;
-  }
-
-  .cli-command-item {
-    text-align: left;
-    border: 2px solid var(--line);
-    border-radius: 14px;
-    background: var(--phone);
-    color: var(--text);
-    padding: 0.65rem;
-    cursor: pointer;
-    display: grid;
-    gap: 0.3rem;
-  }
-
-  .cli-command-item:hover,
-  .cli-command-item.active {
-    background: var(--highlight);
-  }
-
-  .cli-command-item-name {
-    font: 900 0.78rem/1.2 'Space Mono', monospace;
-  }
-
-  .cli-command-item-command {
-    font: 700 0.66rem/1.35 'Space Mono', monospace;
-    color: var(--muted);
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    max-height: 4.1rem;
-    overflow: hidden;
-  }
-
-  .cli-command-item-description {
-    font: 700 0.66rem/1.35 'Inter', sans-serif;
-    color: var(--muted);
-  }
-
-  .cli-command-empty {
-    border: 2px dashed color-mix(in srgb, var(--line) 50%, transparent);
-    border-radius: 14px;
-    padding: 1rem;
-    color: var(--muted);
-    font: 700 0.75rem/1.35 'Space Mono', monospace;
-  }
-
-  .cli-command-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.55rem;
-    padding-top: 0.65rem;
-    border-top: 2px solid var(--line);
-  }
-
-  .cli-command-dialog {
-    width: min(620px, calc(100vw - 48px));
-    border: 3px solid var(--line);
-    border-radius: 18px;
-    background: var(--phone);
-    color: var(--text);
-    padding: 0;
-    box-shadow: var(--shadow);
-  }
-
-  .cli-command-dialog::backdrop {
-    background: rgba(0, 0, 0, 0.48);
-  }
-
-  .cli-command-card {
-    padding: 1rem;
-    display: grid;
-    gap: 0.85rem;
-  }
-
-  .cli-command-card h3 {
-    margin: 0;
-    font: 900 1rem/1.2 'Space Mono', monospace;
-  }
-
-  .cli-command-card label {
-    display: grid;
-    gap: 0.35rem;
-    font: 700 0.78rem/1.2 'Space Mono', monospace;
-  }
-
-  .cli-command-card textarea {
-    resize: vertical;
-    min-height: 90px;
-  }
-
-  .cli-command-dialog-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.6rem;
-    flex-wrap: wrap;
-    padding-top: 0.5rem;
-    border-top: 2px solid var(--line);
-  }
+.config-backup-dialog {
+  width: min(1180px, calc(100vw - 96px));
+  max-width: calc(100vw - 64px);
 }
+.config-backup-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(320px, 1.15fr) minmax(260px, 1fr);
+  gap: 1rem;
+  min-height: 0;
+  overflow: hidden;
+}
+.config-backup-card {
+  border: 3px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+  padding: 1rem;
+  display: grid;
+  gap: 0.75rem;
+  min-height: 0;
+}
+.config-backup-card h4 { margin: 0; font: 900 1rem/1.2 'Space Mono', monospace; }
+.config-backup-card label { display: grid; gap: 0.35rem; font-weight: 800; color: var(--muted); }
+.config-backup-list, .config-backup-log { display: flex; flex-direction: column; gap: 0.55rem; overflow: auto; min-height: 0; max-height: 430px; }
+.config-backup-item { text-align: left; border: 2px solid var(--line); border-radius: 14px; background: var(--phone); color: var(--text); padding: 0.7rem; display: grid; gap: 0.25rem; cursor: pointer; }
+.config-backup-item.active, .config-backup-item:hover { background: var(--highlight); }
+.config-backup-item span { color: var(--muted); font-size: 0.78rem; }
+.config-backup-empty { border: 2px dashed color-mix(in srgb, var(--line) 45%, transparent); border-radius: 14px; color: var(--muted); padding: 1rem; }
+.config-backup-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+.config-backup-retention-row { align-items: end; }
+.config-backup-retention-custom-hidden { opacity: 0.55; }
+.config-backup-retention-custom-hidden input { pointer-events: none; }
 
+.config-backup-check { grid-template-columns: auto 1fr !important; align-items: center; }
+.config-backup-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.config-backup-log-row { border: 2px solid var(--line); border-radius: 14px; padding: 0.65rem; display: grid; gap: 0.2rem; background: var(--phone); }
+.config-backup-log-row.success strong { color: var(--text); }
+.config-backup-log-row.error { border-color: var(--danger); }
+.config-backup-log-row code { white-space: pre-wrap; word-break: break-word; color: var(--muted); }
 @media (max-width: 1100px) {
-  .cli-command-panel,
-  .cli-command-dialog {
-    display: none !important;
-  }
+  .config-backup-dialog { width: min(100vw - 20px, 760px); max-width: calc(100vw - 20px); }
+  .config-backup-grid { grid-template-columns: 1fr; overflow: auto; max-height: calc(100dvh - 160px); }
+  .config-backup-list, .config-backup-log { max-height: none; }
 }
