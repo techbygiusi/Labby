@@ -290,15 +290,15 @@ applyTypeVisibility();
   selectedConfigBackupId = configBackups[0]?.id || null;
   liveStatusData = loaded.agentStatus || {};
   initAgentApiPanel();
-  renderCommandSnippets();
+  renderCommandSnippetsIfPresent();
   await loadConfigBackups();
   render();
   startPolling();
 })();
 
 
-function renderCommandSnippets() {
-  // Main-safe fallback: some shared UI flows call the command snippet renderer
+function renderCommandSnippetsIfPresent() {
+  // Main-safe fallback: some shared UI flows may expect the command snippet renderer
   // even when the snippet library markup is not included in this build.
   // The real CLI command library continues to render through its own handlers;
   // this guard prevents a missing optional renderer from aborting startup.
