@@ -364,6 +364,16 @@
       </div>
     </div>
 
+    <div class="mobile-view" id="mobile-config-backups">
+      <div class="mobile-view-head">
+        <h2>Config Backups</h2>
+      </div>
+      <div class="mobile-view-body" id="mobile-config-backups-body"></div>
+      <div class="mobile-view-footer">
+        <button class="button secondary" id="mobile-config-backups-close">← Back to Config</button>
+      </div>
+    </div>
+
     <div class="mobile-view" id="mobile-theme">
       <div class="mobile-view-head">
         <h2>🎨 Themes</h2>
@@ -403,12 +413,15 @@
           </section>
           <aside id="cli-command-snippets" class="command-snippets-panel" aria-label="Command snippets">
             <div class="command-snippets-head">
-              <h4>Command Snippets</h4>
-              <button id="command-snippet-add-current" class="button secondary small" type="button">+ Save input</button>
+              <h4>Commands</h4>
+              <p>Reusable commands for every CLI session.</p>
             </div>
             <input id="command-snippet-search" type="search" placeholder="Search commands..." autocomplete="off" />
             <div id="command-snippet-list" class="command-snippet-list"></div>
-            <p class="command-snippet-hint">Click a command to place it in the CLI input.</p>
+            <div class="command-snippet-footer">
+              <button id="command-snippet-edit" class="button secondary" type="button">Edit</button>
+              <button id="command-snippet-new" class="button" type="button">New command</button>
+            </div>
           </aside>
         </div>
       </div>
@@ -576,7 +589,7 @@
         </section>
       </div>
       <div class="dialog-footer">
-        <button id="config-backup-close" class="button secondary" type="button">✕ Close</button>
+        <button id="config-backup-close" class="button secondary" type="button">← Back to Config</button>
       </div>
     </dialog>
 

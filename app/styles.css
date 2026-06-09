@@ -7781,3 +7781,69 @@ dialog.rack-form-dialog:not([open]) {
     width: 100%;
   }
 }
+
+
+/* v98/v114: Config Backups mobile is a real mobile view, matching Themes/Config. */
+#mobile-config-backups .mobile-view-head h2 {
+  margin: 0;
+  font: 900 1rem/1.2 'Space Mono', monospace;
+}
+#mobile-config-backups-body {
+  padding: 1rem max(1rem, env(safe-area-inset-right)) 1rem max(1rem, env(safe-area-inset-left));
+}
+#mobile-config-backups-body .tree-head,
+#mobile-config-backups-body .dialog-footer {
+  display: none !important;
+}
+#mobile-config-backups-body .config-backup-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  max-height: none !important;
+  overflow: visible !important;
+  padding: 0 !important;
+}
+#mobile-config-backups-body .config-backup-card {
+  min-height: auto;
+  background: var(--panel);
+}
+#mobile-config-backups-body .config-backup-schedule-grid,
+#mobile-config-backups-body .config-backup-two {
+  grid-template-columns: 1fr !important;
+}
+#mobile-config-backups-body .config-backup-list,
+#mobile-config-backups-body .config-backup-log {
+  max-height: none;
+}
+@media (max-width: 1100px) {
+  #config-backup-dialog.tree-dialog { display: none !important; }
+}
+
+/* v98/v114: restore config-backed Command Snippets panel. */
+.command-snippets-head {
+  display: grid;
+  align-items: start;
+  gap: 0.2rem;
+}
+.command-snippets-head p {
+  margin: 0;
+  color: var(--muted);
+  font: 800 0.7rem/1.25 'Space Mono', monospace;
+}
+.command-snippet-item.active {
+  background: var(--highlight);
+}
+.command-snippet-empty {
+  border: 2px dashed color-mix(in srgb, var(--line) 45%, transparent);
+  border-radius: 14px;
+  color: var(--muted);
+  padding: 1rem;
+  font: 800 0.75rem/1.3 'Space Mono', monospace;
+}
+.command-snippet-footer {
+  border-top: 2px solid var(--line);
+  padding-top: 0.65rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}

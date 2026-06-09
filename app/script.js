@@ -153,6 +153,12 @@ const configBackupRetentionMode = document.getElementById('config-backup-retenti
 const configBackupRetentionCustom = document.getElementById('config-backup-retention-custom');
 const configBackupRetentionCustomWrap = document.getElementById('config-backup-retention-custom-wrap');
 const configBackupEnabled = document.getElementById('config-backup-enabled');
+const mobileConfigBackupsBody = document.getElementById('mobile-config-backups-body');
+const mobileConfigBackupsClose = document.getElementById('mobile-config-backups-close');
+const commandSnippetSearch = document.getElementById('command-snippet-search');
+const commandSnippetList = document.getElementById('command-snippet-list');
+const commandSnippetEdit = document.getElementById('command-snippet-edit');
+const commandSnippetNew = document.getElementById('command-snippet-new');
 
 const toast = document.getElementById('toast');
 
@@ -177,6 +183,8 @@ let locations = [];
 let racks = [];
 let configBackups = [];
 let configBackupLogs = [];
+let commandSnippets = [];
+let selectedCommandSnippetId = null;
 let selectedConfigBackupId = null;
 let toastTimer = null;
 let treeViewMode = 'tree';
@@ -229,6 +237,7 @@ async function loadItemsFromAPI() {
       racks: Array.isArray(data.racks) ? data.racks : [],
       agentStatus: data.agentStatus && typeof data.agentStatus === 'object' ? data.agentStatus : {},
       agentKeys: Array.isArray(data.agentKeys) ? data.agentKeys : [],
+      commandSnippets: Array.isArray(data.commandSnippets) ? data.commandSnippets : [],
       configBackups: Array.isArray(data.configBackups) ? data.configBackups : [],
       configBackupLogs: Array.isArray(data.configBackupLogs) ? data.configBackupLogs : [],
     };
@@ -240,7 +249,7 @@ async function loadItemsFromAPI() {
       const lsItems = Array.isArray(parsed) ? parsed : (parsed.items || []);
       const lsLocations = Array.isArray(parsed) ? [] : (parsed.locations || []);
       const lsRacks = Array.isArray(parsed) ? [] : (parsed.racks || []);
-      return { items: lsItems, locations: lsLocations, racks: lsRacks, agentStatus: parsed.agentStatus || {}, configBackups: parsed.configBackups || [], configBackupLogs: parsed.configBackupLogs || [] };
+      return { items: lsItems, locations: lsLocations, racks: lsRacks, agentStatus: parsed.agentStatus || {}, commandSnippets: parsed.commandSnippets || [], configBackups: parsed.configBackups || [], configBackupLogs: parsed.configBackupLogs || [] };
     } catch {
       return { items: [], locations: [], racks: [] };
     }
@@ -253,6 +262,7 @@ async function saveItemsToAPI(itemList) {
     locations: locations,
     racks: racks,
     agentStatus: liveStatusData,
+    commandSnippets,
     configBackups,
     configBackupLogs,
   };
@@ -290,6 +300,8 @@ applyTypeVisibility();
   items = sanitizeItems(loaded.items);
   locations = loaded.locations || [];
   racks = loaded.racks || [];
+  commandSnippets = Array.isArray(loaded.commandSnippets) ? loaded.commandSnippets.map(normalizeCommandSnippet) : [];
+  selectedCommandSnippetId = commandSnippets[0]?.id || null;
   configBackups = Array.isArray(loaded.configBackups) ? loaded.configBackups : [];
   configBackupLogs = Array.isArray(loaded.configBackupLogs) ? loaded.configBackupLogs : [];
   selectedConfigBackupId = configBackups[0]?.id || null;
@@ -302,39 +314,25 @@ applyTypeVisibility();
 })();
 
 
-const commandSnippetStorageKey = 'labby-command-snippets';
-const builtinCommandSnippets = [
-  { id: 'sys-update', title: 'Debian update', group: 'System', command: 'sudo apt update && sudo apt upgrade -y' },
-  { id: 'disk-usage', title: 'Disk usage', group: 'System', command: 'df -h' },
-  { id: 'memory', title: 'Memory overview', group: 'System', command: 'free -h' },
-  { id: 'processes', title: 'Top processes', group: 'System', command: 'ps aux --sort=-%mem | head -20' },
-  { id: 'network', title: 'IP addresses', group: 'Network', command: 'ip addr show' },
-  { id: 'ports', title: 'Listening ports', group: 'Network', command: 'ss -tulpn' },
-  { id: 'docker-ps', title: 'Docker containers', group: 'Docker', command: 'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"' },
-  { id: 'docker-logs', title: 'Docker logs', group: 'Docker', command: 'docker logs --tail=100 <container>' },
-  { id: 'journal-errors', title: 'Recent system errors', group: 'Logs', command: 'journalctl -p err -n 80 --no-pager' },
-  { id: 'reboot-required', title: 'Check reboot required', group: 'System', command: 'test -f /var/run/reboot-required && cat /var/run/reboot-required || echo "No reboot required"' },
-];
 
-function loadCustomCommandSnippets() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(commandSnippetStorageKey) || '[]');
-    return Array.isArray(parsed) ? parsed.filter(s => s && s.command).map((s, i) => ({
-      id: String(s.id || `custom-${i}`),
-      title: String(s.title || 'Saved command'),
-      group: String(s.group || 'Saved'),
-      command: String(s.command || ''),
-      custom: true,
-    })) : [];
-  } catch { return []; }
+function normalizeCommandSnippet(entry = {}) {
+  const command = String(entry.command || '').trim();
+  const name = String(entry.name || entry.title || command.slice(0, 40) || 'Command').trim() || 'Command';
+  return {
+    id: String(entry.id || `cmd-${Date.now()}-${Math.random().toString(16).slice(2)}`),
+    name,
+    command,
+    description: String(entry.description || '').trim(),
+    createdAt: entry.createdAt || new Date().toISOString(),
+    updatedAt: entry.updatedAt || new Date().toISOString(),
+  };
 }
 
-function saveCustomCommandSnippets(snippets) {
-  try { localStorage.setItem(commandSnippetStorageKey, JSON.stringify(snippets)); } catch {}
-}
-
-function allCommandSnippets() {
-  return [...builtinCommandSnippets, ...loadCustomCommandSnippets()];
+function visibleCommandSnippets() {
+  const needle = String(commandSnippetSearch?.value || '').trim().toLowerCase();
+  const list = commandSnippets.map(normalizeCommandSnippet).filter(snippet => snippet.command);
+  if (!needle) return list;
+  return list.filter(snippet => `${snippet.name} ${snippet.description} ${snippet.command}`.toLowerCase().includes(needle));
 }
 
 function setCliInputCommand(command) {
@@ -345,56 +343,67 @@ function setCliInputCommand(command) {
   input.setSelectionRange(input.value.length, input.value.length);
 }
 
-function renderCommandSnippetsIfPresent() {
-  const panel = document.getElementById('cli-command-snippets') || document.getElementById('command-snippets') || document.getElementById('mobile-command-snippets');
-  const list = document.getElementById('command-snippet-list');
-  if (!panel || !list) return;
-  const search = document.getElementById('command-snippet-search');
-  const addCurrent = document.getElementById('command-snippet-add-current');
-  const needle = String(search?.value || '').trim().toLowerCase();
-  const snippets = allCommandSnippets().filter(snippet => {
-    if (!needle) return true;
-    return `${snippet.title} ${snippet.group} ${snippet.command}`.toLowerCase().includes(needle);
-  });
-  list.innerHTML = snippets.length ? '' : '<div class="config-backup-empty">No commands found.</div>';
+function renderCommandSnippets() {
+  if (!commandSnippetList) return;
+  const snippets = visibleCommandSnippets();
+  if (!snippets.length) {
+    commandSnippetList.innerHTML = '<div class="command-snippet-empty">No commands saved yet.</div>';
+    return;
+  }
+  if (!selectedCommandSnippetId || !snippets.some(s => s.id === selectedCommandSnippetId)) {
+    selectedCommandSnippetId = snippets[0]?.id || null;
+  }
+  commandSnippetList.innerHTML = '';
   snippets.forEach(snippet => {
-    const item = document.createElement('div');
-    item.className = 'command-snippet-item';
-    item.innerHTML = `<strong>${escapeHtml(snippet.title)}</strong><small>${escapeHtml(snippet.group)}</small><code>${escapeHtml(snippet.command)}</code>${snippet.custom ? '<div class="command-snippet-actions"><button class="button secondary small" type="button" data-command-snippet-delete>Delete</button></div>' : ''}`;
-    item.addEventListener('click', (event) => {
-      if (event.target.closest('[data-command-snippet-delete]')) return;
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'command-snippet-item' + (snippet.id === selectedCommandSnippetId ? ' active' : '');
+    item.innerHTML = `<strong>${escapeHtml(snippet.name)}</strong>${snippet.description ? `<small>${escapeHtml(snippet.description)}</small>` : ''}<code>${escapeHtml(snippet.command)}</code>`;
+    item.addEventListener('click', () => {
+      selectedCommandSnippetId = snippet.id;
       setCliInputCommand(snippet.command);
+      renderCommandSnippets();
     });
-    item.querySelector('[data-command-snippet-delete]')?.addEventListener('click', (event) => {
-      event.stopPropagation();
-      const custom = loadCustomCommandSnippets().filter(s => s.id !== snippet.id);
-      saveCustomCommandSnippets(custom);
-      renderCommandSnippetsIfPresent();
-    });
-    list.appendChild(item);
+    commandSnippetList.appendChild(item);
   });
-  if (search && !search.dataset.bound) {
-    search.dataset.bound = '1';
-    search.addEventListener('input', renderCommandSnippetsIfPresent);
-  }
-  if (addCurrent && !addCurrent.dataset.bound) {
-    addCurrent.dataset.bound = '1';
-    addCurrent.addEventListener('click', () => {
-      const input = activeCliInput?.() || cliInput || mobileCliInput;
-      const command = String(input?.value || '').trim();
-      if (!command) { showToast('Type a command first.', 'error'); return; }
-      const custom = loadCustomCommandSnippets();
-      custom.push({ id: `custom-${Date.now()}`, title: command.length > 34 ? `${command.slice(0, 34)}…` : command, group: 'Saved', command, custom: true });
-      saveCustomCommandSnippets(custom.slice(-80));
-      renderCommandSnippetsIfPresent();
-      showToast('Command snippet saved.');
-    });
-  }
 }
 
-function renderCommandSnippets() {
-  return renderCommandSnippetsIfPresent();
+function renderCommandSnippetsIfPresent() {
+  renderCommandSnippets();
 }
+
+async function persistCommandSnippets() {
+  commandSnippets = commandSnippets.map(normalizeCommandSnippet).filter(s => s.command);
+  await saveItemsToAPI(items);
+  renderCommandSnippets();
+}
+
+async function createOrEditCommandSnippet(existing) {
+  const currentInput = String((activeCliInput?.() || cliInput || mobileCliInput)?.value || '').trim();
+  const base = existing ? normalizeCommandSnippet(existing) : normalizeCommandSnippet({ command: currentInput });
+  const name = window.prompt('Command name', base.name || 'Command');
+  if (name === null) return;
+  const command = window.prompt('Command', base.command || currentInput || '');
+  if (command === null) return;
+  const description = window.prompt('Description (optional)', base.description || '');
+  if (description === null) return;
+  const next = normalizeCommandSnippet({ ...base, name, command, description, updatedAt: new Date().toISOString() });
+  if (!next.command) { showToast('Command is empty.', 'error'); return; }
+  const idx = commandSnippets.findIndex(s => s.id === next.id);
+  if (idx >= 0) commandSnippets[idx] = next;
+  else commandSnippets.push({ ...next, createdAt: new Date().toISOString() });
+  selectedCommandSnippetId = next.id;
+  await persistCommandSnippets();
+  showToast(existing ? 'Command updated.' : 'Command saved.');
+}
+
+commandSnippetSearch?.addEventListener('input', renderCommandSnippets);
+commandSnippetNew?.addEventListener('click', () => createOrEditCommandSnippet(null));
+commandSnippetEdit?.addEventListener('click', () => {
+  const snippet = commandSnippets.find(s => s.id === selectedCommandSnippetId);
+  if (!snippet) { showToast('Select a command first.', 'error'); return; }
+  createOrEditCommandSnippet(snippet);
+});
 
 if (typeof window !== 'undefined') {
   window.renderCommandSnippets = renderCommandSnippets;
@@ -914,7 +923,7 @@ document.getElementById('agent-api-close')?.addEventListener('click', () => {
 
 clearAll.addEventListener('click', async () => {
   if (!confirm('Delete all resources? This also clears all rack, location, custom theme, API key and config backup data.')) return;
-  items = []; locations = []; racks = []; configBackups = []; configBackupLogs = []; selectedConfigBackupId = null;
+  items = []; locations = []; racks = []; commandSnippets = []; selectedCommandSnippetId = null; configBackups = []; configBackupLogs = []; selectedConfigBackupId = null;
   localStorage.removeItem('labby-custom-themes');
   localStorage.removeItem(configBackupStorageKey);
   await clearAllAgentKeys();
@@ -1127,6 +1136,7 @@ async function buildConfigExport() {
     locations,
     racks,
     agentStatus: liveStatusData,
+    commandSnippets,
     configBackups,
     configBackupLogs,
     encryptedSecrets: {
@@ -1201,6 +1211,8 @@ async function applyImportedConfig(parsed) {
   items     = importedItems;
   locations = Array.isArray(parsed.locations) ? parsed.locations : [];
   racks     = Array.isArray(parsed.racks) ? parsed.racks : [];
+  commandSnippets = Array.isArray(parsed.commandSnippets) ? parsed.commandSnippets.map(normalizeCommandSnippet) : [];
+  selectedCommandSnippetId = commandSnippets[0]?.id || null;
   configBackups = Array.isArray(parsed.configBackups) ? parsed.configBackups : [];
   configBackupLogs = Array.isArray(parsed.configBackupLogs) ? parsed.configBackupLogs : [];
   selectedConfigBackupId = configBackups[0]?.id || null;
@@ -1441,15 +1453,68 @@ async function runSelectedConfigBackup() {
   }
 }
 
+
+const configBackupDialogPlaceholder = document.createComment('config-backup-dialog-placeholder');
+let configBackupContentInMobile = false;
+
+function moveConfigBackupToMobile() {
+  const body = mobileConfigBackupsBody || document.getElementById('mobile-config-backups-body');
+  const dlg = configBackupDialog || document.getElementById('config-backup-dialog');
+  if (!body || !dlg || configBackupContentInMobile) return;
+  if (!configBackupDialogPlaceholder.parentNode) dlg.insertBefore(configBackupDialogPlaceholder, dlg.firstChild);
+  let node = configBackupDialogPlaceholder.nextSibling;
+  while (node) {
+    const next = node.nextSibling;
+    body.appendChild(node);
+    node = next;
+  }
+  configBackupContentInMobile = true;
+}
+
+function restoreConfigBackupToDialog() {
+  const body = mobileConfigBackupsBody || document.getElementById('mobile-config-backups-body');
+  const dlg = configBackupDialog || document.getElementById('config-backup-dialog');
+  if (!body || !dlg || !configBackupContentInMobile) return;
+  while (body.firstChild) dlg.insertBefore(body.firstChild, configBackupDialogPlaceholder.nextSibling);
+  if (configBackupDialogPlaceholder.parentNode) configBackupDialogPlaceholder.remove();
+  configBackupContentInMobile = false;
+}
+
+function closeMobileConfigBackupView() {
+  if (!configBackupContentInMobile) return;
+  restoreConfigBackupToDialog();
+}
+
+function returnFromConfigBackup() {
+  if (isMobile() && configBackupContentInMobile) {
+    showMobileView('mobile-config');
+    setActiveMobileNav('nav-more');
+    return;
+  }
+  if (configBackupDialog?.open) configBackupDialog.close();
+  if (configDialog && !configDialog.open) {
+    try { configDialog.showModal(); } catch {}
+  }
+}
+
 function openConfigBackupDialog() {
   loadConfigBackups();
   if (configDialog?.open) configDialog.close();
+  if (isMobile()) {
+    if (configBackupDialog?.open) configBackupDialog.close();
+    moveConfigBackupToMobile();
+    showMobileView('mobile-config-backups');
+    setActiveMobileNav('nav-more');
+    return;
+  }
+  restoreConfigBackupToDialog();
   if (configBackupDialog && !configBackupDialog.open) configBackupDialog.showModal();
 }
 
 configBackupBtn?.addEventListener('click', openConfigBackupDialog);
 configBackupBtnMobile?.addEventListener('click', openConfigBackupDialog);
-configBackupClose?.addEventListener('click', () => configBackupDialog?.close());
+configBackupClose?.addEventListener('click', returnFromConfigBackup);
+mobileConfigBackupsClose?.addEventListener('click', returnFromConfigBackup);
 configBackupNew?.addEventListener('click', () => {
   selectedConfigBackupId = null;
   fillConfigBackupForm({ name: 'Config backup', retentionMode: '5', retentionCount: 5 });
@@ -4844,6 +4909,7 @@ function openMobileMoreSheet() {
 function showMobileView(id) {
   if (id !== 'mobile-theme') closeMobileThemeView();
   if (id !== 'mobile-agent-api') closeMobileAgentApiView();
+  if (id !== 'mobile-config-backups') closeMobileConfigBackupView();
   closeMobileMoreSheet();
   showRackOverlay(null);
   closeRackPaletteSheet();
@@ -5092,7 +5158,7 @@ if (importFileMobile) importFileMobile.addEventListener('change', async (event) 
 const clearAllMobile = document.getElementById('clear-all-mobile');
 if (clearAllMobile) clearAllMobile.addEventListener('click', async () => {
   if (!confirm('Delete all resources? This also clears all rack, location, custom theme, API key and config backup data.')) return;
-  items = []; locations = []; racks = []; configBackups = []; configBackupLogs = []; selectedConfigBackupId = null;
+  items = []; locations = []; racks = []; commandSnippets = []; selectedCommandSnippetId = null; configBackups = []; configBackupLogs = []; selectedConfigBackupId = null;
   localStorage.removeItem('labby-custom-themes');
   localStorage.removeItem(configBackupStorageKey);
   await clearAllAgentKeys();
