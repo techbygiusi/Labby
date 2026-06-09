@@ -7799,3 +7799,13 @@ html body .demo-banner span {
 .connection-summary {
   display: none;
 }
+
+
+@media (max-width: 1100px) {
+  [id*="mobile"][id*="graph"],
+  [class*="mobile"][class*="graph"],
+  [data-mobile-view="graph"],
+  [data-mobile-relationship-mode="graph"] {
+    display: none !important;
+  }
+}

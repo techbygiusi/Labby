@@ -115,6 +115,9 @@ const mobileCliClose = document.getElementById('mobile-cli-close');
 let cliSession = null;
 let cliPollTimer = null;
 let cliActiveItem = null;
+let cliCommandHistory = [];
+let cliHistoryIndex = -1;
+let cliHistoryDraft = '';
 let credentialFields = null;
 const formTitle = document.getElementById('form-title');
 const searchInput = document.getElementById('search');
@@ -2396,11 +2399,77 @@ async function pasteClipboardToCliInput() {
 }
 
 
+
+function autosizeCliInput(input) {
+  if (!input) return;
+  input.style.height = 'auto';
+  const maxHeight = isMobile() ? 150 : 120;
+  input.style.height = `${Math.min(input.scrollHeight, maxHeight)}px`;
+}
+
+function insertTextAtCursor(input, text) {
+  if (!input || typeof text !== 'string') return;
+  const start = input.selectionStart ?? input.value.length;
+  const end = input.selectionEnd ?? input.value.length;
+  input.value = `${input.value.slice(0, start)}${text}${input.value.slice(end)}`;
+  const next = start + text.length;
+  input.selectionStart = next;
+  input.selectionEnd = next;
+  autosizeCliInput(input);
+  input.focus();
+}
+
+async function pasteClipboardToCliInput() {
+  const els = activeCliEls();
+  if (!els.input) return;
+  try {
+    const text = await navigator.clipboard.readText();
+    if (!text) {
+      showToast('Clipboard is empty.', 'info');
+      return;
+    }
+    insertTextAtCursor(els.input, text);
+    showToast('Clipboard pasted.');
+  } catch {
+    showToast('Could not read clipboard.', 'error');
+  }
+}
+
+function rememberCliCommand(command) {
+  const value = String(command || '').replace(/\r\n/g, '\n');
+  if (!value.trim()) return;
+  if (cliCommandHistory[cliCommandHistory.length - 1] !== value) {
+    cliCommandHistory.push(value);
+    if (cliCommandHistory.length > 100) cliCommandHistory.shift();
+  }
+  cliHistoryIndex = cliCommandHistory.length;
+  cliHistoryDraft = '';
+}
+
+function applyCliHistory(input, direction) {
+  if (!input || !cliCommandHistory.length) return;
+  if (cliHistoryIndex < 0 || cliHistoryIndex > cliCommandHistory.length) {
+    cliHistoryIndex = cliCommandHistory.length;
+  }
+  if (cliHistoryIndex === cliCommandHistory.length) {
+    cliHistoryDraft = input.value || '';
+  }
+  cliHistoryIndex += direction;
+  if (cliHistoryIndex < 0) cliHistoryIndex = 0;
+  if (cliHistoryIndex > cliCommandHistory.length) cliHistoryIndex = cliCommandHistory.length;
+  input.value = cliHistoryIndex === cliCommandHistory.length ? cliHistoryDraft : cliCommandHistory[cliHistoryIndex];
+  input.selectionStart = input.value.length;
+  input.selectionEnd = input.value.length;
+  autosizeCliInput(input);
+}
+
+
 async function sendCliInput() {
   if (!cliSession) return;
   const els = activeCliEls();
   const value = els.input?.value || '';
   if (!value) return;
+  rememberCliCommand(value);
   els.input.value = '';
   autosizeCliInput(els.input);
   setCliOutput(`$ ${value}\n`, true);
@@ -4491,8 +4560,7 @@ if (mobileTreeModeTree) mobileTreeModeTree.addEventListener('click', () => {
   mobileTreeModeGraph.classList.remove('active');
   renderMobileTree();
 });
-if (mobileTreeModeGraph) mobileTreeModeGraph.addEventListener('click', () => {
-  treeViewMode = 'graph';
+if (/* mobile graph disabled */
   mobileTreeModeGraph.classList.add('active');
   mobileTreeModeTree?.classList.remove('active');
   renderMobileTree();
