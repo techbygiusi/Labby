@@ -4837,7 +4837,7 @@ dialog.rack-form-dialog:not([open]) {
    ================================================================ */
 @media (max-width: 1100px) {
   #mobile-tree .view-switch { display: inline-flex !important; }
-  #mobile-tree-mode-graph { display: inline-flex !important; }
+  #mobile-tree-mode-graph { display: none !important; }
 
   #nav-more .bottom-nav-icon {
     font-family: inherit !important;

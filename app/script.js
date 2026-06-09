@@ -4472,22 +4472,24 @@ if (mobileTreeModeTree) mobileTreeModeTree.addEventListener('click', () => {
   mobileTreeModeGraph.classList.remove('active');
   renderMobileTree();
 });
+// Mobile Graph view is intentionally disabled; desktop Graph view remains available.
 if (mobileTreeModeGraph) mobileTreeModeGraph.addEventListener('click', () => {
-  treeViewMode = 'graph';
-  mobileTreeModeGraph.classList.add('active');
-  mobileTreeModeTree?.classList.remove('active');
+  treeViewMode = 'tree';
+  mobileTreeModeTree?.classList.add('active');
+  mobileTreeModeGraph.classList.remove('active');
   renderMobileTree();
 });
 
 function renderMobileTree() {
   const container = document.getElementById('mobile-tree-content');
   if (!container) return;
-  mobileTreeModeTree?.classList.toggle('active', treeViewMode === 'tree');
-  mobileTreeModeGraph?.classList.toggle('active', treeViewMode === 'graph');
+  treeViewMode = 'tree';
+  mobileTreeModeTree?.classList.add('active');
+  mobileTreeModeGraph?.classList.remove('active');
   container.innerHTML = '';
   const shell = document.createElement('div');
   shell.className = 'tree-shell';
-  shell.appendChild(treeViewMode === 'graph' ? buildGraphView() : buildInfrastructureTree());
+  shell.appendChild(buildInfrastructureTree());
   container.appendChild(shell);
 }
 
