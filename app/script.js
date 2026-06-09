@@ -437,11 +437,13 @@ document.addEventListener('click', (event) => {
   input.addEventListener('keydown', (event) => {
     if (event.key === 'ArrowUp') {
       event.preventDefault();
+      event.stopPropagation();
       applyCliHistory(input, -1);
       return;
     }
     if (event.key === 'ArrowDown') {
       event.preventDefault();
+      event.stopPropagation();
       applyCliHistory(input, 1);
       return;
     }
