@@ -111,7 +111,8 @@ const mobileCliClose = document.getElementById('mobile-cli-close');
 let cliSession = null;
 let cliPollTimer = null;
 let cliActiveItem = null;
-let cliCommandHistory = [];
+const cliCommandHistoryByKey = new Map();
+let cliHistoryKey = '';
 let cliHistoryIndex = -1;
 let cliHistoryDraft = '';
 let credentialFields = null;
@@ -428,16 +429,20 @@ document.addEventListener('click', (event) => {
 
 [cliSend, mobileCliSend].filter(Boolean).forEach((btn) => btn.addEventListener('click', () => sendCliInput()));
 [cliInput, mobileCliInput].filter(Boolean).forEach((input) => {
-  input.addEventListener('input', () => autosizeCliInput(input));
+  input.addEventListener('input', () => {
+    cliHistoryIndex = currentCliHistory().length;
+    cliHistoryDraft = input.value || '';
+    autosizeCliInput(input);
+  });
   input.addEventListener('keydown', (event) => {
     if (event.key === 'ArrowUp') {
       event.preventDefault();
-      sendCliRawInput('\x1b[A');
+      applyCliHistory(input, -1);
       return;
     }
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      sendCliRawInput('\x1b[B');
+      applyCliHistory(input, 1);
       return;
     }
     if (event.key !== 'Enter') return;
@@ -2217,6 +2222,7 @@ async function openCliSession(item, options = {}) {
     return;
   }
   cliActiveItem = item;
+  setCliHistoryTarget(item);
   const els = activeCliEls();
   if (els.title) els.title.textContent = `CLI · ${item.name}`;
   if (els.subtitle) els.subtitle.textContent = `ssh ${target}`;
@@ -2357,56 +2363,63 @@ async function pasteClipboardToCliInput() {
   }
 }
 
+
+
+
+function currentCliHistory() {
+  if (!cliHistoryKey) return [];
+  if (!cliCommandHistoryByKey.has(cliHistoryKey)) cliCommandHistoryByKey.set(cliHistoryKey, []);
+  return cliCommandHistoryByKey.get(cliHistoryKey);
+}
+
+function setCliHistoryTarget(item) {
+  const credentials = item ? getItemCredentials(item.id) : null;
+  const user = credentials?.username || '';
+  const host = item?.ip || item?.name || item?.id || 'default';
+  cliHistoryKey = `${item?.id || host}|${user}|${host}`;
+  cliHistoryIndex = currentCliHistory().length;
+  cliHistoryDraft = '';
+}
+
 function rememberCliCommand(command) {
   const value = String(command || '').replace(/\r\n/g, '\n');
   if (!value.trim()) return;
-  if (cliCommandHistory[cliCommandHistory.length - 1] !== value) {
-    cliCommandHistory.push(value);
-    if (cliCommandHistory.length > 100) cliCommandHistory.shift();
+  const history = currentCliHistory();
+  if (history[history.length - 1] !== value) {
+    history.push(value);
+    if (history.length > 100) history.shift();
   }
-  cliHistoryIndex = cliCommandHistory.length;
+  cliHistoryIndex = history.length;
   cliHistoryDraft = '';
 }
 
 function applyCliHistory(input, direction) {
-  if (!input || !cliCommandHistory.length) return;
-  if (cliHistoryIndex < 0 || cliHistoryIndex > cliCommandHistory.length) {
-    cliHistoryIndex = cliCommandHistory.length;
+  if (!input) return;
+  const history = currentCliHistory();
+  if (!history.length) return;
+  if (cliHistoryIndex < 0 || cliHistoryIndex > history.length) {
+    cliHistoryIndex = history.length;
   }
-  if (cliHistoryIndex === cliCommandHistory.length) {
+  if (cliHistoryIndex === history.length) {
     cliHistoryDraft = input.value || '';
   }
   cliHistoryIndex += direction;
   if (cliHistoryIndex < 0) cliHistoryIndex = 0;
-  if (cliHistoryIndex > cliCommandHistory.length) cliHistoryIndex = cliCommandHistory.length;
-  input.value = cliHistoryIndex === cliCommandHistory.length ? cliHistoryDraft : cliCommandHistory[cliHistoryIndex];
+  if (cliHistoryIndex > history.length) cliHistoryIndex = history.length;
+  input.value = cliHistoryIndex === history.length ? cliHistoryDraft : history[cliHistoryIndex];
   input.selectionStart = input.value.length;
   input.selectionEnd = input.value.length;
   autosizeCliInput(input);
+  input.focus();
 }
 
-
-async function sendCliRawInput(rawInput) {
-  if (!cliSession) return;
-  try {
-    await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(cliSession)}/input`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ input: rawInput }),
-    });
-  } catch {
-    showToast('Could not send command.', 'error');
-  }
-}
 
 async function sendCliInput() {
   if (!cliSession) return;
   const els = activeCliEls();
   const value = els.input?.value || '';
-  if (!value) {
-    await sendCliRawInput('\n');
-    return;
-  }
+  if (!value) return;
+  rememberCliCommand(value);
   els.input.value = '';
   autosizeCliInput(els.input);
   setCliOutput(`$ ${value}\n`, true);
