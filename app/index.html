@@ -335,6 +335,7 @@
         <h2>Relationship Tree</h2>
         <div class="view-switch" role="tablist">
           <button id="mobile-tree-mode-tree" class="icon-btn active" type="button">Tree</button>
+          <button id="mobile-tree-mode-graph" class="icon-btn" type="button">Graph</button>
         </div>
       </div>
       <div class="mobile-view-body" id="mobile-tree-content"></div>
@@ -397,12 +398,13 @@
         </div>
         <div id="cli-terminal" class="cli-terminal" tabindex="0" aria-label="SSH terminal output"></div>
         <div class="cli-input-row">
-          <input id="cli-input" type="text" autocomplete="off" spellcheck="false" placeholder="Type command and press Enter..." />
+          <textarea id="cli-input" rows="1" autocomplete="off" spellcheck="false" placeholder="Type command and press Enter..."></textarea>
           <button id="cli-send" class="button" type="button">Send</button>
         </div>
         <div class="cli-footer">
           <button id="cli-clear-key" class="button secondary" type="button">Clear SSH key</button>
           <button id="cli-copy" class="button secondary" type="button">Copy output</button>
+          <button id="cli-paste" class="button secondary" type="button">Paste clipboard</button>
           <button id="cli-close" class="button secondary" type="button">✕ Close SSH</button>
         </div>
       </div>
@@ -419,12 +421,13 @@
           </div>
           <div id="mobile-cli-terminal" class="cli-terminal" tabindex="0" aria-label="SSH terminal output"></div>
           <div class="cli-input-row">
-            <input id="mobile-cli-input" type="text" autocomplete="off" spellcheck="false" placeholder="Type command and press Enter..." />
+            <textarea id="mobile-cli-input" rows="1" autocomplete="off" spellcheck="false" placeholder="Type command and press Enter..."></textarea>
             <button id="mobile-cli-send" class="button" type="button">Send</button>
           </div>
           <div class="cli-footer">
             <button id="mobile-cli-clear-key" class="button secondary" type="button">Clear SSH key</button>
             <button id="mobile-cli-copy" class="button secondary" type="button">Copy output</button>
+            <button id="mobile-cli-paste" class="button secondary" type="button">Paste clipboard</button>
             <button id="mobile-cli-close" class="button secondary" type="button">✕ Close SSH</button>
           </div>
         </div>

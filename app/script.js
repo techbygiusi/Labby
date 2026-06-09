@@ -99,6 +99,7 @@ const cliTerminal = document.getElementById('cli-terminal');
 const cliInput = document.getElementById('cli-input');
 const cliSend = document.getElementById('cli-send');
 const cliCopy = document.getElementById('cli-copy');
+const cliPaste = document.getElementById('cli-paste');
 const cliClearKey = document.getElementById('cli-clear-key');
 const cliClose = document.getElementById('cli-close');
 const mobileCliView = document.getElementById('mobile-cli');
@@ -108,6 +109,7 @@ const mobileCliTerminal = document.getElementById('mobile-cli-terminal');
 const mobileCliInput = document.getElementById('mobile-cli-input');
 const mobileCliSend = document.getElementById('mobile-cli-send');
 const mobileCliCopy = document.getElementById('mobile-cli-copy');
+const mobileCliPaste = document.getElementById('mobile-cli-paste');
 const mobileCliClearKey = document.getElementById('mobile-cli-clear-key');
 const mobileCliClose = document.getElementById('mobile-cli-close');
 let cliSession = null;
@@ -488,15 +490,21 @@ document.addEventListener('click', (event) => {
 
 [cliSend, mobileCliSend].filter(Boolean).forEach((btn) => btn.addEventListener('click', () => sendCliInput()));
 [cliInput, mobileCliInput].filter(Boolean).forEach((input) => {
+  input.addEventListener('input', () => autosizeCliInput(input));
   input.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      sendCliInput();
+    if (event.key !== 'Enter') return;
+    if (event.shiftKey) {
+      // Native textarea behavior: insert a newline.
+      window.setTimeout(() => autosizeCliInput(input), 0);
+      return;
     }
+    event.preventDefault();
+    sendCliInput();
   });
 });
 [cliClearKey, mobileCliClearKey].filter(Boolean).forEach((btn) => btn.addEventListener('click', clearCliKnownHostAndReconnect));
 [cliCopy, mobileCliCopy].filter(Boolean).forEach((btn) => btn.addEventListener('click', copyCliOutput));
+[cliPaste, mobileCliPaste].filter(Boolean).forEach((btn) => btn.addEventListener('click', pasteClipboardToCliInput));
 [cliClose, mobileCliClose].filter(Boolean).forEach((btn) => btn.addEventListener('click', closeCliSession));
 if (cliDialog) {
   cliDialog.addEventListener('cancel', (event) => {
@@ -2231,13 +2239,9 @@ function cliTargetForItem(item) {
 
 function activeCliEls() {
   const mobile = isMobile();
-  return {
-    view: mobile ? mobileCliView : cliDialog,
-    title: mobile ? mobileCliTitle : cliTitle,
-    subtitle: mobile ? mobileCliSubtitle : cliSubtitle,
-    terminal: mobile ? mobileCliTerminal : cliTerminal,
-    input: mobile ? mobileCliInput : cliInput,
-  };
+  return mobile
+    ? { terminal: mobileCliTerminal, input: mobileCliInput, send: mobileCliSend, copy: mobileCliCopy, paste: mobileCliPaste, clearKey: mobileCliClearKey, close: mobileCliClose }
+    : { terminal: cliTerminal, input: cliInput, send: cliSend, copy: cliCopy, paste: cliPaste, clearKey: cliClearKey, close: cliClose };
 }
 
 function setCliOutput(text, append = false) {
@@ -2355,18 +2359,56 @@ function stopCliPolling() {
   cliPollTimer = null;
 }
 
+
+function autosizeCliInput(input) {
+  if (!input) return;
+  input.style.height = 'auto';
+  const maxHeight = isMobile() ? 150 : 120;
+  input.style.height = `${Math.min(input.scrollHeight, maxHeight)}px`;
+}
+
+function insertTextAtCursor(input, text) {
+  if (!input || typeof text !== 'string') return;
+  const start = input.selectionStart ?? input.value.length;
+  const end = input.selectionEnd ?? input.value.length;
+  input.value = `${input.value.slice(0, start)}${text}${input.value.slice(end)}`;
+  const next = start + text.length;
+  input.selectionStart = next;
+  input.selectionEnd = next;
+  autosizeCliInput(input);
+  input.focus();
+}
+
+async function pasteClipboardToCliInput() {
+  const els = activeCliEls();
+  if (!els.input) return;
+  try {
+    const text = await navigator.clipboard.readText();
+    if (!text) {
+      showToast('Clipboard is empty.', 'info');
+      return;
+    }
+    insertTextAtCursor(els.input, text);
+    showToast('Clipboard pasted.');
+  } catch {
+    showToast('Could not read clipboard.', 'error');
+  }
+}
+
+
 async function sendCliInput() {
   if (!cliSession) return;
   const els = activeCliEls();
   const value = els.input?.value || '';
   if (!value) return;
   els.input.value = '';
+  autosizeCliInput(els.input);
   setCliOutput(`$ ${value}\n`, true);
   try {
     await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(cliSession)}/input`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ input: `${value}\n` }),
+      body: JSON.stringify({ input: `${value.replace(/\r\n/g, '\n')}\n` }),
     });
   } catch {
     showToast('Could not send command.', 'error');
@@ -4443,7 +4485,6 @@ if (mobileConfigClose) mobileConfigClose.addEventListener('click', hideMobileVie
 
 const mobileTreeModeTree = document.getElementById('mobile-tree-mode-tree');
 const mobileTreeModeGraph = document.getElementById('mobile-tree-mode-graph');
-if (mobileTreeModeGraph) mobileTreeModeGraph.hidden = true;
 if (mobileTreeModeTree) mobileTreeModeTree.addEventListener('click', () => {
   treeViewMode = 'tree';
   mobileTreeModeTree.classList.add('active');
@@ -4451,24 +4492,21 @@ if (mobileTreeModeTree) mobileTreeModeTree.addEventListener('click', () => {
   renderMobileTree();
 });
 if (mobileTreeModeGraph) mobileTreeModeGraph.addEventListener('click', () => {
-  // Graph view is intentionally disabled on mobile. Keep Tree as the only mobile relationship view.
-  treeViewMode = 'tree';
-  mobileTreeModeTree?.classList.add('active');
-  mobileTreeModeGraph.classList.remove('active');
+  treeViewMode = 'graph';
+  mobileTreeModeGraph.classList.add('active');
+  mobileTreeModeTree?.classList.remove('active');
   renderMobileTree();
 });
 
 function renderMobileTree() {
   const container = document.getElementById('mobile-tree-content');
   if (!container) return;
-  // Mobile Graph is disabled for now; always render the reliable Tree view.
-  if (isMobile()) treeViewMode = 'tree';
-  mobileTreeModeTree?.classList.add('active');
-  mobileTreeModeGraph?.classList.remove('active');
+  mobileTreeModeTree?.classList.toggle('active', treeViewMode === 'tree');
+  mobileTreeModeGraph?.classList.toggle('active', treeViewMode === 'graph');
   container.innerHTML = '';
   const shell = document.createElement('div');
   shell.className = 'tree-shell';
-  shell.appendChild(buildInfrastructureTree());
+  shell.appendChild(treeViewMode === 'graph' ? buildGraphView() : buildInfrastructureTree());
   container.appendChild(shell);
 }
 

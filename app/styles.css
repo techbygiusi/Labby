@@ -4846,8 +4846,8 @@ dialog.rack-form-dialog:not([open]) {
    v21: remove mobile Graph view, restore More ellipsis, robust rack scrolling.
    ================================================================ */
 @media (max-width: 1100px) {
-  #mobile-tree-mode-graph { display: none !important; }
-  #mobile-tree .view-switch { display: none !important; }
+  #mobile-tree .view-switch { display: inline-flex !important; }
+  #mobile-tree-mode-graph { display: inline-flex !important; }
 
   #nav-more .bottom-nav-icon {
     font-family: inherit !important;
@@ -6578,11 +6578,16 @@ dialog.rack-form-dialog:not([open]) {
   gap: 0.7rem;
 }
 
-.cli-input-row input {
+.cli-input-row textarea {
   background: #05070a !important;
   color: #d4f7d4 !important;
   border-color: var(--line) !important;
   font-family: 'Space Mono', ui-monospace, monospace !important;
+  min-height: 44px !important;
+  max-height: 120px;
+  resize: vertical;
+  line-height: 1.35;
+  overflow-y: auto;
 }
 
 .cli-footer {
@@ -6645,6 +6650,11 @@ dialog.rack-form-dialog:not([open]) {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.55rem;
+  }
+
+  .mobile-cli-shell .cli-input-row textarea {
+    max-height: 150px;
+    resize: none;
   }
 
   .cli-footer #mobile-cli-close {
@@ -6825,7 +6835,7 @@ dialog.rack-form-dialog:not([open]) {
 }
 
 .cli-input-row input,
-.mobile-cli-shell .cli-input-row input {
+.mobile-cli-shell .cli-input-row textarea {
   color: #ffffff !important;
   caret-color: #ffffff !important;
 }
