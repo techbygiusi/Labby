@@ -148,6 +148,9 @@ const configBackupType = document.getElementById('config-backup-type');
 const configBackupPath = document.getElementById('config-backup-path');
 const configBackupFrequency = document.getElementById('config-backup-frequency');
 const configBackupTime = document.getElementById('config-backup-time');
+const configBackupRetentionMode = document.getElementById('config-backup-retention-mode');
+const configBackupRetentionCustom = document.getElementById('config-backup-retention-custom');
+const configBackupRetentionCustomWrap = document.getElementById('config-backup-retention-custom-wrap');
 const configBackupEnabled = document.getElementById('config-backup-enabled');
 
 const toast = document.getElementById('toast');
@@ -171,6 +174,25 @@ let selectedNetworkColor = networkPalette[0];
 let items = [];
 let locations = [];
 let racks = [];
+let configBackups = [];
+let configBackupLogs = [];
+let selectedConfigBackupId = null;
+const CONFIG_BACKUPS_DEMO_ONLY = true;
+const DEMO_CONFIG_BACKUP_PREVIEW = {
+  id: 'demo-config-backup-preview',
+  name: 'Demo preview backup',
+  targetType: 'local',
+  targetPath: '/backups/labby-demo',
+  frequency: 'daily',
+  time: '02:00',
+  retentionMode: '5',
+  retentionCount: 5,
+  enabled: false,
+  lastRunAt: null,
+  nextRunAt: null,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+};
 let toastTimer = null;
 let treeViewMode = 'tree';
 let lastTypeSelection = typeSelect.value;
@@ -258,12 +280,38 @@ applyTypeVisibility();
 (async () => {
   await seedFullDemoData();
   initAgentApiPanel();
-  renderCommandSnippets();
-  renderConfigBackups();
+  renderCommandSnippetsIfPresent();
+  await loadConfigBackups();
   render();
   startPolling();
   openDemoTutorialAfterLayout();
 })();
+
+
+function renderCommandSnippetsIfPresent() {
+  // Demo-safe placeholder: the command snippet library is not present in this build,
+  // but shared Labby UI flow may expect command snippet rendering.
+  // Keeping this function prevents the startup sequence from aborting.
+  const containers = [
+    document.getElementById('command-snippets'),
+    document.getElementById('cli-command-snippets'),
+    document.getElementById('mobile-command-snippets')
+  ].filter(Boolean);
+  containers.forEach((container) => {
+    if (!container.dataset.placeholderRendered && !container.children.length) {
+      container.dataset.placeholderRendered = '1';
+    }
+  });
+}
+
+function renderCommandSnippets() {
+  return renderCommandSnippetsIfPresent();
+}
+
+if (typeof window !== 'undefined') {
+  window.renderCommandSnippets = renderCommandSnippets;
+  window.renderCommandSnippetsIfPresent = renderCommandSnippetsIfPresent;
+}
 
 function migrateDemoDataTo192Subnets() {
   const replaceValue = (value) => {
@@ -319,6 +367,9 @@ async function seedFullDemoData({ force = false } = {}) {
   items = sanitizeItems(loaded.items);
   locations = loaded.locations || [];
   racks = loaded.racks || [];
+  configBackups = [];
+  configBackupLogs = [];
+  selectedConfigBackupId = null;
   liveStatusData = loaded.agentStatus || {};
   migrateDemoDataTo192Subnets();
   ensureDemoRackData();
@@ -339,8 +390,8 @@ async function loadDemoData() {
   stopEditing();
   showToast('Demo data loaded with sample rack layouts.');
   initAgentApiPanel();
-  renderCommandSnippets();
-  renderConfigBackups();
+  renderCommandSnippetsIfPresent();
+  await loadConfigBackups();
   render();
   if (typeof renderRackOverview === 'function') renderRackOverview();
   openDemoTutorialAfterLayout();
@@ -1140,6 +1191,9 @@ async function applyImportedConfig(parsed) {
   items     = importedItems;
   locations = Array.isArray(parsed.locations) ? parsed.locations : [];
   racks     = Array.isArray(parsed.racks) ? parsed.racks : [];
+  configBackups = [];
+  configBackupLogs = [];
+  selectedConfigBackupId = null;
   liveStatusData = parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {};
 
   if (Array.isArray(parsed.customThemes)) importCustomThemes(parsed.customThemes);
@@ -1151,6 +1205,170 @@ async function applyImportedConfig(parsed) {
     localStorage.removeItem('labby-tutorial-seen');
   }
 }
+
+
+const configBackupStorageKey = 'labby-config-backups';
+
+function normalizeConfigBackup(entry = {}) {
+  const retentionCount = Math.max(1, Math.min(999, parseInt(entry.retentionCount || entry.keepLast || 5, 10) || 5));
+  const retentionMode = ['5', '10', 'custom'].includes(String(entry.retentionMode || ''))
+    ? String(entry.retentionMode)
+    : (retentionCount === 10 ? '10' : (retentionCount === 5 ? '5' : 'custom'));
+  return {
+    id: String(entry.id || `backup-${Date.now()}-${Math.random().toString(16).slice(2)}`),
+    name: String(entry.name || 'Config backup').trim() || 'Config backup',
+    targetType: ['local', 'smb', 'nfs'].includes(entry.targetType) ? entry.targetType : 'local',
+    targetPath: String(entry.targetPath || '').trim(),
+    frequency: ['hourly', 'daily', 'weekly'].includes(entry.frequency) ? entry.frequency : 'daily',
+    time: String(entry.time || '02:00').slice(0, 5),
+    retentionMode,
+    retentionCount,
+    enabled: entry.enabled !== false,
+    lastRunAt: entry.lastRunAt || null,
+    nextRunAt: entry.nextRunAt || null,
+    createdAt: entry.createdAt || new Date().toISOString(),
+    updatedAt: entry.updatedAt || new Date().toISOString(),
+  };
+}
+
+function persistLocalConfigBackups() {
+  // Public demo: backup configuration is UI-only and is never persisted.
+}
+
+async function loadConfigBackups() {
+  if (CONFIG_BACKUPS_DEMO_ONLY) {
+    configBackups = [normalizeConfigBackup(DEMO_CONFIG_BACKUP_PREVIEW)];
+    configBackupLogs = [{
+      id: 'demo-config-backup-log',
+      at: new Date().toISOString(),
+      configId: 'demo-config-backup-preview',
+      configName: 'Demo preview backup',
+      status: 'error',
+      message: 'Demo only: backup saving, scheduling and execution are disabled.',
+    }];
+    selectedConfigBackupId = configBackups[0].id;
+    renderConfigBackups();
+    return;
+  }
+}
+
+
+function selectedConfigBackup() {
+  return configBackups.find(b => b.id === selectedConfigBackupId) || null;
+}
+
+function formatConfigBackupDate(value) {
+  if (!value) return 'not yet';
+  try { return new Date(value).toLocaleString(); } catch { return String(value); }
+}
+
+function updateConfigBackupRetentionVisibility() {
+  const isCustom = configBackupRetentionMode?.value === 'custom';
+  if (configBackupRetentionCustom) configBackupRetentionCustom.disabled = !isCustom;
+  configBackupRetentionCustomWrap?.classList.toggle('config-backup-retention-custom-hidden', !isCustom);
+}
+
+function fillConfigBackupForm(config) {
+  const backup = normalizeConfigBackup(config || {});
+  if (configBackupName) configBackupName.value = backup.name;
+  if (configBackupType) configBackupType.value = backup.targetType;
+  if (configBackupPath) configBackupPath.value = backup.targetPath;
+  if (configBackupFrequency) configBackupFrequency.value = backup.frequency;
+  if (configBackupTime) configBackupTime.value = backup.time;
+  if (configBackupRetentionMode) configBackupRetentionMode.value = backup.retentionMode;
+  if (configBackupRetentionCustom) configBackupRetentionCustom.value = String(backup.retentionCount);
+  if (configBackupEnabled) configBackupEnabled.checked = backup.enabled !== false;
+  updateConfigBackupRetentionVisibility();
+}
+
+function readConfigBackupForm() {
+  const mode = configBackupRetentionMode?.value || '5';
+  const retentionCount = mode === 'custom'
+    ? Math.max(1, Math.min(999, parseInt(configBackupRetentionCustom?.value || '5', 10) || 5))
+    : parseInt(mode, 10);
+  return normalizeConfigBackup({
+    ...(selectedConfigBackup() || {}),
+    name: configBackupName?.value,
+    targetType: configBackupType?.value,
+    targetPath: configBackupPath?.value,
+    frequency: configBackupFrequency?.value,
+    time: configBackupTime?.value,
+    retentionMode: mode,
+    retentionCount,
+    enabled: configBackupEnabled?.checked !== false,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+function renderConfigBackups() {
+  if (!configBackupList || !configBackupLog) return;
+  configBackups = configBackups.map(normalizeConfigBackup);
+  configBackupList.innerHTML = '';
+  if (!configBackups.length) {
+    configBackupList.innerHTML = '<div class="config-backup-empty">No backup targets yet. Create one and choose how many backup files Labby should keep.</div>';
+    selectedConfigBackupId = null;
+    fillConfigBackupForm({});
+  } else {
+    if (!selectedConfigBackupId || !configBackups.some(b => b.id === selectedConfigBackupId)) selectedConfigBackupId = configBackups[0].id;
+    configBackups.forEach((backup) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'config-backup-item' + (backup.id === selectedConfigBackupId ? ' active' : '');
+      btn.innerHTML = `<strong>${escapeHtml(backup.name)}</strong><span>${escapeHtml(backup.frequency)} · keep last ${backup.retentionCount} · ${escapeHtml(backup.targetPath || 'no path set')}</span><span>Next: ${escapeHtml(formatConfigBackupDate(backup.nextRunAt))}</span>`;
+      btn.addEventListener('click', () => {
+        selectedConfigBackupId = backup.id;
+        fillConfigBackupForm(backup);
+        renderConfigBackups();
+      });
+      configBackupList.appendChild(btn);
+    });
+    fillConfigBackupForm(selectedConfigBackup());
+  }
+
+  const logs = Array.isArray(configBackupLogs) ? configBackupLogs : [];
+  configBackupLog.innerHTML = logs.length ? '' : '<div class="config-backup-empty">No backup runs yet.</div>';
+  logs.slice(0, 80).forEach((log) => {
+    const row = document.createElement('div');
+    row.className = `config-backup-log-row ${log.status === 'error' ? 'error' : 'success'}`;
+    row.innerHTML = `<strong>${escapeHtml(log.configName || 'Config backup')} · ${escapeHtml(log.status || 'status')}</strong><span>${escapeHtml(formatConfigBackupDate(log.at))}</span><code>${escapeHtml(log.message || '')}</code>`;
+    configBackupLog.appendChild(row);
+  });
+}
+
+async function saveConfigBackupFromForm() {
+  showToast('Demo only: backup targets are not saved in the public demo.', 'error');
+}
+
+async function deleteSelectedConfigBackup() {
+  showToast('Demo only: backup targets cannot be deleted in the public demo.', 'error');
+}
+
+async function runSelectedConfigBackup() {
+  showToast('Demo only: backups do not run in the public demo. Use Main/self-hosted for real backups.', 'error');
+}
+
+function openConfigBackupDialog() {
+  if (CONFIG_BACKUPS_DEMO_ONLY) {
+    [configBackupNew, configBackupRun, configBackupSave, configBackupDelete].forEach(btn => { if (btn) { btn.disabled = true; btn.title = 'Disabled in public demo'; } });
+  }
+  loadConfigBackups();
+  if (configDialog?.open) configDialog.close();
+  if (configBackupDialog && !configBackupDialog.open) configBackupDialog.showModal();
+}
+
+configBackupBtn?.addEventListener('click', openConfigBackupDialog);
+configBackupBtnMobile?.addEventListener('click', openConfigBackupDialog);
+configBackupClose?.addEventListener('click', () => configBackupDialog?.close());
+configBackupNew?.addEventListener('click', () => {
+  selectedConfigBackupId = null;
+  fillConfigBackupForm({ name: 'Config backup', retentionMode: '5', retentionCount: 5 });
+  configBackupList?.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
+});
+configBackupSave?.addEventListener('click', saveConfigBackupFromForm);
+configBackupDelete?.addEventListener('click', deleteSelectedConfigBackup);
+configBackupRun?.addEventListener('click', runSelectedConfigBackup);
+configBackupRetentionMode?.addEventListener('change', updateConfigBackupRetentionVisibility);
+configBackupRetentionCustom?.addEventListener('input', updateConfigBackupRetentionVisibility);
 
 
 function getLocalAgentKeys() {

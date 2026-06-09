@@ -7829,6 +7829,10 @@ html body .demo-banner span {
 .config-backup-item span { color: var(--muted); font-size: 0.78rem; }
 .config-backup-empty { border: 2px dashed color-mix(in srgb, var(--line) 45%, transparent); border-radius: 14px; color: var(--muted); padding: 1rem; }
 .config-backup-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+.config-backup-retention-row { align-items: end; }
+.config-backup-retention-custom-hidden { opacity: 0.55; }
+.config-backup-retention-custom-hidden input { pointer-events: none; }
+
 .config-backup-check { grid-template-columns: auto 1fr !important; align-items: center; }
 .config-backup-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
 .config-backup-log-row { border: 2px solid var(--line); border-radius: 14px; padding: 0.65rem; display: grid; gap: 0.2rem; background: var(--phone); }
@@ -7839,4 +7843,14 @@ html body .demo-banner span {
   .config-backup-dialog { width: min(100vw - 20px, 760px); max-width: calc(100vw - 20px); }
   .config-backup-grid { grid-template-columns: 1fr; overflow: auto; max-height: calc(100dvh - 160px); }
   .config-backup-list, .config-backup-log { max-height: none; }
+}
+
+.config-backup-demo-note {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, rgba(148, 163, 184, 0.28));
+  border-radius: 12px;
+  background: rgba(148, 163, 184, 0.10);
+  color: var(--muted, #94a3b8);
+  font-size: 0.92rem;
 }

@@ -498,13 +498,14 @@
       <div class="tree-head">
         <h3>Config Backups</h3>
       </div>
+      <div class="config-backup-demo-note">Demo preview only: config backups are visible here, but saving, deleting, scheduling and running backups are disabled in the public demo.</div>
       <div class="config-backup-grid">
         <section class="config-backup-card">
           <h4>Backup targets</h4>
           <div id="config-backup-list" class="config-backup-list"></div>
           <div class="config-backup-actions">
-            <button id="config-backup-new" class="button" type="button">New backup</button>
-            <button id="config-backup-run" class="button secondary" type="button">Run now</button>
+            <button id="config-backup-new" class="button" type="button" disabled>New backup</button>
+            <button id="config-backup-run" class="button secondary" type="button" disabled>Run now</button>
           </div>
         </section>
         <section class="config-backup-card">
@@ -534,13 +535,25 @@
               <input id="config-backup-time" type="time" value="02:00" />
             </label>
           </div>
+          <div class="config-backup-two config-backup-retention-row">
+            <label>Keep backups
+              <select id="config-backup-retention-mode">
+                <option value="5">Last 5</option>
+                <option value="10">Last 10</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+            <label id="config-backup-retention-custom-wrap">Custom amount
+              <input id="config-backup-retention-custom" type="number" min="1" max="999" step="1" value="5" />
+            </label>
+          </div>
           <label class="config-backup-check">
             <input id="config-backup-enabled" type="checkbox" checked />
             Enabled
           </label>
           <div class="config-backup-actions">
-            <button id="config-backup-save" class="button" type="button">Save backup</button>
-            <button id="config-backup-delete" class="button secondary danger-outline" type="button">Delete</button>
+            <button id="config-backup-save" class="button" type="button" disabled>Save backup</button>
+            <button id="config-backup-delete" class="button secondary danger-outline" type="button" disabled>Delete</button>
           </div>
         </section>
         <section class="config-backup-card config-backup-log-card">
@@ -734,6 +747,6 @@
       <div id="rack-form-page-body" class="rack-form-dialog-body"></div>
     </dialog>
 
-    <script src="script.js"></script>
+    <script src="script.js?v111"></script>
   </body>
 </html>
