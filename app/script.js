@@ -4472,7 +4472,8 @@ if (mobileTreeModeTree) mobileTreeModeTree.addEventListener('click', () => {
   mobileTreeModeGraph.classList.remove('active');
   renderMobileTree();
 });
-if (/* mobile graph disabled */
+if (mobileTreeModeGraph) mobileTreeModeGraph.addEventListener('click', () => {
+  treeViewMode = 'graph';
   mobileTreeModeGraph.classList.add('active');
   mobileTreeModeTree?.classList.remove('active');
   renderMobileTree();
