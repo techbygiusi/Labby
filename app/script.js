@@ -111,6 +111,9 @@ const mobileCliClose = document.getElementById('mobile-cli-close');
 let cliSession = null;
 let cliPollTimer = null;
 let cliActiveItem = null;
+let cliCommandHistory = [];
+let cliHistoryIndex = -1;
+let cliHistoryDraft = '';
 let credentialFields = null;
 const formTitle = document.getElementById('form-title');
 const searchInput = document.getElementById('search');
@@ -2354,7 +2357,33 @@ async function pasteClipboardToCliInput() {
   }
 }
 
+function rememberCliCommand(command) {
+  const value = String(command || '').replace(/\r\n/g, '\n');
+  if (!value.trim()) return;
+  if (cliCommandHistory[cliCommandHistory.length - 1] !== value) {
+    cliCommandHistory.push(value);
+    if (cliCommandHistory.length > 100) cliCommandHistory.shift();
+  }
+  cliHistoryIndex = cliCommandHistory.length;
+  cliHistoryDraft = '';
+}
 
+function applyCliHistory(input, direction) {
+  if (!input || !cliCommandHistory.length) return;
+  if (cliHistoryIndex < 0 || cliHistoryIndex > cliCommandHistory.length) {
+    cliHistoryIndex = cliCommandHistory.length;
+  }
+  if (cliHistoryIndex === cliCommandHistory.length) {
+    cliHistoryDraft = input.value || '';
+  }
+  cliHistoryIndex += direction;
+  if (cliHistoryIndex < 0) cliHistoryIndex = 0;
+  if (cliHistoryIndex > cliCommandHistory.length) cliHistoryIndex = cliCommandHistory.length;
+  input.value = cliHistoryIndex === cliCommandHistory.length ? cliHistoryDraft : cliCommandHistory[cliHistoryIndex];
+  input.selectionStart = input.value.length;
+  input.selectionEnd = input.value.length;
+  autosizeCliInput(input);
+}
 
 
 async function sendCliRawInput(rawInput) {
@@ -2381,10 +2410,15 @@ async function sendCliInput() {
   els.input.value = '';
   autosizeCliInput(els.input);
   setCliOutput(`$ ${value}\n`, true);
-  await sendCliRawInput(`${value.replace(/
-/g, '
-')}
-`);
+  try {
+    await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(cliSession)}/input`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: `${value.replace(/\r\n/g, '\n')}\n` }),
+    });
+  } catch {
+    showToast('Could not send command.', 'error');
+  }
 }
 
 async function copySelectedCliText() {
