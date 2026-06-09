@@ -2373,8 +2373,14 @@ function currentCliHistory() {
 }
 
 function setCliHistoryTarget(item) {
-  const credentials = item ? getItemCredentials(item.id) : null;
-  const user = credentials?.username || '';
+  let user = '';
+  try {
+    if (item && typeof credentialsStore === 'object') {
+      user = credentialsStore[item.id]?.username || '';
+    }
+  } catch {
+    user = '';
+  }
   const host = item?.ip || item?.name || item?.id || 'default';
   cliHistoryKey = `${item?.id || host}|${user}|${host}`;
   cliHistoryIndex = currentCliHistory().length;
