@@ -143,7 +143,12 @@ const configBackupName = document.getElementById('config-backup-name');
 const configBackupType = document.getElementById('config-backup-type');
 const configBackupPath = document.getElementById('config-backup-path');
 const configBackupFrequency = document.getElementById('config-backup-frequency');
+const configBackupWeekday = document.getElementById('config-backup-weekday');
+const configBackupWeekdayWrap = document.getElementById('config-backup-weekday-wrap');
 const configBackupTime = document.getElementById('config-backup-time');
+const configBackupTimeWrap = document.getElementById('config-backup-time-wrap');
+const configBackupPathWrap = document.getElementById('config-backup-path-wrap');
+const configBackupPathHelp = document.getElementById('config-backup-path-help');
 const configBackupRetentionMode = document.getElementById('config-backup-retention-mode');
 const configBackupRetentionCustom = document.getElementById('config-backup-retention-custom');
 const configBackupRetentionCustomWrap = document.getElementById('config-backup-retention-custom-wrap');
@@ -297,21 +302,94 @@ applyTypeVisibility();
 })();
 
 
+const commandSnippetStorageKey = 'labby-command-snippets';
+const builtinCommandSnippets = [
+  { id: 'sys-update', title: 'Debian update', group: 'System', command: 'sudo apt update && sudo apt upgrade -y' },
+  { id: 'disk-usage', title: 'Disk usage', group: 'System', command: 'df -h' },
+  { id: 'memory', title: 'Memory overview', group: 'System', command: 'free -h' },
+  { id: 'processes', title: 'Top processes', group: 'System', command: 'ps aux --sort=-%mem | head -20' },
+  { id: 'network', title: 'IP addresses', group: 'Network', command: 'ip addr show' },
+  { id: 'ports', title: 'Listening ports', group: 'Network', command: 'ss -tulpn' },
+  { id: 'docker-ps', title: 'Docker containers', group: 'Docker', command: 'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"' },
+  { id: 'docker-logs', title: 'Docker logs', group: 'Docker', command: 'docker logs --tail=100 <container>' },
+  { id: 'journal-errors', title: 'Recent system errors', group: 'Logs', command: 'journalctl -p err -n 80 --no-pager' },
+  { id: 'reboot-required', title: 'Check reboot required', group: 'System', command: 'test -f /var/run/reboot-required && cat /var/run/reboot-required || echo "No reboot required"' },
+];
+
+function loadCustomCommandSnippets() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(commandSnippetStorageKey) || '[]');
+    return Array.isArray(parsed) ? parsed.filter(s => s && s.command).map((s, i) => ({
+      id: String(s.id || `custom-${i}`),
+      title: String(s.title || 'Saved command'),
+      group: String(s.group || 'Saved'),
+      command: String(s.command || ''),
+      custom: true,
+    })) : [];
+  } catch { return []; }
+}
+
+function saveCustomCommandSnippets(snippets) {
+  try { localStorage.setItem(commandSnippetStorageKey, JSON.stringify(snippets)); } catch {}
+}
+
+function allCommandSnippets() {
+  return [...builtinCommandSnippets, ...loadCustomCommandSnippets()];
+}
+
+function setCliInputCommand(command) {
+  const input = activeCliInput?.() || cliInput || mobileCliInput;
+  if (!input) return;
+  input.value = String(command || '');
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+}
+
 function renderCommandSnippetsIfPresent() {
-  // Main-safe fallback: some shared UI flows may expect the command snippet renderer
-  // even when the snippet library markup is not included in this build.
-  // The real CLI command library continues to render through its own handlers;
-  // this guard prevents a missing optional renderer from aborting startup.
-  const containers = [
-    document.getElementById('command-snippets'),
-    document.getElementById('cli-command-snippets'),
-    document.getElementById('mobile-command-snippets')
-  ].filter(Boolean);
-  containers.forEach((container) => {
-    if (!container.dataset.placeholderRendered && !container.children.length) {
-      container.dataset.placeholderRendered = '1';
-    }
+  const panel = document.getElementById('cli-command-snippets') || document.getElementById('command-snippets') || document.getElementById('mobile-command-snippets');
+  const list = document.getElementById('command-snippet-list');
+  if (!panel || !list) return;
+  const search = document.getElementById('command-snippet-search');
+  const addCurrent = document.getElementById('command-snippet-add-current');
+  const needle = String(search?.value || '').trim().toLowerCase();
+  const snippets = allCommandSnippets().filter(snippet => {
+    if (!needle) return true;
+    return `${snippet.title} ${snippet.group} ${snippet.command}`.toLowerCase().includes(needle);
   });
+  list.innerHTML = snippets.length ? '' : '<div class="config-backup-empty">No commands found.</div>';
+  snippets.forEach(snippet => {
+    const item = document.createElement('div');
+    item.className = 'command-snippet-item';
+    item.innerHTML = `<strong>${escapeHtml(snippet.title)}</strong><small>${escapeHtml(snippet.group)}</small><code>${escapeHtml(snippet.command)}</code>${snippet.custom ? '<div class="command-snippet-actions"><button class="button secondary small" type="button" data-command-snippet-delete>Delete</button></div>' : ''}`;
+    item.addEventListener('click', (event) => {
+      if (event.target.closest('[data-command-snippet-delete]')) return;
+      setCliInputCommand(snippet.command);
+    });
+    item.querySelector('[data-command-snippet-delete]')?.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const custom = loadCustomCommandSnippets().filter(s => s.id !== snippet.id);
+      saveCustomCommandSnippets(custom);
+      renderCommandSnippetsIfPresent();
+    });
+    list.appendChild(item);
+  });
+  if (search && !search.dataset.bound) {
+    search.dataset.bound = '1';
+    search.addEventListener('input', renderCommandSnippetsIfPresent);
+  }
+  if (addCurrent && !addCurrent.dataset.bound) {
+    addCurrent.dataset.bound = '1';
+    addCurrent.addEventListener('click', () => {
+      const input = activeCliInput?.() || cliInput || mobileCliInput;
+      const command = String(input?.value || '').trim();
+      if (!command) { showToast('Type a command first.', 'error'); return; }
+      const custom = loadCustomCommandSnippets();
+      custom.push({ id: `custom-${Date.now()}`, title: command.length > 34 ? `${command.slice(0, 34)}…` : command, group: 'Saved', command, custom: true });
+      saveCustomCommandSnippets(custom.slice(-80));
+      renderCommandSnippetsIfPresent();
+      showToast('Command snippet saved.');
+    });
+  }
 }
 
 function renderCommandSnippets() {
@@ -1140,6 +1218,7 @@ async function applyImportedConfig(parsed) {
 
 
 const configBackupStorageKey = 'labby-config-backups';
+const defaultLocalConfigBackupPath = '/data/config-backups';
 
 function normalizeConfigBackup(entry = {}) {
   const retentionCount = Math.max(1, Math.min(999, parseInt(entry.retentionCount || entry.keepLast || 5, 10) || 5));
@@ -1150,8 +1229,9 @@ function normalizeConfigBackup(entry = {}) {
     id: String(entry.id || `backup-${Date.now()}-${Math.random().toString(16).slice(2)}`),
     name: String(entry.name || 'Config backup').trim() || 'Config backup',
     targetType: ['local', 'smb', 'nfs'].includes(entry.targetType) ? entry.targetType : 'local',
-    targetPath: String(entry.targetPath || '').trim(),
+    targetPath: String(entry.targetPath || (entry.targetType === 'local' ? defaultLocalConfigBackupPath : '')).trim(),
     frequency: ['hourly', 'daily', 'weekly'].includes(entry.frequency) ? entry.frequency : 'daily',
+    weekday: Math.max(0, Math.min(6, parseInt(entry.weekday ?? 1, 10) || 0)),
     time: String(entry.time || '02:00').slice(0, 5),
     retentionMode,
     retentionCount,
@@ -1200,17 +1280,44 @@ function updateConfigBackupRetentionVisibility() {
   configBackupRetentionCustomWrap?.classList.toggle('config-backup-retention-custom-hidden', !isCustom);
 }
 
+function updateConfigBackupTargetVisibility() {
+  const isLocal = (configBackupType?.value || 'local') === 'local';
+  if (configBackupPath) {
+    configBackupPath.disabled = isLocal;
+    configBackupPath.value = isLocal ? defaultLocalConfigBackupPath : (configBackupPath.value === defaultLocalConfigBackupPath ? '' : configBackupPath.value);
+    configBackupPath.placeholder = isLocal ? defaultLocalConfigBackupPath : 'Mounted SMB/NFS path, e.g. /mnt/backups/labby';
+  }
+  if (configBackupPathHelp) {
+    configBackupPathHelp.textContent = isLocal
+      ? `Local backups are stored automatically in ${defaultLocalConfigBackupPath} inside the backend container.`
+      : 'The SMB/NFS share must already be mounted as a writable path inside the backend container.';
+  }
+}
+
+function updateConfigBackupScheduleVisibility() {
+  const frequency = configBackupFrequency?.value || 'daily';
+  configBackupWeekdayWrap?.classList.toggle('config-backup-hidden', frequency !== 'weekly');
+  configBackupTimeWrap?.classList.toggle('config-backup-hidden', frequency === 'hourly');
+}
+
+function updateConfigBackupFormVisibility() {
+  updateConfigBackupRetentionVisibility();
+  updateConfigBackupTargetVisibility();
+  updateConfigBackupScheduleVisibility();
+}
+
 function fillConfigBackupForm(config) {
   const backup = normalizeConfigBackup(config || {});
   if (configBackupName) configBackupName.value = backup.name;
   if (configBackupType) configBackupType.value = backup.targetType;
-  if (configBackupPath) configBackupPath.value = backup.targetPath;
+  if (configBackupPath) configBackupPath.value = backup.targetType === 'local' ? defaultLocalConfigBackupPath : backup.targetPath;
   if (configBackupFrequency) configBackupFrequency.value = backup.frequency;
+  if (configBackupWeekday) configBackupWeekday.value = String(backup.weekday ?? 1);
   if (configBackupTime) configBackupTime.value = backup.time;
   if (configBackupRetentionMode) configBackupRetentionMode.value = backup.retentionMode;
   if (configBackupRetentionCustom) configBackupRetentionCustom.value = String(backup.retentionCount);
   if (configBackupEnabled) configBackupEnabled.checked = backup.enabled !== false;
-  updateConfigBackupRetentionVisibility();
+  updateConfigBackupFormVisibility();
 }
 
 function readConfigBackupForm() {
@@ -1222,8 +1329,9 @@ function readConfigBackupForm() {
     ...(selectedConfigBackup() || {}),
     name: configBackupName?.value,
     targetType: configBackupType?.value,
-    targetPath: configBackupPath?.value,
+    targetPath: (configBackupType?.value || 'local') === 'local' ? defaultLocalConfigBackupPath : configBackupPath?.value,
     frequency: configBackupFrequency?.value,
+    weekday: parseInt(configBackupWeekday?.value ?? '1', 10),
     time: configBackupTime?.value,
     retentionMode: mode,
     retentionCount,
@@ -1246,7 +1354,9 @@ function renderConfigBackups() {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'config-backup-item' + (backup.id === selectedConfigBackupId ? ' active' : '');
-      btn.innerHTML = `<strong>${escapeHtml(backup.name)}</strong><span>${escapeHtml(backup.frequency)} · keep last ${backup.retentionCount} · ${escapeHtml(backup.targetPath || 'no path set')}</span><span>Next: ${escapeHtml(formatConfigBackupDate(backup.nextRunAt))}</span>`;
+      const targetLabel = backup.targetType === 'local' ? `local default: ${defaultLocalConfigBackupPath}` : (backup.targetPath || 'no path set');
+      const scheduleLabel = backup.frequency === 'weekly' ? `weekly day ${backup.weekday} at ${backup.time}` : (backup.frequency === 'daily' ? `daily at ${backup.time}` : 'hourly');
+      btn.innerHTML = `<strong>${escapeHtml(backup.name)}</strong><span>${escapeHtml(scheduleLabel)} · keep last ${backup.retentionCount} · ${escapeHtml(targetLabel)}</span><span>Next: ${escapeHtml(formatConfigBackupDate(backup.nextRunAt))}</span>`;
       btn.addEventListener('click', () => {
         selectedConfigBackupId = backup.id;
         fillConfigBackupForm(backup);
@@ -1269,7 +1379,7 @@ function renderConfigBackups() {
 
 async function saveConfigBackupFromForm() {
   const backup = readConfigBackupForm();
-  if (!backup.targetPath) { showToast('Backup path is required.', 'error'); return; }
+  if (backup.targetType !== 'local' && !backup.targetPath) { showToast('Backup path is required for SMB/NFS targets.', 'error'); return; }
   try {
     const res = await fetch(`${API_BASE}/api/config-backups`, {
       method: 'POST',
@@ -1351,6 +1461,8 @@ configBackupDelete?.addEventListener('click', deleteSelectedConfigBackup);
 configBackupRun?.addEventListener('click', runSelectedConfigBackup);
 configBackupRetentionMode?.addEventListener('change', updateConfigBackupRetentionVisibility);
 configBackupRetentionCustom?.addEventListener('input', updateConfigBackupRetentionVisibility);
+configBackupType?.addEventListener('change', updateConfigBackupTargetVisibility);
+configBackupFrequency?.addEventListener('change', updateConfigBackupScheduleVisibility);
 
 
 function getLocalAgentKeys() {
@@ -2529,6 +2641,7 @@ async function openCliSession(item, options = {}) {
   } else if (cliDialog && !cliDialog.open) {
     cliDialog.showModal();
   }
+  renderCommandSnippetsIfPresent();
 
   try {
     const res = await fetch(`${API_BASE}/api/ssh/start`, {

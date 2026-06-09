@@ -387,16 +387,29 @@
             <p id="cli-subtitle" class="cli-subtitle">SSH session</p>
           </div>
         </div>
-        <div id="cli-terminal" class="cli-terminal" tabindex="0" aria-label="SSH terminal output"></div>
-        <div class="cli-input-row">
-          <textarea id="cli-input" rows="1" autocomplete="off" spellcheck="false" placeholder="Type command and press Enter..."></textarea>
-          <button id="cli-send" class="button" type="button">Send</button>
-        </div>
-        <div class="cli-footer">
-          <button id="cli-clear-key" class="button secondary" type="button">Clear SSH key</button>
-          <button id="cli-copy" class="button secondary" type="button">Copy output</button>
-          <button id="cli-paste" class="button secondary" type="button">Paste clipboard</button>
-          <button id="cli-close" class="button secondary" type="button">✕ Close SSH</button>
+        <div class="cli-main">
+          <section class="cli-console" aria-label="SSH console">
+            <div id="cli-terminal" class="cli-terminal" tabindex="0" aria-label="SSH terminal output"></div>
+            <div class="cli-input-row">
+              <textarea id="cli-input" rows="1" autocomplete="off" spellcheck="false" placeholder="Type command and press Enter..."></textarea>
+              <button id="cli-send" class="button" type="button">Send</button>
+            </div>
+            <div class="cli-footer">
+              <button id="cli-clear-key" class="button secondary" type="button">Clear SSH key</button>
+              <button id="cli-copy" class="button secondary" type="button">Copy output</button>
+              <button id="cli-paste" class="button secondary" type="button">Paste clipboard</button>
+              <button id="cli-close" class="button secondary" type="button">✕ Close SSH</button>
+            </div>
+          </section>
+          <aside id="cli-command-snippets" class="command-snippets-panel" aria-label="Command snippets">
+            <div class="command-snippets-head">
+              <h4>Command Snippets</h4>
+              <button id="command-snippet-add-current" class="button secondary small" type="button">+ Save input</button>
+            </div>
+            <input id="command-snippet-search" type="search" placeholder="Search commands..." autocomplete="off" />
+            <div id="command-snippet-list" class="command-snippet-list"></div>
+            <p class="command-snippet-hint">Click a command to place it in the CLI input.</p>
+          </aside>
         </div>
       </div>
     </dialog>
@@ -504,15 +517,16 @@
           </label>
           <label>Target type
             <select id="config-backup-type">
-              <option value="local">Local path</option>
+              <option value="local">Local path (container default)</option>
               <option value="smb">SMB mounted path</option>
               <option value="nfs">NFS mounted path</option>
             </select>
           </label>
-          <label>Path
-            <input id="config-backup-path" type="text" placeholder="e.g. /backups/labby or mounted SMB/NFS path" />
+          <label id="config-backup-path-wrap">Path
+            <input id="config-backup-path" type="text" placeholder="Mounted SMB/NFS path, e.g. /mnt/backups/labby" />
+            <small id="config-backup-path-help">Local backups use the container default path automatically.</small>
           </label>
-          <div class="config-backup-two">
+          <div class="config-backup-schedule-grid">
             <label>Frequency
               <select id="config-backup-frequency">
                 <option value="hourly">Hourly</option>
@@ -520,7 +534,18 @@
                 <option value="weekly">Weekly</option>
               </select>
             </label>
-            <label>Time
+            <label id="config-backup-weekday-wrap">Weekday
+              <select id="config-backup-weekday">
+                <option value="1">Monday</option>
+                <option value="2">Tuesday</option>
+                <option value="3">Wednesday</option>
+                <option value="4">Thursday</option>
+                <option value="5">Friday</option>
+                <option value="6">Saturday</option>
+                <option value="0">Sunday</option>
+              </select>
+            </label>
+            <label id="config-backup-time-wrap">Time
               <input id="config-backup-time" type="time" value="02:00" />
             </label>
           </div>
@@ -724,6 +749,6 @@
       <div id="rack-form-page-body" class="rack-form-dialog-body"></div>
     </dialog>
 
-    <script src="script.js?v95"></script>
+    <script src="script.js?v96"></script>
   </body>
 </html>

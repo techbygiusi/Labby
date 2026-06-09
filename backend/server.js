@@ -18,6 +18,7 @@ const fs = require('fs');
 const app = express();
 const PORT = 3001;
 const DATA_DIR = process.env.DATA_DIR || '/data';
+const DEFAULT_LOCAL_CONFIG_BACKUP_PATH = process.env.CONFIG_BACKUP_DIR || path.join(DATA_DIR, 'config-backups');
 const DB_PATH = path.join(DATA_DIR, 'labby.json');
 
 if (!fs.existsSync(DATA_DIR)) {
@@ -522,8 +523,9 @@ function sanitizeBackupConfig(entry = {}) {
     id: String(entry.id || (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`)),
     name: String(entry.name || 'Config backup').trim() || 'Config backup',
     targetType: ['local', 'smb', 'nfs'].includes(entry.targetType) ? entry.targetType : 'local',
-    targetPath: String(entry.targetPath || '').trim(),
+    targetPath: String(entry.targetPath || (entry.targetType === 'local' ? DEFAULT_LOCAL_CONFIG_BACKUP_PATH : '')).trim(),
     frequency: ['hourly', 'daily', 'weekly'].includes(entry.frequency) ? entry.frequency : 'daily',
+    weekday: Math.max(0, Math.min(6, parseInt(entry.weekday ?? 1, 10) || 0)),
     time: String(entry.time || '02:00').slice(0, 5),
     retentionMode: ['5', '10', 'custom'].includes(String(entry.retentionMode || '')) ? String(entry.retentionMode) : (parseInt(entry.retentionCount || entry.keepLast || 5, 10) === 10 ? '10' : (parseInt(entry.retentionCount || entry.keepLast || 5, 10) === 5 ? '5' : 'custom')),
     retentionCount: Math.max(1, Math.min(999, parseInt(entry.retentionCount || entry.keepLast || 5, 10) || 5)),
@@ -541,9 +543,11 @@ function nextBackupRun(config, from = new Date()) {
   const [h, m] = String(config.time || '02:00').split(':').map(n => parseInt(n, 10));
   const next = new Date(base);
   next.setHours(Number.isFinite(h) ? h : 2, Number.isFinite(m) ? m : 0, 0, 0);
-  if (next <= base) next.setDate(next.getDate() + 1);
   if (config.frequency === 'weekly') {
-    while (next.getDay() !== 1 || next <= base) next.setDate(next.getDate() + 1);
+    const wantedDay = Math.max(0, Math.min(6, parseInt(config.weekday ?? 1, 10) || 0));
+    while (next.getDay() !== wantedDay || next <= base) next.setDate(next.getDate() + 1);
+  } else if (next <= base) {
+    next.setDate(next.getDate() + 1);
   }
   return next.toISOString();
 }
@@ -578,8 +582,9 @@ function pruneConfigBackupFiles(dir, keepLast) {
 function performConfigBackup(config) {
   const data = readDb();
   const sanitized = sanitizeBackupConfig(config);
-  if (!sanitized.targetPath) throw new Error('Target path is required.');
-  const dir = path.resolve(sanitized.targetPath);
+  if (sanitized.targetType !== 'local' && !sanitized.targetPath) throw new Error('Target path is required.');
+  const backupPath = sanitized.targetType === 'local' ? DEFAULT_LOCAL_CONFIG_BACKUP_PATH : sanitized.targetPath;
+  const dir = path.resolve(backupPath);
   fs.mkdirSync(dir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const file = path.join(dir, `labby-config-${stamp}.json`);
