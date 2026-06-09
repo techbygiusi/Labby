@@ -115,8 +115,9 @@ const mobileCliClose = document.getElementById('mobile-cli-close');
 let cliSession = null;
 let cliPollTimer = null;
 let cliActiveItem = null;
-let cliCommandHistory = [];
-let cliHistoryIndex = -1;
+const cliHistoryStore = new Map();
+let cliHistoryScope = 'default';
+let cliHistoryCursor = 0;
 let cliHistoryDraft = '';
 let credentialFields = null;
 const formTitle = document.getElementById('form-title');
@@ -132,6 +133,23 @@ const treeModeGraph = document.getElementById('tree-mode-graph');
 const configToggle = document.getElementById('config-toggle');
 const configDialog = document.getElementById('config-dialog');
 const agentApiDialog = document.getElementById('agent-api-dialog');
+const configBackupBtn = document.getElementById('config-backup-btn');
+const configBackupBtnMobile = document.getElementById('config-backup-btn-mobile');
+const configBackupDialog = document.getElementById('config-backup-dialog');
+const configBackupList = document.getElementById('config-backup-list');
+const configBackupLog = document.getElementById('config-backup-log');
+const configBackupNew = document.getElementById('config-backup-new');
+const configBackupRun = document.getElementById('config-backup-run');
+const configBackupSave = document.getElementById('config-backup-save');
+const configBackupDelete = document.getElementById('config-backup-delete');
+const configBackupClose = document.getElementById('config-backup-close');
+const configBackupName = document.getElementById('config-backup-name');
+const configBackupType = document.getElementById('config-backup-type');
+const configBackupPath = document.getElementById('config-backup-path');
+const configBackupFrequency = document.getElementById('config-backup-frequency');
+const configBackupTime = document.getElementById('config-backup-time');
+const configBackupEnabled = document.getElementById('config-backup-enabled');
+
 const toast = document.getElementById('toast');
 
 const mobileProgress = document.getElementById('mobile-progress');
@@ -240,6 +258,8 @@ applyTypeVisibility();
 (async () => {
   await seedFullDemoData();
   initAgentApiPanel();
+  renderCommandSnippets();
+  renderConfigBackups();
   render();
   startPolling();
   openDemoTutorialAfterLayout();
@@ -319,6 +339,8 @@ async function loadDemoData() {
   stopEditing();
   showToast('Demo data loaded with sample rack layouts.');
   initAgentApiPanel();
+  renderCommandSnippets();
+  renderConfigBackups();
   render();
   if (typeof renderRackOverview === 'function') renderRackOverview();
   openDemoTutorialAfterLayout();
@@ -493,11 +515,26 @@ document.addEventListener('click', (event) => {
 
 [cliSend, mobileCliSend].filter(Boolean).forEach((btn) => btn.addEventListener('click', () => sendCliInput()));
 [cliInput, mobileCliInput].filter(Boolean).forEach((input) => {
-  input.addEventListener('input', () => autosizeCliInput(input));
+  input.addEventListener('input', () => {
+    cliHistoryCursor = cliHistory().length;
+    cliHistoryDraft = input.value || '';
+    autosizeCliInput(input);
+  });
   input.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      event.stopPropagation();
+      loadCliHistoryIntoInput(-1);
+      return;
+    }
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      event.stopPropagation();
+      loadCliHistoryIntoInput(1);
+      return;
+    }
     if (event.key !== 'Enter') return;
     if (event.shiftKey) {
-      // Native textarea behavior: insert a newline.
       window.setTimeout(() => autosizeCliInput(input), 0);
       return;
     }
@@ -505,6 +542,19 @@ document.addEventListener('click', (event) => {
     sendCliInput();
   });
 });
+
+
+
+document.addEventListener('keydown', (event) => {
+  if (!isCliVisible()) return;
+  if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+  const input = activeCliInput();
+  if (!input) return;
+  event.preventDefault();
+  event.stopPropagation();
+  loadCliHistoryIntoInput(event.key === 'ArrowUp' ? -1 : 1);
+}, true);
+
 [cliClearKey, mobileCliClearKey].filter(Boolean).forEach((btn) => btn.addEventListener('click', clearCliKnownHostAndReconnect));
 [cliCopy, mobileCliCopy].filter(Boolean).forEach((btn) => btn.addEventListener('click', copyCliOutput));
 [cliPaste, mobileCliPaste].filter(Boolean).forEach((btn) => btn.addEventListener('click', pasteClipboardToCliInput));
@@ -2263,6 +2313,8 @@ async function openCliSession(item, options = {}) {
     return;
   }
   cliActiveItem = item;
+  resetCliHistoryScope(item);
+  resetCliHistoryScope(item);
   const els = activeCliEls();
   if (els.title) els.title.textContent = `CLI · ${item.name}`;
   if (els.subtitle) els.subtitle.textContent = `ssh ${target}`;
@@ -2318,7 +2370,9 @@ ssh ${target}
     if (!res.ok) throw new Error(data.error || 'Could not start SSH session.');
     cliSession = data.sessionId;
     setCliOutput(data.output || `Connected to ${target}.\n`);
-    startCliPolling();
+    window.setTimeout(() => activeCliInput()?.focus(), 60);
+  window.setTimeout(() => autosizeAndFocusCliInput(activeCliInput()), 80);
+  startCliPolling();
     els.input?.focus();
   } catch (err) {
     const sshUrl = username ? `ssh://${encodeURIComponent(username)}@${ip}` : `ssh://${ip}`;
@@ -2435,6 +2489,10 @@ async function pasteClipboardToCliInput() {
   }
 }
 
+function setCliHistoryTarget(item) {
+  resetCliHistoryScope(item);
+}
+
 function rememberCliCommand(command) {
   const value = String(command || '').replace(/\r\n/g, '\n');
   if (!value.trim()) return;
@@ -2461,6 +2519,68 @@ function applyCliHistory(input, direction) {
   input.selectionStart = input.value.length;
   input.selectionEnd = input.value.length;
   autosizeCliInput(input);
+}
+
+
+
+
+
+
+function getCliHistoryScope(item = cliActiveItem) {
+  const id = item?.id || item?.ip || item?.name || 'default';
+  const host = item?.ip || item?.name || id;
+  return `${id}|${host}`;
+}
+
+function cliHistory() {
+  if (!cliHistoryStore.has(cliHistoryScope)) cliHistoryStore.set(cliHistoryScope, []);
+  return cliHistoryStore.get(cliHistoryScope);
+}
+
+function resetCliHistoryScope(item) {
+  cliHistoryScope = getCliHistoryScope(item);
+  cliHistoryCursor = cliHistory().length;
+  cliHistoryDraft = '';
+}
+
+function rememberCliCommand(command) {
+  const value = String(command || '').replace(/\r\n/g, '\n');
+  if (!value.trim()) return;
+  const history = cliHistory();
+  if (history[history.length - 1] !== value) {
+    history.push(value);
+    if (history.length > 100) history.shift();
+  }
+  cliHistoryCursor = history.length;
+  cliHistoryDraft = '';
+}
+
+function activeCliInput() {
+  return activeCliEls()?.input || (mobileCliView?.classList.contains('active') ? mobileCliInput : cliInput);
+}
+
+function autosizeAndFocusCliInput(input) {
+  autosizeCliInput(input);
+  input?.focus();
+}
+
+function loadCliHistoryIntoInput(direction) {
+  const input = activeCliInput();
+  if (!input) return false;
+  const history = cliHistory();
+  if (!history.length) return false;
+  if (cliHistoryCursor < 0 || cliHistoryCursor > history.length) cliHistoryCursor = history.length;
+  if (cliHistoryCursor === history.length) cliHistoryDraft = input.value || '';
+  cliHistoryCursor = Math.max(0, Math.min(history.length, cliHistoryCursor + direction));
+  input.value = cliHistoryCursor === history.length ? cliHistoryDraft : history[cliHistoryCursor];
+  input.selectionStart = input.value.length;
+  input.selectionEnd = input.value.length;
+  autosizeAndFocusCliInput(input);
+  return true;
+}
+
+function isCliVisible() {
+  return Boolean(cliSession && ((cliDialog && cliDialog.open) || mobileCliView?.classList.contains('active')));
 }
 
 
@@ -4560,21 +4680,24 @@ if (mobileTreeModeTree) mobileTreeModeTree.addEventListener('click', () => {
   mobileTreeModeGraph.classList.remove('active');
   renderMobileTree();
 });
-if (/* mobile graph disabled */
-  mobileTreeModeGraph.classList.add('active');
-  mobileTreeModeTree?.classList.remove('active');
+// Mobile Graph view is intentionally disabled; desktop Graph view remains available.
+if (mobileTreeModeGraph) mobileTreeModeGraph.addEventListener('click', () => {
+  treeViewMode = 'tree';
+  mobileTreeModeTree?.classList.add('active');
+  mobileTreeModeGraph.classList.remove('active');
   renderMobileTree();
 });
 
 function renderMobileTree() {
   const container = document.getElementById('mobile-tree-content');
   if (!container) return;
-  mobileTreeModeTree?.classList.toggle('active', treeViewMode === 'tree');
-  mobileTreeModeGraph?.classList.toggle('active', treeViewMode === 'graph');
+  treeViewMode = 'tree';
+  mobileTreeModeTree?.classList.add('active');
+  mobileTreeModeGraph?.classList.remove('active');
   container.innerHTML = '';
   const shell = document.createElement('div');
   shell.className = 'tree-shell';
-  shell.appendChild(treeViewMode === 'graph' ? buildGraphView() : buildInfrastructureTree());
+  shell.appendChild(buildInfrastructureTree());
   container.appendChild(shell);
 }
 

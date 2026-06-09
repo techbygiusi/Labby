@@ -52,7 +52,7 @@ const crypto = require('crypto');
 
 function readDb() {
   try {
-    if (!fs.existsSync(DB_PATH)) return { items: [], locations: [], racks: [], agentKeys: [], agentStatus: {} };
+    if (!fs.existsSync(DB_PATH)) return { items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], configBackups: [], configBackupLogs: [] };
     const raw = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
     if (Array.isArray(raw)) return { items: raw, locations: [], racks: [], agentKeys: [], agentStatus: {} };
     return {
@@ -63,7 +63,7 @@ function readDb() {
       agentStatus: raw.agentStatus && typeof raw.agentStatus === 'object' ? raw.agentStatus : {},
     };
   } catch {
-    return { items: [], locations: [], racks: [], agentKeys: [], agentStatus: {} };
+    return { items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], configBackups: [], configBackupLogs: [] };
   }
 }
 
@@ -442,12 +442,12 @@ app.post('/api/ssh/:id/close', (req, res) => {
 
 app.get('/api/data', (req, res) => {
   try {
-    if (!fs.existsSync(DB_PATH)) return res.json({ items: [], locations: [], racks: [], agentKeys: [], agentStatus: {} });
+    if (!fs.existsSync(DB_PATH)) return res.json({ items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], configBackups: [], configBackupLogs: [] });
     const raw = fs.readFileSync(DB_PATH, 'utf8');
     const parsed = JSON.parse(raw);
     // Backward-compat: if stored as a bare array, wrap it
     if (Array.isArray(parsed)) {
-      return res.json({ items: parsed, locations: [], racks: [], agentKeys: [], agentStatus: {} });
+      return res.json({ items: parsed, locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], configBackups: [], configBackupLogs: [] });
     }
     const data = {
       items: Array.isArray(parsed.items) ? parsed.items : [],
@@ -455,10 +455,13 @@ app.get('/api/data', (req, res) => {
       racks: Array.isArray(parsed.racks) ? parsed.racks : [],
       agentKeys: Array.isArray(parsed.agentKeys) ? parsed.agentKeys : [],
       agentStatus: parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {},
+      commandSnippets: Array.isArray(parsed.commandSnippets) ? parsed.commandSnippets : [],
+      configBackups: Array.isArray(parsed.configBackups) ? parsed.configBackups : [],
+      configBackupLogs: Array.isArray(parsed.configBackupLogs) ? parsed.configBackupLogs : [],
     };
     res.json(data);
   } catch {
-    res.json({ items: [], locations: [], racks: [], agentKeys: [], agentStatus: {} });
+    res.json({ items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], configBackups: [], configBackupLogs: [] });
   }
 });
 
@@ -494,6 +497,127 @@ app.post('/api/data', (req, res) => {
   fs.writeFileSync(DB_PATH, JSON.stringify(data), 'utf8');
   res.json({ ok: true, count: data.items.length });
 });
+
+
+function writeDb(data) {
+  fs.writeFileSync(DB_PATH, JSON.stringify(data), 'utf8');
+}
+
+function sanitizeBackupConfig(entry = {}) {
+  const now = new Date().toISOString();
+  return {
+    id: String(entry.id || (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`)),
+    name: String(entry.name || 'Config backup').trim() || 'Config backup',
+    targetType: ['local', 'smb', 'nfs'].includes(entry.targetType) ? entry.targetType : 'local',
+    targetPath: String(entry.targetPath || '').trim(),
+    frequency: ['hourly', 'daily', 'weekly'].includes(entry.frequency) ? entry.frequency : 'daily',
+    time: String(entry.time || '02:00').slice(0, 5),
+    enabled: entry.enabled !== false,
+    lastRunAt: entry.lastRunAt || null,
+    nextRunAt: entry.nextRunAt || null,
+    createdAt: entry.createdAt || now,
+    updatedAt: now,
+  };
+}
+
+function nextBackupRun(config, from = new Date()) {
+  const base = new Date(from);
+  if (config.frequency === 'hourly') return new Date(base.getTime() + 60 * 60 * 1000).toISOString();
+  const [h, m] = String(config.time || '02:00').split(':').map(n => parseInt(n, 10));
+  const next = new Date(base);
+  next.setHours(Number.isFinite(h) ? h : 2, Number.isFinite(m) ? m : 0, 0, 0);
+  if (next <= base) next.setDate(next.getDate() + 1);
+  if (config.frequency === 'weekly') {
+    while (next.getDay() !== 1 || next <= base) next.setDate(next.getDate() + 1);
+  }
+  return next.toISOString();
+}
+
+function addBackupLog(data, log) {
+  data.configBackupLogs = Array.isArray(data.configBackupLogs) ? data.configBackupLogs : [];
+  data.configBackupLogs.unshift({ id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`, at: new Date().toISOString(), ...log });
+  data.configBackupLogs = data.configBackupLogs.slice(0, 80);
+}
+
+function performConfigBackup(config) {
+  const data = readDb();
+  const sanitized = sanitizeBackupConfig(config);
+  if (!sanitized.targetPath) throw new Error('Target path is required.');
+  const dir = path.resolve(sanitized.targetPath);
+  fs.mkdirSync(dir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const file = path.join(dir, `labby-config-${stamp}.json`);
+  const payload = { ...data, exportedAt: new Date().toISOString(), app: 'Labby', schemaVersion: 4 };
+  fs.writeFileSync(file, JSON.stringify(payload, null, 2), 'utf8');
+  return file;
+}
+
+app.get('/api/config-backups', (req, res) => {
+  const data = readDb();
+  res.json({ configs: Array.isArray(data.configBackups) ? data.configBackups : [], logs: Array.isArray(data.configBackupLogs) ? data.configBackupLogs : [] });
+});
+
+app.post('/api/config-backups', (req, res) => {
+  const data = readDb();
+  const incoming = sanitizeBackupConfig(req.body || {});
+  data.configBackups = Array.isArray(data.configBackups) ? data.configBackups : [];
+  const idx = data.configBackups.findIndex(b => b.id === incoming.id);
+  incoming.nextRunAt = incoming.enabled ? nextBackupRun(incoming) : null;
+  if (idx >= 0) data.configBackups[idx] = { ...data.configBackups[idx], ...incoming };
+  else data.configBackups.push(incoming);
+  writeDb(data);
+  res.json({ ok: true, config: incoming });
+});
+
+app.delete('/api/config-backups/:id', (req, res) => {
+  const data = readDb();
+  data.configBackups = (Array.isArray(data.configBackups) ? data.configBackups : []).filter(b => b.id !== req.params.id);
+  writeDb(data);
+  res.json({ ok: true });
+});
+
+app.post('/api/config-backups/:id/run', (req, res) => {
+  const data = readDb();
+  const configs = Array.isArray(data.configBackups) ? data.configBackups : [];
+  const config = configs.find(b => b.id === req.params.id);
+  if (!config) return res.status(404).json({ error: 'Backup config not found' });
+  try {
+    const file = performConfigBackup(config);
+    config.lastRunAt = new Date().toISOString();
+    config.nextRunAt = config.enabled ? nextBackupRun(config) : null;
+    addBackupLog(data, { configId: config.id, configName: config.name, status: 'success', message: file });
+    writeDb(data);
+    res.json({ ok: true, file });
+  } catch (err) {
+    addBackupLog(data, { configId: config.id, configName: config.name, status: 'error', message: err.message || 'Backup failed' });
+    writeDb(data);
+    res.status(500).json({ error: err.message || 'Backup failed' });
+  }
+});
+
+setInterval(() => {
+  const data = readDb();
+  const configs = Array.isArray(data.configBackups) ? data.configBackups : [];
+  let changed = false;
+  const now = Date.now();
+  configs.forEach((config) => {
+    if (!config.enabled) return;
+    if (!config.nextRunAt) { config.nextRunAt = nextBackupRun(config); changed = true; return; }
+    if (Date.parse(config.nextRunAt) > now) return;
+    try {
+      const file = performConfigBackup(config);
+      config.lastRunAt = new Date().toISOString();
+      config.nextRunAt = nextBackupRun(config);
+      addBackupLog(data, { configId: config.id, configName: config.name, status: 'success', message: file });
+      changed = true;
+    } catch (err) {
+      config.nextRunAt = nextBackupRun(config);
+      addBackupLog(data, { configId: config.id, configName: config.name, status: 'error', message: err.message || 'Backup failed' });
+      changed = true;
+    }
+  });
+  if (changed) writeDb(data);
+}, 60 * 1000);
 
 app.get('/api/health', (req, res) => {
   res.json({ ok: true });

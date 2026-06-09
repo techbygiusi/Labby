@@ -357,6 +357,7 @@
               <input id="import-file-mobile" type="file" accept="application/json" />
             </label>
           </div>
+          <button id="config-backup-btn-mobile" class="button secondary config-wide-action" type="button">Config Backups</button>
           <button id="clear-all-mobile" class="button danger config-wide-action" type="button">Clear All</button>
           <button id="seed-demo-mobile" class="button secondary config-wide-action" type="button">Load Demo</button>
           <div class="config-section-title">Customization</div>
@@ -452,6 +453,7 @@
         <div class="tree-head-actions">
           <div class="view-switch" role="tablist" aria-label="Tree view mode">
             <button id="tree-mode-tree" class="icon-btn active" type="button">Tree</button>
+            <button id="tree-mode-graph" class="icon-btn" type="button">Graph</button>
           </div>
         </div>
       </div>
@@ -474,6 +476,7 @@
             <input id="import-file" type="file" accept="application/json" />
           </label>
         </div>
+        <button id="config-backup-btn" class="button secondary config-wide-action" type="button">Config Backups</button>
         <button id="clear-all" class="button danger config-wide-action" type="button">Clear All</button>
         <button id="seed-demo" class="button secondary config-wide-action" type="button">Load Demo</button>
 
@@ -489,6 +492,66 @@
       </div>
     </dialog>
 
+
+    
+    <dialog id="config-backup-dialog" class="tree-dialog config-backup-dialog mobile-fullscreen-dialog">
+      <div class="tree-head">
+        <h3>Config Backups</h3>
+      </div>
+      <div class="config-backup-grid">
+        <section class="config-backup-card">
+          <h4>Backup targets</h4>
+          <div id="config-backup-list" class="config-backup-list"></div>
+          <div class="config-backup-actions">
+            <button id="config-backup-new" class="button" type="button">New backup</button>
+            <button id="config-backup-run" class="button secondary" type="button">Run now</button>
+          </div>
+        </section>
+        <section class="config-backup-card">
+          <h4>Settings</h4>
+          <label>Name
+            <input id="config-backup-name" type="text" placeholder="e.g. Daily local backup" />
+          </label>
+          <label>Target type
+            <select id="config-backup-type">
+              <option value="local">Local path</option>
+              <option value="smb">SMB mounted path</option>
+              <option value="nfs">NFS mounted path</option>
+            </select>
+          </label>
+          <label>Path
+            <input id="config-backup-path" type="text" placeholder="e.g. /backups/labby or mounted SMB/NFS path" />
+          </label>
+          <div class="config-backup-two">
+            <label>Frequency
+              <select id="config-backup-frequency">
+                <option value="hourly">Hourly</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+              </select>
+            </label>
+            <label>Time
+              <input id="config-backup-time" type="time" value="02:00" />
+            </label>
+          </div>
+          <label class="config-backup-check">
+            <input id="config-backup-enabled" type="checkbox" checked />
+            Enabled
+          </label>
+          <div class="config-backup-actions">
+            <button id="config-backup-save" class="button" type="button">Save backup</button>
+            <button id="config-backup-delete" class="button secondary danger-outline" type="button">Delete</button>
+          </div>
+        </section>
+        <section class="config-backup-card config-backup-log-card">
+          <h4>Backup log</h4>
+          <div id="config-backup-log" class="config-backup-log"></div>
+        </section>
+      </div>
+      <div class="dialog-footer">
+        <button id="config-backup-close" class="button secondary" type="button">✕ Close</button>
+      </div>
+    </dialog>
 
     <dialog id="agent-api-dialog" class="tree-dialog agent-api-dialog mobile-fullscreen-dialog">
       <div class="tree-head">
