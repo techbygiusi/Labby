@@ -296,6 +296,24 @@ applyTypeVisibility();
   startPolling();
 })();
 
+
+function renderCommandSnippets() {
+  // Main-safe fallback: some shared UI flows call the command snippet renderer
+  // even when the snippet library markup is not included in this build.
+  // The real CLI command library continues to render through its own handlers;
+  // this guard prevents a missing optional renderer from aborting startup.
+  const containers = [
+    document.getElementById('command-snippets'),
+    document.getElementById('cli-command-snippets'),
+    document.getElementById('mobile-command-snippets')
+  ].filter(Boolean);
+  containers.forEach((container) => {
+    if (!container.dataset.placeholderRendered && !container.children.length) {
+      container.dataset.placeholderRendered = '1';
+    }
+  });
+}
+
 async function startPolling() {
   if (pollingInterval) clearInterval(pollingInterval);
   pollingInterval = setInterval(async () => {
