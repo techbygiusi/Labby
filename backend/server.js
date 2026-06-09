@@ -43,13 +43,16 @@ function readDb() {
   try {
     if (!fs.existsSync(DB_PATH)) return { items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], configBackups: [], configBackupLogs: [] };
     const raw = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
-    if (Array.isArray(raw)) return { items: raw, locations: [], racks: [], agentKeys: [], agentStatus: {} };
+    if (Array.isArray(raw)) return { items: raw, locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], configBackups: [], configBackupLogs: [] };
     return {
       items: Array.isArray(raw.items) ? raw.items : [],
       locations: Array.isArray(raw.locations) ? raw.locations : [],
       racks: Array.isArray(raw.racks) ? raw.racks : [],
       agentKeys: Array.isArray(raw.agentKeys) ? raw.agentKeys : [],
       agentStatus: raw.agentStatus && typeof raw.agentStatus === 'object' ? raw.agentStatus : {},
+      commandSnippets: Array.isArray(raw.commandSnippets) ? raw.commandSnippets : [],
+      configBackups: Array.isArray(raw.configBackups) ? raw.configBackups : [],
+      configBackupLogs: Array.isArray(raw.configBackupLogs) ? raw.configBackupLogs : [],
     };
   } catch {
     return { items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], configBackups: [], configBackupLogs: [] };
@@ -64,6 +67,9 @@ function writeDb(data) {
     racks: Array.isArray(data.racks) ? data.racks : existing.racks,
     agentKeys: Array.isArray(data.agentKeys) ? data.agentKeys : existing.agentKeys,
     agentStatus: data.agentStatus && typeof data.agentStatus === 'object' ? data.agentStatus : existing.agentStatus,
+    commandSnippets: Array.isArray(data.commandSnippets) ? data.commandSnippets : existing.commandSnippets,
+    configBackups: Array.isArray(data.configBackups) ? data.configBackups : existing.configBackups,
+    configBackupLogs: Array.isArray(data.configBackupLogs) ? data.configBackupLogs : existing.configBackupLogs,
   };
   fs.writeFileSync(DB_PATH, JSON.stringify(next), 'utf8');
   return next;
@@ -459,7 +465,7 @@ app.post('/api/data', (req, res) => {
   let data;
   if (Array.isArray(body)) {
     // Legacy bare-array format: preserve locations/racks from disk if they exist
-    let existing = { locations: [], racks: [], agentKeys: [], agentStatus: {} };
+    let existing = { locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], configBackups: [], configBackupLogs: [] };
     try {
       if (fs.existsSync(DB_PATH)) {
         const raw = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
@@ -468,10 +474,13 @@ app.post('/api/data', (req, res) => {
           existing.racks = raw.racks || [];
           existing.agentKeys = raw.agentKeys || [];
           existing.agentStatus = raw.agentStatus || {};
+          existing.commandSnippets = raw.commandSnippets || [];
+          existing.configBackups = raw.configBackups || [];
+          existing.configBackupLogs = raw.configBackupLogs || [];
         }
       }
     } catch {}
-    data = { items: body, locations: existing.locations, racks: existing.racks, agentKeys: existing.agentKeys, agentStatus: existing.agentStatus };
+    data = { items: body, locations: existing.locations, racks: existing.racks, agentKeys: existing.agentKeys, agentStatus: existing.agentStatus, commandSnippets: existing.commandSnippets, configBackups: existing.configBackups, configBackupLogs: existing.configBackupLogs };
   } else if (body && typeof body === 'object') {
     data = {
       items: Array.isArray(body.items) ? body.items : [],
@@ -479,6 +488,9 @@ app.post('/api/data', (req, res) => {
       racks: Array.isArray(body.racks) ? body.racks : [],
       agentKeys: Array.isArray(body.agentKeys) ? body.agentKeys : (readDb().agentKeys || []),
       agentStatus: body.agentStatus && typeof body.agentStatus === 'object' ? body.agentStatus : (readDb().agentStatus || {}),
+      commandSnippets: Array.isArray(body.commandSnippets) ? body.commandSnippets : (readDb().commandSnippets || []),
+      configBackups: Array.isArray(body.configBackups) ? body.configBackups.map(sanitizeBackupConfig) : (readDb().configBackups || []),
+      configBackupLogs: Array.isArray(body.configBackupLogs) ? body.configBackupLogs : (readDb().configBackupLogs || []),
     };
   } else {
     return res.status(400).json({ error: 'Body must be a JSON array or { items, locations, racks } object.' });
@@ -489,7 +501,19 @@ app.post('/api/data', (req, res) => {
 
 
 function writeDb(data) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data), 'utf8');
+  const existing = readDb();
+  const next = {
+    items: Array.isArray(data.items) ? data.items : existing.items,
+    locations: Array.isArray(data.locations) ? data.locations : existing.locations,
+    racks: Array.isArray(data.racks) ? data.racks : existing.racks,
+    agentKeys: Array.isArray(data.agentKeys) ? data.agentKeys : existing.agentKeys,
+    agentStatus: data.agentStatus && typeof data.agentStatus === 'object' ? data.agentStatus : existing.agentStatus,
+    commandSnippets: Array.isArray(data.commandSnippets) ? data.commandSnippets : existing.commandSnippets,
+    configBackups: Array.isArray(data.configBackups) ? data.configBackups : existing.configBackups,
+    configBackupLogs: Array.isArray(data.configBackupLogs) ? data.configBackupLogs : existing.configBackupLogs,
+  };
+  fs.writeFileSync(DB_PATH, JSON.stringify(next), 'utf8');
+  return next;
 }
 
 function sanitizeBackupConfig(entry = {}) {
@@ -501,6 +525,8 @@ function sanitizeBackupConfig(entry = {}) {
     targetPath: String(entry.targetPath || '').trim(),
     frequency: ['hourly', 'daily', 'weekly'].includes(entry.frequency) ? entry.frequency : 'daily',
     time: String(entry.time || '02:00').slice(0, 5),
+    retentionMode: ['5', '10', 'custom'].includes(String(entry.retentionMode || '')) ? String(entry.retentionMode) : (parseInt(entry.retentionCount || entry.keepLast || 5, 10) === 10 ? '10' : (parseInt(entry.retentionCount || entry.keepLast || 5, 10) === 5 ? '5' : 'custom')),
+    retentionCount: Math.max(1, Math.min(999, parseInt(entry.retentionCount || entry.keepLast || 5, 10) || 5)),
     enabled: entry.enabled !== false,
     lastRunAt: entry.lastRunAt || null,
     nextRunAt: entry.nextRunAt || null,
@@ -528,6 +554,27 @@ function addBackupLog(data, log) {
   data.configBackupLogs = data.configBackupLogs.slice(0, 80);
 }
 
+
+function pruneConfigBackupFiles(dir, keepLast) {
+  const keep = Math.max(1, Math.min(999, parseInt(keepLast, 10) || 5));
+  let files = [];
+  try {
+    files = fs.readdirSync(dir)
+      .filter(name => /^labby-config-.*\.json$/i.test(name))
+      .map(name => {
+        const full = path.join(dir, name);
+        let stat = null;
+        try { stat = fs.statSync(full); } catch {}
+        return stat && stat.isFile() ? { full, mtime: stat.mtimeMs } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.mtime - a.mtime);
+  } catch { return; }
+  files.slice(keep).forEach(file => {
+    try { fs.unlinkSync(file.full); } catch {}
+  });
+}
+
 function performConfigBackup(config) {
   const data = readDb();
   const sanitized = sanitizeBackupConfig(config);
@@ -538,6 +585,7 @@ function performConfigBackup(config) {
   const file = path.join(dir, `labby-config-${stamp}.json`);
   const payload = { ...data, exportedAt: new Date().toISOString(), app: 'Labby', schemaVersion: 4 };
   fs.writeFileSync(file, JSON.stringify(payload, null, 2), 'utf8');
+  pruneConfigBackupFiles(dir, sanitized.retentionCount);
   return file;
 }
 
@@ -574,7 +622,7 @@ app.post('/api/config-backups/:id/run', (req, res) => {
     const file = performConfigBackup(config);
     config.lastRunAt = new Date().toISOString();
     config.nextRunAt = config.enabled ? nextBackupRun(config) : null;
-    addBackupLog(data, { configId: config.id, configName: config.name, status: 'success', message: file });
+    addBackupLog(data, { configId: config.id, configName: config.name, status: 'success', message: `${file} · kept last ${sanitizeBackupConfig(config).retentionCount}` });
     writeDb(data);
     res.json({ ok: true, file });
   } catch (err) {
@@ -597,7 +645,7 @@ setInterval(() => {
       const file = performConfigBackup(config);
       config.lastRunAt = new Date().toISOString();
       config.nextRunAt = nextBackupRun(config);
-      addBackupLog(data, { configId: config.id, configName: config.name, status: 'success', message: file });
+      addBackupLog(data, { configId: config.id, configName: config.name, status: 'success', message: `${file} · kept last ${sanitizeBackupConfig(config).retentionCount}` });
       changed = true;
     } catch (err) {
       config.nextRunAt = nextBackupRun(config);
