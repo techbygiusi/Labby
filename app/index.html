@@ -8,21 +8,20 @@
     <meta name="keywords" content="homelab, network inventory, infrastructure map, proxmox, self-hosted, docker, topology, IP management" />
     <meta name="author" content="TechByGiusi" />
     <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://my-labby.com/demo/" />
+    <link rel="canonical" href="https://my-labby.com/" />
 
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://my-labby.com/demo/" />
+    <meta property="og:url" content="https://my-labby.com/" />
     <meta property="og:title" content="Labby - Map Your Homelab" />
     <meta property="og:description" content="Lightweight homelab inventory and topology tool. Track hardware, VMs, LXCs, apps and networks with persistent storage." />
-    <meta property="og:image" content="https://my-labby.com/demo/images/logo.svg" />
+    <meta property="og:image" content="https://my-labby.com/logo.svg" />
 
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="Labby - Map Your Homelab" />
     <meta name="twitter:description" content="Lightweight homelab inventory and topology tool." />
-    <meta name="twitter:image" content="https://my-labby.com/demo/images/logo.svg" />
+    <meta name="twitter:image" content="https://my-labby.com/logo.svg" />
 
-    <link rel="icon" type="image/svg+xml" href="images/logo.svg" />
-    <link rel="apple-touch-icon" href="images/logo.svg" />
+    <link rel="icon" type="image/svg+xml" href="logo.svg" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -31,13 +30,6 @@
     The app intentionally stays as vanilla HTML/CSS/JS so contributors can run it
     directly from the static files or behind the small optional backend.
   -->
-
-    <div class="demo-banner" aria-label="Demo mode notice">
-      <div class="demo-banner-track">
-        <span class="demo-banner-message">🎭 Demo mode - changes are saved in your browser only. <a href="/">Website</a> · <a href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener noreferrer">Self-host Labby</a> for permanent storage.</span>
-        <span class="demo-banner-message demo-banner-message-clone" aria-hidden="true">🎭 Demo mode - changes are saved in your browser only. <a href="/" tabindex="-1">Website</a> · <a href="https://github.com/techbygiusi/Labby" target="_blank" rel="noopener noreferrer" tabindex="-1">Self-host Labby</a> for permanent storage.</span>
-      </div>
-    </div>
 
     <header class="topbar">
       <div class="brand-wrap">
@@ -359,7 +351,6 @@
           </div>
           <button id="config-backup-btn-mobile" class="button secondary config-wide-action" type="button">Config Backups</button>
           <button id="clear-all-mobile" class="button danger config-wide-action" type="button">Clear All</button>
-          <button id="seed-demo-mobile" class="button secondary config-wide-action" type="button">Load Demo</button>
           <div class="config-section-title">Customization</div>
           <div class="config-menu-row config-menu-row-two">
             <button id="theme-btn-mobile" class="button secondary" type="button">🎨 Themes</button>
@@ -504,7 +495,6 @@
         </div>
         <button id="config-backup-btn" class="button secondary config-wide-action" type="button">Config Backups</button>
         <button id="clear-all" class="button danger config-wide-action" type="button">Clear All</button>
-        <button id="seed-demo" class="button secondary config-wide-action" type="button">Load Demo</button>
 
         <div class="config-section-title">Customization</div>
         <div class="config-menu-row config-menu-row-two">
@@ -524,14 +514,13 @@
       <div class="tree-head">
         <h3>Config Backups</h3>
       </div>
-      <div class="config-backup-demo-note">Demo preview only: config backups are visible here, but saving, deleting, scheduling and running backups are disabled in the public demo.</div>
       <div class="config-backup-grid">
         <section class="config-backup-card">
           <h4>Backup targets</h4>
           <div id="config-backup-list" class="config-backup-list"></div>
           <div class="config-backup-actions">
-            <button id="config-backup-new" class="button" type="button" disabled>New backup</button>
-            <button id="config-backup-run" class="button secondary" type="button" disabled>Run now</button>
+            <button id="config-backup-new" class="button" type="button">New backup</button>
+            <button id="config-backup-run" class="button secondary" type="button">Run now</button>
           </div>
         </section>
         <section class="config-backup-card">
@@ -590,8 +579,8 @@
             Enabled
           </label>
           <div class="config-backup-actions">
-            <button id="config-backup-save" class="button" type="button" disabled>Save backup</button>
-            <button id="config-backup-delete" class="button secondary danger-outline" type="button" disabled>Delete</button>
+            <button id="config-backup-save" class="button" type="button">Save backup</button>
+            <button id="config-backup-delete" class="button secondary danger-outline" type="button">Delete</button>
           </div>
         </section>
         <section class="config-backup-card config-backup-log-card">
@@ -710,18 +699,6 @@
       <span>GitHub</span>
     </a>
 
-    <a
-      class="github website-link"
-      href="/"
-      aria-label="Back to Labby website"
-      title="Back to website"
-      >
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 3 2 11h3v9h6v-5h2v5h6v-9h3L12 3zm0 2.6 5 4V18h-2v-5H9v5H7V9.6l5-4z"/>
-      </svg>
-      <span>Website</span>
-    </a>
-
     <div id="welcome-overlay" class="welcome-overlay">
       <div class="welcome-card">
         <div class="tutorial-icon" id="tutorial-icon">🧪</div>
@@ -791,6 +768,6 @@
       <div id="rack-form-page-body" class="rack-form-dialog-body"></div>
     </dialog>
 
-    <script src="script.js?v=119"></script>
+    <script src="script.js?v=103"></script>
   </body>
 </html>

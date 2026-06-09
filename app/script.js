@@ -17,8 +17,6 @@
 
 const storageKey = 'labby-data-v8';
 const themeKey = 'labby-theme';
-const demoStorageVersionKey = 'labby-demo-storage-version';
-const demoStorageVersion = '2026-v61-demo-sync';
 const types = ['hardware', 'vm', 'lxc', 'app', 'network'];
 const networkPalette = ['#3b82f6', '#10b981', '#22c55e', '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#a855f7', '#14b8a6', '#84cc16', '#06b6d4', '#8b5cf6'];
 
@@ -28,8 +26,6 @@ const form = document.getElementById('resource-form');
 const typeSelect = document.getElementById('type');
 const symbolInput = document.getElementById('symbol');
 const clearAll = document.getElementById('clear-all');
-const seedDemo = document.getElementById('seed-demo');
-const seedDemoMobile = document.getElementById('seed-demo-mobile');
 const template = document.getElementById('item-template');
 const hostedOnSelect = document.getElementById('hosted-on');
 const hostedOnWrap = document.getElementById('hosted-on-wrap');
@@ -195,22 +191,6 @@ let selectedConfigBackupFile = null;
 let commandSnippets = [];
 let selectedCommandSnippetId = null;
 let selectedConfigBackupId = null;
-const CONFIG_BACKUPS_DEMO_ONLY = true;
-const DEMO_CONFIG_BACKUP_PREVIEW = {
-  id: 'demo-config-backup-preview',
-  name: 'Demo preview backup',
-  targetType: 'local',
-  targetPath: '',
-  frequency: 'daily',
-  time: '02:00',
-  retentionMode: '5',
-  retentionCount: 5,
-  enabled: false,
-  lastRunAt: null,
-  nextRunAt: null,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-};
 let toastTimer = null;
 let treeViewMode = 'tree';
 let lastTypeSelection = typeSelect.value;
@@ -219,7 +199,6 @@ let pollingInterval = null;
 let liveStatusData = {}; // Store live status data { itemId: { ipStatus: 'online'|'offline', urlStatus: 'online'|'offline' } }
 let importedAgentKeysForSave = null;
 const agentKeyStorage = 'labby-agent-keys';
-const DEMO_INTERACTIVE_SECURITY_DISABLED = true;
 const agentScopes = [
   ['inventory:read', 'Read inventory'],
   ['inventory:write', 'Write inventory'],
@@ -250,34 +229,60 @@ const API_BASE = (() => {
 
 async function loadItemsFromAPI() {
   try {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return { items: [], locations: [], racks: [], agentStatus: {}, agentKeys: [] };
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return { items: parsed, locations: [], racks: [], agentStatus: {}, agentKeys: [] };
+    const res = await fetch(`${API_BASE}/api/data`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      // Legacy: bare array
+      return { items: data, locations: [], racks: [] };
+    }
     return {
-      items: Array.isArray(parsed.items) ? parsed.items : [],
-      locations: Array.isArray(parsed.locations) ? parsed.locations : [],
-      racks: Array.isArray(parsed.racks) ? parsed.racks : [],
-      agentStatus: parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {},
-      agentKeys: Array.isArray(parsed.agentKeys) ? parsed.agentKeys : [],
+      items: Array.isArray(data.items) ? data.items : [],
+      locations: Array.isArray(data.locations) ? data.locations : [],
+      racks: Array.isArray(data.racks) ? data.racks : [],
+      agentStatus: data.agentStatus && typeof data.agentStatus === 'object' ? data.agentStatus : {},
+      agentKeys: Array.isArray(data.agentKeys) ? data.agentKeys : [],
+      commandSnippets: Array.isArray(data.commandSnippets) ? data.commandSnippets : [],
+      configBackups: Array.isArray(data.configBackups) ? data.configBackups : [],
+      configBackupLogs: Array.isArray(data.configBackupLogs) ? data.configBackupLogs : [],
     };
-  } catch {
-    return { items: [], locations: [], racks: [], agentStatus: {}, agentKeys: [] };
+  } catch (err) {
+    console.warn('Labby: API not reachable, falling back to localStorage.', err);
+    try {
+      const raw = localStorage.getItem(storageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      const lsItems = Array.isArray(parsed) ? parsed : (parsed.items || []);
+      const lsLocations = Array.isArray(parsed) ? [] : (parsed.locations || []);
+      const lsRacks = Array.isArray(parsed) ? [] : (parsed.racks || []);
+      return { items: lsItems, locations: lsLocations, racks: lsRacks, agentStatus: parsed.agentStatus || {}, commandSnippets: parsed.commandSnippets || [], configBackups: parsed.configBackups || [], configBackupLogs: parsed.configBackupLogs || [] };
+    } catch {
+      return { items: [], locations: [], racks: [] };
+    }
   }
 }
 
 async function saveItemsToAPI(itemList) {
   const payload = {
     items: itemList,
-    locations,
-    racks,
+    locations: locations,
+    racks: racks,
     agentStatus: liveStatusData,
+    commandSnippets,
+    configBackups,
+    configBackupLogs,
   };
   if (Array.isArray(importedAgentKeysForSave)) payload.agentKeys = importedAgentKeysForSave;
-  try { localStorage.setItem(storageKey, JSON.stringify(payload)); } catch {}
-  if (Array.isArray(importedAgentKeysForSave)) {
-    setLocalAgentKeys(importedAgentKeysForSave);
-    importedAgentKeysForSave = null;
+  try {
+    const res = await fetch(`${API_BASE}/api/data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (Array.isArray(importedAgentKeysForSave)) importedAgentKeysForSave = null;
+  } catch (err) {
+    console.warn('Labby: API save failed, writing to localStorage as fallback.', err);
+    try { localStorage.setItem(storageKey, JSON.stringify(payload)); } catch {}
   }
 }
 
@@ -296,13 +301,21 @@ initAdvancedResourceSettings();
 applyTypeVisibility();
 
 (async () => {
-  await seedFullDemoData();
+  const loaded = await loadItemsFromAPI();
+  items = sanitizeItems(loaded.items);
+  locations = loaded.locations || [];
+  racks = loaded.racks || [];
+  commandSnippets = Array.isArray(loaded.commandSnippets) ? loaded.commandSnippets.map(normalizeCommandSnippet) : [];
+  selectedCommandSnippetId = commandSnippets[0]?.id || null;
+  configBackups = Array.isArray(loaded.configBackups) ? loaded.configBackups : [];
+  configBackupLogs = Array.isArray(loaded.configBackupLogs) ? loaded.configBackupLogs : [];
+  selectedConfigBackupId = configBackups[0]?.id || null;
+  liveStatusData = loaded.agentStatus || {};
   initAgentApiPanel();
   renderCommandSnippetsIfPresent();
   await loadConfigBackups();
   render();
   startPolling();
-  openDemoTutorialAfterLayout();
 })();
 
 
@@ -914,13 +927,14 @@ document.getElementById('agent-api-close')?.addEventListener('click', () => {
 });
 
 clearAll.addEventListener('click', async () => {
-  if (!confirm('Delete all resources? This also clears all rack, location, custom theme and API key data.')) return;
-  items = []; locations = []; racks = [];
+  if (!confirm('Delete all resources? This also clears all rack, location, custom theme, API key and config backup data.')) return;
+  items = []; locations = []; racks = []; commandSnippets = []; selectedCommandSnippetId = null; configBackups = []; configBackupLogs = []; selectedConfigBackupId = null;
   localStorage.removeItem('labby-custom-themes');
+  localStorage.removeItem(configBackupStorageKey);
   await clearAllAgentKeys();
   stopEditing();
   await saveItems();
-  showToast('All resources, custom themes and API keys cleared.');
+  showToast('All resources, custom themes, API keys and config backups cleared.');
   render();
   if (typeof renderThemeLists === 'function') renderThemeLists();
 });
@@ -1025,7 +1039,14 @@ async function decryptCredentialBundle(payload, keyHex) {
 }
 
 async function loadRawAgentKeysForExport() {
-  return getLocalAgentKeys();
+  try {
+    const res = await fetch(`${API_BASE}/api/data`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.agentKeys) ? data.agentKeys : [];
+  } catch {
+    return [];
+  }
 }
 
 function openKeyPopup({ title, message, key = '', mode = 'copy' } = {}) {
@@ -1120,6 +1141,9 @@ async function buildConfigExport() {
     locations,
     racks,
     agentStatus: liveStatusData,
+    commandSnippets,
+    configBackups,
+    configBackupLogs,
     encryptedSecrets: {
       credentials: encryptedCredentials,
       agentKeys: encryptedAgentKeys,
@@ -1192,9 +1216,11 @@ async function applyImportedConfig(parsed) {
   items     = importedItems;
   locations = Array.isArray(parsed.locations) ? parsed.locations : [];
   racks     = Array.isArray(parsed.racks) ? parsed.racks : [];
-  configBackups = [];
-  configBackupLogs = [];
-  selectedConfigBackupId = null;
+  commandSnippets = Array.isArray(parsed.commandSnippets) ? parsed.commandSnippets.map(normalizeCommandSnippet) : [];
+  selectedCommandSnippetId = commandSnippets[0]?.id || null;
+  configBackups = Array.isArray(parsed.configBackups) ? parsed.configBackups : [];
+  configBackupLogs = Array.isArray(parsed.configBackupLogs) ? parsed.configBackupLogs : [];
+  selectedConfigBackupId = configBackups[0]?.id || null;
   liveStatusData = parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {};
 
   if (Array.isArray(parsed.customThemes)) importCustomThemes(parsed.customThemes);
@@ -1235,26 +1261,26 @@ function normalizeConfigBackup(entry = {}) {
 }
 
 function persistLocalConfigBackups() {
-  // Public demo: backup configuration is UI-only and is never persisted.
+  try { localStorage.setItem(configBackupStorageKey, JSON.stringify({ configs: configBackups, logs: configBackupLogs })); } catch {}
 }
 
 async function loadConfigBackups() {
-  if (CONFIG_BACKUPS_DEMO_ONLY) {
-    configBackups = [normalizeConfigBackup(DEMO_CONFIG_BACKUP_PREVIEW)];
-    configBackupLogs = [{
-      id: 'demo-config-backup-log',
-      at: new Date().toISOString(),
-      configId: 'demo-config-backup-preview',
-      configName: 'Demo preview backup',
-      status: 'error',
-      message: 'Demo only: backup saving, scheduling and execution are disabled.',
-    }];
-    selectedConfigBackupId = configBackups[0].id;
-    renderConfigBackups();
-    return;
+  try {
+    const res = await fetch(`${API_BASE}/api/config-backups`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    configBackups = (Array.isArray(data.configs) ? data.configs : []).map(normalizeConfigBackup);
+    configBackupLogs = Array.isArray(data.logs) ? data.logs : [];
+  } catch {
+    try {
+      const data = JSON.parse(localStorage.getItem(configBackupStorageKey) || '{}');
+      configBackups = (Array.isArray(data.configs) ? data.configs : configBackups).map(normalizeConfigBackup);
+      configBackupLogs = Array.isArray(data.logs) ? data.logs : configBackupLogs;
+    } catch {}
   }
+  if (!selectedConfigBackupId || !configBackups.some(b => b.id === selectedConfigBackupId)) selectedConfigBackupId = configBackups[0]?.id || null;
+  renderConfigBackups();
 }
-
 
 function selectedConfigBackup() {
   return configBackups.find(b => b.id === selectedConfigBackupId) || null;
@@ -1459,15 +1485,72 @@ function renderConfigBackups() {
 }
 
 async function saveConfigBackupFromForm() {
-  showToast('Demo only: backup targets are not saved in the public demo.', 'error');
+  const backup = readConfigBackupForm();
+  if (backup.targetType !== 'local' && !backup.targetPath) { showToast('Backup path is required for SMB/NFS targets.', 'error'); return; }
+  try {
+    const res = await fetch(`${API_BASE}/api/config-backups`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(backup),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const saved = normalizeConfigBackup(data.config || backup);
+    const idx = configBackups.findIndex(b => b.id === saved.id);
+    if (idx >= 0) configBackups[idx] = saved; else configBackups.push(saved);
+    selectedConfigBackupId = saved.id;
+    showToast('Backup target saved.');
+  } catch {
+    const idx = configBackups.findIndex(b => b.id === backup.id);
+    if (idx >= 0) configBackups[idx] = backup; else configBackups.push(backup);
+    selectedConfigBackupId = backup.id;
+    persistLocalConfigBackups();
+    showToast('Backup target saved locally.');
+  }
+  renderConfigBackups();
+  loadConfigBackupFiles();
+  await saveItems();
 }
 
 async function deleteSelectedConfigBackup() {
-  showToast('Demo only: backup targets cannot be deleted in the public demo.', 'error');
+  const backup = selectedConfigBackup();
+  if (!backup) return;
+  if (!confirm(`Delete backup target "${backup.name}"?`)) return;
+  try { await fetch(`${API_BASE}/api/config-backups/${encodeURIComponent(backup.id)}`, { method: 'DELETE' }); } catch {}
+  configBackups = configBackups.filter(b => b.id !== backup.id);
+  selectedConfigBackupId = configBackups[0]?.id || null;
+  persistLocalConfigBackups();
+  renderConfigBackups();
+  loadConfigBackupFiles();
+  await saveItems();
+  showToast('Backup target deleted.');
 }
 
 async function runSelectedConfigBackup() {
-  showToast('Demo only: backups do not run in the public demo. Use Main/self-hosted for real backups.', 'error');
+  const backup = selectedConfigBackup();
+  if (!backup) { showToast('Create or select a backup target first.', 'error'); return; }
+  try {
+    const res = await fetch(`${API_BASE}/api/config-backups/${encodeURIComponent(backup.id)}/run`, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    showToast('Backup completed.');
+    await loadConfigBackups();
+    await loadConfigBackupFiles();
+  } catch (err) {
+    configBackupLogs.unshift({
+      id: `log-${Date.now()}`,
+      at: new Date().toISOString(),
+      configId: backup.id,
+      configName: backup.name,
+      status: 'error',
+      message: err?.message || 'Backup failed',
+    });
+    configBackupLogs = configBackupLogs.slice(0, 80);
+    persistLocalConfigBackups();
+    renderConfigBackups();
+    loadConfigBackupFiles();
+    showToast(err?.message || 'Backup failed.', 'error');
+  }
 }
 
 
@@ -1515,9 +1598,6 @@ function returnFromConfigBackup() {
 }
 
 function openConfigBackupDialog() {
-  if (CONFIG_BACKUPS_DEMO_ONLY) {
-    [configBackupNew, configBackupRun, configBackupSave, configBackupDelete].forEach(btn => { if (btn) { btn.disabled = true; btn.title = 'Disabled in public demo'; } });
-  }
   loadConfigBackups();
   if (configDialog?.open) configDialog.close();
   if (isMobile()) {
@@ -1563,16 +1643,19 @@ function setLocalAgentKeys(keys) {
 }
 
 function createLocalAgentToken() {
-  // Demo tokens are deliberately visual-only placeholders. They are never accepted
-  // by the demo backend and cannot be used for inventory, status, ping or credential APIs.
-  const bytes = new Uint8Array(8);
+  const bytes = new Uint8Array(24);
   if (crypto?.getRandomValues) crypto.getRandomValues(bytes);
   else bytes.forEach((_, i) => bytes[i] = Math.floor(Math.random() * 256));
-  return 'labby_demo_visual_only_' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  return 'labby_demo_' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 async function agentApiRequest(path, options = {}) {
-  throw new Error('Demo mode keeps API key records in browser storage only.');
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
 }
 
 async function loadAgentKeys() {
@@ -1601,8 +1684,7 @@ async function createAgentKey(name, scopes, expiresAt) {
       enabled: true,
       createdAt: new Date().toISOString(),
       expiresAt,
-      lastUsed: 'demo only',
-      demoOnly: true,
+      lastUsed: '',
     };
     const keys = getLocalAgentKeys();
     keys.push(key);
@@ -1668,7 +1750,7 @@ function showAgentToken(box, token) {
   box.hidden = false;
   const inputId = `agent-token-copy-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   box.innerHTML = `
-    <strong>Demo-only placeholder key. It is shown once for UI testing and is not accepted by any API endpoint:</strong>
+    <strong>Copy this key now. It is shown once and cannot be recovered later:</strong>
     <div class="agent-token-copy-row">
       <input id="${inputId}" type="text" readonly value="${escapeAttr(token)}" aria-label="New API key" />
       <button class="button secondary" type="button" data-copy-agent-token="${inputId}">Copy</button>
@@ -1688,7 +1770,7 @@ async function renderAgentKeyLists() {
       <article class="agent-key-card" data-agent-key="${escapeAttr(key.id)}">
         <div>
           <strong>${escapeAttr(key.name)}</strong>
-          <div class="agent-key-meta">${key.demoOnly ? 'Demo only · not usable' : (key.enabled === false ? 'Disabled' : 'Enabled')} · ${escapeAttr(key.prefix || 'labby_…')} · ${escapeAttr((key.scopes || []).join(', '))}</div>
+          <div class="agent-key-meta">${key.enabled === false ? 'Disabled' : 'Enabled'} · ${escapeAttr(key.prefix || 'labby_…')} · ${escapeAttr((key.scopes || []).join(', '))}</div>
           <div class="agent-key-meta">Created: ${escapeAttr(key.createdAt || '-')} · Expires: ${escapeAttr(key.expiresAt || '-')} · Last used: ${escapeAttr(key.lastUsed || 'never')}</div>
         </div>
         <div class="agent-key-actions">
@@ -1718,7 +1800,7 @@ function bindAgentKeyForm(formId, nameId, tokenId, expiryId) {
     nameNode.value = '';
     showAgentToken(tokenNode, result.token);
     await renderAgentKeyLists();
-    showToast('Demo API key placeholder created. It is not usable for API access.');
+    showToast('Agent API key created.');
   });
 }
 
@@ -2726,38 +2808,6 @@ async function openCliSession(item, options = {}) {
     cliDialog.showModal();
   }
   renderCommandSnippetsIfPresent();
-
-  if (DEMO_INTERACTIVE_SECURITY_DISABLED) {
-    cliSession = null;
-    stopCliPolling();
-    [cliInput, mobileCliInput].filter(Boolean).forEach((input) => {
-      input.value = '';
-      input.disabled = true;
-      input.placeholder = 'Demo mode: SSH input disabled';
-    });
-    [cliSend, mobileCliSend, cliClearKey, mobileCliClearKey].filter(Boolean).forEach((button) => {
-      button.disabled = true;
-      button.title = 'Disabled in the public demo';
-    });
-    setCliOutput(
-      `Labby public demo mode
-
-` +
-      `No SSH connection is opened from my-labby.com.
-` +
-      `This protects visitors, the demo host and third-party systems from misuse.
-
-` +
-      `Configured target shown for preview only:
-ssh ${target}
-
-` +
-      `Run the self-hosted Main version to use the real browser console.
-`
-    );
-    showToast('CLI is disabled in the public demo.');
-    return;
-  }
 
   try {
     const res = await fetch(`${API_BASE}/api/ssh/start`, {
@@ -5209,13 +5259,14 @@ if (importFileMobile) importFileMobile.addEventListener('change', async (event) 
 
 const clearAllMobile = document.getElementById('clear-all-mobile');
 if (clearAllMobile) clearAllMobile.addEventListener('click', async () => {
-  if (!confirm('Delete all resources? This also clears all rack, location, custom theme and API key data.')) return;
-  items = []; locations = []; racks = [];
+  if (!confirm('Delete all resources? This also clears all rack, location, custom theme, API key and config backup data.')) return;
+  items = []; locations = []; racks = []; commandSnippets = []; selectedCommandSnippetId = null; configBackups = []; configBackupLogs = []; selectedConfigBackupId = null;
   localStorage.removeItem('labby-custom-themes');
+  localStorage.removeItem(configBackupStorageKey);
   await clearAllAgentKeys();
   stopEditing();
   await saveItems();
-  showToast('All resources, custom themes and API keys cleared.');
+  showToast('All resources, custom themes, API keys and config backups cleared.');
   render();
   if (typeof renderThemeLists === 'function') renderThemeLists();
   hideMobileViews();
@@ -6737,139 +6788,5 @@ updateRackSelectedComponentUI();
 
 // Theme initialization moved after definitions
 try { initTheme(); } catch(e){ console.error(e); }
-
-
-
-function getDemoLocations() {
-  return [
-    {
-      id: 'loc-home-lab',
-      name: 'Home Lab',
-      notes: 'Primary demo location with the main network and compute rack.',
-    },
-    {
-      id: 'loc-backup-room',
-      name: 'Backup Room',
-      notes: 'Secondary demo location for storage and backup equipment.',
-    },
-  ];
-}
-
-function rackSlot(componentType, heightU, label, category, extra = {}) {
-  return {
-    componentType,
-    heightU,
-    label,
-    category,
-    ...extra,
-  };
-}
-
-function getDemoRacks() {
-  return [
-    {
-      id: 'rack-main-42u',
-      locationId: 'loc-home-lab',
-      name: 'Main Rack 42U',
-      notes: 'Core networking, virtualization and service hosts.',
-      heightUnits: 42,
-      formFactor: '19inch',
-      slots: {
-        'front-1': rackSlot('1u-patch-panel', 1, 'Patch Panel', 'network', { isPassive: true }),
-        'front-2': rackSlot('1u-switch', 1, 'Core Switch', 'network', { linkedDeviceId: 'hw-switch' }),
-        'front-3': rackSlot('1u-router', 1, 'Gateway Router', 'network', { linkedDeviceId: 'hw-router' }),
-        'front-4': rackSlot('1u-cable-mgmt', 1, 'Cable Management', 'network', { isPassive: true }),
-        'front-6': rackSlot('2u-server', 2, 'Proxmox Host', 'compute', { linkedDeviceId: 'hw-proxmox' }),
-        'front-9': rackSlot('2pc-2u', 2, 'Service VMs', 'compute', { multiDevice: 2, linkedDevices: ['vm-docker', 'vm-monitoring'] }),
-        'front-12': rackSlot('2pc-2u', 2, 'Media + DNS', 'compute', { multiDevice: 2, linkedDevices: ['vm-media', 'lxc-dns'] }),
-        'front-16': rackSlot('1u-server', 1, 'Reverse Proxy LXC', 'compute', { linkedDeviceId: 'lxc-proxy' }),
-        'front-20': rackSlot('2u-ups', 2, 'Rack UPS', 'power'),
-        'front-24': rackSlot('1u-blank', 1, 'Blank Panel', 'filler', { isBlank: true }),
-        'front-25': rackSlot('2u-blank', 2, 'Blank Panel', 'filler', { isBlank: true }),
-        'rear-1': rackSlot('1u-pdu', 1, 'Rear PDU A', 'power', { isPDU: true, pduPorts: 12 }),
-        'rear-3': rackSlot('1u-pdu', 1, 'Rear PDU B', 'power', { isPDU: true, pduPorts: 12 }),
-        'rear-5': rackSlot('1u-cable-mgmt', 1, 'Rear Cable Management', 'network', { isPassive: true }),
-        'rear-8': rackSlot('1u-kvm', 1, 'Rack KVM', 'mgmt'),
-      },
-    },
-    {
-      id: 'rack-storage-24u',
-      locationId: 'loc-backup-room',
-      name: 'Storage Rack 24U',
-      notes: 'NAS, backup vault and storage networking.',
-      heightUnits: 24,
-      formFactor: '19inch',
-      slots: {
-        'front-1': rackSlot('1u-patch-panel', 1, 'Storage Patch Panel', 'network', { isPassive: true }),
-        'front-2': rackSlot('1u-switch', 1, 'Storage Switch', 'network'),
-        'front-5': rackSlot('4u-server', 4, 'NAS Main', 'compute', { linkedDeviceId: 'hw-nas' }),
-        'front-10': rackSlot('4u-server', 4, 'Backup Vault', 'compute', { linkedDeviceId: 'hw-backup' }),
-        'front-16': rackSlot('2u-ups', 2, 'Storage UPS', 'power'),
-        'front-20': rackSlot('2u-blank', 2, 'Blank Panel', 'filler', { isBlank: true }),
-        'rear-1': rackSlot('1u-pdu', 1, 'Rear PDU', 'power', { isPDU: true, pduPorts: 8 }),
-        'rear-4': rackSlot('1u-cable-mgmt', 1, 'Rear Cable Management', 'network', { isPassive: true }),
-      },
-    },
-  ];
-}
-
-
-function getDemoItems() {
-  return [
-    { id: 'net-core', type: 'network', name: 'Core LAN', description: 'Main management network', notes: 'All infrastructure devices', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '192.168.10.0/24', gateway: '192.168.10.1', networkColor: '#10b981', hostedOn: '', appHostedOn: '', status: '' },
-    { id: 'net-services', type: 'network', name: 'Services', description: 'Internal services VLAN', notes: 'Apps and APIs', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '192.168.20.0/24', gateway: '192.168.20.1', networkColor: '#3b82f6', hostedOn: '', appHostedOn: '', status: '' },
-    { id: 'net-storage', type: 'network', name: 'Storage', description: 'Storage replication network', notes: 'NAS and backup traffic', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '192.168.40.0/24', gateway: '192.168.40.1', networkColor: '#8b5cf6', hostedOn: '', appHostedOn: '', status: '' },
-
-    { id: 'hw-router', type: 'hardware', hardwareKind: 'router-gateway', manufacturer: 'MikroTik', os: 'RouterOS 7', symbol: '📡', name: 'EdgeRouter-1', description: 'Main internet gateway', notes: 'Fiber uplink, managed by admin', connections: ['hw-switch'], ip: '192.168.10.1/24', webUrl: 'https://192.168.10.1', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: [], ipPort: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
-    { id: 'hw-switch', type: 'hardware', hardwareKind: 'switch', manufacturer: 'Ubiquiti', os: 'UniFi 8.4', symbol: '🔀', name: 'Switch-Core-24', description: '24-port managed switch', notes: 'Rack U1, VLAN configured', connections: ['hw-router', 'hw-proxmox', 'hw-nas', 'hw-backup'], ip: '192.168.10.2/24', webUrl: 'https://unifi.ui.com/', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: [], ipPort: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '24', nasShares: [], nasRaids: [], status: 'online' },
-    { id: 'hw-proxmox', type: 'hardware', hardwareKind: 'hypervisor', manufacturer: 'Dell', os: 'Proxmox VE 8.2', symbol: '🖥️', name: 'Proxmox-01', description: 'Primary virtualization host', notes: 'Rack U2, 2x NVMe pool', connections: [], ip: '192.168.10.10/24', webUrl: 'https://192.168.10.10:8006', cpu: '16 cores', ram: '2 x 32 DDR5', disks: '2 x 2 TB NVMe', cpuCount: '16', ramModules: [{ size: '32', type: 'DDR5' }, { size: '32', type: 'DDR5' }], diskRows: [{ size: '2 TB', type: 'NVMe' }, { size: '2 TB', type: 'NVMe' }], ipPort: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
-    { id: 'hw-nas', type: 'hardware', hardwareKind: 'nas', manufacturer: 'Synology', os: 'DSM 7.2', symbol: '🗄️', name: 'NAS-Main', description: 'Primary shared storage', notes: 'Rack U4, SMB + NFS shares', connections: [], ip: '192.168.40.20/24', webUrl: 'https://192.168.40.20:5001', cpu: '8 cores', ram: '2 x 16 DDR4 ECC', disks: '4 x 12 TB HDD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }], diskRows: [{ size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }], ipPort: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [{ name: 'media', link: '/volume1/media' }, { name: 'backups', link: '/volume1/backups' }], nasRaids: [{ name: 'Array-A', level: 'RAID5', size: '36 TB' }], status: 'online' },
-    { id: 'hw-backup', type: 'hardware', hardwareKind: 'backup', manufacturer: 'Supermicro', os: 'TrueNAS SCALE', symbol: '💾', name: 'Backup-Vault', description: 'Offsite backup node', notes: 'Immutable snapshots, Rack U5', connections: [], ip: '192.168.40.30/24', cpu: '8 cores', ram: '4 x 16 DDR4 ECC', disks: '6 x 8 TB HDD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }], diskRows: [{ size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [{ name: 'archive', link: '/mnt/backup/archive' }], nasRaids: [{ name: 'Backup-Pool', level: 'RAIDZ2', size: '32 TB' }], status: 'maintenance' },
-
-    { id: 'vm-docker', type: 'vm', name: 'vm-docker-01', description: 'Docker workloads', notes: 'Compose stacks, main app host', connections: [], ip: '192.168.20.21/24', cpu: '6 vCPU', ram: '2 x 8 DDR5', disks: '2 x 120 GB SSD', cpuCount: '6', ramModules: [{ size: '8', type: 'DDR5' }, { size: '8', type: 'DDR5' }], diskRows: [{ size: '120 GB', type: 'SSD' }, { size: '120 GB', type: 'SSD' }], os: 'Ubuntu 24.04 LTS', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hw-proxmox', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
-    { id: 'vm-media', type: 'vm', name: 'vm-media-01', description: 'Media processing VM', notes: 'Jellyfin + *arr stack', connections: [], ip: '192.168.20.22/24', cpu: '8 vCPU', ram: '2 x 16 DDR5', disks: '1 x 500 GB SSD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR5' }, { size: '16', type: 'DDR5' }], diskRows: [{ size: '500 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hw-proxmox', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
-    { id: 'vm-monitoring', type: 'vm', name: 'vm-monitoring', description: 'Metrics and alerting', notes: 'Grafana + Prometheus + Loki', connections: [], ip: '192.168.20.23/24', cpu: '4 vCPU', ram: '2 x 8 DDR5', disks: '1 x 200 GB SSD', cpuCount: '4', ramModules: [{ size: '8', type: 'DDR5' }, { size: '8', type: 'DDR5' }], diskRows: [{ size: '200 GB', type: 'SSD' }], os: 'Ubuntu 22.04 LTS', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hw-proxmox', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'offline' },
-
-    { id: 'lxc-dns', type: 'lxc', name: 'lxc-dns-01', description: 'DNS resolver', notes: 'AdGuard Home + Unbound', connections: [], ip: '192.168.10.40/24', cpu: '2 vCPU', ram: '2 x 2 DDR5', disks: '1 x 20 GB SSD', cpuCount: '2', ramModules: [{ size: '2', type: 'DDR5' }, { size: '2', type: 'DDR5' }], diskRows: [{ size: '20 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hw-proxmox', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
-    { id: 'lxc-proxy', type: 'lxc', name: 'lxc-proxy-01', description: 'Reverse proxy', notes: 'Nginx Proxy Manager', connections: [], ip: '192.168.20.50/24', cpu: '2 vCPU', ram: '2 x 2 DDR5', disks: '1 x 20 GB SSD', cpuCount: '2', ramModules: [{ size: '2', type: 'DDR5' }, { size: '2', type: 'DDR5' }], diskRows: [{ size: '20 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hw-proxmox', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
-
-    { id: 'app-jellyfin', type: 'app', name: 'Jellyfin', description: 'Media server', notes: 'Streams from NAS media share', connections: [], ip: '', ipPort: '192.168.20.22:8096', webUrl: 'https://media.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-media', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online', symbol: '🎬', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
-    { id: 'app-grafana', type: 'app', name: 'Grafana', description: 'Metrics dashboard', notes: 'Connected to Prometheus', connections: [], ip: '', ipPort: '192.168.20.23:3000', webUrl: 'https://grafana.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-monitoring', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'offline', symbol: '📊', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
-    { id: 'app-portainer', type: 'app', name: 'Portainer', description: 'Docker management UI', notes: 'Manages vm-docker-01 containers', connections: [], ip: '', ipPort: '192.168.20.21:9000', webUrl: 'https://portainer.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-docker', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online', symbol: '🐳', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
-    { id: 'app-adguard', type: 'app', name: 'AdGuard Home', description: 'DNS ad blocker', notes: 'Network-wide ad blocking', connections: [], ip: '', ipPort: '192.168.10.40:3000', webUrl: 'https://adguard.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'lxc-dns', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online', symbol: '🛡️', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
-    { id: 'app-npm', type: 'app', name: 'Nginx Proxy Manager', description: 'Reverse proxy UI', notes: 'SSL termination for all services', connections: [], ip: '', ipPort: '192.168.20.50:81', webUrl: 'https://proxy.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'lxc-proxy', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online', symbol: '🔒', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
-  ];
-}
-
-
-function initDemoBannerMarquee() {
-  const banner = document.querySelector('.demo-banner');
-  const track = document.querySelector('.demo-banner-track');
-  const message = document.querySelector('.demo-banner-message:not(.demo-banner-message-clone)');
-  if (!banner || !track || !message) return;
-
-  const update = () => {
-    banner.classList.remove('is-scrolling');
-    track.style.removeProperty('--demo-marquee-duration');
-    // Wait one frame so measurements are taken without the animation clone affecting layout.
-    requestAnimationFrame(() => {
-      const overflow = message.scrollWidth > banner.clientWidth - 8;
-      banner.classList.toggle('is-scrolling', overflow);
-      if (overflow) {
-        const distance = Math.max(message.scrollWidth, banner.clientWidth);
-        const seconds = Math.min(28, Math.max(10, distance / 42));
-        track.style.setProperty('--demo-marquee-duration', `${seconds}s`);
-      }
-    });
-  };
-
-  update();
-  window.addEventListener('resize', update, { passive: true });
-  if ('ResizeObserver' in window) {
-    new ResizeObserver(update).observe(banner);
-  }
-}
-
-initDemoBannerMarquee();
 
 
