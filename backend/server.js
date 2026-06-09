@@ -20,6 +20,7 @@ const CONFIG_BACKUPS_DEMO_ONLY = true;
 const app = express();
 const PORT = 3001;
 const DATA_DIR = process.env.DATA_DIR || '/data';
+const DEFAULT_LOCAL_CONFIG_BACKUP_PATH = process.env.CONFIG_BACKUP_DIR || path.join(DATA_DIR, 'config-backups');
 const DB_PATH = path.join(DATA_DIR, 'labby.json');
 
 if (!fs.existsSync(DATA_DIR)) {
@@ -525,8 +526,9 @@ function sanitizeBackupConfig(entry = {}) {
     id: String(entry.id || (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`)),
     name: String(entry.name || 'Config backup').trim() || 'Config backup',
     targetType: ['local', 'smb', 'nfs'].includes(entry.targetType) ? entry.targetType : 'local',
-    targetPath: String(entry.targetPath || '').trim(),
+    targetPath: String(entry.targetPath || (entry.targetType === 'local' ? DEFAULT_LOCAL_CONFIG_BACKUP_PATH : '')).trim(),
     frequency: ['hourly', 'daily', 'weekly'].includes(entry.frequency) ? entry.frequency : 'daily',
+    weekday: Math.max(0, Math.min(6, parseInt(entry.weekday ?? 1, 10) || 0)),
     time: String(entry.time || '02:00').slice(0, 5),
     retentionMode: ['5', '10', 'custom'].includes(String(entry.retentionMode || '')) ? String(entry.retentionMode) : (parseInt(entry.retentionCount || entry.keepLast || 5, 10) === 10 ? '10' : (parseInt(entry.retentionCount || entry.keepLast || 5, 10) === 5 ? '5' : 'custom')),
     retentionCount: Math.max(1, Math.min(999, parseInt(entry.retentionCount || entry.keepLast || 5, 10) || 5)),
@@ -603,6 +605,15 @@ app.post('/api/config-backups', (req, res) => {
 
 app.delete('/api/config-backups/:id', (req, res) => {
   res.status(403).json({ error: 'Config backups are UI-only in the public demo.' });
+});
+
+
+app.get('/api/config-backups/:id/files', (req, res) => {
+  res.json({ files: [], demoOnly: true, message: 'Demo only: stored backup files are not available.' });
+});
+
+app.post('/api/config-backups/:id/restore', (req, res) => {
+  res.status(403).json({ error: 'Demo only: old backups cannot be loaded in the public demo.' });
 });
 
 app.post('/api/config-backups/:id/run', (req, res) => {

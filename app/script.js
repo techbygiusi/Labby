@@ -138,6 +138,9 @@ const configBackupBtnMobile = document.getElementById('config-backup-btn-mobile'
 const configBackupDialog = document.getElementById('config-backup-dialog');
 const configBackupList = document.getElementById('config-backup-list');
 const configBackupLog = document.getElementById('config-backup-log');
+const configBackupFileList = document.getElementById('config-backup-file-list');
+const configBackupFileRefresh = document.getElementById('config-backup-file-refresh');
+const configBackupFileRestore = document.getElementById('config-backup-file-restore');
 const configBackupNew = document.getElementById('config-backup-new');
 const configBackupRun = document.getElementById('config-backup-run');
 const configBackupSave = document.getElementById('config-backup-save');
@@ -147,11 +150,22 @@ const configBackupName = document.getElementById('config-backup-name');
 const configBackupType = document.getElementById('config-backup-type');
 const configBackupPath = document.getElementById('config-backup-path');
 const configBackupFrequency = document.getElementById('config-backup-frequency');
+const configBackupWeekday = document.getElementById('config-backup-weekday');
+const configBackupWeekdayWrap = document.getElementById('config-backup-weekday-wrap');
 const configBackupTime = document.getElementById('config-backup-time');
+const configBackupTimeWrap = document.getElementById('config-backup-time-wrap');
+const configBackupPathWrap = document.getElementById('config-backup-path-wrap');
+const configBackupPathHelp = document.getElementById('config-backup-path-help');
 const configBackupRetentionMode = document.getElementById('config-backup-retention-mode');
 const configBackupRetentionCustom = document.getElementById('config-backup-retention-custom');
 const configBackupRetentionCustomWrap = document.getElementById('config-backup-retention-custom-wrap');
 const configBackupEnabled = document.getElementById('config-backup-enabled');
+const mobileConfigBackupsBody = document.getElementById('mobile-config-backups-body');
+const mobileConfigBackupsClose = document.getElementById('mobile-config-backups-close');
+const commandSnippetSearch = document.getElementById('command-snippet-search');
+const commandSnippetList = document.getElementById('command-snippet-list');
+const commandSnippetEdit = document.getElementById('command-snippet-edit');
+const commandSnippetNew = document.getElementById('command-snippet-new');
 
 const toast = document.getElementById('toast');
 
@@ -176,13 +190,17 @@ let locations = [];
 let racks = [];
 let configBackups = [];
 let configBackupLogs = [];
+let configBackupFiles = [];
+let selectedConfigBackupFile = null;
+let commandSnippets = [];
+let selectedCommandSnippetId = null;
 let selectedConfigBackupId = null;
 const CONFIG_BACKUPS_DEMO_ONLY = true;
 const DEMO_CONFIG_BACKUP_PREVIEW = {
   id: 'demo-config-backup-preview',
   name: 'Demo preview backup',
   targetType: 'local',
-  targetPath: '/backups/labby-demo',
+  targetPath: '',
   frequency: 'daily',
   time: '02:00',
   retentionMode: '5',
@@ -288,118 +306,101 @@ applyTypeVisibility();
 })();
 
 
-function renderCommandSnippetsIfPresent() {
-  // Demo-safe placeholder: the command snippet library is not present in this build,
-  // but shared Labby UI flow may expect command snippet rendering.
-  // Keeping this function prevents the startup sequence from aborting.
-  const containers = [
-    document.getElementById('command-snippets'),
-    document.getElementById('cli-command-snippets'),
-    document.getElementById('mobile-command-snippets')
-  ].filter(Boolean);
-  containers.forEach((container) => {
-    if (!container.dataset.placeholderRendered && !container.children.length) {
-      container.dataset.placeholderRendered = '1';
-    }
-  });
+
+function normalizeCommandSnippet(entry = {}) {
+  const command = String(entry.command || '').trim();
+  const name = String(entry.name || entry.title || command.slice(0, 40) || 'Command').trim() || 'Command';
+  return {
+    id: String(entry.id || `cmd-${Date.now()}-${Math.random().toString(16).slice(2)}`),
+    name,
+    command,
+    description: String(entry.description || '').trim(),
+    createdAt: entry.createdAt || new Date().toISOString(),
+    updatedAt: entry.updatedAt || new Date().toISOString(),
+  };
+}
+
+function visibleCommandSnippets() {
+  const needle = String(commandSnippetSearch?.value || '').trim().toLowerCase();
+  const list = commandSnippets.map(normalizeCommandSnippet).filter(snippet => snippet.command);
+  if (!needle) return list;
+  return list.filter(snippet => `${snippet.name} ${snippet.description} ${snippet.command}`.toLowerCase().includes(needle));
+}
+
+function setCliInputCommand(command) {
+  const input = activeCliInput?.() || cliInput || mobileCliInput;
+  if (!input) return;
+  input.value = String(command || '');
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
 }
 
 function renderCommandSnippets() {
-  return renderCommandSnippetsIfPresent();
+  if (!commandSnippetList) return;
+  const snippets = visibleCommandSnippets();
+  if (!snippets.length) {
+    commandSnippetList.innerHTML = '<div class="command-snippet-empty">No commands saved yet.</div>';
+    return;
+  }
+  if (!selectedCommandSnippetId || !snippets.some(s => s.id === selectedCommandSnippetId)) {
+    selectedCommandSnippetId = snippets[0]?.id || null;
+  }
+  commandSnippetList.innerHTML = '';
+  snippets.forEach(snippet => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'command-snippet-item' + (snippet.id === selectedCommandSnippetId ? ' active' : '');
+    item.innerHTML = `<strong>${escapeHtml(snippet.name)}</strong>${snippet.description ? `<small>${escapeHtml(snippet.description)}</small>` : ''}<code>${escapeHtml(snippet.command)}</code>`;
+    item.addEventListener('click', () => {
+      selectedCommandSnippetId = snippet.id;
+      setCliInputCommand(snippet.command);
+      renderCommandSnippets();
+    });
+    commandSnippetList.appendChild(item);
+  });
 }
+
+function renderCommandSnippetsIfPresent() {
+  renderCommandSnippets();
+}
+
+async function persistCommandSnippets() {
+  commandSnippets = commandSnippets.map(normalizeCommandSnippet).filter(s => s.command);
+  await saveItemsToAPI(items);
+  renderCommandSnippets();
+}
+
+async function createOrEditCommandSnippet(existing) {
+  const currentInput = String((activeCliInput?.() || cliInput || mobileCliInput)?.value || '').trim();
+  const base = existing ? normalizeCommandSnippet(existing) : normalizeCommandSnippet({ command: currentInput });
+  const name = window.prompt('Command name', base.name || 'Command');
+  if (name === null) return;
+  const command = window.prompt('Command', base.command || currentInput || '');
+  if (command === null) return;
+  const description = window.prompt('Description (optional)', base.description || '');
+  if (description === null) return;
+  const next = normalizeCommandSnippet({ ...base, name, command, description, updatedAt: new Date().toISOString() });
+  if (!next.command) { showToast('Command is empty.', 'error'); return; }
+  const idx = commandSnippets.findIndex(s => s.id === next.id);
+  if (idx >= 0) commandSnippets[idx] = next;
+  else commandSnippets.push({ ...next, createdAt: new Date().toISOString() });
+  selectedCommandSnippetId = next.id;
+  await persistCommandSnippets();
+  showToast(existing ? 'Command updated.' : 'Command saved.');
+}
+
+commandSnippetSearch?.addEventListener('input', renderCommandSnippets);
+commandSnippetNew?.addEventListener('click', () => createOrEditCommandSnippet(null));
+commandSnippetEdit?.addEventListener('click', () => {
+  const snippet = commandSnippets.find(s => s.id === selectedCommandSnippetId);
+  if (!snippet) { showToast('Select a command first.', 'error'); return; }
+  createOrEditCommandSnippet(snippet);
+});
 
 if (typeof window !== 'undefined') {
   window.renderCommandSnippets = renderCommandSnippets;
   window.renderCommandSnippetsIfPresent = renderCommandSnippetsIfPresent;
 }
-
-function migrateDemoDataTo192Subnets() {
-  const replaceValue = (value) => {
-    if (typeof value !== 'string') return value;
-    return value
-      .replaceAll('10.10.0.', '192.168.10.')
-      .replaceAll('10.20.0.', '192.168.20.')
-      .replaceAll('10.40.0.', '192.168.40.');
-  };
-  const walk = (value) => {
-    if (Array.isArray(value)) return value.map(walk);
-    if (value && typeof value === 'object') {
-      Object.keys(value).forEach((key) => { value[key] = walk(value[key]); });
-      return value;
-    }
-    return replaceValue(value);
-  };
-  items = walk(items);
-  locations = walk(locations);
-  racks = walk(racks);
-}
-
-function ensureDemoRackData() {
-  if (!Array.isArray(locations) || !locations.length) locations = getDemoLocations();
-  if (!Array.isArray(racks) || !racks.length) racks = getDemoRacks();
-}
-
-function isDemoDataMissingOrStale(loaded) {
-  const version = localStorage.getItem(demoStorageVersionKey);
-  const loadedItems = Array.isArray(loaded?.items) ? loaded.items : [];
-  const loadedLocations = Array.isArray(loaded?.locations) ? loaded.locations : [];
-  const loadedRacks = Array.isArray(loaded?.racks) ? loaded.racks : [];
-  if (version !== demoStorageVersion) return true;
-  if (!loadedItems.length) return true;
-  if (!loadedItems.some((item) => item.id === 'hw-router' || item.id === 'hw-proxmox')) return true;
-  if (!loadedLocations.length) return true;
-  if (!loadedRacks.length) return true;
-  return false;
-}
-
-async function seedFullDemoData({ force = false } = {}) {
-  const loaded = await loadItemsFromAPI();
-  if (force || isDemoDataMissingOrStale(loaded)) {
-    items = sanitizeItems(getDemoItems());
-    locations = getDemoLocations();
-    racks = getDemoRacks();
-    migrateDemoDataTo192Subnets();
-    ensureDemoRackData();
-    localStorage.setItem(demoStorageVersionKey, demoStorageVersion);
-    await saveItems();
-    return;
-  }
-  items = sanitizeItems(loaded.items);
-  locations = loaded.locations || [];
-  racks = loaded.racks || [];
-  configBackups = [];
-  configBackupLogs = [];
-  selectedConfigBackupId = null;
-  liveStatusData = loaded.agentStatus || {};
-  migrateDemoDataTo192Subnets();
-  ensureDemoRackData();
-  localStorage.setItem(demoStorageVersionKey, demoStorageVersion);
-  await saveItems();
-}
-
-function openDemoTutorialAfterLayout() {
-  const open = () => {
-    try { if (typeof openTutorial === 'function') openTutorial(); } catch {}
-  };
-  requestAnimationFrame(() => requestAnimationFrame(open));
-}
-
-async function loadDemoData() {
-  if (!confirm('Replace current browser demo data with the default demo entries?')) return;
-  await seedFullDemoData({ force: true });
-  stopEditing();
-  showToast('Demo data loaded with sample rack layouts.');
-  initAgentApiPanel();
-  renderCommandSnippetsIfPresent();
-  await loadConfigBackups();
-  render();
-  if (typeof renderRackOverview === 'function') renderRackOverview();
-  openDemoTutorialAfterLayout();
-}
-
-seedDemo?.addEventListener('click', loadDemoData);
-seedDemoMobile?.addEventListener('click', loadDemoData);
-
 
 async function startPolling() {
   if (pollingInterval) clearInterval(pollingInterval);
@@ -1208,6 +1209,7 @@ async function applyImportedConfig(parsed) {
 
 
 const configBackupStorageKey = 'labby-config-backups';
+const defaultLocalConfigBackupPath = '/data/config-backups';
 
 function normalizeConfigBackup(entry = {}) {
   const retentionCount = Math.max(1, Math.min(999, parseInt(entry.retentionCount || entry.keepLast || 5, 10) || 5));
@@ -1218,8 +1220,9 @@ function normalizeConfigBackup(entry = {}) {
     id: String(entry.id || `backup-${Date.now()}-${Math.random().toString(16).slice(2)}`),
     name: String(entry.name || 'Config backup').trim() || 'Config backup',
     targetType: ['local', 'smb', 'nfs'].includes(entry.targetType) ? entry.targetType : 'local',
-    targetPath: String(entry.targetPath || '').trim(),
+    targetPath: String(entry.targetPath || (entry.targetType === 'local' ? defaultLocalConfigBackupPath : '')).trim(),
     frequency: ['hourly', 'daily', 'weekly'].includes(entry.frequency) ? entry.frequency : 'daily',
+    weekday: Math.max(0, Math.min(6, parseInt(entry.weekday ?? 1, 10) || 0)),
     time: String(entry.time || '02:00').slice(0, 5),
     retentionMode,
     retentionCount,
@@ -1268,17 +1271,43 @@ function updateConfigBackupRetentionVisibility() {
   configBackupRetentionCustomWrap?.classList.toggle('config-backup-retention-custom-hidden', !isCustom);
 }
 
+function updateConfigBackupTargetVisibility() {
+  const isLocal = (configBackupType?.value || 'local') === 'local';
+  configBackupPathWrap?.classList.toggle('config-backup-hidden', isLocal);
+  if (configBackupPath) {
+    configBackupPath.disabled = isLocal;
+    configBackupPath.value = isLocal ? defaultLocalConfigBackupPath : (configBackupPath.value === defaultLocalConfigBackupPath ? '' : configBackupPath.value);
+    configBackupPath.placeholder = 'Mounted SMB/NFS path, e.g. /mnt/backups/labby';
+  }
+  if (configBackupPathHelp) {
+    configBackupPathHelp.textContent = 'The SMB/NFS share must already be mounted as a writable path inside the backend container.';
+  }
+}
+
+function updateConfigBackupScheduleVisibility() {
+  const frequency = configBackupFrequency?.value || 'daily';
+  configBackupWeekdayWrap?.classList.toggle('config-backup-hidden', frequency !== 'weekly');
+  configBackupTimeWrap?.classList.toggle('config-backup-hidden', frequency === 'hourly');
+}
+
+function updateConfigBackupFormVisibility() {
+  updateConfigBackupRetentionVisibility();
+  updateConfigBackupTargetVisibility();
+  updateConfigBackupScheduleVisibility();
+}
+
 function fillConfigBackupForm(config) {
   const backup = normalizeConfigBackup(config || {});
   if (configBackupName) configBackupName.value = backup.name;
   if (configBackupType) configBackupType.value = backup.targetType;
-  if (configBackupPath) configBackupPath.value = backup.targetPath;
+  if (configBackupPath) configBackupPath.value = backup.targetType === 'local' ? defaultLocalConfigBackupPath : backup.targetPath;
   if (configBackupFrequency) configBackupFrequency.value = backup.frequency;
+  if (configBackupWeekday) configBackupWeekday.value = String(backup.weekday ?? 1);
   if (configBackupTime) configBackupTime.value = backup.time;
   if (configBackupRetentionMode) configBackupRetentionMode.value = backup.retentionMode;
   if (configBackupRetentionCustom) configBackupRetentionCustom.value = String(backup.retentionCount);
   if (configBackupEnabled) configBackupEnabled.checked = backup.enabled !== false;
-  updateConfigBackupRetentionVisibility();
+  updateConfigBackupFormVisibility();
 }
 
 function readConfigBackupForm() {
@@ -1290,14 +1319,104 @@ function readConfigBackupForm() {
     ...(selectedConfigBackup() || {}),
     name: configBackupName?.value,
     targetType: configBackupType?.value,
-    targetPath: configBackupPath?.value,
+    targetPath: (configBackupType?.value || 'local') === 'local' ? defaultLocalConfigBackupPath : configBackupPath?.value,
     frequency: configBackupFrequency?.value,
+    weekday: parseInt(configBackupWeekday?.value ?? '1', 10),
     time: configBackupTime?.value,
     retentionMode: mode,
     retentionCount,
     enabled: configBackupEnabled?.checked !== false,
     updatedAt: new Date().toISOString(),
   });
+}
+
+
+function formatConfigBackupFileSize(bytes) {
+  const n = Number(bytes || 0);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function renderConfigBackupFiles() {
+  if (!configBackupFileList) return;
+  configBackupFileList.innerHTML = '';
+  if (!selectedConfigBackup()) {
+    configBackupFileList.innerHTML = '<div class="config-backup-empty">Select or save a backup target first.</div>';
+    if (configBackupFileRestore) configBackupFileRestore.disabled = true;
+    return;
+  }
+  if (!Array.isArray(configBackupFiles) || !configBackupFiles.length) {
+    configBackupFileList.innerHTML = '<div class="config-backup-empty">No stored backup files found for this target yet.</div>';
+    if (configBackupFileRestore) configBackupFileRestore.disabled = true;
+    return;
+  }
+  if (!selectedConfigBackupFile || !configBackupFiles.some(file => file.name === selectedConfigBackupFile)) {
+    selectedConfigBackupFile = configBackupFiles[0]?.name || null;
+  }
+  configBackupFiles.forEach((file) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'config-backup-file-item' + (file.name === selectedConfigBackupFile ? ' active' : '');
+    const dateLabel = file.mtime ? formatConfigBackupDate(file.mtime) : 'unknown date';
+    const sizeLabel = formatConfigBackupFileSize(file.size);
+    btn.innerHTML = `<strong>${escapeHtml(file.name || 'backup file')}</strong><span>${escapeHtml(dateLabel)}${sizeLabel ? ` · ${escapeHtml(sizeLabel)}` : ''}</span>`;
+    btn.addEventListener('click', () => {
+      selectedConfigBackupFile = file.name;
+      renderConfigBackupFiles();
+    });
+    configBackupFileList.appendChild(btn);
+  });
+  if (configBackupFileRestore) configBackupFileRestore.disabled = !selectedConfigBackupFile;
+}
+
+async function loadConfigBackupFiles() {
+  const backup = selectedConfigBackup();
+  selectedConfigBackupFile = null;
+  configBackupFiles = [];
+  if (!backup) { renderConfigBackupFiles(); return; }
+  if (typeof CONFIG_BACKUPS_DEMO_ONLY !== 'undefined' && CONFIG_BACKUPS_DEMO_ONLY) {
+    configBackupFiles = [];
+    renderConfigBackupFiles();
+    return;
+  }
+  try {
+    const res = await fetch(`${API_BASE}/api/config-backups/${encodeURIComponent(backup.id)}/files`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Could not read backup files.');
+    configBackupFiles = Array.isArray(data.files) ? data.files : [];
+  } catch (err) {
+    configBackupFiles = [];
+    configBackupFileList && (configBackupFileList.innerHTML = `<div class="config-backup-empty">${escapeHtml(err.message || 'Could not read backup files.')}</div>`);
+    if (configBackupFileRestore) configBackupFileRestore.disabled = true;
+    return;
+  }
+  renderConfigBackupFiles();
+}
+
+async function restoreSelectedConfigBackupFile() {
+  const backup = selectedConfigBackup();
+  if (!backup) { showToast('Select a backup target first.', 'error'); return; }
+  if (!selectedConfigBackupFile) { showToast('Select a backup file first.', 'error'); return; }
+  if (typeof CONFIG_BACKUPS_DEMO_ONLY !== 'undefined' && CONFIG_BACKUPS_DEMO_ONLY) {
+    showToast('Demo only: old backups cannot be loaded in the public demo.', 'error');
+    return;
+  }
+  if (!confirm(`Load backup "${selectedConfigBackupFile}"? Current Labby config will be replaced.`)) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/config-backups/${encodeURIComponent(backup.id)}/restore`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileName: selectedConfigBackupFile }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Could not load backup.');
+    showToast('Backup loaded. Reloading Labby config…');
+    window.setTimeout(() => window.location.reload(), 350);
+  } catch (err) {
+    showToast(err.message || 'Could not load backup.', 'error');
+  }
 }
 
 function renderConfigBackups() {
@@ -1314,11 +1433,14 @@ function renderConfigBackups() {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'config-backup-item' + (backup.id === selectedConfigBackupId ? ' active' : '');
-      btn.innerHTML = `<strong>${escapeHtml(backup.name)}</strong><span>${escapeHtml(backup.frequency)} · keep last ${backup.retentionCount} · ${escapeHtml(backup.targetPath || 'no path set')}</span><span>Next: ${escapeHtml(formatConfigBackupDate(backup.nextRunAt))}</span>`;
+      const targetLabel = backup.targetType === 'local' ? `local default: ${defaultLocalConfigBackupPath}` : (backup.targetPath || 'no path set');
+      const scheduleLabel = backup.frequency === 'weekly' ? `weekly day ${backup.weekday} at ${backup.time}` : (backup.frequency === 'daily' ? `daily at ${backup.time}` : 'hourly');
+      btn.innerHTML = `<strong>${escapeHtml(backup.name)}</strong><span>${escapeHtml(scheduleLabel)} · keep last ${backup.retentionCount} · ${escapeHtml(targetLabel)}</span><span>Next: ${escapeHtml(formatConfigBackupDate(backup.nextRunAt))}</span>`;
       btn.addEventListener('click', () => {
         selectedConfigBackupId = backup.id;
         fillConfigBackupForm(backup);
         renderConfigBackups();
+        loadConfigBackupFiles();
       });
       configBackupList.appendChild(btn);
     });
@@ -1333,6 +1455,7 @@ function renderConfigBackups() {
     row.innerHTML = `<strong>${escapeHtml(log.configName || 'Config backup')} · ${escapeHtml(log.status || 'status')}</strong><span>${escapeHtml(formatConfigBackupDate(log.at))}</span><code>${escapeHtml(log.message || '')}</code>`;
     configBackupLog.appendChild(row);
   });
+  renderConfigBackupFiles();
 }
 
 async function saveConfigBackupFromForm() {
@@ -1347,18 +1470,71 @@ async function runSelectedConfigBackup() {
   showToast('Demo only: backups do not run in the public demo. Use Main/self-hosted for real backups.', 'error');
 }
 
+
+const configBackupDialogPlaceholder = document.createComment('config-backup-dialog-placeholder');
+let configBackupContentInMobile = false;
+
+function moveConfigBackupToMobile() {
+  const body = mobileConfigBackupsBody || document.getElementById('mobile-config-backups-body');
+  const dlg = configBackupDialog || document.getElementById('config-backup-dialog');
+  if (!body || !dlg || configBackupContentInMobile) return;
+  if (!configBackupDialogPlaceholder.parentNode) dlg.insertBefore(configBackupDialogPlaceholder, dlg.firstChild);
+  let node = configBackupDialogPlaceholder.nextSibling;
+  while (node) {
+    const next = node.nextSibling;
+    body.appendChild(node);
+    node = next;
+  }
+  configBackupContentInMobile = true;
+}
+
+function restoreConfigBackupToDialog() {
+  const body = mobileConfigBackupsBody || document.getElementById('mobile-config-backups-body');
+  const dlg = configBackupDialog || document.getElementById('config-backup-dialog');
+  if (!body || !dlg || !configBackupContentInMobile) return;
+  while (body.firstChild) dlg.insertBefore(body.firstChild, configBackupDialogPlaceholder.nextSibling);
+  if (configBackupDialogPlaceholder.parentNode) configBackupDialogPlaceholder.remove();
+  configBackupContentInMobile = false;
+}
+
+function closeMobileConfigBackupView() {
+  if (!configBackupContentInMobile) return;
+  restoreConfigBackupToDialog();
+}
+
+function returnFromConfigBackup() {
+  if (isMobile() && configBackupContentInMobile) {
+    showMobileView('mobile-config');
+    setActiveMobileNav('nav-more');
+    return;
+  }
+  if (configBackupDialog?.open) configBackupDialog.close();
+  if (configDialog && !configDialog.open) {
+    try { configDialog.showModal(); } catch {}
+  }
+}
+
 function openConfigBackupDialog() {
   if (CONFIG_BACKUPS_DEMO_ONLY) {
     [configBackupNew, configBackupRun, configBackupSave, configBackupDelete].forEach(btn => { if (btn) { btn.disabled = true; btn.title = 'Disabled in public demo'; } });
   }
   loadConfigBackups();
   if (configDialog?.open) configDialog.close();
+  if (isMobile()) {
+    if (configBackupDialog?.open) configBackupDialog.close();
+    moveConfigBackupToMobile();
+    showMobileView('mobile-config-backups');
+    setActiveMobileNav('nav-more');
+    return;
+  }
+  restoreConfigBackupToDialog();
   if (configBackupDialog && !configBackupDialog.open) configBackupDialog.showModal();
 }
 
 configBackupBtn?.addEventListener('click', openConfigBackupDialog);
 configBackupBtnMobile?.addEventListener('click', openConfigBackupDialog);
-configBackupClose?.addEventListener('click', () => configBackupDialog?.close());
+configBackupClose?.addEventListener('click', returnFromConfigBackup);
+mobileConfigBackupsClose?.addEventListener('click', returnFromConfigBackup);
 configBackupNew?.addEventListener('click', () => {
   selectedConfigBackupId = null;
   fillConfigBackupForm({ name: 'Config backup', retentionMode: '5', retentionCount: 5 });
@@ -1367,8 +1543,12 @@ configBackupNew?.addEventListener('click', () => {
 configBackupSave?.addEventListener('click', saveConfigBackupFromForm);
 configBackupDelete?.addEventListener('click', deleteSelectedConfigBackup);
 configBackupRun?.addEventListener('click', runSelectedConfigBackup);
+configBackupFileRefresh?.addEventListener('click', loadConfigBackupFiles);
+configBackupFileRestore?.addEventListener('click', restoreSelectedConfigBackupFile);
 configBackupRetentionMode?.addEventListener('change', updateConfigBackupRetentionVisibility);
 configBackupRetentionCustom?.addEventListener('input', updateConfigBackupRetentionVisibility);
+configBackupType?.addEventListener('change', updateConfigBackupTargetVisibility);
+configBackupFrequency?.addEventListener('change', updateConfigBackupScheduleVisibility);
 
 
 function getLocalAgentKeys() {
@@ -2545,6 +2725,7 @@ async function openCliSession(item, options = {}) {
   } else if (cliDialog && !cliDialog.open) {
     cliDialog.showModal();
   }
+  renderCommandSnippetsIfPresent();
 
   if (DEMO_INTERACTIVE_SECURITY_DISABLED) {
     cliSession = null;
@@ -4780,6 +4961,7 @@ function openMobileMoreSheet() {
 function showMobileView(id) {
   if (id !== 'mobile-theme') closeMobileThemeView();
   if (id !== 'mobile-agent-api') closeMobileAgentApiView();
+  if (id !== 'mobile-config-backups') closeMobileConfigBackupView();
   closeMobileMoreSheet();
   showRackOverlay(null);
   closeRackPaletteSheet();
