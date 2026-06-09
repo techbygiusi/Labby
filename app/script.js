@@ -112,6 +112,19 @@ const mobileCliCopy = document.getElementById('mobile-cli-copy');
 const mobileCliPaste = document.getElementById('mobile-cli-paste');
 const mobileCliClearKey = document.getElementById('mobile-cli-clear-key');
 const mobileCliClose = document.getElementById('mobile-cli-close');
+const cliCommandSearch = document.getElementById('cli-command-search');
+const cliCommandList = document.getElementById('cli-command-list');
+const cliCommandAdd = document.getElementById('cli-command-add');
+const cliCommandEdit = document.getElementById('cli-command-edit');
+const cliCommandDialog = document.getElementById('cli-command-dialog');
+const cliCommandDialogTitle = document.getElementById('cli-command-dialog-title');
+const cliCommandName = document.getElementById('cli-command-name');
+const cliCommandBody = document.getElementById('cli-command-body');
+const cliCommandDescription = document.getElementById('cli-command-description');
+const cliCommandCopy = document.getElementById('cli-command-copy');
+const cliCommandSave = document.getElementById('cli-command-save');
+const cliCommandCancel = document.getElementById('cli-command-cancel');
+
 let cliSession = null;
 let cliPollTimer = null;
 let cliActiveItem = null;
@@ -133,40 +146,6 @@ const treeModeGraph = document.getElementById('tree-mode-graph');
 const configToggle = document.getElementById('config-toggle');
 const configDialog = document.getElementById('config-dialog');
 const agentApiDialog = document.getElementById('agent-api-dialog');
-const configBackupBtn = document.getElementById('config-backup-btn');
-const configBackupBtnMobile = document.getElementById('config-backup-btn-mobile');
-const configBackupDialog = document.getElementById('config-backup-dialog');
-const configBackupList = document.getElementById('config-backup-list');
-const configBackupLog = document.getElementById('config-backup-log');
-const configBackupFileList = document.getElementById('config-backup-file-list');
-const configBackupFileRefresh = document.getElementById('config-backup-file-refresh');
-const configBackupFileRestore = document.getElementById('config-backup-file-restore');
-const configBackupNew = document.getElementById('config-backup-new');
-const configBackupRun = document.getElementById('config-backup-run');
-const configBackupSave = document.getElementById('config-backup-save');
-const configBackupDelete = document.getElementById('config-backup-delete');
-const configBackupClose = document.getElementById('config-backup-close');
-const configBackupName = document.getElementById('config-backup-name');
-const configBackupType = document.getElementById('config-backup-type');
-const configBackupPath = document.getElementById('config-backup-path');
-const configBackupFrequency = document.getElementById('config-backup-frequency');
-const configBackupWeekday = document.getElementById('config-backup-weekday');
-const configBackupWeekdayWrap = document.getElementById('config-backup-weekday-wrap');
-const configBackupTime = document.getElementById('config-backup-time');
-const configBackupTimeWrap = document.getElementById('config-backup-time-wrap');
-const configBackupPathWrap = document.getElementById('config-backup-path-wrap');
-const configBackupPathHelp = document.getElementById('config-backup-path-help');
-const configBackupRetentionMode = document.getElementById('config-backup-retention-mode');
-const configBackupRetentionCustom = document.getElementById('config-backup-retention-custom');
-const configBackupRetentionCustomWrap = document.getElementById('config-backup-retention-custom-wrap');
-const configBackupEnabled = document.getElementById('config-backup-enabled');
-const mobileConfigBackupsBody = document.getElementById('mobile-config-backups-body');
-const mobileConfigBackupsClose = document.getElementById('mobile-config-backups-close');
-const commandSnippetSearch = document.getElementById('command-snippet-search');
-const commandSnippetList = document.getElementById('command-snippet-list');
-const commandSnippetEdit = document.getElementById('command-snippet-edit');
-const commandSnippetNew = document.getElementById('command-snippet-new');
-
 const toast = document.getElementById('toast');
 
 const mobileProgress = document.getElementById('mobile-progress');
@@ -188,29 +167,9 @@ let selectedNetworkColor = networkPalette[0];
 let items = [];
 let locations = [];
 let racks = [];
-let configBackups = [];
-let configBackupLogs = [];
-let configBackupFiles = [];
-let selectedConfigBackupFile = null;
 let commandSnippets = [];
 let selectedCommandSnippetId = null;
-let selectedConfigBackupId = null;
-const CONFIG_BACKUPS_DEMO_ONLY = true;
-const DEMO_CONFIG_BACKUP_PREVIEW = {
-  id: 'demo-config-backup-preview',
-  name: 'Demo preview backup',
-  targetType: 'local',
-  targetPath: '',
-  frequency: 'daily',
-  time: '02:00',
-  retentionMode: '5',
-  retentionCount: 5,
-  enabled: false,
-  lastRunAt: null,
-  nextRunAt: null,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-};
+let editingCommandSnippetId = null;
 let toastTimer = null;
 let treeViewMode = 'tree';
 let lastTypeSelection = typeSelect.value;
@@ -272,6 +231,7 @@ async function saveItemsToAPI(itemList) {
     locations,
     racks,
     agentStatus: liveStatusData,
+    commandSnippets: commandSnippets,
   };
   if (Array.isArray(importedAgentKeysForSave)) payload.agentKeys = importedAgentKeysForSave;
   try { localStorage.setItem(storageKey, JSON.stringify(payload)); } catch {}
@@ -295,118 +255,97 @@ initAdvancedResourceSettings();
 
 applyTypeVisibility();
 
-async function seedFullDemoDataIfPresent() {
-  if (typeof seedFullDemoData === 'function') {
-    await seedFullDemoData();
-  }
-}
-
 (async () => {
-  await seedFullDemoDataIfPresent();
+  await seedFullDemoData();
   initAgentApiPanel();
-  renderCommandSnippetsIfPresent();
-  await loadConfigBackups();
   render();
   startPolling();
   openDemoTutorialAfterLayout();
 })();
 
-
-
-function normalizeCommandSnippet(entry = {}) {
-  const command = String(entry.command || '').trim();
-  const name = String(entry.name || entry.title || command.slice(0, 40) || 'Command').trim() || 'Command';
-  return {
-    id: String(entry.id || `cmd-${Date.now()}-${Math.random().toString(16).slice(2)}`),
-    name,
-    command,
-    description: String(entry.description || '').trim(),
-    createdAt: entry.createdAt || new Date().toISOString(),
-    updatedAt: entry.updatedAt || new Date().toISOString(),
+function migrateDemoDataTo192Subnets() {
+  const replaceValue = (value) => {
+    if (typeof value !== 'string') return value;
+    return value
+      .replaceAll('10.10.0.', '192.168.10.')
+      .replaceAll('10.20.0.', '192.168.20.')
+      .replaceAll('10.40.0.', '192.168.40.');
   };
+  const walk = (value) => {
+    if (Array.isArray(value)) return value.map(walk);
+    if (value && typeof value === 'object') {
+      Object.keys(value).forEach((key) => { value[key] = walk(value[key]); });
+      return value;
+    }
+    return replaceValue(value);
+  };
+  items = walk(items);
+  locations = walk(locations);
+  racks = walk(racks);
 }
 
-function visibleCommandSnippets() {
-  const needle = String(commandSnippetSearch?.value || '').trim().toLowerCase();
-  const list = commandSnippets.map(normalizeCommandSnippet).filter(snippet => snippet.command);
-  if (!needle) return list;
-  return list.filter(snippet => `${snippet.name} ${snippet.description} ${snippet.command}`.toLowerCase().includes(needle));
+function ensureDemoRackData() {
+  if (!Array.isArray(locations) || !locations.length) locations = getDemoLocations();
+  if (!Array.isArray(racks) || !racks.length) racks = getDemoRacks();
 }
 
-function setCliInputCommand(command) {
-  const input = activeCliInput?.() || cliInput || mobileCliInput;
-  if (!input) return;
-  input.value = String(command || '');
-  input.focus();
-  input.setSelectionRange(input.value.length, input.value.length);
+function isDemoDataMissingOrStale(loaded) {
+  const version = localStorage.getItem(demoStorageVersionKey);
+  const loadedItems = Array.isArray(loaded?.items) ? loaded.items : [];
+  const loadedLocations = Array.isArray(loaded?.locations) ? loaded.locations : [];
+  const loadedRacks = Array.isArray(loaded?.racks) ? loaded.racks : [];
+  if (version !== demoStorageVersion) return true;
+  if (!loadedItems.length) return true;
+  if (!loadedItems.some((item) => item.id === 'hw-router' || item.id === 'hw-proxmox')) return true;
+  if (!loadedLocations.length) return true;
+  if (!loadedRacks.length) return true;
+  return false;
 }
 
-function renderCommandSnippets() {
-  if (!commandSnippetList) return;
-  const snippets = visibleCommandSnippets();
-  if (!snippets.length) {
-    commandSnippetList.innerHTML = '<div class="command-snippet-empty">No commands saved yet.</div>';
+async function seedFullDemoData({ force = false } = {}) {
+  const loaded = await loadItemsFromAPI();
+  if (force || isDemoDataMissingOrStale(loaded)) {
+    items = sanitizeItems(getDemoItems());
+    locations = getDemoLocations();
+    racks = getDemoRacks();
+    migrateDemoDataTo192Subnets();
+    ensureDemoRackData();
+    localStorage.setItem(demoStorageVersionKey, demoStorageVersion);
+    await saveItems();
     return;
   }
-  if (!selectedCommandSnippetId || !snippets.some(s => s.id === selectedCommandSnippetId)) {
-    selectedCommandSnippetId = snippets[0]?.id || null;
-  }
-  commandSnippetList.innerHTML = '';
-  snippets.forEach(snippet => {
-    const item = document.createElement('button');
-    item.type = 'button';
-    item.className = 'command-snippet-item' + (snippet.id === selectedCommandSnippetId ? ' active' : '');
-    item.innerHTML = `<strong>${escapeHtml(snippet.name)}</strong>${snippet.description ? `<small>${escapeHtml(snippet.description)}</small>` : ''}<code>${escapeHtml(snippet.command)}</code>`;
-    item.addEventListener('click', () => {
-      selectedCommandSnippetId = snippet.id;
-      setCliInputCommand(snippet.command);
-      renderCommandSnippets();
-    });
-    commandSnippetList.appendChild(item);
-  });
+  items = sanitizeItems(loaded.items);
+  locations = loaded.locations || [];
+  racks = loaded.racks || [];
+  liveStatusData = loaded.agentStatus || {};
+  commandSnippets = normalizeCommandSnippets(loaded.commandSnippets || []);
+  migrateDemoDataTo192Subnets();
+  ensureDemoRackData();
+  localStorage.setItem(demoStorageVersionKey, demoStorageVersion);
+  await saveItems();
 }
 
-function renderCommandSnippetsIfPresent() {
-  renderCommandSnippets();
+function openDemoTutorialAfterLayout() {
+  const open = () => {
+    try { if (typeof openTutorial === 'function') openTutorial(); } catch {}
+  };
+  requestAnimationFrame(() => requestAnimationFrame(open));
 }
 
-async function persistCommandSnippets() {
-  commandSnippets = commandSnippets.map(normalizeCommandSnippet).filter(s => s.command);
-  await saveItemsToAPI(items);
-  renderCommandSnippets();
+async function loadDemoData() {
+  if (!confirm('Replace current browser demo data with the default demo entries?')) return;
+  await seedFullDemoData({ force: true });
+  stopEditing();
+  showToast('Demo data loaded with sample rack layouts.');
+  initAgentApiPanel();
+  render();
+  if (typeof renderRackOverview === 'function') renderRackOverview();
+  openDemoTutorialAfterLayout();
 }
 
-async function createOrEditCommandSnippet(existing) {
-  const currentInput = String((activeCliInput?.() || cliInput || mobileCliInput)?.value || '').trim();
-  const base = existing ? normalizeCommandSnippet(existing) : normalizeCommandSnippet({ command: currentInput });
-  const name = window.prompt('Command name', base.name || 'Command');
-  if (name === null) return;
-  const command = window.prompt('Command', base.command || currentInput || '');
-  if (command === null) return;
-  const description = window.prompt('Description (optional)', base.description || '');
-  if (description === null) return;
-  const next = normalizeCommandSnippet({ ...base, name, command, description, updatedAt: new Date().toISOString() });
-  if (!next.command) { showToast('Command is empty.', 'error'); return; }
-  const idx = commandSnippets.findIndex(s => s.id === next.id);
-  if (idx >= 0) commandSnippets[idx] = next;
-  else commandSnippets.push({ ...next, createdAt: new Date().toISOString() });
-  selectedCommandSnippetId = next.id;
-  await persistCommandSnippets();
-  showToast(existing ? 'Command updated.' : 'Command saved.');
-}
+seedDemo?.addEventListener('click', loadDemoData);
+seedDemoMobile?.addEventListener('click', loadDemoData);
 
-commandSnippetSearch?.addEventListener('input', renderCommandSnippets);
-commandSnippetNew?.addEventListener('click', () => createOrEditCommandSnippet(null));
-commandSnippetEdit?.addEventListener('click', () => {
-  const snippet = commandSnippets.find(s => s.id === selectedCommandSnippetId);
-  if (!snippet) { showToast('Select a command first.', 'error'); return; }
-  createOrEditCommandSnippet(snippet);
-});
-
-if (typeof window !== 'undefined') {
-  window.renderCommandSnippets = renderCommandSnippets;
-  window.renderCommandSnippetsIfPresent = renderCommandSnippetsIfPresent;
-}
 
 async function startPolling() {
   if (pollingInterval) clearInterval(pollingInterval);
@@ -921,7 +860,7 @@ document.getElementById('agent-api-close')?.addEventListener('click', () => {
 
 clearAll.addEventListener('click', async () => {
   if (!confirm('Delete all resources? This also clears all rack, location, custom theme and API key data.')) return;
-  items = []; locations = []; racks = [];
+  items = []; locations = []; racks = []; commandSnippets = []; selectedCommandSnippetId = null;
   localStorage.removeItem('labby-custom-themes');
   await clearAllAgentKeys();
   stopEditing();
@@ -1126,6 +1065,7 @@ async function buildConfigExport() {
     locations,
     racks,
     agentStatus: liveStatusData,
+    commandSnippets: commandSnippets,
     encryptedSecrets: {
       credentials: encryptedCredentials,
       agentKeys: encryptedAgentKeys,
@@ -1198,9 +1138,7 @@ async function applyImportedConfig(parsed) {
   items     = importedItems;
   locations = Array.isArray(parsed.locations) ? parsed.locations : [];
   racks     = Array.isArray(parsed.racks) ? parsed.racks : [];
-  configBackups = [];
-  configBackupLogs = [];
-  selectedConfigBackupId = null;
+  commandSnippets = normalizeCommandSnippets(parsed.commandSnippets || []);
   liveStatusData = parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {};
 
   if (Array.isArray(parsed.customThemes)) importCustomThemes(parsed.customThemes);
@@ -1212,349 +1150,6 @@ async function applyImportedConfig(parsed) {
     localStorage.removeItem('labby-tutorial-seen');
   }
 }
-
-
-const configBackupStorageKey = 'labby-config-backups';
-const defaultLocalConfigBackupPath = '/data/config-backups';
-
-function normalizeConfigBackup(entry = {}) {
-  const retentionCount = Math.max(1, Math.min(999, parseInt(entry.retentionCount || entry.keepLast || 5, 10) || 5));
-  const retentionMode = ['5', '10', 'custom'].includes(String(entry.retentionMode || ''))
-    ? String(entry.retentionMode)
-    : (retentionCount === 10 ? '10' : (retentionCount === 5 ? '5' : 'custom'));
-  return {
-    id: String(entry.id || `backup-${Date.now()}-${Math.random().toString(16).slice(2)}`),
-    name: String(entry.name || 'Config backup').trim() || 'Config backup',
-    targetType: ['local', 'smb', 'nfs'].includes(entry.targetType) ? entry.targetType : 'local',
-    targetPath: String(entry.targetPath || (entry.targetType === 'local' ? defaultLocalConfigBackupPath : '')).trim(),
-    frequency: ['hourly', 'daily', 'weekly'].includes(entry.frequency) ? entry.frequency : 'daily',
-    weekday: Math.max(0, Math.min(6, parseInt(entry.weekday ?? 1, 10) || 0)),
-    time: String(entry.time || '02:00').slice(0, 5),
-    retentionMode,
-    retentionCount,
-    enabled: entry.enabled !== false,
-    lastRunAt: entry.lastRunAt || null,
-    nextRunAt: entry.nextRunAt || null,
-    createdAt: entry.createdAt || new Date().toISOString(),
-    updatedAt: entry.updatedAt || new Date().toISOString(),
-  };
-}
-
-function persistLocalConfigBackups() {
-  // Public demo: backup configuration is UI-only and is never persisted.
-}
-
-async function loadConfigBackups() {
-  if (CONFIG_BACKUPS_DEMO_ONLY) {
-    configBackups = [normalizeConfigBackup(DEMO_CONFIG_BACKUP_PREVIEW)];
-    configBackupLogs = [{
-      id: 'demo-config-backup-log',
-      at: new Date().toISOString(),
-      configId: 'demo-config-backup-preview',
-      configName: 'Demo preview backup',
-      status: 'error',
-      message: 'Demo only: backup saving, scheduling and execution are disabled.',
-    }];
-    selectedConfigBackupId = configBackups[0].id;
-    renderConfigBackups();
-    return;
-  }
-}
-
-
-function selectedConfigBackup() {
-  return configBackups.find(b => b.id === selectedConfigBackupId) || null;
-}
-
-function formatConfigBackupDate(value) {
-  if (!value) return 'not yet';
-  try { return new Date(value).toLocaleString(); } catch { return String(value); }
-}
-
-function updateConfigBackupRetentionVisibility() {
-  const isCustom = configBackupRetentionMode?.value === 'custom';
-  if (configBackupRetentionCustom) configBackupRetentionCustom.disabled = !isCustom;
-  configBackupRetentionCustomWrap?.classList.toggle('config-backup-retention-custom-hidden', !isCustom);
-}
-
-function updateConfigBackupTargetVisibility() {
-  const isLocal = (configBackupType?.value || 'local') === 'local';
-  configBackupPathWrap?.classList.toggle('config-backup-hidden', isLocal);
-  if (configBackupPath) {
-    configBackupPath.disabled = isLocal;
-    configBackupPath.value = isLocal ? defaultLocalConfigBackupPath : (configBackupPath.value === defaultLocalConfigBackupPath ? '' : configBackupPath.value);
-    configBackupPath.placeholder = 'Mounted SMB/NFS path, e.g. /mnt/backups/labby';
-  }
-  if (configBackupPathHelp) {
-    configBackupPathHelp.textContent = 'The SMB/NFS share must already be mounted as a writable path inside the backend container.';
-  }
-}
-
-function updateConfigBackupScheduleVisibility() {
-  const frequency = configBackupFrequency?.value || 'daily';
-  configBackupWeekdayWrap?.classList.toggle('config-backup-hidden', frequency !== 'weekly');
-  configBackupTimeWrap?.classList.toggle('config-backup-hidden', frequency === 'hourly');
-}
-
-function updateConfigBackupFormVisibility() {
-  updateConfigBackupRetentionVisibility();
-  updateConfigBackupTargetVisibility();
-  updateConfigBackupScheduleVisibility();
-}
-
-function fillConfigBackupForm(config) {
-  const backup = normalizeConfigBackup(config || {});
-  if (configBackupName) configBackupName.value = backup.name;
-  if (configBackupType) configBackupType.value = backup.targetType;
-  if (configBackupPath) configBackupPath.value = backup.targetType === 'local' ? defaultLocalConfigBackupPath : backup.targetPath;
-  if (configBackupFrequency) configBackupFrequency.value = backup.frequency;
-  if (configBackupWeekday) configBackupWeekday.value = String(backup.weekday ?? 1);
-  if (configBackupTime) configBackupTime.value = backup.time;
-  if (configBackupRetentionMode) configBackupRetentionMode.value = backup.retentionMode;
-  if (configBackupRetentionCustom) configBackupRetentionCustom.value = String(backup.retentionCount);
-  if (configBackupEnabled) configBackupEnabled.checked = backup.enabled !== false;
-  updateConfigBackupFormVisibility();
-}
-
-function readConfigBackupForm() {
-  const mode = configBackupRetentionMode?.value || '5';
-  const retentionCount = mode === 'custom'
-    ? Math.max(1, Math.min(999, parseInt(configBackupRetentionCustom?.value || '5', 10) || 5))
-    : parseInt(mode, 10);
-  return normalizeConfigBackup({
-    ...(selectedConfigBackup() || {}),
-    name: configBackupName?.value,
-    targetType: configBackupType?.value,
-    targetPath: (configBackupType?.value || 'local') === 'local' ? defaultLocalConfigBackupPath : configBackupPath?.value,
-    frequency: configBackupFrequency?.value,
-    weekday: parseInt(configBackupWeekday?.value ?? '1', 10),
-    time: configBackupTime?.value,
-    retentionMode: mode,
-    retentionCount,
-    enabled: configBackupEnabled?.checked !== false,
-    updatedAt: new Date().toISOString(),
-  });
-}
-
-
-function formatConfigBackupFileSize(bytes) {
-  const n = Number(bytes || 0);
-  if (!Number.isFinite(n) || n <= 0) return '';
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function renderConfigBackupFiles() {
-  if (!configBackupFileList) return;
-  configBackupFileList.innerHTML = '';
-  if (!selectedConfigBackup()) {
-    configBackupFileList.innerHTML = '<div class="config-backup-empty">Select or save a backup target first.</div>';
-    if (configBackupFileRestore) configBackupFileRestore.disabled = true;
-    return;
-  }
-  if (!Array.isArray(configBackupFiles) || !configBackupFiles.length) {
-    configBackupFileList.innerHTML = '<div class="config-backup-empty">No stored backup files found for this target yet.</div>';
-    if (configBackupFileRestore) configBackupFileRestore.disabled = true;
-    return;
-  }
-  if (!selectedConfigBackupFile || !configBackupFiles.some(file => file.name === selectedConfigBackupFile)) {
-    selectedConfigBackupFile = configBackupFiles[0]?.name || null;
-  }
-  configBackupFiles.forEach((file) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'config-backup-file-item' + (file.name === selectedConfigBackupFile ? ' active' : '');
-    const dateLabel = file.mtime ? formatConfigBackupDate(file.mtime) : 'unknown date';
-    const sizeLabel = formatConfigBackupFileSize(file.size);
-    btn.innerHTML = `<strong>${escapeHtml(file.name || 'backup file')}</strong><span>${escapeHtml(dateLabel)}${sizeLabel ? ` · ${escapeHtml(sizeLabel)}` : ''}</span>`;
-    btn.addEventListener('click', () => {
-      selectedConfigBackupFile = file.name;
-      renderConfigBackupFiles();
-    });
-    configBackupFileList.appendChild(btn);
-  });
-  if (configBackupFileRestore) configBackupFileRestore.disabled = !selectedConfigBackupFile;
-}
-
-async function loadConfigBackupFiles() {
-  const backup = selectedConfigBackup();
-  selectedConfigBackupFile = null;
-  configBackupFiles = [];
-  if (!backup) { renderConfigBackupFiles(); return; }
-  if (typeof CONFIG_BACKUPS_DEMO_ONLY !== 'undefined' && CONFIG_BACKUPS_DEMO_ONLY) {
-    configBackupFiles = [];
-    renderConfigBackupFiles();
-    return;
-  }
-  try {
-    const res = await fetch(`${API_BASE}/api/config-backups/${encodeURIComponent(backup.id)}/files`);
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Could not read backup files.');
-    configBackupFiles = Array.isArray(data.files) ? data.files : [];
-  } catch (err) {
-    configBackupFiles = [];
-    configBackupFileList && (configBackupFileList.innerHTML = `<div class="config-backup-empty">${escapeHtml(err.message || 'Could not read backup files.')}</div>`);
-    if (configBackupFileRestore) configBackupFileRestore.disabled = true;
-    return;
-  }
-  renderConfigBackupFiles();
-}
-
-async function restoreSelectedConfigBackupFile() {
-  const backup = selectedConfigBackup();
-  if (!backup) { showToast('Select a backup target first.', 'error'); return; }
-  if (!selectedConfigBackupFile) { showToast('Select a backup file first.', 'error'); return; }
-  if (typeof CONFIG_BACKUPS_DEMO_ONLY !== 'undefined' && CONFIG_BACKUPS_DEMO_ONLY) {
-    showToast('Demo only: old backups cannot be loaded in the public demo.', 'error');
-    return;
-  }
-  if (!confirm(`Load backup "${selectedConfigBackupFile}"? Current Labby config will be replaced.`)) return;
-  try {
-    const res = await fetch(`${API_BASE}/api/config-backups/${encodeURIComponent(backup.id)}/restore`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileName: selectedConfigBackupFile }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Could not load backup.');
-    showToast('Backup loaded. Reloading Labby config…');
-    window.setTimeout(() => window.location.reload(), 350);
-  } catch (err) {
-    showToast(err.message || 'Could not load backup.', 'error');
-  }
-}
-
-function renderConfigBackups() {
-  if (!configBackupList || !configBackupLog) return;
-  configBackups = configBackups.map(normalizeConfigBackup);
-  configBackupList.innerHTML = '';
-  if (!configBackups.length) {
-    configBackupList.innerHTML = '<div class="config-backup-empty">No backup targets yet. Create one and choose how many backup files Labby should keep.</div>';
-    selectedConfigBackupId = null;
-    fillConfigBackupForm({});
-  } else {
-    if (!selectedConfigBackupId || !configBackups.some(b => b.id === selectedConfigBackupId)) selectedConfigBackupId = configBackups[0].id;
-    configBackups.forEach((backup) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'config-backup-item' + (backup.id === selectedConfigBackupId ? ' active' : '');
-      const targetLabel = backup.targetType === 'local' ? `local default: ${defaultLocalConfigBackupPath}` : (backup.targetPath || 'no path set');
-      const scheduleLabel = backup.frequency === 'weekly' ? `weekly day ${backup.weekday} at ${backup.time}` : (backup.frequency === 'daily' ? `daily at ${backup.time}` : 'hourly');
-      btn.innerHTML = `<strong>${escapeHtml(backup.name)}</strong><span>${escapeHtml(scheduleLabel)} · keep last ${backup.retentionCount} · ${escapeHtml(targetLabel)}</span><span>Next: ${escapeHtml(formatConfigBackupDate(backup.nextRunAt))}</span>`;
-      btn.addEventListener('click', () => {
-        selectedConfigBackupId = backup.id;
-        fillConfigBackupForm(backup);
-        renderConfigBackups();
-        loadConfigBackupFiles();
-      });
-      configBackupList.appendChild(btn);
-    });
-    fillConfigBackupForm(selectedConfigBackup());
-  }
-
-  const logs = Array.isArray(configBackupLogs) ? configBackupLogs : [];
-  configBackupLog.innerHTML = logs.length ? '' : '<div class="config-backup-empty">No backup runs yet.</div>';
-  logs.slice(0, 80).forEach((log) => {
-    const row = document.createElement('div');
-    row.className = `config-backup-log-row ${log.status === 'error' ? 'error' : 'success'}`;
-    row.innerHTML = `<strong>${escapeHtml(log.configName || 'Config backup')} · ${escapeHtml(log.status || 'status')}</strong><span>${escapeHtml(formatConfigBackupDate(log.at))}</span><code>${escapeHtml(log.message || '')}</code>`;
-    configBackupLog.appendChild(row);
-  });
-  renderConfigBackupFiles();
-}
-
-async function saveConfigBackupFromForm() {
-  showToast('Demo only: backup targets are not saved in the public demo.', 'error');
-}
-
-async function deleteSelectedConfigBackup() {
-  showToast('Demo only: backup targets cannot be deleted in the public demo.', 'error');
-}
-
-async function runSelectedConfigBackup() {
-  showToast('Demo only: backups do not run in the public demo. Use Main/self-hosted for real backups.', 'error');
-}
-
-
-const configBackupDialogPlaceholder = document.createComment('config-backup-dialog-placeholder');
-let configBackupContentInMobile = false;
-
-function moveConfigBackupToMobile() {
-  const body = mobileConfigBackupsBody || document.getElementById('mobile-config-backups-body');
-  const dlg = configBackupDialog || document.getElementById('config-backup-dialog');
-  if (!body || !dlg || configBackupContentInMobile) return;
-  if (!configBackupDialogPlaceholder.parentNode) dlg.insertBefore(configBackupDialogPlaceholder, dlg.firstChild);
-  let node = configBackupDialogPlaceholder.nextSibling;
-  while (node) {
-    const next = node.nextSibling;
-    body.appendChild(node);
-    node = next;
-  }
-  configBackupContentInMobile = true;
-}
-
-function restoreConfigBackupToDialog() {
-  const body = mobileConfigBackupsBody || document.getElementById('mobile-config-backups-body');
-  const dlg = configBackupDialog || document.getElementById('config-backup-dialog');
-  if (!body || !dlg || !configBackupContentInMobile) return;
-  while (body.firstChild) dlg.insertBefore(body.firstChild, configBackupDialogPlaceholder.nextSibling);
-  if (configBackupDialogPlaceholder.parentNode) configBackupDialogPlaceholder.remove();
-  configBackupContentInMobile = false;
-}
-
-function closeMobileConfigBackupView() {
-  if (!configBackupContentInMobile) return;
-  restoreConfigBackupToDialog();
-}
-
-function returnFromConfigBackup() {
-  if (isMobile() && configBackupContentInMobile) {
-    showMobileView('mobile-config');
-    setActiveMobileNav('nav-more');
-    return;
-  }
-  if (configBackupDialog?.open) configBackupDialog.close();
-  if (configDialog && !configDialog.open) {
-    try { configDialog.showModal(); } catch {}
-  }
-}
-
-function openConfigBackupDialog() {
-  if (CONFIG_BACKUPS_DEMO_ONLY) {
-    [configBackupNew, configBackupRun, configBackupSave, configBackupDelete].forEach(btn => { if (btn) { btn.disabled = true; btn.title = 'Disabled in public demo'; } });
-  }
-  loadConfigBackups();
-  if (configDialog?.open) configDialog.close();
-  if (isMobile()) {
-    if (configBackupDialog?.open) configBackupDialog.close();
-    moveConfigBackupToMobile();
-    showMobileView('mobile-config-backups');
-    setActiveMobileNav('nav-more');
-    return;
-  }
-  restoreConfigBackupToDialog();
-  if (configBackupDialog && !configBackupDialog.open) configBackupDialog.showModal();
-}
-
-configBackupBtn?.addEventListener('click', openConfigBackupDialog);
-configBackupBtnMobile?.addEventListener('click', openConfigBackupDialog);
-configBackupClose?.addEventListener('click', returnFromConfigBackup);
-mobileConfigBackupsClose?.addEventListener('click', returnFromConfigBackup);
-configBackupNew?.addEventListener('click', () => {
-  selectedConfigBackupId = null;
-  fillConfigBackupForm({ name: 'Config backup', retentionMode: '5', retentionCount: 5 });
-  configBackupList?.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
-});
-configBackupSave?.addEventListener('click', saveConfigBackupFromForm);
-configBackupDelete?.addEventListener('click', deleteSelectedConfigBackup);
-configBackupRun?.addEventListener('click', runSelectedConfigBackup);
-configBackupFileRefresh?.addEventListener('click', loadConfigBackupFiles);
-configBackupFileRestore?.addEventListener('click', restoreSelectedConfigBackupFile);
-configBackupRetentionMode?.addEventListener('change', updateConfigBackupRetentionVisibility);
-configBackupRetentionCustom?.addEventListener('input', updateConfigBackupRetentionVisibility);
-configBackupType?.addEventListener('change', updateConfigBackupTargetVisibility);
-configBackupFrequency?.addEventListener('change', updateConfigBackupScheduleVisibility);
 
 
 function getLocalAgentKeys() {
@@ -1768,6 +1363,132 @@ function initAgentApiPanel() {
     });
   }
   renderAgentKeyLists();
+}
+
+
+function normalizeCommandSnippets(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((entry) => ({
+      id: String(entry?.id || `cmd-${crypto?.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2)}`),
+      name: String(entry?.name || '').trim(),
+      command: String(entry?.command || '').replace(/\r\n/g, '\n'),
+      description: String(entry?.description || '').trim(),
+      createdAt: entry?.createdAt || new Date().toISOString(),
+      updatedAt: entry?.updatedAt || entry?.createdAt || new Date().toISOString(),
+    }))
+    .filter((entry) => entry.name || entry.command || entry.description);
+}
+
+function commandSnippetById(id) {
+  return commandSnippets.find((entry) => entry.id === id) || null;
+}
+
+function renderCommandSnippets() {
+  if (!cliCommandList) return;
+  const query = (cliCommandSearch?.value || '').trim().toLowerCase();
+  const filtered = commandSnippets.filter((entry) => {
+    const haystack = `${entry.name} ${entry.command} ${entry.description}`.toLowerCase();
+    return !query || haystack.includes(query);
+  });
+  cliCommandList.innerHTML = '';
+  if (!filtered.length) {
+    const empty = document.createElement('div');
+    empty.className = 'cli-command-empty';
+    empty.textContent = query ? 'No matching commands.' : 'No commands saved yet.';
+    cliCommandList.appendChild(empty);
+  } else {
+    filtered.forEach((entry) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'cli-command-item';
+      btn.dataset.commandId = entry.id;
+      btn.classList.toggle('active', entry.id === selectedCommandSnippetId);
+      btn.innerHTML = `
+        <span class="cli-command-item-name">${escapeHtml(entry.name || 'Untitled command')}</span>
+        <span class="cli-command-item-command">${escapeHtml(entry.command || '')}</span>
+        ${entry.description ? `<span class="cli-command-item-description">${escapeHtml(entry.description)}</span>` : ''}
+      `;
+      btn.addEventListener('click', () => {
+        selectedCommandSnippetId = entry.id;
+        const input = activeCliEls()?.input || cliInput || mobileCliInput;
+        if (input) {
+          input.value = entry.command || '';
+          input.selectionStart = input.value.length;
+          input.selectionEnd = input.value.length;
+          autosizeCliInput(input);
+          input.focus();
+        }
+        renderCommandSnippets();
+      });
+      cliCommandList.appendChild(btn);
+    });
+  }
+  if (cliCommandEdit) cliCommandEdit.disabled = !selectedCommandSnippetId;
+}
+
+function openCommandSnippetDialog(mode = 'new') {
+  const existing = mode === 'edit' ? commandSnippetById(selectedCommandSnippetId) : null;
+  editingCommandSnippetId = existing?.id || null;
+  if (cliCommandDialogTitle) cliCommandDialogTitle.textContent = existing ? 'Edit command' : 'New command';
+  if (cliCommandName) cliCommandName.value = existing?.name || '';
+  if (cliCommandBody) cliCommandBody.value = existing?.command || '';
+  if (cliCommandDescription) cliCommandDescription.value = existing?.description || '';
+  if (cliCommandDialog && !cliCommandDialog.open) cliCommandDialog.showModal();
+  window.setTimeout(() => (cliCommandName || cliCommandBody)?.focus(), 40);
+}
+
+async function saveCommandSnippetFromDialog() {
+  const name = (cliCommandName?.value || '').trim();
+  const command = (cliCommandBody?.value || '').replace(/\r\n/g, '\n');
+  const description = (cliCommandDescription?.value || '').trim();
+  if (!name && !command) {
+    showToast('Command name or command is required.', 'error');
+    return;
+  }
+  const now = new Date().toISOString();
+  if (editingCommandSnippetId) {
+    commandSnippets = commandSnippets.map((entry) => entry.id === editingCommandSnippetId
+      ? { ...entry, name, command, description, updatedAt: now }
+      : entry);
+    selectedCommandSnippetId = editingCommandSnippetId;
+  } else {
+    const id = crypto?.randomUUID?.() || `cmd-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    commandSnippets.push({ id, name, command, description, createdAt: now, updatedAt: now });
+    selectedCommandSnippetId = id;
+  }
+  await saveItems();
+  renderCommandSnippets();
+  cliCommandDialog?.close();
+  showToast('Command saved.');
+}
+
+async function copyCommandSnippetFromDialog() {
+  const text = cliCommandBody?.value || '';
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('Command copied.');
+  } catch {
+    showToast('Could not copy command.', 'error');
+  }
+}
+
+function initCommandSnippetPanel() {
+  renderCommandSnippets();
+  cliCommandSearch?.addEventListener('input', renderCommandSnippets);
+  cliCommandAdd?.addEventListener('click', () => openCommandSnippetDialog('new'));
+  cliCommandEdit?.addEventListener('click', () => {
+    if (!selectedCommandSnippetId) return;
+    openCommandSnippetDialog('edit');
+  });
+  cliCommandSave?.addEventListener('click', saveCommandSnippetFromDialog);
+  cliCommandCopy?.addEventListener('click', copyCommandSnippetFromDialog);
+  cliCommandCancel?.addEventListener('click', () => cliCommandDialog?.close());
+  cliCommandDialog?.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    cliCommandDialog.close();
+  });
 }
 
 
@@ -2731,7 +2452,6 @@ async function openCliSession(item, options = {}) {
   } else if (cliDialog && !cliDialog.open) {
     cliDialog.showModal();
   }
-  renderCommandSnippetsIfPresent();
 
   if (DEMO_INTERACTIVE_SECURITY_DISABLED) {
     cliSession = null;
@@ -4967,7 +4687,6 @@ function openMobileMoreSheet() {
 function showMobileView(id) {
   if (id !== 'mobile-theme') closeMobileThemeView();
   if (id !== 'mobile-agent-api') closeMobileAgentApiView();
-  if (id !== 'mobile-config-backups') closeMobileConfigBackupView();
   closeMobileMoreSheet();
   showRackOverlay(null);
   closeRackPaletteSheet();
@@ -5216,7 +4935,7 @@ if (importFileMobile) importFileMobile.addEventListener('change', async (event) 
 const clearAllMobile = document.getElementById('clear-all-mobile');
 if (clearAllMobile) clearAllMobile.addEventListener('click', async () => {
   if (!confirm('Delete all resources? This also clears all rack, location, custom theme and API key data.')) return;
-  items = []; locations = []; racks = [];
+  items = []; locations = []; racks = []; commandSnippets = []; selectedCommandSnippetId = null;
   localStorage.removeItem('labby-custom-themes');
   await clearAllAgentKeys();
   stopEditing();
@@ -6742,7 +6461,8 @@ initMobileDialogSheets();
 updateRackSelectedComponentUI();
 
 // Theme initialization moved after definitions
-try { initTheme(); } catch(e){ console.error(e); }
+try { initTheme();
+initCommandSnippetPanel(); } catch(e){ console.error(e); }
 
 
 

@@ -15,12 +15,9 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 
-const CONFIG_BACKUPS_DEMO_ONLY = true;
-
 const app = express();
 const PORT = 3001;
 const DATA_DIR = process.env.DATA_DIR || '/data';
-const DEFAULT_LOCAL_CONFIG_BACKUP_PATH = process.env.CONFIG_BACKUP_DIR || path.join(DATA_DIR, 'config-backups');
 const DB_PATH = path.join(DATA_DIR, 'labby.json');
 
 if (!fs.existsSync(DATA_DIR)) {
@@ -55,19 +52,18 @@ const crypto = require('crypto');
 
 function readDb() {
   try {
-    if (!fs.existsSync(DB_PATH)) return { items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [] };
+    if (!fs.existsSync(DB_PATH)) return { items: [], locations: [], racks: [], agentKeys: [], agentStatus: {} };
     const raw = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
-    if (Array.isArray(raw)) return { items: raw, locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [] };
+    if (Array.isArray(raw)) return { items: raw, locations: [], racks: [], agentKeys: [], agentStatus: {} };
     return {
       items: Array.isArray(raw.items) ? raw.items : [],
       locations: Array.isArray(raw.locations) ? raw.locations : [],
       racks: Array.isArray(raw.racks) ? raw.racks : [],
       agentKeys: Array.isArray(raw.agentKeys) ? raw.agentKeys : [],
       agentStatus: raw.agentStatus && typeof raw.agentStatus === 'object' ? raw.agentStatus : {},
-      commandSnippets: Array.isArray(raw.commandSnippets) ? raw.commandSnippets : [],
     };
   } catch {
-    return { items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [] };
+    return { items: [], locations: [], racks: [], agentKeys: [], agentStatus: {} };
   }
 }
 
@@ -79,10 +75,7 @@ function writeDb(data) {
     racks: Array.isArray(data.racks) ? data.racks : existing.racks,
     agentKeys: Array.isArray(data.agentKeys) ? data.agentKeys : existing.agentKeys,
     agentStatus: data.agentStatus && typeof data.agentStatus === 'object' ? data.agentStatus : existing.agentStatus,
-    commandSnippets: Array.isArray(data.commandSnippets) ? data.commandSnippets : existing.commandSnippets,
   };
-  delete next.configBackups;
-  delete next.configBackupLogs;
   fs.writeFileSync(DB_PATH, JSON.stringify(next), 'utf8');
   return next;
 }
@@ -484,7 +477,7 @@ app.post('/api/data', (req, res) => {
           existing.racks = raw.racks || [];
           existing.agentKeys = raw.agentKeys || [];
           existing.agentStatus = raw.agentStatus || {};
-          existing.commandSnippets = raw.commandSnippets || [];
+          existing.commandSnippets = Array.isArray(raw.commandSnippets) ? raw.commandSnippets : [];
         }
       }
     } catch {}
@@ -503,121 +496,6 @@ app.post('/api/data', (req, res) => {
   }
   fs.writeFileSync(DB_PATH, JSON.stringify(data), 'utf8');
   res.json({ ok: true, count: data.items.length });
-});
-
-
-function writeDb(data) {
-  const existing = readDb();
-  const next = {
-    items: Array.isArray(data.items) ? data.items : existing.items,
-    locations: Array.isArray(data.locations) ? data.locations : existing.locations,
-    racks: Array.isArray(data.racks) ? data.racks : existing.racks,
-    agentKeys: Array.isArray(data.agentKeys) ? data.agentKeys : existing.agentKeys,
-    agentStatus: data.agentStatus && typeof data.agentStatus === 'object' ? data.agentStatus : existing.agentStatus,
-    commandSnippets: Array.isArray(data.commandSnippets) ? data.commandSnippets : existing.commandSnippets,
-  };
-  fs.writeFileSync(DB_PATH, JSON.stringify(next), 'utf8');
-  return next;
-}
-
-function sanitizeBackupConfig(entry = {}) {
-  const now = new Date().toISOString();
-  return {
-    id: String(entry.id || (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`)),
-    name: String(entry.name || 'Config backup').trim() || 'Config backup',
-    targetType: ['local', 'smb', 'nfs'].includes(entry.targetType) ? entry.targetType : 'local',
-    targetPath: String(entry.targetPath || (entry.targetType === 'local' ? DEFAULT_LOCAL_CONFIG_BACKUP_PATH : '')).trim(),
-    frequency: ['hourly', 'daily', 'weekly'].includes(entry.frequency) ? entry.frequency : 'daily',
-    weekday: Math.max(0, Math.min(6, parseInt(entry.weekday ?? 1, 10) || 0)),
-    time: String(entry.time || '02:00').slice(0, 5),
-    retentionMode: ['5', '10', 'custom'].includes(String(entry.retentionMode || '')) ? String(entry.retentionMode) : (parseInt(entry.retentionCount || entry.keepLast || 5, 10) === 10 ? '10' : (parseInt(entry.retentionCount || entry.keepLast || 5, 10) === 5 ? '5' : 'custom')),
-    retentionCount: Math.max(1, Math.min(999, parseInt(entry.retentionCount || entry.keepLast || 5, 10) || 5)),
-    enabled: entry.enabled !== false,
-    lastRunAt: entry.lastRunAt || null,
-    nextRunAt: entry.nextRunAt || null,
-    createdAt: entry.createdAt || now,
-    updatedAt: now,
-  };
-}
-
-function nextBackupRun(config, from = new Date()) {
-  const base = new Date(from);
-  if (config.frequency === 'hourly') return new Date(base.getTime() + 60 * 60 * 1000).toISOString();
-  const [h, m] = String(config.time || '02:00').split(':').map(n => parseInt(n, 10));
-  const next = new Date(base);
-  next.setHours(Number.isFinite(h) ? h : 2, Number.isFinite(m) ? m : 0, 0, 0);
-  if (next <= base) next.setDate(next.getDate() + 1);
-  if (config.frequency === 'weekly') {
-    while (next.getDay() !== 1 || next <= base) next.setDate(next.getDate() + 1);
-  }
-  return next.toISOString();
-}
-
-function addBackupLog(data, log) {
-  data.configBackupLogs = Array.isArray(data.configBackupLogs) ? data.configBackupLogs : [];
-  data.configBackupLogs.unshift({ id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`, at: new Date().toISOString(), ...log });
-  data.configBackupLogs = data.configBackupLogs.slice(0, 80);
-}
-
-
-function pruneConfigBackupFiles(dir, keepLast) {
-  const keep = Math.max(1, Math.min(999, parseInt(keepLast, 10) || 5));
-  let files = [];
-  try {
-    files = fs.readdirSync(dir)
-      .filter(name => /^labby-config-.*\.json$/i.test(name))
-      .map(name => {
-        const full = path.join(dir, name);
-        let stat = null;
-        try { stat = fs.statSync(full); } catch {}
-        return stat && stat.isFile() ? { full, mtime: stat.mtimeMs } : null;
-      })
-      .filter(Boolean)
-      .sort((a, b) => b.mtime - a.mtime);
-  } catch { return; }
-  files.slice(keep).forEach(file => {
-    try { fs.unlinkSync(file.full); } catch {}
-  });
-}
-
-function performConfigBackup(config) {
-  throw new Error('Real config backups are disabled in the public browser-only demo. Use the self-hosted Main version to write backup files.');
-  const data = readDb();
-  const sanitized = sanitizeBackupConfig(config);
-  if (!sanitized.targetPath) throw new Error('Target path is required.');
-  const dir = path.resolve(sanitized.targetPath);
-  fs.mkdirSync(dir, { recursive: true });
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const file = path.join(dir, `labby-config-${stamp}.json`);
-  const payload = { ...data, exportedAt: new Date().toISOString(), app: 'Labby', schemaVersion: 4 };
-  fs.writeFileSync(file, JSON.stringify(payload, null, 2), 'utf8');
-  pruneConfigBackupFiles(dir, sanitized.retentionCount);
-  return file;
-}
-
-app.get('/api/config-backups', (req, res) => {
-  res.json({ configs: [], logs: [{ id: 'demo-config-backup-log', at: new Date().toISOString(), configName: 'Demo preview backup', status: 'error', message: 'Demo only: backup saving, scheduling and execution are disabled.' }] });
-});
-
-app.post('/api/config-backups', (req, res) => {
-  res.status(403).json({ error: 'Config backups are UI-only in the public demo.' });
-});
-
-app.delete('/api/config-backups/:id', (req, res) => {
-  res.status(403).json({ error: 'Config backups are UI-only in the public demo.' });
-});
-
-
-app.get('/api/config-backups/:id/files', (req, res) => {
-  res.json({ files: [], demoOnly: true, message: 'Demo only: stored backup files are not available.' });
-});
-
-app.post('/api/config-backups/:id/restore', (req, res) => {
-  res.status(403).json({ error: 'Demo only: old backups cannot be loaded in the public demo.' });
-});
-
-app.post('/api/config-backups/:id/run', (req, res) => {
-  res.status(403).json({ error: 'Config backups are UI-only in the public demo. Use Main/self-hosted for real backups.' });
 });
 
 app.get('/api/health', (req, res) => {

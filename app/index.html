@@ -357,7 +357,6 @@
               <input id="import-file-mobile" type="file" accept="application/json" />
             </label>
           </div>
-          <button id="config-backup-btn-mobile" class="button secondary config-wide-action" type="button">Config Backups</button>
           <button id="clear-all-mobile" class="button danger config-wide-action" type="button">Clear All</button>
           <button id="seed-demo-mobile" class="button secondary config-wide-action" type="button">Load Demo</button>
           <div class="config-section-title">Customization</div>
@@ -370,16 +369,6 @@
       </div>
       <div class="mobile-view-footer">
         <button class="button secondary" id="mobile-config-close">← Back to Topology</button>
-      </div>
-    </div>
-
-    <div class="mobile-view" id="mobile-config-backups">
-      <div class="mobile-view-head">
-        <h2>Config Backups</h2>
-      </div>
-      <div class="mobile-view-body" id="mobile-config-backups-body"></div>
-      <div class="mobile-view-footer">
-        <button class="button secondary" id="mobile-config-backups-close">× Close</button>
       </div>
     </div>
 
@@ -399,39 +388,58 @@
 
 
     <dialog id="cli-dialog" class="cli-dialog" aria-labelledby="cli-title">
-      <div class="cli-shell">
-        <div class="cli-head">
-          <div>
-            <h3 id="cli-title">CLI</h3>
-            <p id="cli-subtitle" class="cli-subtitle">SSH session</p>
+      <div class="cli-shell cli-shell-desktop">
+        <div class="cli-main">
+          <div class="cli-head">
+            <div>
+              <h3 id="cli-title">CLI</h3>
+              <p id="cli-subtitle" class="cli-subtitle">SSH session</p>
+            </div>
+          </div>
+          <div id="cli-terminal" class="cli-terminal" tabindex="0" aria-label="SSH terminal output"></div>
+          <div class="cli-input-row">
+            <textarea id="cli-input" rows="1" autocomplete="off" spellcheck="false" placeholder="Type command and press Enter..."></textarea>
+            <button id="cli-send" class="button" type="button">Send</button>
+          </div>
+          <div class="cli-footer">
+            <button id="cli-clear-key" class="button secondary" type="button">Clear SSH key</button>
+            <button id="cli-copy" class="button secondary" type="button">Copy output</button>
+            <button id="cli-paste" class="button secondary" type="button">Paste clipboard</button>
+            <button id="cli-close" class="button secondary" type="button">✕ Close SSH</button>
           </div>
         </div>
-        <div class="cli-main">
-          <section class="cli-console" aria-label="SSH console">
-            <div id="cli-terminal" class="cli-terminal" tabindex="0" aria-label="SSH terminal output"></div>
-            <div class="cli-input-row">
-              <textarea id="cli-input" rows="1" autocomplete="off" spellcheck="false" placeholder="Type command and press Enter..."></textarea>
-              <button id="cli-send" class="button" type="button">Send</button>
-            </div>
-            <div class="cli-footer">
-              <button id="cli-clear-key" class="button secondary" type="button">Clear SSH key</button>
-              <button id="cli-copy" class="button secondary" type="button">Copy output</button>
-              <button id="cli-paste" class="button secondary" type="button">Paste clipboard</button>
-              <button id="cli-close" class="button secondary" type="button">✕ Close SSH</button>
-            </div>
-          </section>
-          <aside id="cli-command-snippets" class="command-snippets-panel" aria-label="Command snippets">
-            <div class="command-snippets-head">
-              <h4>Commands</h4>
-              <p>Reusable commands for every CLI session.</p>
-            </div>
-            <input id="command-snippet-search" type="search" placeholder="Search commands..." autocomplete="off" />
-            <div id="command-snippet-list" class="command-snippet-list"></div>
-            <div class="command-snippet-footer">
-              <button id="command-snippet-edit" class="button secondary" type="button">Edit</button>
-              <button id="command-snippet-new" class="button" type="button">New command</button>
-            </div>
-          </aside>
+        <aside class="cli-command-panel" aria-label="Saved commands">
+          <div class="cli-command-head">
+            <h3>Commands</h3>
+            <p>Reusable commands for every CLI session.</p>
+          </div>
+          <input id="cli-command-search" class="cli-command-search" type="search" placeholder="Search commands..." autocomplete="off" />
+          <div id="cli-command-list" class="cli-command-list" role="list"></div>
+          <div class="cli-command-actions">
+            <button id="cli-command-edit" class="button secondary" type="button">Edit</button>
+            <button id="cli-command-add" class="button" type="button">New command</button>
+          </div>
+        </aside>
+      </div>
+    </dialog>
+
+    
+    <dialog id="cli-command-dialog" class="cli-command-dialog" aria-labelledby="cli-command-dialog-title">
+      <div class="cli-command-card">
+        <h3 id="cli-command-dialog-title">Command</h3>
+        <label>Name
+          <input id="cli-command-name" type="text" placeholder="e.g. Docker compose rebuild" autocomplete="off" />
+        </label>
+        <label>Command
+          <textarea id="cli-command-body" rows="6" placeholder="docker compose up --build -d" spellcheck="false"></textarea>
+        </label>
+        <label>Description
+          <textarea id="cli-command-description" rows="3" placeholder="Short note for this command"></textarea>
+        </label>
+        <div class="cli-command-dialog-actions">
+          <button id="cli-command-copy" class="button secondary" type="button">Copy command</button>
+          <button id="cli-command-save" class="button" type="button">Save</button>
+          <button id="cli-command-cancel" class="button secondary" type="button">Close</button>
         </div>
       </div>
     </dialog>
@@ -502,7 +510,6 @@
             <input id="import-file" type="file" accept="application/json" />
           </label>
         </div>
-        <button id="config-backup-btn" class="button secondary config-wide-action" type="button">Config Backups</button>
         <button id="clear-all" class="button danger config-wide-action" type="button">Clear All</button>
         <button id="seed-demo" class="button secondary config-wide-action" type="button">Load Demo</button>
 
@@ -518,97 +525,6 @@
       </div>
     </dialog>
 
-
-    
-    <dialog id="config-backup-dialog" class="tree-dialog config-backup-dialog mobile-fullscreen-dialog">
-      <div class="tree-head">
-        <h3>Config Backups</h3>
-      </div>
-      <div class="config-backup-demo-note">Demo preview only: config backups are visible here, but saving, deleting, scheduling and running backups are disabled in the public demo.</div>
-      <div class="config-backup-grid">
-        <section class="config-backup-card">
-          <h4>Backup targets</h4>
-          <div id="config-backup-list" class="config-backup-list"></div>
-          <div class="config-backup-actions">
-            <button id="config-backup-new" class="button" type="button" disabled>New backup</button>
-            <button id="config-backup-run" class="button secondary" type="button" disabled>Run now</button>
-          </div>
-        </section>
-        <section class="config-backup-card">
-          <h4>Settings</h4>
-          <label>Name
-            <input id="config-backup-name" type="text" placeholder="e.g. Daily local backup" />
-          </label>
-          <label>Target type
-            <select id="config-backup-type">
-              <option value="local">Local path (container default)</option>
-              <option value="smb">SMB mounted path</option>
-              <option value="nfs">NFS mounted path</option>
-            </select>
-          </label>
-          <label id="config-backup-path-wrap">Path
-            <input id="config-backup-path" type="text" placeholder="Mounted SMB/NFS path, e.g. /mnt/backups/labby" />
-            <small id="config-backup-path-help">Local backups use the container default path automatically.</small>
-          </label>
-          <div class="config-backup-schedule-grid">
-            <label>Frequency
-              <select id="config-backup-frequency">
-                <option value="hourly">Hourly</option>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-              </select>
-            </label>
-            <label id="config-backup-weekday-wrap">Weekday
-              <select id="config-backup-weekday">
-                <option value="1">Monday</option>
-                <option value="2">Tuesday</option>
-                <option value="3">Wednesday</option>
-                <option value="4">Thursday</option>
-                <option value="5">Friday</option>
-                <option value="6">Saturday</option>
-                <option value="0">Sunday</option>
-              </select>
-            </label>
-            <label id="config-backup-time-wrap">Time
-              <input id="config-backup-time" type="time" value="02:00" />
-            </label>
-          </div>
-          <div class="config-backup-two config-backup-retention-row">
-            <label>Keep backups
-              <select id="config-backup-retention-mode">
-                <option value="5">Last 5</option>
-                <option value="10">Last 10</option>
-                <option value="custom">Custom</option>
-              </select>
-            </label>
-            <label id="config-backup-retention-custom-wrap">Custom amount
-              <input id="config-backup-retention-custom" type="number" min="1" max="999" step="1" value="5" />
-            </label>
-          </div>
-          <label class="config-backup-check">
-            <input id="config-backup-enabled" type="checkbox" checked />
-            Enabled
-          </label>
-          <div class="config-backup-actions">
-            <button id="config-backup-save" class="button" type="button" disabled>Save backup</button>
-            <button id="config-backup-delete" class="button secondary danger-outline" type="button" disabled>Delete</button>
-          </div>
-        </section>
-        <section class="config-backup-card config-backup-log-card">
-          <h4>Stored backups</h4>
-          <div id="config-backup-file-list" class="config-backup-file-list"></div>
-          <div class="config-backup-actions config-backup-restore-actions">
-            <button id="config-backup-file-refresh" class="button secondary" type="button">Refresh</button>
-            <button id="config-backup-file-restore" class="button" type="button">Load backup</button>
-          </div>
-          <h4>Backup log</h4>
-          <div id="config-backup-log" class="config-backup-log"></div>
-        </section>
-      </div>
-      <div class="dialog-footer">
-        <button id="config-backup-close" class="button secondary" type="button">× Close</button>
-      </div>
-    </dialog>
 
     <dialog id="agent-api-dialog" class="tree-dialog agent-api-dialog mobile-fullscreen-dialog">
       <div class="tree-head">
@@ -791,6 +707,6 @@
       <div id="rack-form-page-body" class="rack-form-dialog-body"></div>
     </dialog>
 
-    <script src="script.js?v=121"></script>
+    <script src="script.js"></script>
   </body>
 </html>
