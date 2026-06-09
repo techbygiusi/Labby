@@ -808,6 +808,16 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   outline-offset: 2px;
 }
 
+.website-link {
+  left: 132px;
+}
+
+.website-link svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
 @media (max-width: 1100px) {
   body { height: auto; min-height: 100vh; overflow: auto; }
   .topbar,
@@ -6950,6 +6960,233 @@ dialog.rack-form-dialog:not([open]) {
   transform: translate(-50%, 0) !important;
   transition: transform 170ms ease, opacity 170ms ease !important;
 }
+  }
+
+  #mobile-tree {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+
+/* Demo site banner and browser-only demo shell */
+.demo-banner {
+  width: 100%;
+  padding: 0.55rem 1rem;
+  border-bottom: 3px solid var(--line);
+  background: var(--yellow) !important;
+  color: #222 !important;
+  text-align: center;
+  font: 800 0.82rem/1.35 'Space Mono', monospace;
+  position: relative;
+  z-index: 1000;
+}
+.demo-banner a {
+  color: #222 !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.demo-banner-track {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2.75rem;
+  max-width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+  will-change: transform;
+}
+.demo-banner-message {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.demo-banner-message-clone {
+  display: none;
+}
+.demo-banner.is-scrolling {
+  justify-content: flex-start !important;
+}
+.demo-banner.is-scrolling .demo-banner-track {
+  max-width: none;
+  animation: demo-banner-marquee var(--demo-marquee-duration, 14s) linear infinite;
+}
+.demo-banner.is-scrolling .demo-banner-message-clone {
+  display: inline-flex;
+}
+.demo-banner.is-scrolling:hover .demo-banner-track,
+.demo-banner.is-scrolling:focus-within .demo-banner-track {
+  animation-play-state: paused;
+}
+@keyframes demo-banner-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(-50% - 1.375rem)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .demo-banner.is-scrolling .demo-banner-track {
+    animation: none;
+    transform: none;
+  }
+}
+
+/* Demo keeps the normal split background; only the banner is accented. */
+.topbar,
+header.topbar {
+  background: transparent !important;
+}
+
+/* Demo click safety: hidden layers must never block mobile nav or dialogs. */
+.mobile-view:not(.active),
+.rack-overview.hidden,
+.rack-editor.hidden,
+#welcome-overlay:not(.active),
+dialog:not([open]) {
+  pointer-events: none !important;
+}
+.mobile-view.active,
+#welcome-overlay.active,
+dialog[open] {
+  pointer-events: auto !important;
+}
+.bottom-nav,
+.bottom-actions,
+.demo-banner {
+  pointer-events: auto;
+}
+
+@media (max-width: 1100px) {
+  .demo-banner {
+    padding-top: max(0.45rem, env(safe-area-inset-top));
+    font-size: 0.72rem;
+  }
+}
+
+/* ================================================================
+   v30 demo: reserve space for demo banner above fixed app views.
+   The demo banner is part of the demo shell, so every fixed mobile
+   page and rack workspace must start below it instead of rendering
+   underneath it.
+   ================================================================ */
+:root {
+  --demo-banner-h: 38px;
+}
+
+.demo-banner {
+  box-sizing: border-box !important;
+  min-height: var(--demo-banner-h) !important;
+  height: var(--demo-banner-h) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 1rem !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: clip !important;
+}
+
+@media (min-width: 1101px) {
+  #rack-overview.rack-overlay,
+  #rack-editor.rack-overlay {
+    top: var(--demo-banner-h) !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: calc(100dvh - var(--demo-banner-h)) !important;
+    min-height: 0 !important;
+  }
+
+  #rack-overview .rack-overview-body {
+    height: calc(100dvh - var(--demo-banner-h)) !important;
+  }
+
+  #rack-editor .rack-editor-body {
+    max-height: calc(100dvh - var(--demo-banner-h) - 56px) !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  :root {
+    --demo-banner-h: calc(36px + env(safe-area-inset-top));
+  }
+
+  .demo-banner {
+    font-size: 0.68rem !important;
+    padding: env(safe-area-inset-top) 0.75rem 0 !important;
+    line-height: 1.1 !important;
+  }
+
+  .mobile-view,
+  .rack-overlay {
+    top: var(--demo-banner-h) !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: calc(100dvh - var(--demo-banner-h)) !important;
+    min-height: calc(100dvh - var(--demo-banner-h)) !important;
+    max-height: calc(100dvh - var(--demo-banner-h)) !important;
+  }
+
+  .mobile-view-head,
+  .rack-ov-topbar,
+  .rack-overlay-head,
+  .panel-center > .panel-head {
+    padding-top: 0 !important;
+  }
+
+  .mobile-sheet {
+    top: var(--demo-banner-h) !important;
+    height: calc(100dvh - var(--demo-banner-h)) !important;
+  }
+
+  dialog.theme-picker-dialog[open] {
+    top: var(--demo-banner-h) !important;
+    height: calc(100dvh - var(--demo-banner-h)) !important;
+    max-height: calc(100dvh - var(--demo-banner-h)) !important;
+    padding-top: 0 !important;
+  }
+}
+
+/* v31 demo: clean Topology card placeholders and action buttons. */
+.card-live-status.hidden,
+.card-actions.hidden,
+.card-live-status:empty,
+.card-actions:empty,
+.card-desc:empty,
+.card-notes:empty,
+.card-ip:empty,
+
+
+/* v64 demo: keep the demo notice on the active theme accent color. */
+.demo-banner {
+  background: var(--yellow) !important;
+  color: #202126 !important;
+  border-bottom-color: var(--line) !important;
+}
+.demo-banner a {
+  color: #202126 !important;
+}
+
+/* v66 demo: force the browser-only banner back to the fixed accent strip. */
+html body .demo-banner,
+html body .demo-banner.is-scrolling {
+  background: #f4d371 !important;
+  background-color: #f4d371 !important;
+  background-image: none !important;
+  color: #202126 !important;
+  border-bottom: 3px solid #2e2f36 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+  position: relative !important;
+  z-index: 2147483000 !important;
+}
+
+html body .demo-banner a,
+html body .demo-banner span {
+  color: #202126 !important;
+}
 
 
 /* v67: SSH private-key credential support. */
@@ -7081,7 +7318,7 @@ dialog.rack-form-dialog:not([open]) {
   }
 }
 
-/* v69: compact desktop Theme Customize color cards.
+/* v74: compact desktop Theme Customize color cards.
    Keep mobile touch targets large; desktop cards should feel like the API-key scope tiles. */
 @media (min-width: 1101px) {
   .theme-picker-dialog #theme-customize-body .tb-section {
@@ -7682,7 +7919,17 @@ dialog.rack-form-dialog:not([open]) {
   .config-backup-list, .config-backup-log, .config-backup-file-list { max-height: none; }
 }
 
-/* v97: Config Backups uses the same window sizing as Config/Themes and becomes a real mobile window. */
+.config-backup-demo-note {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, rgba(148, 163, 184, 0.28));
+  border-radius: 12px;
+  background: rgba(148, 163, 184, 0.10);
+  color: var(--muted, #94a3b8);
+  font-size: 0.92rem;
+}
+
+/* v113: Config Backups uses the same window sizing as Config/Themes and becomes a real mobile window. */
 @media (min-width: 1101px) {
   #config-backup-dialog.tree-dialog[open] {
     width: min(1180px, calc(100vw - 128px)) !important;

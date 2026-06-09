@@ -9,7 +9,7 @@ services:
       - "8080:80"
     depends_on:
       - labby-backend
-    restart: unless-stopped
+    restart: always
 
   labby-backend:
     build:
@@ -20,7 +20,7 @@ services:
       - DATA_DIR=/data
     volumes:
       - labby-data:/data
-    restart: unless-stopped
+    restart: always
 
 volumes:
   labby-data:
