@@ -1282,15 +1282,14 @@ function updateConfigBackupRetentionVisibility() {
 
 function updateConfigBackupTargetVisibility() {
   const isLocal = (configBackupType?.value || 'local') === 'local';
+  configBackupPathWrap?.classList.toggle('config-backup-hidden', isLocal);
   if (configBackupPath) {
     configBackupPath.disabled = isLocal;
     configBackupPath.value = isLocal ? defaultLocalConfigBackupPath : (configBackupPath.value === defaultLocalConfigBackupPath ? '' : configBackupPath.value);
-    configBackupPath.placeholder = isLocal ? defaultLocalConfigBackupPath : 'Mounted SMB/NFS path, e.g. /mnt/backups/labby';
+    configBackupPath.placeholder = 'Mounted SMB/NFS path, e.g. /mnt/backups/labby';
   }
   if (configBackupPathHelp) {
-    configBackupPathHelp.textContent = isLocal
-      ? `Local backups are stored automatically in ${defaultLocalConfigBackupPath} inside the backend container.`
-      : 'The SMB/NFS share must already be mounted as a writable path inside the backend container.';
+    configBackupPathHelp.textContent = 'The SMB/NFS share must already be mounted as a writable path inside the backend container.';
   }
 }
 

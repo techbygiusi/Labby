@@ -7680,3 +7680,104 @@ dialog.rack-form-dialog:not([open]) {
   .config-backup-schedule-grid { grid-template-columns: 1fr; }
   .config-backup-list, .config-backup-log { max-height: none; }
 }
+
+/* v97: Config Backups uses the same window sizing as Config/Themes and becomes a real mobile window. */
+@media (min-width: 1101px) {
+  #config-backup-dialog.tree-dialog[open] {
+    width: min(1180px, calc(100vw - 128px)) !important;
+    height: min(680px, calc(100dvh - 128px)) !important;
+    max-width: calc(100vw - 128px) !important;
+    max-height: calc(100dvh - 128px) !important;
+    padding: 1rem 1.15rem !important;
+  }
+
+  #config-backup-dialog .config-backup-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    grid-template-columns: 1fr 1.15fr 1fr;
+  }
+
+  #config-backup-dialog .config-backup-card {
+    min-height: 0;
+  }
+
+  #config-backup-dialog .dialog-footer {
+    margin-top: 0.7rem !important;
+    padding-top: 0.7rem !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  dialog#config-backup-dialog.tree-dialog[open] {
+    position: fixed !important;
+    inset: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: env(safe-area-inset-top) 0 calc(76px + env(safe-area-inset-bottom)) 0 !important;
+    overflow: hidden !important;
+    background: var(--phone) !important;
+  }
+
+  dialog#config-backup-dialog::backdrop {
+    background: transparent !important;
+  }
+
+  #config-backup-dialog .tree-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 1rem max(1rem, env(safe-area-inset-right)) 0.6rem max(1rem, env(safe-area-inset-left));
+    border-bottom: 2px solid var(--line);
+    background: var(--phone);
+  }
+
+  #config-backup-dialog .tree-head h3 {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  #config-backup-dialog .config-backup-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 1rem max(1rem, env(safe-area-inset-right)) 1rem max(1rem, env(safe-area-inset-left));
+  }
+
+  #config-backup-dialog .config-backup-card {
+    min-height: auto;
+  }
+
+  #config-backup-dialog .config-backup-list,
+  #config-backup-dialog .config-backup-log {
+    max-height: none;
+  }
+
+  #config-backup-dialog .config-backup-schedule-grid,
+  #config-backup-dialog .config-backup-two {
+    grid-template-columns: 1fr;
+  }
+
+  #config-backup-dialog .dialog-footer {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 0.7rem max(1rem, env(safe-area-inset-right)) max(0.7rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+    border-top: 2px solid var(--line);
+    background: var(--phone);
+  }
+
+  #config-backup-dialog .dialog-footer .button {
+    width: 100%;
+  }
+}
