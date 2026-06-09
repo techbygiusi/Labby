@@ -209,7 +209,7 @@ async function loadItemsFromAPI() {
     const data = await res.json();
     if (Array.isArray(data)) {
       // Legacy: bare array
-      return { items: data, locations: [], racks: [] };
+      return { items: data, locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [] };
     }
     return {
       items: Array.isArray(data.items) ? data.items : [],
@@ -229,7 +229,7 @@ async function loadItemsFromAPI() {
       const lsRacks = Array.isArray(parsed) ? [] : (parsed.racks || []);
       return { items: lsItems, locations: lsLocations, racks: lsRacks, agentStatus: parsed.agentStatus || {}, commandSnippets: Array.isArray(parsed.commandSnippets) ? parsed.commandSnippets : [] };
     } catch {
-      return { items: [], locations: [], racks: [], commandSnippets: [] };
+      return { items: [], locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [] };
     }
   }
 }
@@ -278,6 +278,7 @@ applyTypeVisibility();
   racks = loaded.racks || [];
   liveStatusData = loaded.agentStatus || {};
   commandSnippets = normalizeCommandSnippets(loaded.commandSnippets || []);
+  renderCommandSnippets();
   initAgentApiPanel();
   render();
   startPolling();
@@ -773,6 +774,7 @@ function openAgentApiDialog(options) {
   if (configDialog?.open) configDialog.close();
   if (typeof closeMobileMoreSheet === 'function') closeMobileMoreSheet();
   if (typeof renderAgentKeyLists === 'function') renderAgentKeyLists();
+    renderCommandSnippets();
   clearAgentTokenBox();
   if (isMobile()) {
     if (agentApiDialog.open) agentApiDialog.close();
@@ -1460,6 +1462,7 @@ importFile.addEventListener('change', async (event) => {
     await saveItems();
     showToast('Config imported successfully.');
     render();
+    renderCommandSnippets();
     if (typeof renderAgentKeyLists === 'function') renderAgentKeyLists();
   } catch {
     showToast('Invalid config file. Please upload a Labby JSON export.', 'error');
@@ -2385,6 +2388,7 @@ async function openCliSession(item, options = {}) {
   cliActiveItem = item;
   resetCliHistoryScope(item);
   resetCliHistoryScope(item);
+  renderCommandSnippets();
   const els = activeCliEls();
   if (els.title) els.title.textContent = `CLI · ${item.name}`;
   if (els.subtitle) els.subtitle.textContent = `ssh ${target}`;
@@ -4837,6 +4841,7 @@ if (importFileMobile) importFileMobile.addEventListener('change', async (event) 
     await saveItems();
     showToast('Config imported successfully.');
     render();
+    renderCommandSnippets();
     if (typeof renderAgentKeyLists === 'function') renderAgentKeyLists();
   } catch {
     showToast('Invalid config file.', 'error');
