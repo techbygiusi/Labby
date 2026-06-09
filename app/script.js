@@ -111,9 +111,9 @@ const mobileCliClose = document.getElementById('mobile-cli-close');
 let cliSession = null;
 let cliPollTimer = null;
 let cliActiveItem = null;
-const cliHistoryByTarget = new Map();
-let cliHistoryTarget = 'default';
-let cliHistoryIndex = -1;
+const cliHistoryStore = new Map();
+let cliHistoryScope = 'default';
+let cliHistoryCursor = 0;
 let cliHistoryDraft = '';
 let credentialFields = null;
 const formTitle = document.getElementById('form-title');
@@ -430,7 +430,7 @@ document.addEventListener('click', (event) => {
 [cliSend, mobileCliSend].filter(Boolean).forEach((btn) => btn.addEventListener('click', () => sendCliInput()));
 [cliInput, mobileCliInput].filter(Boolean).forEach((input) => {
   input.addEventListener('input', () => {
-    cliHistoryIndex = cliHistoryList().length;
+    cliHistoryCursor = cliHistory().length;
     cliHistoryDraft = input.value || '';
     autosizeCliInput(input);
   });
@@ -438,13 +438,13 @@ document.addEventListener('click', (event) => {
     if (event.key === 'ArrowUp') {
       event.preventDefault();
       event.stopPropagation();
-      applyCliHistory(input, -1);
+      loadCliHistoryIntoInput(-1);
       return;
     }
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       event.stopPropagation();
-      applyCliHistory(input, 1);
+      loadCliHistoryIntoInput(1);
       return;
     }
     if (event.key !== 'Enter') return;
@@ -457,17 +457,16 @@ document.addEventListener('click', (event) => {
   });
 });
 
+
+
 document.addEventListener('keydown', (event) => {
-  if (!isCliOpen()) return;
+  if (!isCliVisible()) return;
   if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
   const input = activeCliInput();
   if (!input) return;
-  if (document.activeElement !== input) {
-    event.preventDefault();
-    event.stopPropagation();
-    input.focus();
-    applyCliHistory(input, event.key === 'ArrowUp' ? -1 : 1);
-  }
+  event.preventDefault();
+  event.stopPropagation();
+  loadCliHistoryIntoInput(event.key === 'ArrowUp' ? -1 : 1);
 }, true);
 
 [cliClearKey, mobileCliClearKey].filter(Boolean).forEach((btn) => btn.addEventListener('click', clearCliKnownHostAndReconnect));
@@ -2237,6 +2236,7 @@ async function openCliSession(item, options = {}) {
     return;
   }
   cliActiveItem = item;
+  resetCliHistoryScope(item);
   setCliHistoryTarget(item);
   const els = activeCliEls();
   if (els.title) els.title.textContent = `CLI · ${item.name}`;
@@ -2262,6 +2262,7 @@ async function openCliSession(item, options = {}) {
     cliSession = data.sessionId;
     setCliOutput(data.output || `Connected to ${target}.\n`);
     window.setTimeout(() => activeCliInput()?.focus(), 60);
+  window.setTimeout(() => autosizeAndFocusCliInput(activeCliInput()), 80);
   startCliPolling();
     els.input?.focus();
   } catch (err) {
@@ -2409,52 +2410,63 @@ function applyCliHistory(input, direction) {
 
 
 
-function cliHistoryList() {
-  if (!cliHistoryByTarget.has(cliHistoryTarget)) cliHistoryByTarget.set(cliHistoryTarget, []);
-  return cliHistoryByTarget.get(cliHistoryTarget);
+
+
+
+function getCliHistoryScope(item = cliActiveItem) {
+  const id = item?.id || item?.ip || item?.name || 'default';
+  const host = item?.ip || item?.name || id;
+  return `${id}|${host}`;
 }
 
-function setCliHistoryTarget(item) {
-  const host = item?.ip || item?.name || item?.id || 'default';
-  cliHistoryTarget = `${item?.id || host}|${host}`;
-  cliHistoryIndex = cliHistoryList().length;
+function cliHistory() {
+  if (!cliHistoryStore.has(cliHistoryScope)) cliHistoryStore.set(cliHistoryScope, []);
+  return cliHistoryStore.get(cliHistoryScope);
+}
+
+function resetCliHistoryScope(item) {
+  cliHistoryScope = getCliHistoryScope(item);
+  cliHistoryCursor = cliHistory().length;
   cliHistoryDraft = '';
 }
 
 function rememberCliCommand(command) {
   const value = String(command || '').replace(/\r\n/g, '\n');
   if (!value.trim()) return;
-  const history = cliHistoryList();
+  const history = cliHistory();
   if (history[history.length - 1] !== value) {
     history.push(value);
     if (history.length > 100) history.shift();
   }
-  cliHistoryIndex = history.length;
+  cliHistoryCursor = history.length;
   cliHistoryDraft = '';
 }
 
-function applyCliHistory(input, direction) {
-  if (!input) return;
-  const history = cliHistoryList();
-  if (!history.length) return;
-  if (cliHistoryIndex < 0 || cliHistoryIndex > history.length) cliHistoryIndex = history.length;
-  if (cliHistoryIndex === history.length) cliHistoryDraft = input.value || '';
-  cliHistoryIndex += direction;
-  if (cliHistoryIndex < 0) cliHistoryIndex = 0;
-  if (cliHistoryIndex > history.length) cliHistoryIndex = history.length;
-  input.value = cliHistoryIndex === history.length ? cliHistoryDraft : history[cliHistoryIndex];
+function activeCliInput() {
+  return activeCliEls()?.input || (mobileCliView?.classList.contains('active') ? mobileCliInput : cliInput);
+}
+
+function autosizeAndFocusCliInput(input) {
+  autosizeCliInput(input);
+  input?.focus();
+}
+
+function loadCliHistoryIntoInput(direction) {
+  const input = activeCliInput();
+  if (!input) return false;
+  const history = cliHistory();
+  if (!history.length) return false;
+  if (cliHistoryCursor < 0 || cliHistoryCursor > history.length) cliHistoryCursor = history.length;
+  if (cliHistoryCursor === history.length) cliHistoryDraft = input.value || '';
+  cliHistoryCursor = Math.max(0, Math.min(history.length, cliHistoryCursor + direction));
+  input.value = cliHistoryCursor === history.length ? cliHistoryDraft : history[cliHistoryCursor];
   input.selectionStart = input.value.length;
   input.selectionEnd = input.value.length;
-  autosizeCliInput(input);
-  input.focus();
+  autosizeAndFocusCliInput(input);
+  return true;
 }
 
-function activeCliInput() {
-  const els = activeCliEls();
-  return els.input || cliInput || mobileCliInput;
-}
-
-function isCliOpen() {
+function isCliVisible() {
   return Boolean(cliSession && ((cliDialog && cliDialog.open) || mobileCliView?.classList.contains('active')));
 }
 
