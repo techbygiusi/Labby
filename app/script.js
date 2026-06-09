@@ -2237,7 +2237,7 @@ async function openCliSession(item, options = {}) {
   }
   cliActiveItem = item;
   resetCliHistoryScope(item);
-  setCliHistoryTarget(item);
+  resetCliHistoryScope(item);
   const els = activeCliEls();
   if (els.title) els.title.textContent = `CLI · ${item.name}`;
   if (els.subtitle) els.subtitle.textContent = `ssh ${target}`;
@@ -2378,6 +2378,10 @@ async function pasteClipboardToCliInput() {
   } catch {
     showToast('Could not read clipboard.', 'error');
   }
+}
+
+function setCliHistoryTarget(item) {
+  resetCliHistoryScope(item);
 }
 
 function rememberCliCommand(command) {
