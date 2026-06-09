@@ -210,18 +210,19 @@ const API_BASE = (() => {
 async function loadItemsFromAPI() {
   try {
     const raw = localStorage.getItem(storageKey);
-    if (!raw) return { items: [], locations: [], racks: [], agentStatus: {}, agentKeys: [] };
+    if (!raw) return { items: [], locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [] };
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return { items: parsed, locations: [], racks: [], agentStatus: {}, agentKeys: [] };
+    if (Array.isArray(parsed)) return { items: parsed, locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [] };
     return {
       items: Array.isArray(parsed.items) ? parsed.items : [],
       locations: Array.isArray(parsed.locations) ? parsed.locations : [],
       racks: Array.isArray(parsed.racks) ? parsed.racks : [],
       agentStatus: parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {},
       agentKeys: Array.isArray(parsed.agentKeys) ? parsed.agentKeys : [],
+      commandSnippets: Array.isArray(parsed.commandSnippets) ? parsed.commandSnippets : [],
     };
   } catch {
-    return { items: [], locations: [], racks: [], agentStatus: {}, agentKeys: [] };
+    return { items: [], locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [] };
   }
 }
 
@@ -304,25 +305,32 @@ function isDemoDataMissingOrStale(loaded) {
 
 async function seedFullDemoData({ force = false } = {}) {
   const loaded = await loadItemsFromAPI();
+  const loadedCommandSnippets = normalizeCommandSnippets(loaded.commandSnippets || []);
   if (force || isDemoDataMissingOrStale(loaded)) {
     items = sanitizeItems(getDemoItems());
     locations = getDemoLocations();
     racks = getDemoRacks();
+    // Command snippets are user-created CLI helpers. Keep them across demo-data
+    // migrations so opening the CLI never starts with an empty list while the
+    // saved config still contains commands.
+    commandSnippets = force ? commandSnippets : loadedCommandSnippets;
     migrateDemoDataTo192Subnets();
     ensureDemoRackData();
     localStorage.setItem(demoStorageVersionKey, demoStorageVersion);
     await saveItems();
+    renderCommandSnippets();
     return;
   }
   items = sanitizeItems(loaded.items);
   locations = loaded.locations || [];
   racks = loaded.racks || [];
   liveStatusData = loaded.agentStatus || {};
-  commandSnippets = normalizeCommandSnippets(loaded.commandSnippets || []);
+  commandSnippets = loadedCommandSnippets;
   migrateDemoDataTo192Subnets();
   ensureDemoRackData();
   localStorage.setItem(demoStorageVersionKey, demoStorageVersion);
   await saveItems();
+  renderCommandSnippets();
 }
 
 function openDemoTutorialAfterLayout() {
@@ -837,6 +845,7 @@ function openAgentApiDialog(options) {
   if (configDialog?.open) configDialog.close();
   if (typeof closeMobileMoreSheet === 'function') closeMobileMoreSheet();
   if (typeof renderAgentKeyLists === 'function') renderAgentKeyLists();
+    renderCommandSnippets();
   clearAgentTokenBox();
   if (isMobile()) {
     if (agentApiDialog.open) agentApiDialog.close();
@@ -1515,6 +1524,7 @@ importFile.addEventListener('change', async (event) => {
     await saveItems();
     showToast('Config imported successfully.');
     render();
+    renderCommandSnippets();
     if (typeof renderAgentKeyLists === 'function') renderAgentKeyLists();
   } catch {
     showToast('Invalid config file. Please upload a Labby JSON export.', 'error');
@@ -2440,6 +2450,7 @@ async function openCliSession(item, options = {}) {
   cliActiveItem = item;
   resetCliHistoryScope(item);
   resetCliHistoryScope(item);
+  renderCommandSnippets();
   const els = activeCliEls();
   if (els.title) els.title.textContent = `CLI · ${item.name}`;
   if (els.subtitle) els.subtitle.textContent = `ssh ${target}`;
@@ -4924,6 +4935,7 @@ if (importFileMobile) importFileMobile.addEventListener('change', async (event) 
     await saveItems();
     showToast('Config imported successfully.');
     render();
+    renderCommandSnippets();
     if (typeof renderAgentKeyLists === 'function') renderAgentKeyLists();
   } catch {
     showToast('Invalid config file.', 'error');
