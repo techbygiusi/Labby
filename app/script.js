@@ -144,9 +144,6 @@ const configBackupType = document.getElementById('config-backup-type');
 const configBackupPath = document.getElementById('config-backup-path');
 const configBackupFrequency = document.getElementById('config-backup-frequency');
 const configBackupTime = document.getElementById('config-backup-time');
-const configBackupRetentionMode = document.getElementById('config-backup-retention-mode');
-const configBackupRetentionCustom = document.getElementById('config-backup-retention-custom');
-const configBackupRetentionCustomWrap = document.getElementById('config-backup-retention-custom-wrap');
 const configBackupEnabled = document.getElementById('config-backup-enabled');
 
 const toast = document.getElementById('toast');
@@ -170,9 +167,6 @@ let selectedNetworkColor = networkPalette[0];
 let items = [];
 let locations = [];
 let racks = [];
-let configBackups = [];
-let configBackupLogs = [];
-let selectedConfigBackupId = null;
 let toastTimer = null;
 let treeViewMode = 'tree';
 let lastTypeSelection = typeSelect.value;
@@ -224,8 +218,6 @@ async function loadItemsFromAPI() {
       racks: Array.isArray(data.racks) ? data.racks : [],
       agentStatus: data.agentStatus && typeof data.agentStatus === 'object' ? data.agentStatus : {},
       agentKeys: Array.isArray(data.agentKeys) ? data.agentKeys : [],
-      configBackups: Array.isArray(data.configBackups) ? data.configBackups : [],
-      configBackupLogs: Array.isArray(data.configBackupLogs) ? data.configBackupLogs : [],
     };
   } catch (err) {
     console.warn('Labby: API not reachable, falling back to localStorage.', err);
@@ -235,7 +227,7 @@ async function loadItemsFromAPI() {
       const lsItems = Array.isArray(parsed) ? parsed : (parsed.items || []);
       const lsLocations = Array.isArray(parsed) ? [] : (parsed.locations || []);
       const lsRacks = Array.isArray(parsed) ? [] : (parsed.racks || []);
-      return { items: lsItems, locations: lsLocations, racks: lsRacks, agentStatus: parsed.agentStatus || {}, configBackups: parsed.configBackups || [], configBackupLogs: parsed.configBackupLogs || [] };
+      return { items: lsItems, locations: lsLocations, racks: lsRacks, agentStatus: parsed.agentStatus || {} };
     } catch {
       return { items: [], locations: [], racks: [] };
     }
@@ -248,8 +240,6 @@ async function saveItemsToAPI(itemList) {
     locations: locations,
     racks: racks,
     agentStatus: liveStatusData,
-    configBackups,
-    configBackupLogs,
   };
   if (Array.isArray(importedAgentKeysForSave)) payload.agentKeys = importedAgentKeysForSave;
   try {
@@ -285,34 +275,13 @@ applyTypeVisibility();
   items = sanitizeItems(loaded.items);
   locations = loaded.locations || [];
   racks = loaded.racks || [];
-  configBackups = Array.isArray(loaded.configBackups) ? loaded.configBackups : [];
-  configBackupLogs = Array.isArray(loaded.configBackupLogs) ? loaded.configBackupLogs : [];
-  selectedConfigBackupId = configBackups[0]?.id || null;
   liveStatusData = loaded.agentStatus || {};
   initAgentApiPanel();
-  renderCommandSnippetsIfPresent();
-  await loadConfigBackups();
+  renderCommandSnippets();
+  renderConfigBackups();
   render();
   startPolling();
 })();
-
-
-function renderCommandSnippetsIfPresent() {
-  // Main-safe fallback: some shared UI flows may expect the command snippet renderer
-  // even when the snippet library markup is not included in this build.
-  // The real CLI command library continues to render through its own handlers;
-  // this guard prevents a missing optional renderer from aborting startup.
-  const containers = [
-    document.getElementById('command-snippets'),
-    document.getElementById('cli-command-snippets'),
-    document.getElementById('mobile-command-snippets')
-  ].filter(Boolean);
-  containers.forEach((container) => {
-    if (!container.dataset.placeholderRendered && !container.children.length) {
-      container.dataset.placeholderRendered = '1';
-    }
-  });
-}
 
 async function startPolling() {
   if (pollingInterval) clearInterval(pollingInterval);
@@ -826,14 +795,13 @@ document.getElementById('agent-api-close')?.addEventListener('click', () => {
 });
 
 clearAll.addEventListener('click', async () => {
-  if (!confirm('Delete all resources? This also clears all rack, location, custom theme, API key and config backup data.')) return;
-  items = []; locations = []; racks = []; configBackups = []; configBackupLogs = []; selectedConfigBackupId = null;
+  if (!confirm('Delete all resources? This also clears all rack, location, custom theme and API key data.')) return;
+  items = []; locations = []; racks = [];
   localStorage.removeItem('labby-custom-themes');
-  localStorage.removeItem(configBackupStorageKey);
   await clearAllAgentKeys();
   stopEditing();
   await saveItems();
-  showToast('All resources, custom themes, API keys and config backups cleared.');
+  showToast('All resources, custom themes and API keys cleared.');
   render();
   if (typeof renderThemeLists === 'function') renderThemeLists();
 });
@@ -1040,8 +1008,6 @@ async function buildConfigExport() {
     locations,
     racks,
     agentStatus: liveStatusData,
-    configBackups,
-    configBackupLogs,
     encryptedSecrets: {
       credentials: encryptedCredentials,
       agentKeys: encryptedAgentKeys,
@@ -1114,9 +1080,6 @@ async function applyImportedConfig(parsed) {
   items     = importedItems;
   locations = Array.isArray(parsed.locations) ? parsed.locations : [];
   racks     = Array.isArray(parsed.racks) ? parsed.racks : [];
-  configBackups = Array.isArray(parsed.configBackups) ? parsed.configBackups : [];
-  configBackupLogs = Array.isArray(parsed.configBackupLogs) ? parsed.configBackupLogs : [];
-  selectedConfigBackupId = configBackups[0]?.id || null;
   liveStatusData = parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {};
 
   if (Array.isArray(parsed.customThemes)) importCustomThemes(parsed.customThemes);
@@ -1128,220 +1091,6 @@ async function applyImportedConfig(parsed) {
     localStorage.removeItem('labby-tutorial-seen');
   }
 }
-
-
-const configBackupStorageKey = 'labby-config-backups';
-
-function normalizeConfigBackup(entry = {}) {
-  const retentionCount = Math.max(1, Math.min(999, parseInt(entry.retentionCount || entry.keepLast || 5, 10) || 5));
-  const retentionMode = ['5', '10', 'custom'].includes(String(entry.retentionMode || ''))
-    ? String(entry.retentionMode)
-    : (retentionCount === 10 ? '10' : (retentionCount === 5 ? '5' : 'custom'));
-  return {
-    id: String(entry.id || `backup-${Date.now()}-${Math.random().toString(16).slice(2)}`),
-    name: String(entry.name || 'Config backup').trim() || 'Config backup',
-    targetType: ['local', 'smb', 'nfs'].includes(entry.targetType) ? entry.targetType : 'local',
-    targetPath: String(entry.targetPath || '').trim(),
-    frequency: ['hourly', 'daily', 'weekly'].includes(entry.frequency) ? entry.frequency : 'daily',
-    time: String(entry.time || '02:00').slice(0, 5),
-    retentionMode,
-    retentionCount,
-    enabled: entry.enabled !== false,
-    lastRunAt: entry.lastRunAt || null,
-    nextRunAt: entry.nextRunAt || null,
-    createdAt: entry.createdAt || new Date().toISOString(),
-    updatedAt: entry.updatedAt || new Date().toISOString(),
-  };
-}
-
-function persistLocalConfigBackups() {
-  try { localStorage.setItem(configBackupStorageKey, JSON.stringify({ configs: configBackups, logs: configBackupLogs })); } catch {}
-}
-
-async function loadConfigBackups() {
-  try {
-    const res = await fetch(`${API_BASE}/api/config-backups`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    configBackups = (Array.isArray(data.configs) ? data.configs : []).map(normalizeConfigBackup);
-    configBackupLogs = Array.isArray(data.logs) ? data.logs : [];
-  } catch {
-    try {
-      const data = JSON.parse(localStorage.getItem(configBackupStorageKey) || '{}');
-      configBackups = (Array.isArray(data.configs) ? data.configs : configBackups).map(normalizeConfigBackup);
-      configBackupLogs = Array.isArray(data.logs) ? data.logs : configBackupLogs;
-    } catch {}
-  }
-  if (!selectedConfigBackupId || !configBackups.some(b => b.id === selectedConfigBackupId)) selectedConfigBackupId = configBackups[0]?.id || null;
-  renderConfigBackups();
-}
-
-function selectedConfigBackup() {
-  return configBackups.find(b => b.id === selectedConfigBackupId) || null;
-}
-
-function formatConfigBackupDate(value) {
-  if (!value) return 'not yet';
-  try { return new Date(value).toLocaleString(); } catch { return String(value); }
-}
-
-function updateConfigBackupRetentionVisibility() {
-  const isCustom = configBackupRetentionMode?.value === 'custom';
-  if (configBackupRetentionCustom) configBackupRetentionCustom.disabled = !isCustom;
-  configBackupRetentionCustomWrap?.classList.toggle('config-backup-retention-custom-hidden', !isCustom);
-}
-
-function fillConfigBackupForm(config) {
-  const backup = normalizeConfigBackup(config || {});
-  if (configBackupName) configBackupName.value = backup.name;
-  if (configBackupType) configBackupType.value = backup.targetType;
-  if (configBackupPath) configBackupPath.value = backup.targetPath;
-  if (configBackupFrequency) configBackupFrequency.value = backup.frequency;
-  if (configBackupTime) configBackupTime.value = backup.time;
-  if (configBackupRetentionMode) configBackupRetentionMode.value = backup.retentionMode;
-  if (configBackupRetentionCustom) configBackupRetentionCustom.value = String(backup.retentionCount);
-  if (configBackupEnabled) configBackupEnabled.checked = backup.enabled !== false;
-  updateConfigBackupRetentionVisibility();
-}
-
-function readConfigBackupForm() {
-  const mode = configBackupRetentionMode?.value || '5';
-  const retentionCount = mode === 'custom'
-    ? Math.max(1, Math.min(999, parseInt(configBackupRetentionCustom?.value || '5', 10) || 5))
-    : parseInt(mode, 10);
-  return normalizeConfigBackup({
-    ...(selectedConfigBackup() || {}),
-    name: configBackupName?.value,
-    targetType: configBackupType?.value,
-    targetPath: configBackupPath?.value,
-    frequency: configBackupFrequency?.value,
-    time: configBackupTime?.value,
-    retentionMode: mode,
-    retentionCount,
-    enabled: configBackupEnabled?.checked !== false,
-    updatedAt: new Date().toISOString(),
-  });
-}
-
-function renderConfigBackups() {
-  if (!configBackupList || !configBackupLog) return;
-  configBackups = configBackups.map(normalizeConfigBackup);
-  configBackupList.innerHTML = '';
-  if (!configBackups.length) {
-    configBackupList.innerHTML = '<div class="config-backup-empty">No backup targets yet. Create one and choose how many backup files Labby should keep.</div>';
-    selectedConfigBackupId = null;
-    fillConfigBackupForm({});
-  } else {
-    if (!selectedConfigBackupId || !configBackups.some(b => b.id === selectedConfigBackupId)) selectedConfigBackupId = configBackups[0].id;
-    configBackups.forEach((backup) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'config-backup-item' + (backup.id === selectedConfigBackupId ? ' active' : '');
-      btn.innerHTML = `<strong>${escapeHtml(backup.name)}</strong><span>${escapeHtml(backup.frequency)} · keep last ${backup.retentionCount} · ${escapeHtml(backup.targetPath || 'no path set')}</span><span>Next: ${escapeHtml(formatConfigBackupDate(backup.nextRunAt))}</span>`;
-      btn.addEventListener('click', () => {
-        selectedConfigBackupId = backup.id;
-        fillConfigBackupForm(backup);
-        renderConfigBackups();
-      });
-      configBackupList.appendChild(btn);
-    });
-    fillConfigBackupForm(selectedConfigBackup());
-  }
-
-  const logs = Array.isArray(configBackupLogs) ? configBackupLogs : [];
-  configBackupLog.innerHTML = logs.length ? '' : '<div class="config-backup-empty">No backup runs yet.</div>';
-  logs.slice(0, 80).forEach((log) => {
-    const row = document.createElement('div');
-    row.className = `config-backup-log-row ${log.status === 'error' ? 'error' : 'success'}`;
-    row.innerHTML = `<strong>${escapeHtml(log.configName || 'Config backup')} · ${escapeHtml(log.status || 'status')}</strong><span>${escapeHtml(formatConfigBackupDate(log.at))}</span><code>${escapeHtml(log.message || '')}</code>`;
-    configBackupLog.appendChild(row);
-  });
-}
-
-async function saveConfigBackupFromForm() {
-  const backup = readConfigBackupForm();
-  if (!backup.targetPath) { showToast('Backup path is required.', 'error'); return; }
-  try {
-    const res = await fetch(`${API_BASE}/api/config-backups`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(backup),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const saved = normalizeConfigBackup(data.config || backup);
-    const idx = configBackups.findIndex(b => b.id === saved.id);
-    if (idx >= 0) configBackups[idx] = saved; else configBackups.push(saved);
-    selectedConfigBackupId = saved.id;
-    showToast('Backup target saved.');
-  } catch {
-    const idx = configBackups.findIndex(b => b.id === backup.id);
-    if (idx >= 0) configBackups[idx] = backup; else configBackups.push(backup);
-    selectedConfigBackupId = backup.id;
-    persistLocalConfigBackups();
-    showToast('Backup target saved locally.');
-  }
-  renderConfigBackups();
-  await saveItems();
-}
-
-async function deleteSelectedConfigBackup() {
-  const backup = selectedConfigBackup();
-  if (!backup) return;
-  if (!confirm(`Delete backup target "${backup.name}"?`)) return;
-  try { await fetch(`${API_BASE}/api/config-backups/${encodeURIComponent(backup.id)}`, { method: 'DELETE' }); } catch {}
-  configBackups = configBackups.filter(b => b.id !== backup.id);
-  selectedConfigBackupId = configBackups[0]?.id || null;
-  persistLocalConfigBackups();
-  renderConfigBackups();
-  await saveItems();
-  showToast('Backup target deleted.');
-}
-
-async function runSelectedConfigBackup() {
-  const backup = selectedConfigBackup();
-  if (!backup) { showToast('Create or select a backup target first.', 'error'); return; }
-  try {
-    const res = await fetch(`${API_BASE}/api/config-backups/${encodeURIComponent(backup.id)}/run`, { method: 'POST' });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    showToast('Backup completed.');
-    await loadConfigBackups();
-  } catch (err) {
-    configBackupLogs.unshift({
-      id: `log-${Date.now()}`,
-      at: new Date().toISOString(),
-      configId: backup.id,
-      configName: backup.name,
-      status: 'error',
-      message: err?.message || 'Backup failed',
-    });
-    configBackupLogs = configBackupLogs.slice(0, 80);
-    persistLocalConfigBackups();
-    renderConfigBackups();
-    showToast(err?.message || 'Backup failed.', 'error');
-  }
-}
-
-function openConfigBackupDialog() {
-  loadConfigBackups();
-  if (configDialog?.open) configDialog.close();
-  if (configBackupDialog && !configBackupDialog.open) configBackupDialog.showModal();
-}
-
-configBackupBtn?.addEventListener('click', openConfigBackupDialog);
-configBackupBtnMobile?.addEventListener('click', openConfigBackupDialog);
-configBackupClose?.addEventListener('click', () => configBackupDialog?.close());
-configBackupNew?.addEventListener('click', () => {
-  selectedConfigBackupId = null;
-  fillConfigBackupForm({ name: 'Config backup', retentionMode: '5', retentionCount: 5 });
-  configBackupList?.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
-});
-configBackupSave?.addEventListener('click', saveConfigBackupFromForm);
-configBackupDelete?.addEventListener('click', deleteSelectedConfigBackup);
-configBackupRun?.addEventListener('click', runSelectedConfigBackup);
-configBackupRetentionMode?.addEventListener('change', updateConfigBackupRetentionVisibility);
-configBackupRetentionCustom?.addEventListener('input', updateConfigBackupRetentionVisibility);
 
 
 function getLocalAgentKeys() {
@@ -4970,14 +4719,13 @@ if (importFileMobile) importFileMobile.addEventListener('change', async (event) 
 
 const clearAllMobile = document.getElementById('clear-all-mobile');
 if (clearAllMobile) clearAllMobile.addEventListener('click', async () => {
-  if (!confirm('Delete all resources? This also clears all rack, location, custom theme, API key and config backup data.')) return;
-  items = []; locations = []; racks = []; configBackups = []; configBackupLogs = []; selectedConfigBackupId = null;
+  if (!confirm('Delete all resources? This also clears all rack, location, custom theme and API key data.')) return;
+  items = []; locations = []; racks = [];
   localStorage.removeItem('labby-custom-themes');
-  localStorage.removeItem(configBackupStorageKey);
   await clearAllAgentKeys();
   stopEditing();
   await saveItems();
-  showToast('All resources, custom themes, API keys and config backups cleared.');
+  showToast('All resources, custom themes and API keys cleared.');
   render();
   if (typeof renderThemeLists === 'function') renderThemeLists();
   hideMobileViews();

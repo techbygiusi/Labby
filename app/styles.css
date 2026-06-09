@@ -7592,10 +7592,6 @@ dialog.rack-form-dialog:not([open]) {
 .config-backup-item span { color: var(--muted); font-size: 0.78rem; }
 .config-backup-empty { border: 2px dashed color-mix(in srgb, var(--line) 45%, transparent); border-radius: 14px; color: var(--muted); padding: 1rem; }
 .config-backup-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
-.config-backup-retention-row { align-items: end; }
-.config-backup-retention-custom-hidden { opacity: 0.55; }
-.config-backup-retention-custom-hidden input { pointer-events: none; }
-
 .config-backup-check { grid-template-columns: auto 1fr !important; align-items: center; }
 .config-backup-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
 .config-backup-log-row { border: 2px solid var(--line); border-radius: 14px; padding: 0.65rem; display: grid; gap: 0.2rem; background: var(--phone); }
