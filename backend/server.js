@@ -594,6 +594,53 @@ function performConfigBackup(config) {
   return file;
 }
 
+
+function configBackupDirectory(config) {
+  const sanitized = sanitizeBackupConfig(config);
+  if (sanitized.targetType !== 'local' && !sanitized.targetPath) throw new Error('Target path is required.');
+  return path.resolve(sanitized.targetType === 'local' ? DEFAULT_LOCAL_CONFIG_BACKUP_PATH : sanitized.targetPath);
+}
+
+function listConfigBackupFiles(config) {
+  const dir = configBackupDirectory(config);
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir)
+    .filter(name => /^labby-config-.*\.json$/i.test(name))
+    .map(name => {
+      const full = path.join(dir, name);
+      let stat = null;
+      try { stat = fs.statSync(full); } catch {}
+      return stat && stat.isFile() ? { name, size: stat.size, mtime: stat.mtime.toISOString() } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => Date.parse(b.mtime || 0) - Date.parse(a.mtime || 0));
+}
+
+function safeConfigBackupFilePath(config, fileName) {
+  const name = String(fileName || '').trim();
+  if (!/^labby-config-.*\.json$/i.test(name) || name.includes('/') || name.includes('\\')) {
+    throw new Error('Invalid backup file name.');
+  }
+  const dir = configBackupDirectory(config);
+  const full = path.resolve(dir, name);
+  if (!full.startsWith(dir + path.sep)) throw new Error('Invalid backup file path.');
+  if (!fs.existsSync(full) || !fs.statSync(full).isFile()) throw new Error('Backup file not found.');
+  return full;
+}
+
+function normalizeRestoredDb(payload, fallback) {
+  return {
+    items: Array.isArray(payload.items) ? payload.items : [],
+    locations: Array.isArray(payload.locations) ? payload.locations : [],
+    racks: Array.isArray(payload.racks) ? payload.racks : [],
+    agentKeys: Array.isArray(payload.agentKeys) ? payload.agentKeys : (Array.isArray(fallback.agentKeys) ? fallback.agentKeys : []),
+    agentStatus: payload.agentStatus && typeof payload.agentStatus === 'object' ? payload.agentStatus : (fallback.agentStatus || {}),
+    commandSnippets: Array.isArray(payload.commandSnippets) ? payload.commandSnippets : [],
+    configBackups: Array.isArray(payload.configBackups) ? payload.configBackups.map(sanitizeBackupConfig) : (Array.isArray(fallback.configBackups) ? fallback.configBackups : []),
+    configBackupLogs: Array.isArray(payload.configBackupLogs) ? payload.configBackupLogs : (Array.isArray(fallback.configBackupLogs) ? fallback.configBackupLogs : []),
+  };
+}
+
 app.get('/api/config-backups', (req, res) => {
   const data = readDb();
   res.json({ configs: Array.isArray(data.configBackups) ? data.configBackups : [], logs: Array.isArray(data.configBackupLogs) ? data.configBackupLogs : [] });
@@ -616,6 +663,39 @@ app.delete('/api/config-backups/:id', (req, res) => {
   data.configBackups = (Array.isArray(data.configBackups) ? data.configBackups : []).filter(b => b.id !== req.params.id);
   writeDb(data);
   res.json({ ok: true });
+});
+
+
+app.get('/api/config-backups/:id/files', (req, res) => {
+  const data = readDb();
+  const configs = Array.isArray(data.configBackups) ? data.configBackups : [];
+  const config = configs.find(b => b.id === req.params.id);
+  if (!config) return res.status(404).json({ error: 'Backup config not found' });
+  try {
+    res.json({ files: listConfigBackupFiles(config) });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Could not read backup files' });
+  }
+});
+
+app.post('/api/config-backups/:id/restore', (req, res) => {
+  const current = readDb();
+  const configs = Array.isArray(current.configBackups) ? current.configBackups : [];
+  const config = configs.find(b => b.id === req.params.id);
+  if (!config) return res.status(404).json({ error: 'Backup config not found' });
+  try {
+    const fileName = String((req.body || {}).fileName || '').trim();
+    const full = safeConfigBackupFilePath(config, fileName);
+    const payload = JSON.parse(fs.readFileSync(full, 'utf8'));
+    const restored = normalizeRestoredDb(payload, current);
+    addBackupLog(restored, { configId: config.id, configName: config.name, status: 'success', message: `Restored ${fileName}` });
+    writeDb(restored);
+    res.json({ ok: true, file: full });
+  } catch (err) {
+    addBackupLog(current, { configId: config.id, configName: config.name, status: 'error', message: err.message || 'Restore failed' });
+    writeDb(current);
+    res.status(500).json({ error: err.message || 'Restore failed' });
+  }
 });
 
 app.post('/api/config-backups/:id/run', (req, res) => {

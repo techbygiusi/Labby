@@ -134,6 +134,9 @@ const configBackupBtnMobile = document.getElementById('config-backup-btn-mobile'
 const configBackupDialog = document.getElementById('config-backup-dialog');
 const configBackupList = document.getElementById('config-backup-list');
 const configBackupLog = document.getElementById('config-backup-log');
+const configBackupFileList = document.getElementById('config-backup-file-list');
+const configBackupFileRefresh = document.getElementById('config-backup-file-refresh');
+const configBackupFileRestore = document.getElementById('config-backup-file-restore');
 const configBackupNew = document.getElementById('config-backup-new');
 const configBackupRun = document.getElementById('config-backup-run');
 const configBackupSave = document.getElementById('config-backup-save');
@@ -1351,6 +1354,95 @@ function readConfigBackupForm() {
   });
 }
 
+
+function formatConfigBackupFileSize(bytes) {
+  const n = Number(bytes || 0);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function renderConfigBackupFiles() {
+  if (!configBackupFileList) return;
+  configBackupFileList.innerHTML = '';
+  if (!selectedConfigBackup()) {
+    configBackupFileList.innerHTML = '<div class="config-backup-empty">Select or save a backup target first.</div>';
+    if (configBackupFileRestore) configBackupFileRestore.disabled = true;
+    return;
+  }
+  if (!Array.isArray(configBackupFiles) || !configBackupFiles.length) {
+    configBackupFileList.innerHTML = '<div class="config-backup-empty">No stored backup files found for this target yet.</div>';
+    if (configBackupFileRestore) configBackupFileRestore.disabled = true;
+    return;
+  }
+  if (!selectedConfigBackupFile || !configBackupFiles.some(file => file.name === selectedConfigBackupFile)) {
+    selectedConfigBackupFile = configBackupFiles[0]?.name || null;
+  }
+  configBackupFiles.forEach((file) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'config-backup-file-item' + (file.name === selectedConfigBackupFile ? ' active' : '');
+    const dateLabel = file.mtime ? formatConfigBackupDate(file.mtime) : 'unknown date';
+    const sizeLabel = formatConfigBackupFileSize(file.size);
+    btn.innerHTML = `<strong>${escapeHtml(file.name || 'backup file')}</strong><span>${escapeHtml(dateLabel)}${sizeLabel ? ` · ${escapeHtml(sizeLabel)}` : ''}</span>`;
+    btn.addEventListener('click', () => {
+      selectedConfigBackupFile = file.name;
+      renderConfigBackupFiles();
+    });
+    configBackupFileList.appendChild(btn);
+  });
+  if (configBackupFileRestore) configBackupFileRestore.disabled = !selectedConfigBackupFile;
+}
+
+async function loadConfigBackupFiles() {
+  const backup = selectedConfigBackup();
+  selectedConfigBackupFile = null;
+  configBackupFiles = [];
+  if (!backup) { renderConfigBackupFiles(); return; }
+  if (typeof CONFIG_BACKUPS_DEMO_ONLY !== 'undefined' && CONFIG_BACKUPS_DEMO_ONLY) {
+    configBackupFiles = [];
+    renderConfigBackupFiles();
+    return;
+  }
+  try {
+    const res = await fetch(`${API_BASE}/api/config-backups/${encodeURIComponent(backup.id)}/files`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Could not read backup files.');
+    configBackupFiles = Array.isArray(data.files) ? data.files : [];
+  } catch (err) {
+    configBackupFiles = [];
+    configBackupFileList && (configBackupFileList.innerHTML = `<div class="config-backup-empty">${escapeHtml(err.message || 'Could not read backup files.')}</div>`);
+    if (configBackupFileRestore) configBackupFileRestore.disabled = true;
+    return;
+  }
+  renderConfigBackupFiles();
+}
+
+async function restoreSelectedConfigBackupFile() {
+  const backup = selectedConfigBackup();
+  if (!backup) { showToast('Select a backup target first.', 'error'); return; }
+  if (!selectedConfigBackupFile) { showToast('Select a backup file first.', 'error'); return; }
+  if (typeof CONFIG_BACKUPS_DEMO_ONLY !== 'undefined' && CONFIG_BACKUPS_DEMO_ONLY) {
+    showToast('Demo only: old backups cannot be loaded in the public demo.', 'error');
+    return;
+  }
+  if (!confirm(`Load backup "${selectedConfigBackupFile}"? Current Labby config will be replaced.`)) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/config-backups/${encodeURIComponent(backup.id)}/restore`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileName: selectedConfigBackupFile }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Could not load backup.');
+    showToast('Backup loaded. Reloading Labby config…');
+    window.setTimeout(() => window.location.reload(), 350);
+  } catch (err) {
+    showToast(err.message || 'Could not load backup.', 'error');
+  }
+}
+
 function renderConfigBackups() {
   if (!configBackupList || !configBackupLog) return;
   configBackups = configBackups.map(normalizeConfigBackup);
@@ -1372,6 +1464,7 @@ function renderConfigBackups() {
         selectedConfigBackupId = backup.id;
         fillConfigBackupForm(backup);
         renderConfigBackups();
+        loadConfigBackupFiles();
       });
       configBackupList.appendChild(btn);
     });
@@ -1386,6 +1479,7 @@ function renderConfigBackups() {
     row.innerHTML = `<strong>${escapeHtml(log.configName || 'Config backup')} · ${escapeHtml(log.status || 'status')}</strong><span>${escapeHtml(formatConfigBackupDate(log.at))}</span><code>${escapeHtml(log.message || '')}</code>`;
     configBackupLog.appendChild(row);
   });
+  renderConfigBackupFiles();
 }
 
 async function saveConfigBackupFromForm() {
@@ -1412,6 +1506,7 @@ async function saveConfigBackupFromForm() {
     showToast('Backup target saved locally.');
   }
   renderConfigBackups();
+  loadConfigBackupFiles();
   await saveItems();
 }
 
@@ -1424,6 +1519,7 @@ async function deleteSelectedConfigBackup() {
   selectedConfigBackupId = configBackups[0]?.id || null;
   persistLocalConfigBackups();
   renderConfigBackups();
+  loadConfigBackupFiles();
   await saveItems();
   showToast('Backup target deleted.');
 }
@@ -1437,6 +1533,7 @@ async function runSelectedConfigBackup() {
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     showToast('Backup completed.');
     await loadConfigBackups();
+    await loadConfigBackupFiles();
   } catch (err) {
     configBackupLogs.unshift({
       id: `log-${Date.now()}`,
@@ -1449,6 +1546,7 @@ async function runSelectedConfigBackup() {
     configBackupLogs = configBackupLogs.slice(0, 80);
     persistLocalConfigBackups();
     renderConfigBackups();
+    loadConfigBackupFiles();
     showToast(err?.message || 'Backup failed.', 'error');
   }
 }
@@ -1523,6 +1621,8 @@ configBackupNew?.addEventListener('click', () => {
 configBackupSave?.addEventListener('click', saveConfigBackupFromForm);
 configBackupDelete?.addEventListener('click', deleteSelectedConfigBackup);
 configBackupRun?.addEventListener('click', runSelectedConfigBackup);
+configBackupFileRefresh?.addEventListener('click', loadConfigBackupFiles);
+configBackupFileRestore?.addEventListener('click', restoreSelectedConfigBackupFile);
 configBackupRetentionMode?.addEventListener('change', updateConfigBackupRetentionVisibility);
 configBackupRetentionCustom?.addEventListener('input', updateConfigBackupRetentionVisibility);
 configBackupType?.addEventListener('change', updateConfigBackupTargetVisibility);

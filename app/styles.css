@@ -7655,10 +7655,10 @@ dialog.rack-form-dialog:not([open]) {
 }
 .config-backup-card h4 { margin: 0; font: 900 1rem/1.2 'Space Mono', monospace; }
 .config-backup-card label { display: grid; gap: 0.35rem; font-weight: 800; color: var(--muted); }
-.config-backup-list, .config-backup-log { display: flex; flex-direction: column; gap: 0.55rem; overflow: auto; min-height: 0; max-height: 430px; }
-.config-backup-item { text-align: left; border: 2px solid var(--line); border-radius: 14px; background: var(--phone); color: var(--text); padding: 0.7rem; display: grid; gap: 0.25rem; cursor: pointer; }
-.config-backup-item.active, .config-backup-item:hover { background: var(--highlight); }
-.config-backup-item span { color: var(--muted); font-size: 0.78rem; }
+.config-backup-list, .config-backup-log, .config-backup-file-list { display: flex; flex-direction: column; gap: 0.55rem; overflow: auto; min-height: 0; max-height: 430px; }
+.config-backup-item, .config-backup-file-item { text-align: left; border: 2px solid var(--line); border-radius: 14px; background: var(--phone); color: var(--text); padding: 0.7rem; display: grid; gap: 0.25rem; cursor: pointer; }
+.config-backup-item.active, .config-backup-item:hover, .config-backup-file-item.active, .config-backup-file-item:hover { background: var(--highlight); }
+.config-backup-item span, .config-backup-file-item span { color: var(--muted); font-size: 0.78rem; }
 .config-backup-empty { border: 2px dashed color-mix(in srgb, var(--line) 45%, transparent); border-radius: 14px; color: var(--muted); padding: 1rem; }
 .config-backup-two, .config-backup-schedule-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
 .config-backup-schedule-grid { grid-template-columns: 1fr 1fr 1fr; }
@@ -7670,6 +7670,7 @@ dialog.rack-form-dialog:not([open]) {
 
 .config-backup-check { grid-template-columns: auto 1fr !important; align-items: center; }
 .config-backup-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.config-backup-restore-actions { margin-bottom: 0.25rem; }
 .config-backup-log-row { border: 2px solid var(--line); border-radius: 14px; padding: 0.65rem; display: grid; gap: 0.2rem; background: var(--phone); }
 .config-backup-log-row.success strong { color: var(--text); }
 .config-backup-log-row.error { border-color: var(--danger); }
@@ -7678,7 +7679,7 @@ dialog.rack-form-dialog:not([open]) {
   .config-backup-dialog { width: min(100vw - 20px, 760px); max-width: calc(100vw - 20px); }
   .config-backup-grid { grid-template-columns: 1fr; overflow: auto; max-height: calc(100dvh - 160px); }
   .config-backup-schedule-grid { grid-template-columns: 1fr; }
-  .config-backup-list, .config-backup-log { max-height: none; }
+  .config-backup-list, .config-backup-log, .config-backup-file-list { max-height: none; }
 }
 
 /* v97: Config Backups uses the same window sizing as Config/Themes and becomes a real mobile window. */
@@ -7812,7 +7813,8 @@ dialog.rack-form-dialog:not([open]) {
   grid-template-columns: 1fr !important;
 }
 #mobile-config-backups-body .config-backup-list,
-#mobile-config-backups-body .config-backup-log {
+#mobile-config-backups-body .config-backup-log,
+#mobile-config-backups-body .config-backup-file-list {
   max-height: none;
 }
 @media (max-width: 1100px) {
@@ -7846,4 +7848,66 @@ dialog.rack-form-dialog:not([open]) {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.6rem;
+}
+
+
+/* v101/v117: polish mobile Config Backups and restore wider desktop CLI layout. */
+#mobile-config-backups-body > .sheet-handle,
+#mobile-config-backups-body .sheet-handle {
+  display: none !important;
+}
+
+@media (max-width: 1100px) {
+  #mobile-config-backups .mobile-view-head {
+    min-height: 64px;
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+  #mobile-config-backups-body {
+    padding-top: 1.25rem !important;
+  }
+}
+
+@media (min-width: 1101px) {
+  .cli-dialog {
+    width: min(1420px, calc(100vw - 128px)) !important;
+    height: min(760px, calc(100dvh - 96px)) !important;
+    max-width: calc(100vw - 96px) !important;
+    max-height: calc(100dvh - 96px) !important;
+  }
+  .cli-shell {
+    padding: 1rem 1.1rem !important;
+    gap: 0.85rem !important;
+  }
+  .cli-main {
+    grid-template-columns: minmax(0, 1fr) minmax(330px, 390px) !important;
+    gap: 1rem !important;
+  }
+  .cli-terminal {
+    font-size: 0.86rem !important;
+    line-height: 1.5 !important;
+  }
+  .command-snippets-panel {
+    border-width: 3px !important;
+    border-radius: 18px !important;
+    padding: 0.9rem !important;
+  }
+}
+
+/* v102/v118: keep Config Backup action buttons compact like the settings buttons. */
+.config-backup-card {
+  align-content: start;
+}
+.config-backup-actions {
+  align-self: start;
+  align-items: center;
+}
+.config-backup-actions .button {
+  min-height: 44px;
+  height: auto;
+  align-self: center;
+}
+#mobile-config-backups-body .config-backup-actions .button,
+#config-backup-dialog .config-backup-actions .button {
+  min-height: 44px !important;
+  height: auto !important;
 }
