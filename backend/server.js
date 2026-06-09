@@ -18,7 +18,6 @@ const fs = require('fs');
 const app = express();
 const PORT = 3001;
 const DATA_DIR = process.env.DATA_DIR || '/data';
-const DEFAULT_LOCAL_CONFIG_BACKUP_PATH = process.env.CONFIG_BACKUP_DIR || path.join(DATA_DIR, 'config-backups');
 const DB_PATH = path.join(DATA_DIR, 'labby.json');
 
 if (!fs.existsSync(DATA_DIR)) {
@@ -42,21 +41,18 @@ const crypto = require('crypto');
 
 function readDb() {
   try {
-    if (!fs.existsSync(DB_PATH)) return { items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], configBackups: [], configBackupLogs: [] };
+    if (!fs.existsSync(DB_PATH)) return { items: [], locations: [], racks: [], agentKeys: [], agentStatus: {} };
     const raw = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
-    if (Array.isArray(raw)) return { items: raw, locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], configBackups: [], configBackupLogs: [] };
+    if (Array.isArray(raw)) return { items: raw, locations: [], racks: [], agentKeys: [], agentStatus: {} };
     return {
       items: Array.isArray(raw.items) ? raw.items : [],
       locations: Array.isArray(raw.locations) ? raw.locations : [],
       racks: Array.isArray(raw.racks) ? raw.racks : [],
       agentKeys: Array.isArray(raw.agentKeys) ? raw.agentKeys : [],
       agentStatus: raw.agentStatus && typeof raw.agentStatus === 'object' ? raw.agentStatus : {},
-      commandSnippets: Array.isArray(raw.commandSnippets) ? raw.commandSnippets : [],
-      configBackups: Array.isArray(raw.configBackups) ? raw.configBackups : [],
-      configBackupLogs: Array.isArray(raw.configBackupLogs) ? raw.configBackupLogs : [],
     };
   } catch {
-    return { items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], configBackups: [], configBackupLogs: [] };
+    return { items: [], locations: [], racks: [], agentKeys: [], agentStatus: {} };
   }
 }
 
@@ -68,9 +64,6 @@ function writeDb(data) {
     racks: Array.isArray(data.racks) ? data.racks : existing.racks,
     agentKeys: Array.isArray(data.agentKeys) ? data.agentKeys : existing.agentKeys,
     agentStatus: data.agentStatus && typeof data.agentStatus === 'object' ? data.agentStatus : existing.agentStatus,
-    commandSnippets: Array.isArray(data.commandSnippets) ? data.commandSnippets : existing.commandSnippets,
-    configBackups: Array.isArray(data.configBackups) ? data.configBackups : existing.configBackups,
-    configBackupLogs: Array.isArray(data.configBackupLogs) ? data.configBackupLogs : existing.configBackupLogs,
   };
   fs.writeFileSync(DB_PATH, JSON.stringify(next), 'utf8');
   return next;
@@ -438,12 +431,12 @@ app.post('/api/ssh/:id/close', (req, res) => {
 
 app.get('/api/data', (req, res) => {
   try {
-    if (!fs.existsSync(DB_PATH)) return res.json({ items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], configBackups: [], configBackupLogs: [] });
+    if (!fs.existsSync(DB_PATH)) return res.json({ items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [] });
     const raw = fs.readFileSync(DB_PATH, 'utf8');
     const parsed = JSON.parse(raw);
     // Backward-compat: if stored as a bare array, wrap it
     if (Array.isArray(parsed)) {
-      return res.json({ items: parsed, locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], configBackups: [], configBackupLogs: [] });
+      return res.json({ items: parsed, locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [] });
     }
     const data = {
       items: Array.isArray(parsed.items) ? parsed.items : [],
@@ -452,12 +445,10 @@ app.get('/api/data', (req, res) => {
       agentKeys: Array.isArray(parsed.agentKeys) ? parsed.agentKeys : [],
       agentStatus: parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {},
       commandSnippets: Array.isArray(parsed.commandSnippets) ? parsed.commandSnippets : [],
-      configBackups: Array.isArray(parsed.configBackups) ? parsed.configBackups : [],
-      configBackupLogs: Array.isArray(parsed.configBackupLogs) ? parsed.configBackupLogs : [],
     };
     res.json(data);
   } catch {
-    res.json({ items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], configBackups: [], configBackupLogs: [] });
+    res.json({ items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [] });
   }
 });
 
@@ -466,7 +457,7 @@ app.post('/api/data', (req, res) => {
   let data;
   if (Array.isArray(body)) {
     // Legacy bare-array format: preserve locations/racks from disk if they exist
-    let existing = { locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], configBackups: [], configBackupLogs: [] };
+    let existing = { locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [] };
     try {
       if (fs.existsSync(DB_PATH)) {
         const raw = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
@@ -475,13 +466,11 @@ app.post('/api/data', (req, res) => {
           existing.racks = raw.racks || [];
           existing.agentKeys = raw.agentKeys || [];
           existing.agentStatus = raw.agentStatus || {};
-          existing.commandSnippets = raw.commandSnippets || [];
-          existing.configBackups = raw.configBackups || [];
-          existing.configBackupLogs = raw.configBackupLogs || [];
+          existing.commandSnippets = Array.isArray(raw.commandSnippets) ? raw.commandSnippets : [];
         }
       }
     } catch {}
-    data = { items: body, locations: existing.locations, racks: existing.racks, agentKeys: existing.agentKeys, agentStatus: existing.agentStatus, commandSnippets: existing.commandSnippets, configBackups: existing.configBackups, configBackupLogs: existing.configBackupLogs };
+    data = { items: body, locations: existing.locations, racks: existing.racks, agentKeys: existing.agentKeys, agentStatus: existing.agentStatus, commandSnippets: existing.commandSnippets };
   } else if (body && typeof body === 'object') {
     data = {
       items: Array.isArray(body.items) ? body.items : [],
@@ -490,8 +479,6 @@ app.post('/api/data', (req, res) => {
       agentKeys: Array.isArray(body.agentKeys) ? body.agentKeys : (readDb().agentKeys || []),
       agentStatus: body.agentStatus && typeof body.agentStatus === 'object' ? body.agentStatus : (readDb().agentStatus || {}),
       commandSnippets: Array.isArray(body.commandSnippets) ? body.commandSnippets : (readDb().commandSnippets || []),
-      configBackups: Array.isArray(body.configBackups) ? body.configBackups.map(sanitizeBackupConfig) : (readDb().configBackups || []),
-      configBackupLogs: Array.isArray(body.configBackupLogs) ? body.configBackupLogs : (readDb().configBackupLogs || []),
     };
   } else {
     return res.status(400).json({ error: 'Body must be a JSON array or { items, locations, racks } object.' });
@@ -499,247 +486,6 @@ app.post('/api/data', (req, res) => {
   fs.writeFileSync(DB_PATH, JSON.stringify(data), 'utf8');
   res.json({ ok: true, count: data.items.length });
 });
-
-
-function writeDb(data) {
-  const existing = readDb();
-  const next = {
-    items: Array.isArray(data.items) ? data.items : existing.items,
-    locations: Array.isArray(data.locations) ? data.locations : existing.locations,
-    racks: Array.isArray(data.racks) ? data.racks : existing.racks,
-    agentKeys: Array.isArray(data.agentKeys) ? data.agentKeys : existing.agentKeys,
-    agentStatus: data.agentStatus && typeof data.agentStatus === 'object' ? data.agentStatus : existing.agentStatus,
-    commandSnippets: Array.isArray(data.commandSnippets) ? data.commandSnippets : existing.commandSnippets,
-    configBackups: Array.isArray(data.configBackups) ? data.configBackups : existing.configBackups,
-    configBackupLogs: Array.isArray(data.configBackupLogs) ? data.configBackupLogs : existing.configBackupLogs,
-  };
-  fs.writeFileSync(DB_PATH, JSON.stringify(next), 'utf8');
-  return next;
-}
-
-function sanitizeBackupConfig(entry = {}) {
-  const now = new Date().toISOString();
-  return {
-    id: String(entry.id || (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`)),
-    name: String(entry.name || 'Config backup').trim() || 'Config backup',
-    targetType: ['local', 'smb', 'nfs'].includes(entry.targetType) ? entry.targetType : 'local',
-    targetPath: String(entry.targetPath || (entry.targetType === 'local' ? DEFAULT_LOCAL_CONFIG_BACKUP_PATH : '')).trim(),
-    frequency: ['hourly', 'daily', 'weekly'].includes(entry.frequency) ? entry.frequency : 'daily',
-    weekday: Math.max(0, Math.min(6, parseInt(entry.weekday ?? 1, 10) || 0)),
-    time: String(entry.time || '02:00').slice(0, 5),
-    retentionMode: ['5', '10', 'custom'].includes(String(entry.retentionMode || '')) ? String(entry.retentionMode) : (parseInt(entry.retentionCount || entry.keepLast || 5, 10) === 10 ? '10' : (parseInt(entry.retentionCount || entry.keepLast || 5, 10) === 5 ? '5' : 'custom')),
-    retentionCount: Math.max(1, Math.min(999, parseInt(entry.retentionCount || entry.keepLast || 5, 10) || 5)),
-    enabled: entry.enabled !== false,
-    lastRunAt: entry.lastRunAt || null,
-    nextRunAt: entry.nextRunAt || null,
-    createdAt: entry.createdAt || now,
-    updatedAt: now,
-  };
-}
-
-function nextBackupRun(config, from = new Date()) {
-  const base = new Date(from);
-  if (config.frequency === 'hourly') return new Date(base.getTime() + 60 * 60 * 1000).toISOString();
-  const [h, m] = String(config.time || '02:00').split(':').map(n => parseInt(n, 10));
-  const next = new Date(base);
-  next.setHours(Number.isFinite(h) ? h : 2, Number.isFinite(m) ? m : 0, 0, 0);
-  if (config.frequency === 'weekly') {
-    const wantedDay = Math.max(0, Math.min(6, parseInt(config.weekday ?? 1, 10) || 0));
-    while (next.getDay() !== wantedDay || next <= base) next.setDate(next.getDate() + 1);
-  } else if (next <= base) {
-    next.setDate(next.getDate() + 1);
-  }
-  return next.toISOString();
-}
-
-function addBackupLog(data, log) {
-  data.configBackupLogs = Array.isArray(data.configBackupLogs) ? data.configBackupLogs : [];
-  data.configBackupLogs.unshift({ id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`, at: new Date().toISOString(), ...log });
-  data.configBackupLogs = data.configBackupLogs.slice(0, 80);
-}
-
-
-function pruneConfigBackupFiles(dir, keepLast) {
-  const keep = Math.max(1, Math.min(999, parseInt(keepLast, 10) || 5));
-  let files = [];
-  try {
-    files = fs.readdirSync(dir)
-      .filter(name => /^labby-config-.*\.json$/i.test(name))
-      .map(name => {
-        const full = path.join(dir, name);
-        let stat = null;
-        try { stat = fs.statSync(full); } catch {}
-        return stat && stat.isFile() ? { full, mtime: stat.mtimeMs } : null;
-      })
-      .filter(Boolean)
-      .sort((a, b) => b.mtime - a.mtime);
-  } catch { return; }
-  files.slice(keep).forEach(file => {
-    try { fs.unlinkSync(file.full); } catch {}
-  });
-}
-
-function performConfigBackup(config) {
-  const data = readDb();
-  const sanitized = sanitizeBackupConfig(config);
-  if (sanitized.targetType !== 'local' && !sanitized.targetPath) throw new Error('Target path is required.');
-  const backupPath = sanitized.targetType === 'local' ? DEFAULT_LOCAL_CONFIG_BACKUP_PATH : sanitized.targetPath;
-  const dir = path.resolve(backupPath);
-  fs.mkdirSync(dir, { recursive: true });
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const file = path.join(dir, `labby-config-${stamp}.json`);
-  const payload = { ...data, exportedAt: new Date().toISOString(), app: 'Labby', schemaVersion: 4 };
-  fs.writeFileSync(file, JSON.stringify(payload, null, 2), 'utf8');
-  pruneConfigBackupFiles(dir, sanitized.retentionCount);
-  return file;
-}
-
-
-function configBackupDirectory(config) {
-  const sanitized = sanitizeBackupConfig(config);
-  if (sanitized.targetType !== 'local' && !sanitized.targetPath) throw new Error('Target path is required.');
-  return path.resolve(sanitized.targetType === 'local' ? DEFAULT_LOCAL_CONFIG_BACKUP_PATH : sanitized.targetPath);
-}
-
-function listConfigBackupFiles(config) {
-  const dir = configBackupDirectory(config);
-  if (!fs.existsSync(dir)) return [];
-  return fs.readdirSync(dir)
-    .filter(name => /^labby-config-.*\.json$/i.test(name))
-    .map(name => {
-      const full = path.join(dir, name);
-      let stat = null;
-      try { stat = fs.statSync(full); } catch {}
-      return stat && stat.isFile() ? { name, size: stat.size, mtime: stat.mtime.toISOString() } : null;
-    })
-    .filter(Boolean)
-    .sort((a, b) => Date.parse(b.mtime || 0) - Date.parse(a.mtime || 0));
-}
-
-function safeConfigBackupFilePath(config, fileName) {
-  const name = String(fileName || '').trim();
-  if (!/^labby-config-.*\.json$/i.test(name) || name.includes('/') || name.includes('\\')) {
-    throw new Error('Invalid backup file name.');
-  }
-  const dir = configBackupDirectory(config);
-  const full = path.resolve(dir, name);
-  if (!full.startsWith(dir + path.sep)) throw new Error('Invalid backup file path.');
-  if (!fs.existsSync(full) || !fs.statSync(full).isFile()) throw new Error('Backup file not found.');
-  return full;
-}
-
-function normalizeRestoredDb(payload, fallback) {
-  return {
-    items: Array.isArray(payload.items) ? payload.items : [],
-    locations: Array.isArray(payload.locations) ? payload.locations : [],
-    racks: Array.isArray(payload.racks) ? payload.racks : [],
-    agentKeys: Array.isArray(payload.agentKeys) ? payload.agentKeys : (Array.isArray(fallback.agentKeys) ? fallback.agentKeys : []),
-    agentStatus: payload.agentStatus && typeof payload.agentStatus === 'object' ? payload.agentStatus : (fallback.agentStatus || {}),
-    commandSnippets: Array.isArray(payload.commandSnippets) ? payload.commandSnippets : [],
-    configBackups: Array.isArray(payload.configBackups) ? payload.configBackups.map(sanitizeBackupConfig) : (Array.isArray(fallback.configBackups) ? fallback.configBackups : []),
-    configBackupLogs: Array.isArray(payload.configBackupLogs) ? payload.configBackupLogs : (Array.isArray(fallback.configBackupLogs) ? fallback.configBackupLogs : []),
-  };
-}
-
-app.get('/api/config-backups', (req, res) => {
-  const data = readDb();
-  res.json({ configs: Array.isArray(data.configBackups) ? data.configBackups : [], logs: Array.isArray(data.configBackupLogs) ? data.configBackupLogs : [] });
-});
-
-app.post('/api/config-backups', (req, res) => {
-  const data = readDb();
-  const incoming = sanitizeBackupConfig(req.body || {});
-  data.configBackups = Array.isArray(data.configBackups) ? data.configBackups : [];
-  const idx = data.configBackups.findIndex(b => b.id === incoming.id);
-  incoming.nextRunAt = incoming.enabled ? nextBackupRun(incoming) : null;
-  if (idx >= 0) data.configBackups[idx] = { ...data.configBackups[idx], ...incoming };
-  else data.configBackups.push(incoming);
-  writeDb(data);
-  res.json({ ok: true, config: incoming });
-});
-
-app.delete('/api/config-backups/:id', (req, res) => {
-  const data = readDb();
-  data.configBackups = (Array.isArray(data.configBackups) ? data.configBackups : []).filter(b => b.id !== req.params.id);
-  writeDb(data);
-  res.json({ ok: true });
-});
-
-
-app.get('/api/config-backups/:id/files', (req, res) => {
-  const data = readDb();
-  const configs = Array.isArray(data.configBackups) ? data.configBackups : [];
-  const config = configs.find(b => b.id === req.params.id);
-  if (!config) return res.status(404).json({ error: 'Backup config not found' });
-  try {
-    res.json({ files: listConfigBackupFiles(config) });
-  } catch (err) {
-    res.status(500).json({ error: err.message || 'Could not read backup files' });
-  }
-});
-
-app.post('/api/config-backups/:id/restore', (req, res) => {
-  const current = readDb();
-  const configs = Array.isArray(current.configBackups) ? current.configBackups : [];
-  const config = configs.find(b => b.id === req.params.id);
-  if (!config) return res.status(404).json({ error: 'Backup config not found' });
-  try {
-    const fileName = String((req.body || {}).fileName || '').trim();
-    const full = safeConfigBackupFilePath(config, fileName);
-    const payload = JSON.parse(fs.readFileSync(full, 'utf8'));
-    const restored = normalizeRestoredDb(payload, current);
-    addBackupLog(restored, { configId: config.id, configName: config.name, status: 'success', message: `Restored ${fileName}` });
-    writeDb(restored);
-    res.json({ ok: true, file: full });
-  } catch (err) {
-    addBackupLog(current, { configId: config.id, configName: config.name, status: 'error', message: err.message || 'Restore failed' });
-    writeDb(current);
-    res.status(500).json({ error: err.message || 'Restore failed' });
-  }
-});
-
-app.post('/api/config-backups/:id/run', (req, res) => {
-  const data = readDb();
-  const configs = Array.isArray(data.configBackups) ? data.configBackups : [];
-  const config = configs.find(b => b.id === req.params.id);
-  if (!config) return res.status(404).json({ error: 'Backup config not found' });
-  try {
-    const file = performConfigBackup(config);
-    config.lastRunAt = new Date().toISOString();
-    config.nextRunAt = config.enabled ? nextBackupRun(config) : null;
-    addBackupLog(data, { configId: config.id, configName: config.name, status: 'success', message: `${file} · kept last ${sanitizeBackupConfig(config).retentionCount}` });
-    writeDb(data);
-    res.json({ ok: true, file });
-  } catch (err) {
-    addBackupLog(data, { configId: config.id, configName: config.name, status: 'error', message: err.message || 'Backup failed' });
-    writeDb(data);
-    res.status(500).json({ error: err.message || 'Backup failed' });
-  }
-});
-
-setInterval(() => {
-  const data = readDb();
-  const configs = Array.isArray(data.configBackups) ? data.configBackups : [];
-  let changed = false;
-  const now = Date.now();
-  configs.forEach((config) => {
-    if (!config.enabled) return;
-    if (!config.nextRunAt) { config.nextRunAt = nextBackupRun(config); changed = true; return; }
-    if (Date.parse(config.nextRunAt) > now) return;
-    try {
-      const file = performConfigBackup(config);
-      config.lastRunAt = new Date().toISOString();
-      config.nextRunAt = nextBackupRun(config);
-      addBackupLog(data, { configId: config.id, configName: config.name, status: 'success', message: `${file} · kept last ${sanitizeBackupConfig(config).retentionCount}` });
-      changed = true;
-    } catch (err) {
-      config.nextRunAt = nextBackupRun(config);
-      addBackupLog(data, { configId: config.id, configName: config.name, status: 'error', message: err.message || 'Backup failed' });
-      changed = true;
-    }
-  });
-  if (changed) writeDb(data);
-}, 60 * 1000);
 
 app.get('/api/health', (req, res) => {
   res.json({ ok: true });
