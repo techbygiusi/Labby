@@ -431,12 +431,12 @@ app.post('/api/ssh/:id/close', (req, res) => {
 
 app.get('/api/data', (req, res) => {
   try {
-    if (!fs.existsSync(DB_PATH)) return res.json({ items: [], locations: [], racks: [], agentKeys: [], agentStatus: {} });
+    if (!fs.existsSync(DB_PATH)) return res.json({ items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [] });
     const raw = fs.readFileSync(DB_PATH, 'utf8');
     const parsed = JSON.parse(raw);
     // Backward-compat: if stored as a bare array, wrap it
     if (Array.isArray(parsed)) {
-      return res.json({ items: parsed, locations: [], racks: [], agentKeys: [], agentStatus: {} });
+      return res.json({ items: parsed, locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [] });
     }
     const data = {
       items: Array.isArray(parsed.items) ? parsed.items : [],
@@ -444,10 +444,11 @@ app.get('/api/data', (req, res) => {
       racks: Array.isArray(parsed.racks) ? parsed.racks : [],
       agentKeys: Array.isArray(parsed.agentKeys) ? parsed.agentKeys : [],
       agentStatus: parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {},
+      commandSnippets: Array.isArray(parsed.commandSnippets) ? parsed.commandSnippets : [],
     };
     res.json(data);
   } catch {
-    res.json({ items: [], locations: [], racks: [], agentKeys: [], agentStatus: {} });
+    res.json({ items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [] });
   }
 });
 
@@ -456,7 +457,7 @@ app.post('/api/data', (req, res) => {
   let data;
   if (Array.isArray(body)) {
     // Legacy bare-array format: preserve locations/racks from disk if they exist
-    let existing = { locations: [], racks: [], agentKeys: [], agentStatus: {} };
+    let existing = { locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [] };
     try {
       if (fs.existsSync(DB_PATH)) {
         const raw = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
@@ -465,10 +466,11 @@ app.post('/api/data', (req, res) => {
           existing.racks = raw.racks || [];
           existing.agentKeys = raw.agentKeys || [];
           existing.agentStatus = raw.agentStatus || {};
+          existing.commandSnippets = Array.isArray(raw.commandSnippets) ? raw.commandSnippets : [];
         }
       }
     } catch {}
-    data = { items: body, locations: existing.locations, racks: existing.racks, agentKeys: existing.agentKeys, agentStatus: existing.agentStatus };
+    data = { items: body, locations: existing.locations, racks: existing.racks, agentKeys: existing.agentKeys, agentStatus: existing.agentStatus, commandSnippets: existing.commandSnippets };
   } else if (body && typeof body === 'object') {
     data = {
       items: Array.isArray(body.items) ? body.items : [],
@@ -476,6 +478,7 @@ app.post('/api/data', (req, res) => {
       racks: Array.isArray(body.racks) ? body.racks : [],
       agentKeys: Array.isArray(body.agentKeys) ? body.agentKeys : (readDb().agentKeys || []),
       agentStatus: body.agentStatus && typeof body.agentStatus === 'object' ? body.agentStatus : (readDb().agentStatus || {}),
+      commandSnippets: Array.isArray(body.commandSnippets) ? body.commandSnippets : (readDb().commandSnippets || []),
     };
   } else {
     return res.status(400).json({ error: 'Body must be a JSON array or { items, locations, racks } object.' });

@@ -108,6 +108,19 @@ const mobileCliCopy = document.getElementById('mobile-cli-copy');
 const mobileCliPaste = document.getElementById('mobile-cli-paste');
 const mobileCliClearKey = document.getElementById('mobile-cli-clear-key');
 const mobileCliClose = document.getElementById('mobile-cli-close');
+const cliCommandSearch = document.getElementById('cli-command-search');
+const cliCommandList = document.getElementById('cli-command-list');
+const cliCommandAdd = document.getElementById('cli-command-add');
+const cliCommandEdit = document.getElementById('cli-command-edit');
+const cliCommandDialog = document.getElementById('cli-command-dialog');
+const cliCommandDialogTitle = document.getElementById('cli-command-dialog-title');
+const cliCommandName = document.getElementById('cli-command-name');
+const cliCommandBody = document.getElementById('cli-command-body');
+const cliCommandDescription = document.getElementById('cli-command-description');
+const cliCommandCopy = document.getElementById('cli-command-copy');
+const cliCommandSave = document.getElementById('cli-command-save');
+const cliCommandCancel = document.getElementById('cli-command-cancel');
+
 let cliSession = null;
 let cliPollTimer = null;
 let cliActiveItem = null;
@@ -150,6 +163,9 @@ let selectedNetworkColor = networkPalette[0];
 let items = [];
 let locations = [];
 let racks = [];
+let commandSnippets = [];
+let selectedCommandSnippetId = null;
+let editingCommandSnippetId = null;
 let toastTimer = null;
 let treeViewMode = 'tree';
 let lastTypeSelection = typeSelect.value;
@@ -201,6 +217,7 @@ async function loadItemsFromAPI() {
       racks: Array.isArray(data.racks) ? data.racks : [],
       agentStatus: data.agentStatus && typeof data.agentStatus === 'object' ? data.agentStatus : {},
       agentKeys: Array.isArray(data.agentKeys) ? data.agentKeys : [],
+      commandSnippets: Array.isArray(data.commandSnippets) ? data.commandSnippets : [],
     };
   } catch (err) {
     console.warn('Labby: API not reachable, falling back to localStorage.', err);
@@ -210,9 +227,9 @@ async function loadItemsFromAPI() {
       const lsItems = Array.isArray(parsed) ? parsed : (parsed.items || []);
       const lsLocations = Array.isArray(parsed) ? [] : (parsed.locations || []);
       const lsRacks = Array.isArray(parsed) ? [] : (parsed.racks || []);
-      return { items: lsItems, locations: lsLocations, racks: lsRacks, agentStatus: parsed.agentStatus || {} };
+      return { items: lsItems, locations: lsLocations, racks: lsRacks, agentStatus: parsed.agentStatus || {}, commandSnippets: Array.isArray(parsed.commandSnippets) ? parsed.commandSnippets : [] };
     } catch {
-      return { items: [], locations: [], racks: [] };
+      return { items: [], locations: [], racks: [], commandSnippets: [] };
     }
   }
 }
@@ -223,6 +240,7 @@ async function saveItemsToAPI(itemList) {
     locations: locations,
     racks: racks,
     agentStatus: liveStatusData,
+    commandSnippets: commandSnippets,
   };
   if (Array.isArray(importedAgentKeysForSave)) payload.agentKeys = importedAgentKeysForSave;
   try {
@@ -259,6 +277,7 @@ applyTypeVisibility();
   locations = loaded.locations || [];
   racks = loaded.racks || [];
   liveStatusData = loaded.agentStatus || {};
+  commandSnippets = normalizeCommandSnippets(loaded.commandSnippets || []);
   initAgentApiPanel();
   render();
   startPolling();
@@ -777,7 +796,7 @@ document.getElementById('agent-api-close')?.addEventListener('click', () => {
 
 clearAll.addEventListener('click', async () => {
   if (!confirm('Delete all resources? This also clears all rack, location, custom theme and API key data.')) return;
-  items = []; locations = []; racks = [];
+  items = []; locations = []; racks = []; commandSnippets = []; selectedCommandSnippetId = null;
   localStorage.removeItem('labby-custom-themes');
   await clearAllAgentKeys();
   stopEditing();
@@ -989,6 +1008,7 @@ async function buildConfigExport() {
     locations,
     racks,
     agentStatus: liveStatusData,
+    commandSnippets: commandSnippets,
     encryptedSecrets: {
       credentials: encryptedCredentials,
       agentKeys: encryptedAgentKeys,
@@ -1061,6 +1081,7 @@ async function applyImportedConfig(parsed) {
   items     = importedItems;
   locations = Array.isArray(parsed.locations) ? parsed.locations : [];
   racks     = Array.isArray(parsed.racks) ? parsed.racks : [];
+  commandSnippets = normalizeCommandSnippets(parsed.commandSnippets || []);
   liveStatusData = parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {};
 
   if (Array.isArray(parsed.customThemes)) importCustomThemes(parsed.customThemes);
@@ -1287,6 +1308,132 @@ function initAgentApiPanel() {
     });
   }
   renderAgentKeyLists();
+}
+
+
+function normalizeCommandSnippets(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((entry) => ({
+      id: String(entry?.id || `cmd-${crypto?.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2)}`),
+      name: String(entry?.name || '').trim(),
+      command: String(entry?.command || '').replace(/\r\n/g, '\n'),
+      description: String(entry?.description || '').trim(),
+      createdAt: entry?.createdAt || new Date().toISOString(),
+      updatedAt: entry?.updatedAt || entry?.createdAt || new Date().toISOString(),
+    }))
+    .filter((entry) => entry.name || entry.command || entry.description);
+}
+
+function commandSnippetById(id) {
+  return commandSnippets.find((entry) => entry.id === id) || null;
+}
+
+function renderCommandSnippets() {
+  if (!cliCommandList) return;
+  const query = (cliCommandSearch?.value || '').trim().toLowerCase();
+  const filtered = commandSnippets.filter((entry) => {
+    const haystack = `${entry.name} ${entry.command} ${entry.description}`.toLowerCase();
+    return !query || haystack.includes(query);
+  });
+  cliCommandList.innerHTML = '';
+  if (!filtered.length) {
+    const empty = document.createElement('div');
+    empty.className = 'cli-command-empty';
+    empty.textContent = query ? 'No matching commands.' : 'No commands saved yet.';
+    cliCommandList.appendChild(empty);
+  } else {
+    filtered.forEach((entry) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'cli-command-item';
+      btn.dataset.commandId = entry.id;
+      btn.classList.toggle('active', entry.id === selectedCommandSnippetId);
+      btn.innerHTML = `
+        <span class="cli-command-item-name">${escapeHtml(entry.name || 'Untitled command')}</span>
+        <span class="cli-command-item-command">${escapeHtml(entry.command || '')}</span>
+        ${entry.description ? `<span class="cli-command-item-description">${escapeHtml(entry.description)}</span>` : ''}
+      `;
+      btn.addEventListener('click', () => {
+        selectedCommandSnippetId = entry.id;
+        const input = activeCliEls()?.input || cliInput || mobileCliInput;
+        if (input) {
+          input.value = entry.command || '';
+          input.selectionStart = input.value.length;
+          input.selectionEnd = input.value.length;
+          autosizeCliInput(input);
+          input.focus();
+        }
+        renderCommandSnippets();
+      });
+      cliCommandList.appendChild(btn);
+    });
+  }
+  if (cliCommandEdit) cliCommandEdit.disabled = !selectedCommandSnippetId;
+}
+
+function openCommandSnippetDialog(mode = 'new') {
+  const existing = mode === 'edit' ? commandSnippetById(selectedCommandSnippetId) : null;
+  editingCommandSnippetId = existing?.id || null;
+  if (cliCommandDialogTitle) cliCommandDialogTitle.textContent = existing ? 'Edit command' : 'New command';
+  if (cliCommandName) cliCommandName.value = existing?.name || '';
+  if (cliCommandBody) cliCommandBody.value = existing?.command || '';
+  if (cliCommandDescription) cliCommandDescription.value = existing?.description || '';
+  if (cliCommandDialog && !cliCommandDialog.open) cliCommandDialog.showModal();
+  window.setTimeout(() => (cliCommandName || cliCommandBody)?.focus(), 40);
+}
+
+async function saveCommandSnippetFromDialog() {
+  const name = (cliCommandName?.value || '').trim();
+  const command = (cliCommandBody?.value || '').replace(/\r\n/g, '\n');
+  const description = (cliCommandDescription?.value || '').trim();
+  if (!name && !command) {
+    showToast('Command name or command is required.', 'error');
+    return;
+  }
+  const now = new Date().toISOString();
+  if (editingCommandSnippetId) {
+    commandSnippets = commandSnippets.map((entry) => entry.id === editingCommandSnippetId
+      ? { ...entry, name, command, description, updatedAt: now }
+      : entry);
+    selectedCommandSnippetId = editingCommandSnippetId;
+  } else {
+    const id = crypto?.randomUUID?.() || `cmd-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    commandSnippets.push({ id, name, command, description, createdAt: now, updatedAt: now });
+    selectedCommandSnippetId = id;
+  }
+  await saveItems();
+  renderCommandSnippets();
+  cliCommandDialog?.close();
+  showToast('Command saved.');
+}
+
+async function copyCommandSnippetFromDialog() {
+  const text = cliCommandBody?.value || '';
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('Command copied.');
+  } catch {
+    showToast('Could not copy command.', 'error');
+  }
+}
+
+function initCommandSnippetPanel() {
+  renderCommandSnippets();
+  cliCommandSearch?.addEventListener('input', renderCommandSnippets);
+  cliCommandAdd?.addEventListener('click', () => openCommandSnippetDialog('new'));
+  cliCommandEdit?.addEventListener('click', () => {
+    if (!selectedCommandSnippetId) return;
+    openCommandSnippetDialog('edit');
+  });
+  cliCommandSave?.addEventListener('click', saveCommandSnippetFromDialog);
+  cliCommandCopy?.addEventListener('click', copyCommandSnippetFromDialog);
+  cliCommandCancel?.addEventListener('click', () => cliCommandDialog?.close());
+  cliCommandDialog?.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    cliCommandDialog.close();
+  });
 }
 
 
@@ -4701,7 +4848,7 @@ if (importFileMobile) importFileMobile.addEventListener('change', async (event) 
 const clearAllMobile = document.getElementById('clear-all-mobile');
 if (clearAllMobile) clearAllMobile.addEventListener('click', async () => {
   if (!confirm('Delete all resources? This also clears all rack, location, custom theme and API key data.')) return;
-  items = []; locations = []; racks = [];
+  items = []; locations = []; racks = []; commandSnippets = []; selectedCommandSnippetId = null;
   localStorage.removeItem('labby-custom-themes');
   await clearAllAgentKeys();
   stopEditing();
@@ -6227,6 +6374,7 @@ initMobileDialogSheets();
 updateRackSelectedComponentUI();
 
 // Theme initialization moved after definitions
-try { initTheme(); } catch(e){ console.error(e); }
+try { initTheme();
+initCommandSnippetPanel(); } catch(e){ console.error(e); }
 
 

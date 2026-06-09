@@ -379,23 +379,58 @@
 
 
     <dialog id="cli-dialog" class="cli-dialog" aria-labelledby="cli-title">
-      <div class="cli-shell">
-        <div class="cli-head">
-          <div>
-            <h3 id="cli-title">CLI</h3>
-            <p id="cli-subtitle" class="cli-subtitle">SSH session</p>
+      <div class="cli-shell cli-shell-desktop">
+        <div class="cli-main">
+          <div class="cli-head">
+            <div>
+              <h3 id="cli-title">CLI</h3>
+              <p id="cli-subtitle" class="cli-subtitle">SSH session</p>
+            </div>
+          </div>
+          <div id="cli-terminal" class="cli-terminal" tabindex="0" aria-label="SSH terminal output"></div>
+          <div class="cli-input-row">
+            <textarea id="cli-input" rows="1" autocomplete="off" spellcheck="false" placeholder="Type command and press Enter..."></textarea>
+            <button id="cli-send" class="button" type="button">Send</button>
+          </div>
+          <div class="cli-footer">
+            <button id="cli-clear-key" class="button secondary" type="button">Clear SSH key</button>
+            <button id="cli-copy" class="button secondary" type="button">Copy output</button>
+            <button id="cli-paste" class="button secondary" type="button">Paste clipboard</button>
+            <button id="cli-close" class="button secondary" type="button">✕ Close SSH</button>
           </div>
         </div>
-        <div id="cli-terminal" class="cli-terminal" tabindex="0" aria-label="SSH terminal output"></div>
-        <div class="cli-input-row">
-          <textarea id="cli-input" rows="1" autocomplete="off" spellcheck="false" placeholder="Type command and press Enter..."></textarea>
-          <button id="cli-send" class="button" type="button">Send</button>
-        </div>
-        <div class="cli-footer">
-          <button id="cli-clear-key" class="button secondary" type="button">Clear SSH key</button>
-          <button id="cli-copy" class="button secondary" type="button">Copy output</button>
-          <button id="cli-paste" class="button secondary" type="button">Paste clipboard</button>
-          <button id="cli-close" class="button secondary" type="button">✕ Close SSH</button>
+        <aside class="cli-command-panel" aria-label="Saved commands">
+          <div class="cli-command-head">
+            <h3>Commands</h3>
+            <p>Reusable commands for every CLI session.</p>
+          </div>
+          <input id="cli-command-search" class="cli-command-search" type="search" placeholder="Search commands..." autocomplete="off" />
+          <div id="cli-command-list" class="cli-command-list" role="list"></div>
+          <div class="cli-command-actions">
+            <button id="cli-command-edit" class="button secondary" type="button">Edit</button>
+            <button id="cli-command-add" class="button" type="button">New command</button>
+          </div>
+        </aside>
+      </div>
+    </dialog>
+
+    
+    <dialog id="cli-command-dialog" class="cli-command-dialog" aria-labelledby="cli-command-dialog-title">
+      <div class="cli-command-card">
+        <h3 id="cli-command-dialog-title">Command</h3>
+        <label>Name
+          <input id="cli-command-name" type="text" placeholder="e.g. Docker compose rebuild" autocomplete="off" />
+        </label>
+        <label>Command
+          <textarea id="cli-command-body" rows="6" placeholder="docker compose up --build -d" spellcheck="false"></textarea>
+        </label>
+        <label>Description
+          <textarea id="cli-command-description" rows="3" placeholder="Short note for this command"></textarea>
+        </label>
+        <div class="cli-command-dialog-actions">
+          <button id="cli-command-copy" class="button secondary" type="button">Copy command</button>
+          <button id="cli-command-save" class="button" type="button">Save</button>
+          <button id="cli-command-cancel" class="button secondary" type="button">Close</button>
         </div>
       </div>
     </dialog>
