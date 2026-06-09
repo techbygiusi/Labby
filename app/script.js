@@ -111,8 +111,8 @@ const mobileCliClose = document.getElementById('mobile-cli-close');
 let cliSession = null;
 let cliPollTimer = null;
 let cliActiveItem = null;
-const cliCommandHistoryByKey = new Map();
-let cliHistoryKey = '';
+const cliHistoryByTarget = new Map();
+let cliHistoryTarget = 'default';
 let cliHistoryIndex = -1;
 let cliHistoryDraft = '';
 let credentialFields = null;
@@ -430,7 +430,7 @@ document.addEventListener('click', (event) => {
 [cliSend, mobileCliSend].filter(Boolean).forEach((btn) => btn.addEventListener('click', () => sendCliInput()));
 [cliInput, mobileCliInput].filter(Boolean).forEach((input) => {
   input.addEventListener('input', () => {
-    cliHistoryIndex = currentCliHistory().length;
+    cliHistoryIndex = cliHistoryList().length;
     cliHistoryDraft = input.value || '';
     autosizeCliInput(input);
   });
@@ -449,7 +449,6 @@ document.addEventListener('click', (event) => {
     }
     if (event.key !== 'Enter') return;
     if (event.shiftKey) {
-      // Native textarea behavior: insert a newline.
       window.setTimeout(() => autosizeCliInput(input), 0);
       return;
     }
@@ -457,6 +456,20 @@ document.addEventListener('click', (event) => {
     sendCliInput();
   });
 });
+
+document.addEventListener('keydown', (event) => {
+  if (!isCliOpen()) return;
+  if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+  const input = activeCliInput();
+  if (!input) return;
+  if (document.activeElement !== input) {
+    event.preventDefault();
+    event.stopPropagation();
+    input.focus();
+    applyCliHistory(input, event.key === 'ArrowUp' ? -1 : 1);
+  }
+}, true);
+
 [cliClearKey, mobileCliClearKey].filter(Boolean).forEach((btn) => btn.addEventListener('click', clearCliKnownHostAndReconnect));
 [cliCopy, mobileCliCopy].filter(Boolean).forEach((btn) => btn.addEventListener('click', copyCliOutput));
 [cliPaste, mobileCliPaste].filter(Boolean).forEach((btn) => btn.addEventListener('click', pasteClipboardToCliInput));
@@ -2248,7 +2261,8 @@ async function openCliSession(item, options = {}) {
     if (!res.ok) throw new Error(data.error || 'Could not start SSH session.');
     cliSession = data.sessionId;
     setCliOutput(data.output || `Connected to ${target}.\n`);
-    startCliPolling();
+    window.setTimeout(() => activeCliInput()?.focus(), 60);
+  startCliPolling();
     els.input?.focus();
   } catch (err) {
     const sshUrl = username ? `ssh://${encodeURIComponent(username)}@${ip}` : `ssh://${ip}`;
@@ -2365,34 +2379,52 @@ async function pasteClipboardToCliInput() {
   }
 }
 
+function rememberCliCommand(command) {
+  const value = String(command || '').replace(/\r\n/g, '\n');
+  if (!value.trim()) return;
+  if (cliCommandHistory[cliCommandHistory.length - 1] !== value) {
+    cliCommandHistory.push(value);
+    if (cliCommandHistory.length > 100) cliCommandHistory.shift();
+  }
+  cliHistoryIndex = cliCommandHistory.length;
+  cliHistoryDraft = '';
+}
+
+function applyCliHistory(input, direction) {
+  if (!input || !cliCommandHistory.length) return;
+  if (cliHistoryIndex < 0 || cliHistoryIndex > cliCommandHistory.length) {
+    cliHistoryIndex = cliCommandHistory.length;
+  }
+  if (cliHistoryIndex === cliCommandHistory.length) {
+    cliHistoryDraft = input.value || '';
+  }
+  cliHistoryIndex += direction;
+  if (cliHistoryIndex < 0) cliHistoryIndex = 0;
+  if (cliHistoryIndex > cliCommandHistory.length) cliHistoryIndex = cliCommandHistory.length;
+  input.value = cliHistoryIndex === cliCommandHistory.length ? cliHistoryDraft : cliCommandHistory[cliHistoryIndex];
+  input.selectionStart = input.value.length;
+  input.selectionEnd = input.value.length;
+  autosizeCliInput(input);
+}
 
 
 
-function currentCliHistory() {
-  if (!cliHistoryKey) return [];
-  if (!cliCommandHistoryByKey.has(cliHistoryKey)) cliCommandHistoryByKey.set(cliHistoryKey, []);
-  return cliCommandHistoryByKey.get(cliHistoryKey);
+function cliHistoryList() {
+  if (!cliHistoryByTarget.has(cliHistoryTarget)) cliHistoryByTarget.set(cliHistoryTarget, []);
+  return cliHistoryByTarget.get(cliHistoryTarget);
 }
 
 function setCliHistoryTarget(item) {
-  let user = '';
-  try {
-    if (item && typeof credentialsStore === 'object') {
-      user = credentialsStore[item.id]?.username || '';
-    }
-  } catch {
-    user = '';
-  }
   const host = item?.ip || item?.name || item?.id || 'default';
-  cliHistoryKey = `${item?.id || host}|${user}|${host}`;
-  cliHistoryIndex = currentCliHistory().length;
+  cliHistoryTarget = `${item?.id || host}|${host}`;
+  cliHistoryIndex = cliHistoryList().length;
   cliHistoryDraft = '';
 }
 
 function rememberCliCommand(command) {
   const value = String(command || '').replace(/\r\n/g, '\n');
   if (!value.trim()) return;
-  const history = currentCliHistory();
+  const history = cliHistoryList();
   if (history[history.length - 1] !== value) {
     history.push(value);
     if (history.length > 100) history.shift();
@@ -2403,14 +2435,10 @@ function rememberCliCommand(command) {
 
 function applyCliHistory(input, direction) {
   if (!input) return;
-  const history = currentCliHistory();
+  const history = cliHistoryList();
   if (!history.length) return;
-  if (cliHistoryIndex < 0 || cliHistoryIndex > history.length) {
-    cliHistoryIndex = history.length;
-  }
-  if (cliHistoryIndex === history.length) {
-    cliHistoryDraft = input.value || '';
-  }
+  if (cliHistoryIndex < 0 || cliHistoryIndex > history.length) cliHistoryIndex = history.length;
+  if (cliHistoryIndex === history.length) cliHistoryDraft = input.value || '';
   cliHistoryIndex += direction;
   if (cliHistoryIndex < 0) cliHistoryIndex = 0;
   if (cliHistoryIndex > history.length) cliHistoryIndex = history.length;
@@ -2419,6 +2447,15 @@ function applyCliHistory(input, direction) {
   input.selectionEnd = input.value.length;
   autosizeCliInput(input);
   input.focus();
+}
+
+function activeCliInput() {
+  const els = activeCliEls();
+  return els.input || cliInput || mobileCliInput;
+}
+
+function isCliOpen() {
+  return Boolean(cliSession && ((cliDialog && cliDialog.open) || mobileCliView?.classList.contains('active')));
 }
 
 
