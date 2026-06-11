@@ -1425,6 +1425,14 @@ Summarize all planned changes before writing them.</pre>
       </ul>
       <h2>Mobile Behavior</h2>
       <p>On mobile, Console opens as a full page with the normal bottom navigation preserved. The topbar is hidden so the terminal has more vertical space.</p>
+
+      <h2>CLI Input, History and Shortcuts</h2>
+      <ul>
+        <li><strong>Arrow Up / Arrow Down</strong> fill the command input from the selected machine history plus commands entered during the current Labby session.</li>
+        <li><strong>Tab</strong> requests completion and writes the result into the command input instead of printing raw control characters into the terminal output.</li>
+        <li><strong>Ctrl+C</strong> is forwarded to the active SSH session to stop running commands such as <code>ping</code>, <code>tail -f</code> or <code>docker compose logs -f</code>.</li>
+        <li>The visible <strong>Ctrl+C</strong> button offers the same interrupt action for mobile devices and browsers that reserve keyboard shortcuts.</li>
+      </ul>
       <h2>Requirements</h2>
       <p>The self-hosted backend container includes <code>openssh-client</code> and <code>sshpass</code>. Password login uses the stored password. SSH private-key login writes the key to a temporary backend file for the session, sets secure file permissions and removes it again when the session closes. Optional key passphrases are passed through an askpass helper. Credentials are part of encrypted config exports only, never readable plain JSON. Rebuild the container after updating if SSH packages were added in the new version.</p>
       <pre>docker compose down
@@ -1611,6 +1619,28 @@ sudo mount -t cifs //NAS/labby-backups /mnt/labby-backups \
     volumes:
       - labby-data:/data
       - /mnt/labby-backups:/config-backup</pre>
+      <h2>Full docker-compose.yml example with external backup target</h2>
+      <pre>services:
+  labby-backend:
+    image: labby-backend
+    build: ./backend
+    volumes:
+      - labby-data:/data
+      - /mnt/labby-backups:/config-backup
+    restart: unless-stopped
+
+  labby-web:
+    image: labby-web
+    build: .
+    ports:
+      - "8080:80"
+    depends_on:
+      - labby-backend
+    restart: unless-stopped
+
+volumes:
+  labby-data:</pre>
+      <p>This is also the pattern to use when Labby was deployed from a YAML file: only the host path on the left side changes. The right side inside the backend container must remain <code>/config-backup</code>.</p>
       <p>The container path must be exactly <code>/config-backup</code>. On startup and refresh, Labby checks whether this path exists and is writable. When it is writable, the Backup Config screen shows an SMB target. When it is missing, only the local target is available.</p>
       <p>Restart after changing the YAML:</p>
       <pre>docker compose down
