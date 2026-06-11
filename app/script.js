@@ -130,6 +130,9 @@ let cliHistoryCursor = 0;
 let cliHistoryDraft = '';
 let cliRemoteHistoryLoadedFor = '';
 let cliTerminalState = createCliTerminalState();
+let cliXtermInstances = new Map();
+let cliXtermOutputBuffer = '';
+let cliXtermPreferred = true;
 
 let credentialFields = null;
 const formTitle = document.getElementById('form-title');
@@ -500,6 +503,22 @@ document.addEventListener('keydown', (event) => {
   if (!isCliVisible()) return;
   const terminal = activeCliEls()?.terminal;
   if (!terminal || document.activeElement !== terminal) return;
+  // xterm.js owns keyboard input while the terminal itself is focused.
+  if (cliXtermAvailable() && cliXtermInstances.has(terminal)) return;
+  if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    event.stopPropagation();
+    activeCliInput()?.focus();
+    loadCliHistoryIntoInput(-1);
+    return;
+  }
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    event.stopPropagation();
+    activeCliInput()?.focus();
+    loadCliHistoryIntoInput(1);
+    return;
+  }
   const raw = cliKeyEventToRawInput(event);
   if (!raw) return;
   event.preventDefault();
@@ -2612,6 +2631,102 @@ function activeCliEls() {
 }
 
 
+function cliTerminalFontSize() {
+  return isMobile() ? 12 : 13;
+}
+
+function cliTerminalRows() {
+  return isMobile() ? 28 : 34;
+}
+
+function cliXtermAvailable() {
+  return Boolean(cliXtermPreferred && window.Terminal);
+}
+
+function getCliXterm(terminalEl) {
+  if (!terminalEl || !cliXtermAvailable()) return null;
+  if (cliXtermInstances.has(terminalEl)) return cliXtermInstances.get(terminalEl);
+  try {
+    terminalEl.textContent = '';
+    terminalEl.classList.add('xterm-enabled');
+    const term = new window.Terminal({
+      cols: estimateCliTerminalCols(),
+      rows: cliTerminalRows(),
+      cursorBlink: true,
+      convertEol: true,
+      scrollback: 2500,
+      fontFamily: "'Space Mono', ui-monospace, monospace",
+      fontSize: cliTerminalFontSize(),
+      fontWeight: 700,
+      lineHeight: 1.25,
+      theme: {
+        background: '#05070a',
+        foreground: '#ffffff',
+        cursor: '#f4d371',
+        selectionBackground: '#f4d37188',
+      },
+    });
+    term.open(terminalEl);
+    term.onData((data) => {
+      // Full-screen tools such as nano need raw keystrokes. Normal command history
+      // stays on the separate Labby input field; click/focus the terminal only when
+      // controlling an interactive program.
+      if (cliSession && document.activeElement === terminalEl) sendCliRawInput(data);
+    });
+    terminalEl.addEventListener('focus', () => term.focus());
+    cliXtermInstances.set(terminalEl, term);
+    return term;
+  } catch (err) {
+    cliXtermPreferred = false;
+    terminalEl.classList.remove('xterm-enabled');
+    return null;
+  }
+}
+
+function activeCliXterm() {
+  return getCliXterm(activeCliEls()?.terminal);
+}
+
+function initActiveCliTerminal() {
+  const term = activeCliXterm();
+  if (term) {
+    try { term.resize(estimateCliTerminalCols(), cliTerminalRows()); } catch {}
+  }
+  return term;
+}
+
+function clearCliXterms() {
+  cliXtermOutputBuffer = '';
+  cliXtermInstances.forEach((term) => {
+    try { term.clear(); term.reset(); } catch {}
+  });
+}
+
+function writeCliXterm(text, append = true) {
+  const value = String(text || '');
+  if (!append) clearCliXterms();
+  cliXtermOutputBuffer = (append ? cliXtermOutputBuffer : '') + value;
+  if (cliXtermOutputBuffer.length > 200000) cliXtermOutputBuffer = cliXtermOutputBuffer.slice(-100000);
+  const term = initActiveCliTerminal();
+  if (!term) return false;
+  try {
+    if (!append) term.clear();
+    term.write(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function cliPlainOutputForCopy() {
+  return cliXtermOutputBuffer
+    .replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, '')
+    .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '')
+    .replace(/\x1b[()#][0-9A-Za-z]/g, '')
+    .replace(/\x1b[78]/g, '');
+}
+
+
 function createCliTerminalState() {
   const rows = isMobile() ? 28 : 34;
   const cols = estimateCliTerminalCols();
@@ -2790,6 +2905,7 @@ function renderCliTerminalState() {
 }
 
 function setCliOutput(text, append = false) {
+  if (writeCliXterm(text, append)) return;
   if (!append) cliTerminalState = createCliTerminalState();
   appendCliTerminalChunk(text);
 }
@@ -3021,11 +3137,17 @@ function mergeCliHistory(remoteHistory = []) {
   const seen = new Set();
   [...remoteHistory, ...local].forEach((entry) => {
     const value = String(entry || '').trim();
-    if (!value || seen.has(value)) return;
+    if (!value) return;
+    // Keep the newest occurrence when the same command exists in shell history and
+    // the current Labby session. This makes ArrowUp show the last real command first.
+    if (seen.has(value)) {
+      const oldIndex = current.indexOf(value);
+      if (oldIndex >= 0) current.splice(oldIndex, 1);
+    }
     seen.add(value);
     current.push(value);
   });
-  while (current.length > 250) current.shift();
+  while (current.length > 300) current.shift();
   cliHistoryCursor = current.length;
 }
 
@@ -3241,7 +3363,7 @@ async function clearCliKnownHostAndReconnect() {
 
 async function copyCliOutput() {
   const els = activeCliEls();
-  const text = els.terminal?.innerText || els.terminal?.textContent || '';
+  const text = cliXtermAvailable() ? cliPlainOutputForCopy() : (els.terminal?.innerText || els.terminal?.textContent || '');
   try { await navigator.clipboard.writeText(text); showToast('CLI output copied.'); }
   catch { showToast('Could not copy CLI output.', 'error'); }
 }

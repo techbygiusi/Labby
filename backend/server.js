@@ -641,6 +641,8 @@ printf '%s\n' "$LABBY_SSH_KEY_PASSPHRASE"
   const env = { ...process.env };
   env.TERM = 'xterm-256color';
   env.COLORTERM = env.COLORTERM || 'truecolor';
+  env.COLUMNS = env.COLUMNS || '160';
+  env.LINES = env.LINES || '34';
   if (command === 'sshpass') env.SSHPASS = password;
   if (askPassPath) {
     env.SSH_ASKPASS = askPassPath;
@@ -651,7 +653,8 @@ printf '%s\n' "$LABBY_SSH_KEY_PASSPHRASE"
 
   let proc;
   try {
-    const scriptArgs = ['-qfec', [command, ...args].map(shellQuote).join(' '), '/dev/null'];
+    const sshCommandLine = [command, ...args].map(shellQuote).join(' ');
+    const scriptArgs = ['-qfec', `stty rows ${env.LINES} cols ${env.COLUMNS} >/dev/null 2>&1; ${sshCommandLine}`, '/dev/null'];
     proc = spawn('script', scriptArgs, { stdio: ['pipe', 'pipe', 'pipe'], env });
     proc.once('error', () => {});
   } catch (err) {
