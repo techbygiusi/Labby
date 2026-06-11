@@ -9,7 +9,7 @@ services:
       - "8080:80"
     depends_on:
       - labby-backend
-    restart: unless-stopped
+    restart: always
 
   labby-backend:
     build:
@@ -23,7 +23,7 @@ services:
       # Optional external Backup Config target. Mount your SMB/NAS share on the host first.
       # Labby auto-detects it only when the container path is exactly /config-backup.
       # - /mnt/labby-backups:/config-backup
-    restart: unless-stopped
+    restart: always
 
 volumes:
   labby-data:
