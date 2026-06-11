@@ -128,6 +128,9 @@ const cliHistoryStore = new Map();
 let cliHistoryScope = 'default';
 let cliHistoryCursor = 0;
 let cliHistoryDraft = '';
+let cliRemoteHistoryLoadedFor = '';
+let cliTerminalState = createCliTerminalState();
+
 let credentialFields = null;
 const formTitle = document.getElementById('form-title');
 const searchInput = document.getElementById('search');
@@ -2608,24 +2611,187 @@ function activeCliEls() {
     : { terminal: cliTerminal, input: cliInput, send: cliSend, copy: cliCopy, paste: cliPaste, clearKey: cliClearKey, close: cliClose };
 }
 
-function cleanCliOutput(text) {
-  let value = String(text || '');
-  value = value.replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, '');
-  value = value.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '');
-  value = value.replace(/\x1b[()#%*+\-.\/][0-~]/g, '');
-  value = value.replace(/\x1b[@-_]/g, '');
-  value = value.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '');
-  return value;
+
+function createCliTerminalState() {
+  const rows = isMobile() ? 28 : 34;
+  const cols = estimateCliTerminalCols();
+  return {
+    rows,
+    cols,
+    buffer: Array.from({ length: rows }, () => []),
+    row: 0,
+    col: 0,
+    savedRow: 0,
+    savedCol: 0,
+    parser: '',
+    osc: false,
+    normal: null,
+    alt: false,
+  };
+}
+
+function estimateCliTerminalCols() {
+  const terminal = activeCliEls?.()?.terminal || cliTerminal || mobileCliTerminal;
+  const width = terminal?.clientWidth || 1200;
+  return Math.max(80, Math.min(220, Math.floor(width / 9)));
+}
+
+function resizeCliTerminalState() {
+  if (!cliTerminalState) cliTerminalState = createCliTerminalState();
+  const cols = estimateCliTerminalCols();
+  cliTerminalState.cols = cols;
+  cliTerminalState.rows = isMobile() ? 28 : 34;
+}
+
+function clearCliTerminalBuffer(state = cliTerminalState) {
+  state.buffer = Array.from({ length: state.rows }, () => []);
+  state.row = 0;
+  state.col = 0;
+}
+
+function ensureCliTerminalLine(state, row) {
+  while (state.buffer.length <= row) state.buffer.push([]);
+  return state.buffer[row];
+}
+
+function scrollCliTerminal(state) {
+  state.buffer.push([]);
+  const maxLines = state.alt ? state.rows : 1200;
+  while (state.buffer.length > maxLines) state.buffer.shift();
+  state.row = Math.max(0, Math.min(state.buffer.length - 1, state.row));
+}
+
+function putCliTerminalChar(state, ch) {
+  if (ch === '\r') { state.col = 0; return; }
+  if (ch === '\n') {
+    state.row += 1;
+    if (state.alt && state.row >= state.rows) state.row = state.rows - 1;
+    else if (state.row >= state.buffer.length) scrollCliTerminal(state);
+    return;
+  }
+  if (ch === '\b') { state.col = Math.max(0, state.col - 1); return; }
+  if (ch === '\t') {
+    const spaces = 8 - (state.col % 8);
+    for (let i = 0; i < spaces; i += 1) putCliTerminalChar(state, ' ');
+    return;
+  }
+  if (ch < ' ') return;
+  const line = ensureCliTerminalLine(state, state.row);
+  while (line.length < state.col) line.push(' ');
+  line[state.col] = ch;
+  state.col += 1;
+  if (state.col >= state.cols) {
+    state.col = 0;
+    state.row += 1;
+    if (state.alt && state.row >= state.rows) state.row = state.rows - 1;
+    else if (state.row >= state.buffer.length) scrollCliTerminal(state);
+  }
+}
+
+function parseCliCsiParams(seq) {
+  const final = seq.slice(-1);
+  const raw = seq.slice(0, -1).replace(/[?>!]/g, '');
+  const params = raw.split(';').filter((v) => v !== '').map((v) => Number.parseInt(v, 10) || 0);
+  return { final, params, privateMode: seq.includes('?') };
+}
+
+function handleCliCsi(seq) {
+  const state = cliTerminalState;
+  const { final, params, privateMode } = parseCliCsiParams(seq);
+  const first = params[0] || 0;
+  if ((final === 'h' || final === 'l') && privateMode) {
+    if (seq.includes('1049') || seq.includes('47') || seq.includes('1047')) {
+      if (final === 'h' && !state.alt) {
+        state.normal = { buffer: state.buffer, row: state.row, col: state.col };
+        state.alt = true;
+        clearCliTerminalBuffer(state);
+      } else if (final === 'l' && state.alt) {
+        const normal = state.normal;
+        state.alt = false;
+        state.normal = null;
+        if (normal) {
+          state.buffer = normal.buffer;
+          state.row = normal.row;
+          state.col = normal.col;
+        }
+      }
+    }
+    return;
+  }
+  if (final === 'm') return;
+  if (final === 'A') { state.row = Math.max(0, state.row - (first || 1)); return; }
+  if (final === 'B') { state.row = Math.min(state.buffer.length - 1, state.row + (first || 1)); return; }
+  if (final === 'C') { state.col = Math.min(state.cols - 1, state.col + (first || 1)); return; }
+  if (final === 'D') { state.col = Math.max(0, state.col - (first || 1)); return; }
+  if (final === 'G') { state.col = Math.max(0, Math.min(state.cols - 1, (first || 1) - 1)); return; }
+  if (final === 'H' || final === 'f') {
+    state.row = Math.max(0, Math.min(state.buffer.length - 1, (params[0] || 1) - 1));
+    state.col = Math.max(0, Math.min(state.cols - 1, (params[1] || 1) - 1));
+    return;
+  }
+  if (final === 'J') {
+    if (first === 2 || first === 3) clearCliTerminalBuffer(state);
+    else if (first === 0) {
+      const line = ensureCliTerminalLine(state, state.row);
+      line.length = state.col;
+      for (let r = state.row + 1; r < state.buffer.length; r += 1) state.buffer[r] = [];
+    }
+    return;
+  }
+  if (final === 'K') {
+    const line = ensureCliTerminalLine(state, state.row);
+    if (first === 2) state.buffer[state.row] = [];
+    else if (first === 1) {
+      for (let i = 0; i <= state.col; i += 1) line[i] = ' ';
+    } else {
+      line.length = state.col;
+    }
+    return;
+  }
+  if (final === 's') { state.savedRow = state.row; state.savedCol = state.col; return; }
+  if (final === 'u') { state.row = state.savedRow; state.col = state.savedCol; }
+}
+
+function appendCliTerminalChunk(text) {
+  resizeCliTerminalState();
+  const state = cliTerminalState;
+  const value = String(text || '');
+  for (let i = 0; i < value.length; i += 1) {
+    const ch = value[i];
+    if (state.osc) {
+      if (ch === '\x07' || (ch === '\\' && value[i - 1] === '\x1b')) state.osc = false;
+      continue;
+    }
+    if (state.parser) {
+      state.parser += ch;
+      if (state.parser === '\x1b]') { state.osc = true; state.parser = ''; continue; }
+      if (state.parser.length === 2 && !['[', '(', ')', '#', ']', '7', '8'].includes(state.parser[1])) { state.parser = ''; continue; }
+      if (state.parser[1] === '[' && /[A-Za-z~]/.test(ch)) { handleCliCsi(state.parser.slice(2)); state.parser = ''; continue; }
+      if (['(', ')', '#'].includes(state.parser[1]) && state.parser.length >= 3) { state.parser = ''; continue; }
+      if (state.parser === '\x1b7') { state.savedRow = state.row; state.savedCol = state.col; state.parser = ''; continue; }
+      if (state.parser === '\x1b8') { state.row = state.savedRow; state.col = state.savedCol; state.parser = ''; continue; }
+      if (state.parser.length > 80) state.parser = '';
+      continue;
+    }
+    if (ch === '\x1b') { state.parser = ch; continue; }
+    putCliTerminalChar(state, ch);
+  }
+  renderCliTerminalState();
+}
+
+function renderCliTerminalState() {
+  const state = cliTerminalState;
+  const lines = state.buffer.map((line) => line.join('').replace(/\s+$/g, ''));
+  const text = lines.join('\n').replace(/\n+$/g, '');
+  [cliTerminal, mobileCliTerminal].filter(Boolean).forEach((terminal) => {
+    terminal.textContent = text;
+    terminal.scrollTop = terminal.scrollHeight;
+  });
 }
 
 function setCliOutput(text, append = false) {
-  const cleaned = cleanCliOutput(text);
-  const desktopTerm = cliTerminal;
-  const mobileTerm = mobileCliTerminal;
-  [desktopTerm, mobileTerm].filter(Boolean).forEach((terminal) => {
-    terminal.textContent = append ? `${terminal.textContent}${cleaned}` : cleaned;
-    terminal.scrollTop = terminal.scrollHeight;
-  });
+  if (!append) cliTerminalState = createCliTerminalState();
+  appendCliTerminalChunk(text);
 }
 
 async function openCliSession(item, options = {}) {
@@ -2636,7 +2802,7 @@ async function openCliSession(item, options = {}) {
   }
   cliActiveItem = item;
   resetCliHistoryScope(item);
-  resetCliHistoryScope(item);
+  cliRemoteHistoryLoadedFor = '';
   renderCommandSnippets();
   const els = activeCliEls();
   if (els.title) els.title.textContent = `CLI · ${item.name}`;
@@ -2660,6 +2826,7 @@ async function openCliSession(item, options = {}) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Could not start SSH session.');
     cliSession = data.sessionId;
+    loadCliRemoteHistory();
     setCliOutput(data.output || `Connected to ${target}.\n`);
     window.setTimeout(() => activeCliInput()?.focus(), 60);
   window.setTimeout(() => autosizeAndFocusCliInput(activeCliInput()), 80);
@@ -2846,6 +3013,36 @@ function rememberCliCommand(command) {
   cliHistoryDraft = '';
 }
 
+
+function mergeCliHistory(remoteHistory = []) {
+  const current = cliHistory();
+  const local = current.slice();
+  current.length = 0;
+  const seen = new Set();
+  [...remoteHistory, ...local].forEach((entry) => {
+    const value = String(entry || '').trim();
+    if (!value || seen.has(value)) return;
+    seen.add(value);
+    current.push(value);
+  });
+  while (current.length > 250) current.shift();
+  cliHistoryCursor = current.length;
+}
+
+async function loadCliRemoteHistory() {
+  if (!cliSession) return;
+  const key = `${cliSession}|${cliHistoryScope}`;
+  if (cliRemoteHistoryLoadedFor === key) return;
+  cliRemoteHistoryLoadedFor = key;
+  try {
+    const res = await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(cliSession)}/history`);
+    if (!res.ok) return;
+    const data = await res.json().catch(() => ({}));
+    const history = Array.isArray(data.history) ? data.history : [];
+    if (history.length) mergeCliHistory(history);
+  } catch {}
+}
+
 function activeCliInput() {
   return activeCliEls()?.input || (mobileCliView?.classList.contains('active') ? mobileCliInput : cliInput);
 }
@@ -2968,7 +3165,6 @@ async function sendCliInput() {
   rememberCliCommand(value);
   els.input.value = '';
   autosizeCliInput(els.input);
-  setCliOutput(`$ ${value}\n`, true);
   const ok = await sendCliRawInput(`${value.replace(/\r\n/g, '\n')}\n`);
   if (!ok) showToast('Could not send command.', 'error');
 }

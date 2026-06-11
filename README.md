@@ -699,3 +699,7 @@ docker compose up --build -d
 ### Backup Config export/import
 
 The regular **Config → Export Config** JSON export also includes the Backup Config schedule and recent backup logs. Importing a Labby JSON config restores those Backup Config settings together with the normal map, racks, command snippets and UI configuration. Encrypted `.labbybackup` files themselves are not embedded in the JSON export; restore those from the Backup Config screen so the server-side key in the Labby data volume can decrypt them.
+
+### CLI terminal rendering and history
+
+Labby renders ANSI terminal output in the CLI window, including full-screen tools such as `nano`, and loads shell history from the selected SSH target so Arrow Up/Down can fill the command input with commands from that machine plus commands entered in the current Labby session.

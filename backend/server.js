@@ -728,6 +728,41 @@ app.post('/api/ssh/:id/complete', (req, res) => {
   });
 });
 
+
+app.get('/api/ssh/:id/history', (req, res) => {
+  const session = sshSessions.get(req.params.id);
+  if (!session || session.closed || !session.complete) return res.status(404).json({ error: 'SSH session not found or closed.' });
+  const historyProbe = [
+    'HISTFILE="${HISTFILE:-$HOME/.bash_history}"',
+    'if [ -r "$HISTFILE" ]; then',
+    '  tail -n 250 "$HISTFILE"',
+    'else',
+    "  history 2>/dev/null | tail -n 250 | sed 's/^ *[0-9][0-9]* *//'",
+    'fi',
+  ].join('\n');
+  const remoteScript = `bash -lc ${shellQuote(historyProbe)}`;
+  const args = [...session.complete.args, remoteScript];
+  const child = spawn(session.complete.command, args, { stdio: ['ignore', 'pipe', 'pipe'], env: session.complete.env });
+  let stdout = '';
+  let stderr = '';
+  const timer = setTimeout(() => { try { child.kill('SIGTERM'); } catch {} }, 4000);
+  child.stdout.on('data', (chunk) => { stdout += chunk.toString('utf8'); if (stdout.length > 30000) stdout = stdout.slice(-30000); });
+  child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf8'); if (stderr.length > 3000) stderr = stderr.slice(-3000); });
+  child.on('close', () => {
+    clearTimeout(timer);
+    const history = stdout
+      .split(/\r?\n/)
+      .map((v) => v.trim())
+      .filter((v) => v && !/^\d+\s+/.test(v))
+      .slice(-200);
+    res.json({ history });
+  });
+  child.on('error', (err) => {
+    clearTimeout(timer);
+    res.status(500).json({ error: err.message || 'Could not read remote history.' });
+  });
+});
+
 app.post('/api/ssh/:id/input', (req, res) => {
   const session = sshSessions.get(req.params.id);
   if (!session || session.closed) return res.status(404).json({ error: 'SSH session not found or closed.' });
