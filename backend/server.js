@@ -539,6 +539,11 @@ const { spawn, execFile } = require('child_process');
 const sshSessions = new Map();
 const SSH_TMP_DIR = '/tmp/labby-ssh';
 
+function shellQuote(value) {
+  return `'${String(value).replace(/'/g, `'\''`)}'`;
+}
+
+
 function ensureSshTmpDir() {
   try { fs.mkdirSync(SSH_TMP_DIR, { recursive: true, mode: 0o700 }); } catch {}
 }
@@ -625,6 +630,8 @@ printf '%s\n' "$LABBY_SSH_KEY_PASSPHRASE"
     '-o', 'StrictHostKeyChecking=accept-new',
     '-o', 'ServerAliveInterval=30',
     '-o', 'NumberOfPasswordPrompts=1',
+    '-o', 'RequestTTY=force',
+    '-o', 'SendEnv=TERM',
   ];
   if (keyPath) sshArgs.push('-i', keyPath, '-o', 'IdentitiesOnly=yes', '-o', 'PreferredAuthentications=publickey');
   sshArgs.push(target);
@@ -644,14 +651,19 @@ printf '%s\n' "$LABBY_SSH_KEY_PASSPHRASE"
 
   let proc;
   try {
-    proc = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'], env });
+    const scriptArgs = ['-qfec', [command, ...args].map(shellQuote).join(' '), '/dev/null'];
+    proc = spawn('script', scriptArgs, { stdio: ['pipe', 'pipe', 'pipe'], env });
+    proc.once('error', () => {});
   } catch (err) {
-    if (tempDir) cleanupSessionFiles({ tempDir });
-    return res.status(500).json({ error: `Unable to start ssh: ${err.message}` });
+    try { proc = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'], env }); }
+    catch (fallbackErr) {
+      if (tempDir) cleanupSessionFiles({ tempDir });
+      return res.status(500).json({ error: `Unable to start ssh: ${fallbackErr.message}` });
+    }
   }
 
   const session = { id: sessionId, proc, tempDir, output: `ssh ${target}${authMethod === 'key' ? ' [key]' : ''}
-`, closed: false, createdAt: Date.now(), term: env.TERM };
+`, closed: false, createdAt: Date.now(), term: env.TERM, complete: { command, args, env, target } };
   sshSessions.set(sessionId, session);
 
   const collect = (chunk) => {
@@ -684,6 +696,36 @@ app.get('/api/ssh/:id/output', (req, res) => {
   const output = session.output;
   session.output = '';
   res.json({ output, closed: session.closed });
+});
+
+
+app.post('/api/ssh/:id/complete', (req, res) => {
+  const session = sshSessions.get(req.params.id);
+  if (!session || session.closed || !session.complete) return res.status(404).json({ error: 'SSH session not found or closed.' });
+  const token = String(req.body?.token || '').slice(0, 300);
+  const line = String(req.body?.line || '').slice(0, 1000);
+  const beforeToken = line.slice(0, Math.max(0, line.length - token.length));
+  const mode = beforeToken.trim() ? 'file' : 'command';
+  const quotedToken = shellQuote(token);
+  const remoteScript = mode === 'command'
+    ? `bash -lc ${shellQuote(`compgen -c -- ${quotedToken} | sort -u | head -80`)}`
+    : `bash -lc ${shellQuote(`compgen -f -- ${quotedToken} | sort -u | head -80`)}`;
+  const args = [...session.complete.args, remoteScript];
+  const child = spawn(session.complete.command, args, { stdio: ['ignore', 'pipe', 'pipe'], env: session.complete.env });
+  let stdout = '';
+  let stderr = '';
+  const timer = setTimeout(() => { try { child.kill('SIGTERM'); } catch {} }, 3000);
+  child.stdout.on('data', (chunk) => { stdout += chunk.toString('utf8'); if (stdout.length > 10000) stdout = stdout.slice(-10000); });
+  child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf8'); if (stderr.length > 2000) stderr = stderr.slice(-2000); });
+  child.on('close', () => {
+    clearTimeout(timer);
+    const matches = stdout.split(/\r?\n/).map((v) => v.trim()).filter(Boolean).slice(0, 80);
+    res.json({ matches, mode });
+  });
+  child.on('error', (err) => {
+    clearTimeout(timer);
+    res.status(500).json({ error: err.message || 'Completion failed.' });
+  });
 });
 
 app.post('/api/ssh/:id/input', (req, res) => {

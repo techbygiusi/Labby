@@ -7954,3 +7954,8 @@ dialog.rack-form-dialog:not([open]) {
     padding: 0.42rem 0.75rem;
   }
 }
+
+.cli-terminal:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--mint) 58%, transparent);
+  outline-offset: 3px;
+}

@@ -466,19 +466,19 @@ document.addEventListener('click', (event) => {
     if (event.key === 'ArrowUp') {
       event.preventDefault();
       event.stopPropagation();
-      sendCliArrowKey('up', input);
+      loadCliHistoryIntoInput(-1);
       return;
     }
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       event.stopPropagation();
-      sendCliArrowKey('down', input);
+      loadCliHistoryIntoInput(1);
       return;
     }
     if (event.key === 'Tab') {
       event.preventDefault();
       event.stopPropagation();
-      sendCliTabCompletion(input);
+      completeCliInputFromRemote(input);
       return;
     }
     if (event.key !== 'Enter') return;
@@ -495,12 +495,13 @@ document.addEventListener('click', (event) => {
 
 document.addEventListener('keydown', (event) => {
   if (!isCliVisible()) return;
-  if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
-  const input = activeCliInput();
-  if (!input) return;
+  const terminal = activeCliEls()?.terminal;
+  if (!terminal || document.activeElement !== terminal) return;
+  const raw = cliKeyEventToRawInput(event);
+  if (!raw) return;
   event.preventDefault();
   event.stopPropagation();
-  sendCliArrowKey(event.key === 'ArrowUp' ? 'up' : 'down', input);
+  sendCliRawInput(raw);
 }, true);
 
 [cliClearKey, mobileCliClearKey].filter(Boolean).forEach((btn) => btn.addEventListener('click', clearCliKnownHostAndReconnect));
@@ -2607,11 +2608,22 @@ function activeCliEls() {
     : { terminal: cliTerminal, input: cliInput, send: cliSend, copy: cliCopy, paste: cliPaste, clearKey: cliClearKey, close: cliClose };
 }
 
+function cleanCliOutput(text) {
+  let value = String(text || '');
+  value = value.replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, '');
+  value = value.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '');
+  value = value.replace(/\x1b[()#%*+\-.\/][0-~]/g, '');
+  value = value.replace(/\x1b[@-_]/g, '');
+  value = value.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '');
+  return value;
+}
+
 function setCliOutput(text, append = false) {
+  const cleaned = cleanCliOutput(text);
   const desktopTerm = cliTerminal;
   const mobileTerm = mobileCliTerminal;
   [desktopTerm, mobileTerm].filter(Boolean).forEach((terminal) => {
-    terminal.textContent = append ? `${terminal.textContent}${text}` : text;
+    terminal.textContent = append ? `${terminal.textContent}${cleaned}` : cleaned;
     terminal.scrollTop = terminal.scrollHeight;
   });
 }
@@ -2879,29 +2891,73 @@ async function sendCliRawInput(raw) {
   }
 }
 
-async function sendCliTabCompletion(input) {
-  if (!cliSession) return;
-  const field = input || activeCliInput();
-  const value = field?.value || '';
-  if (field) {
-    field.value = '';
-    autosizeCliInput(field);
-  }
-  const ok = await sendCliRawInput(`${value.replace(/\r\n/g, '\n')}\t`);
-  if (!ok) showToast('Could not send Tab to SSH session.', 'error');
+function cliCurrentTokenBounds(value) {
+  const text = String(value || '');
+  let end = text.length;
+  let start = end;
+  while (start > 0 && !/\s/.test(text[start - 1])) start -= 1;
+  return { start, end, token: text.slice(start, end) };
 }
 
-async function sendCliArrowKey(direction, input) {
+function commonPrefix(values) {
+  const list = (values || []).map((v) => String(v || '')).filter(Boolean);
+  if (!list.length) return '';
+  let prefix = list[0];
+  for (const item of list.slice(1)) {
+    while (prefix && !item.startsWith(prefix)) prefix = prefix.slice(0, -1);
+    if (!prefix) break;
+  }
+  return prefix;
+}
+
+async function completeCliInputFromRemote(input) {
   if (!cliSession) return;
   const field = input || activeCliInput();
-  const value = field?.value || '';
-  if (field) {
-    field.value = '';
-    autosizeCliInput(field);
+  if (!field) return;
+  const value = field.value || '';
+  const bounds = cliCurrentTokenBounds(value);
+  try {
+    const res = await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(cliSession)}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ line: value, token: bounds.token }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Completion failed.');
+    const matches = Array.isArray(data.matches) ? data.matches.map(String).filter(Boolean) : [];
+    if (!matches.length) return;
+    let replacement = matches.length === 1 ? matches[0] : commonPrefix(matches);
+    if (!replacement || replacement === bounds.token) {
+      const preview = matches.slice(0, 8).join('   ');
+      if (preview) showToast(`${matches.length} matches: ${preview}${matches.length > 8 ? ' …' : ''}`);
+      return;
+    }
+    field.value = `${value.slice(0, bounds.start)}${replacement}${value.slice(bounds.end)}`;
+    field.selectionStart = field.selectionEnd = bounds.start + replacement.length;
+    autosizeAndFocusCliInput(field);
+  } catch (err) {
+    showToast(err.message || 'Could not complete input.', 'error');
   }
-  const sequence = direction === 'down' ? '\x1b[B' : '\x1b[A';
-  const ok = await sendCliRawInput(`${value.replace(/\r\n/g, '\n')}${sequence}`);
-  if (!ok) showToast('Could not send arrow key to SSH session.', 'error');
+}
+
+function cliKeyEventToRawInput(event) {
+  if (event.ctrlKey && !event.altKey && event.key && event.key.length === 1) {
+    const code = event.key.toUpperCase().charCodeAt(0);
+    if (code >= 64 && code <= 95) return String.fromCharCode(code - 64);
+  }
+  if (event.key === 'Enter') return '\r';
+  if (event.key === 'Backspace') return '\x7f';
+  if (event.key === 'Tab') return '\t';
+  if (event.key === 'Escape') return '\x1b';
+  if (event.key === 'ArrowUp') return '\x1b[A';
+  if (event.key === 'ArrowDown') return '\x1b[B';
+  if (event.key === 'ArrowRight') return '\x1b[C';
+  if (event.key === 'ArrowLeft') return '\x1b[D';
+  if (event.key === 'Home') return '\x1b[H';
+  if (event.key === 'End') return '\x1b[F';
+  if (event.key === 'Delete') return '\x1b[3~';
+  if (!event.ctrlKey && !event.metaKey && event.key && event.key.length === 1) return event.key;
+  return '';
 }
 
 async function sendCliInput() {
