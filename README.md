@@ -663,43 +663,6 @@ General rules:
 MIT License  
 © [TechByGiusi](https://techbygiusi.com/)
 
+## Documentation
 
-## Backup Config and SMB target
-
-Labby can create encrypted configuration backups from **Config → Backup Config**. Local backups are written below the Labby data volume. To offer an SMB/NAS location in the UI, mount a host folder into the backend container as `/config-backup`.
-
-Example `docker-compose.yml` volume section:
-
-```yaml
-services:
-  backend:
-    volumes:
-      - ./data:/data
-      - /mnt/your-smb-share/labby-backups:/config-backup
-```
-
-Labby does not mount SMB shares by itself. Mount the SMB share on the Docker host first, then bind that mounted path into the backend container. The container path must be exactly `/config-backup`; Labby detects it automatically when it exists and is writable, then shows it as the SMB backup target. Backups are encrypted with a key stored in the Labby data volume and should be restored from **Config → Backup Config**.
-
-Example host mount:
-
-```bash
-sudo mkdir -p /mnt/labby-backups
-sudo mount -t cifs //NAS/labby-backups /mnt/labby-backups \
-  -o username=YOUR_USER,password=YOUR_PASSWORD,vers=3.0,uid=$(id -u),gid=$(id -g)
-```
-
-Then restart Labby after changing `docker-compose.yml`:
-
-```bash
-docker compose down
-docker compose up --build -d
-```
-
-
-### Backup Config export/import
-
-The regular **Config → Export Config** JSON export also includes the Backup Config schedule and recent backup logs. Importing a Labby JSON config restores those Backup Config settings together with the normal map, racks, command snippets and UI configuration. Encrypted `.labbybackup` files themselves are not embedded in the JSON export; restore those from the Backup Config screen so the server-side key in the Labby data volume can decrypt them.
-
-### CLI terminal rendering and history
-
-Labby renders ANSI terminal output in the CLI window, including full-screen tools such as `nano`, and loads shell history from the selected SSH target so Arrow Up/Down can fill the command input with commands from that machine plus commands entered in the current Labby session.
+Detailed Backup Config, SMB/NAS mount, YAML deployment and CLI behavior docs are maintained in the Labby website Wiki.
