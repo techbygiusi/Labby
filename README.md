@@ -14,3 +14,7 @@ The public demo is browser-only. CLI/SSH and Agent API are disabled in the publi
 
 MIT License  
 © [TechByGiusi](https://techbygiusi.com/)
+
+## Documentation
+
+Feature documentation, including Backup Config, SMB/NAS targets, YAML examples and CLI behavior, lives in the website Wiki inside the demo site.
