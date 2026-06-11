@@ -392,6 +392,49 @@ Open:
 http://localhost:8080
 ```
 
+### Example docker-compose.yml
+
+```yaml
+services:
+  labby-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: labby-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - labby-backend
+    restart: unless-stopped
+
+  labby-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: labby-backend
+    environment:
+      - DATA_DIR=/data
+    volumes:
+      - labby-data:/data
+    restart: unless-stopped
+
+volumes:
+  labby-data:
+    driver: local
+```
+
+To let **Backup Config** use an external SMB/NAS target, bind the mounted host folder into the backend container as `/config-backup`:
+
+```yaml
+services:
+  labby-backend:
+    volumes:
+      - labby-data:/data
+      - /mnt/labby-backups:/config-backup
+```
+
+Labby only auto-detects the external backup target when `/config-backup` exists and is writable inside the backend container.
+
 ### Stop
 
 ```bash
@@ -635,7 +678,22 @@ services:
       - /mnt/your-smb-share/labby-backups:/config-backup
 ```
 
-Mount the SMB share on the Docker host first, then bind that mounted path into the container. The container path must be exactly `/config-backup`; Labby detects it automatically and shows it as the SMB backup target. Backups are encrypted with a key stored in the Labby data volume and should be restored from **Config → Backup Config**.
+Labby does not mount SMB shares by itself. Mount the SMB share on the Docker host first, then bind that mounted path into the backend container. The container path must be exactly `/config-backup`; Labby detects it automatically when it exists and is writable, then shows it as the SMB backup target. Backups are encrypted with a key stored in the Labby data volume and should be restored from **Config → Backup Config**.
+
+Example host mount:
+
+```bash
+sudo mkdir -p /mnt/labby-backups
+sudo mount -t cifs //NAS/labby-backups /mnt/labby-backups \
+  -o username=YOUR_USER,password=YOUR_PASSWORD,vers=3.0,uid=$(id -u),gid=$(id -g)
+```
+
+Then restart Labby after changing `docker-compose.yml`:
+
+```bash
+docker compose down
+docker compose up --build -d
+```
 
 
 ### Backup Config export/import

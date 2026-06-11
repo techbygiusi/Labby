@@ -632,6 +632,8 @@ printf '%s\n' "$LABBY_SSH_KEY_PASSPHRASE"
   const command = authMethod === 'password' && password ? 'sshpass' : 'ssh';
   const args = command === 'sshpass' ? ['-e', 'ssh', ...sshArgs] : sshArgs;
   const env = { ...process.env };
+  env.TERM = 'xterm-256color';
+  env.COLORTERM = env.COLORTERM || 'truecolor';
   if (command === 'sshpass') env.SSHPASS = password;
   if (askPassPath) {
     env.SSH_ASKPASS = askPassPath;
@@ -649,7 +651,7 @@ printf '%s\n' "$LABBY_SSH_KEY_PASSPHRASE"
   }
 
   const session = { id: sessionId, proc, tempDir, output: `ssh ${target}${authMethod === 'key' ? ' [key]' : ''}
-`, closed: false, createdAt: Date.now() };
+`, closed: false, createdAt: Date.now(), term: env.TERM };
   sshSessions.set(sessionId, session);
 
   const collect = (chunk) => {
