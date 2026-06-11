@@ -101,6 +101,7 @@ const cliSend = document.getElementById('cli-send');
 const cliCopy = document.getElementById('cli-copy');
 const cliPaste = document.getElementById('cli-paste');
 const cliSudoPassword = document.getElementById('cli-sudo-password');
+const cliCtrlC = document.getElementById('cli-ctrl-c');
 const cliClearKey = document.getElementById('cli-clear-key');
 const cliClose = document.getElementById('cli-close');
 const mobileCliView = document.getElementById('mobile-cli');
@@ -112,6 +113,7 @@ const mobileCliSend = document.getElementById('mobile-cli-send');
 const mobileCliCopy = document.getElementById('mobile-cli-copy');
 const mobileCliPaste = document.getElementById('mobile-cli-paste');
 const mobileCliSudoPassword = document.getElementById('mobile-cli-sudo-password');
+const mobileCliCtrlC = document.getElementById('mobile-cli-ctrl-c');
 const mobileCliClearKey = document.getElementById('mobile-cli-clear-key');
 const mobileCliClose = document.getElementById('mobile-cli-close');
 const cliCommandSearch = document.getElementById('cli-command-search');
@@ -587,6 +589,7 @@ document.addEventListener('keydown', (event) => {
 [cliCopy, mobileCliCopy].filter(Boolean).forEach((btn) => btn.addEventListener('click', copyCliOutput));
 [cliPaste, mobileCliPaste].filter(Boolean).forEach((btn) => btn.addEventListener('click', pasteClipboardToCliInput));
 [cliSudoPassword, mobileCliSudoPassword].filter(Boolean).forEach((btn) => btn.addEventListener('click', pasteSudoPasswordToCli));
+[cliCtrlC, mobileCliCtrlC].filter(Boolean).forEach((btn) => btn.addEventListener('click', () => sendCliShortcut('ctrl-c')));
 [cliClose, mobileCliClose].filter(Boolean).forEach((btn) => btn.addEventListener('click', closeCliSession));
 if (cliDialog) {
   cliDialog.addEventListener('cancel', (event) => {
@@ -2717,8 +2720,8 @@ function cliTargetForItem(item) {
 function activeCliEls() {
   const mobile = isMobile();
   return mobile
-    ? { terminal: mobileCliTerminal, input: mobileCliInput, send: mobileCliSend, copy: mobileCliCopy, paste: mobileCliPaste, sudoPassword: mobileCliSudoPassword, clearKey: mobileCliClearKey, close: mobileCliClose }
-    : { terminal: cliTerminal, input: cliInput, send: cliSend, copy: cliCopy, paste: cliPaste, sudoPassword: cliSudoPassword, clearKey: cliClearKey, close: cliClose };
+    ? { terminal: mobileCliTerminal, input: mobileCliInput, send: mobileCliSend, copy: mobileCliCopy, paste: mobileCliPaste, sudoPassword: mobileCliSudoPassword, ctrlC: mobileCliCtrlC, clearKey: mobileCliClearKey, close: mobileCliClose }
+    : { terminal: cliTerminal, input: cliInput, send: cliSend, copy: cliCopy, paste: cliPaste, sudoPassword: cliSudoPassword, ctrlC: cliCtrlC, clearKey: cliClearKey, close: cliClose };
 }
 
 
@@ -3433,6 +3436,57 @@ function cliConfiguredSudoPassword() {
   const password = credentials?.password ? String(credentials.password) : '';
   return password.replace(/[\r\n]+/g, '');
 }
+
+
+function cliSelectionText() {
+  try {
+    const selection = window.getSelection?.();
+    return selection?.toString?.() || '';
+  } catch {
+    return '';
+  }
+}
+
+function cliShortcutRaw(shortcut) {
+  switch (shortcut) {
+    case 'ctrl-c': return '\x03';
+    case 'ctrl-d': return '\x04';
+    case 'ctrl-z': return '\x1a';
+    case 'ctrl-l': return '\x0c';
+    default: return '';
+  }
+}
+
+async function sendCliShortcut(shortcut) {
+  if (!cliSession) {
+    showToast('No active SSH session.', 'error');
+    return false;
+  }
+  const raw = cliShortcutRaw(shortcut);
+  if (!raw) return false;
+  const ok = await sendCliRawInput(raw);
+  if (!ok) showToast('Could not send shortcut.', 'error');
+  activeCliInput()?.focus();
+  return ok;
+}
+
+function handleCliGlobalShortcut(event) {
+  if (!isCliVisible() || !cliSession) return;
+  if (!event.ctrlKey || event.altKey || event.metaKey) return;
+  const key = String(event.key || '').toLowerCase();
+  const supported = ['c', 'd', 'z', 'l'];
+  if (!supported.includes(key)) return;
+
+  // Keep the browser copy shortcut when the user selected text.
+  if (key === 'c' && cliSelectionText()) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  const map = { c: 'ctrl-c', d: 'ctrl-d', z: 'ctrl-z', l: 'ctrl-l' };
+  sendCliShortcut(map[key]);
+}
+
+document.addEventListener('keydown', handleCliGlobalShortcut, true);
 
 async function pasteSudoPasswordToCli() {
   if (!cliSession) {
