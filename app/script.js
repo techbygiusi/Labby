@@ -132,7 +132,7 @@ let cliRemoteHistoryLoadedFor = '';
 let cliTerminalState = createCliTerminalState();
 let cliXtermInstances = new Map();
 let cliXtermOutputBuffer = '';
-let cliXtermPreferred = true;
+let cliXtermPreferred = false;
 
 let credentialFields = null;
 const formTitle = document.getElementById('form-title');
@@ -503,8 +503,6 @@ document.addEventListener('keydown', (event) => {
   if (!isCliVisible()) return;
   const terminal = activeCliEls()?.terminal;
   if (!terminal || document.activeElement !== terminal) return;
-  // xterm.js owns keyboard input while the terminal itself is focused.
-  if (cliXtermAvailable() && cliXtermInstances.has(terminal)) return;
   if (event.key === 'ArrowUp') {
     event.preventDefault();
     event.stopPropagation();

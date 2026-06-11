@@ -7959,22 +7959,3 @@ dialog.rack-form-dialog:not([open]) {
   outline: 3px solid color-mix(in srgb, var(--mint) 58%, transparent);
   outline-offset: 3px;
 }
-
-
-/* v101: use xterm.js when available so full-screen terminal apps like nano render correctly. */
-.cli-terminal.xterm-enabled {
-  white-space: normal !important;
-  word-break: normal !important;
-  overflow: hidden !important;
-  padding: 0.55rem !important;
-}
-.cli-terminal.xterm-enabled .xterm {
-  height: 100%;
-}
-.cli-terminal.xterm-enabled .xterm-viewport {
-  border-radius: 10px;
-}
-.cli-terminal.xterm-enabled .xterm-screen,
-.cli-terminal.xterm-enabled .xterm-rows {
-  font-family: 'Space Mono', ui-monospace, monospace !important;
-}

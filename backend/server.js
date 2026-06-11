@@ -653,16 +653,10 @@ printf '%s\n' "$LABBY_SSH_KEY_PASSPHRASE"
 
   let proc;
   try {
-    const sshCommandLine = [command, ...args].map(shellQuote).join(' ');
-    const scriptArgs = ['-qfec', `stty rows ${env.LINES} cols ${env.COLUMNS} >/dev/null 2>&1; ${sshCommandLine}`, '/dev/null'];
-    proc = spawn('script', scriptArgs, { stdio: ['pipe', 'pipe', 'pipe'], env });
-    proc.once('error', () => {});
+    proc = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'], env });
   } catch (err) {
-    try { proc = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'], env }); }
-    catch (fallbackErr) {
-      if (tempDir) cleanupSessionFiles({ tempDir });
-      return res.status(500).json({ error: `Unable to start ssh: ${fallbackErr.message}` });
-    }
+    if (tempDir) cleanupSessionFiles({ tempDir });
+    return res.status(500).json({ error: `Unable to start ssh: ${err.message}` });
   }
 
   const session = { id: sessionId, proc, tempDir, output: `ssh ${target}${authMethod === 'key' ? ' [key]' : ''}
@@ -735,15 +729,10 @@ app.post('/api/ssh/:id/complete', (req, res) => {
 app.get('/api/ssh/:id/history', (req, res) => {
   const session = sshSessions.get(req.params.id);
   if (!session || session.closed || !session.complete) return res.status(404).json({ error: 'SSH session not found or closed.' });
-  const historyProbe = [
-    'HISTFILE="${HISTFILE:-$HOME/.bash_history}"',
-    'if [ -r "$HISTFILE" ]; then',
-    '  tail -n 250 "$HISTFILE"',
-    'else',
-    "  history 2>/dev/null | tail -n 250 | sed 's/^ *[0-9][0-9]* *//'",
-    'fi',
-  ].join('\n');
-  const remoteScript = `bash -lc ${shellQuote(historyProbe)}`;
+  // Keep this remote command deliberately simple: OpenSSH executes it
+  // through the target user's login shell, and nested quoting easily breaks on
+  // minimal systems. Read common shell history files directly instead.
+  const remoteScript = 'test -r ~/.bash_history && tail -n 250 ~/.bash_history; test -r ~/.zsh_history && tail -n 250 ~/.zsh_history';
   const args = [...session.complete.args, remoteScript];
   const child = spawn(session.complete.command, args, { stdio: ['ignore', 'pipe', 'pipe'], env: session.complete.env });
   let stdout = '';
@@ -755,7 +744,7 @@ app.get('/api/ssh/:id/history', (req, res) => {
     clearTimeout(timer);
     const history = stdout
       .split(/\r?\n/)
-      .map((v) => v.trim())
+      .map((v) => v.replace(/^: \d+:\d+;/, '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim())
       .filter((v) => v && !/^\d+\s+/.test(v))
       .slice(-200);
     res.json({ history });
