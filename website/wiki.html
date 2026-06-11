@@ -1018,6 +1018,42 @@ docker compose up --build -d</pre>
       <h2>Start Labby</h2>
       <pre>docker compose up --build -d</pre>
       <p>Open Labby in your browser: <code>http://localhost:8080</code></p>
+      <h2>Example docker-compose.yml</h2>
+      <p>A normal self-hosted installation uses one frontend container, one backend container and the persistent <code>labby-data</code> volume.</p>
+      <pre>services:
+  labby-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: labby-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - labby-backend
+    restart: unless-stopped
+
+  labby-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: labby-backend
+    environment:
+      - DATA_DIR=/data
+    volumes:
+      - labby-data:/data
+    restart: unless-stopped
+
+volumes:
+  labby-data:
+    driver: local</pre>
+      <h2>Example with external backup mount</h2>
+      <p>When you want the Backup Config screen to offer an external SMB/NAS target, mount the host folder into the backend container as <code>/config-backup</code>.</p>
+      <pre>services:
+  labby-backend:
+    volumes:
+      - labby-data:/data
+      - /mnt/your-smb-share/labby-backups:/config-backup</pre>
+      <p>The container reacts only to the fixed path <code>/config-backup</code>. If that path exists and is writable, Labby shows it as the SMB backup target.</p>
       <h2>Stop Labby</h2>
       <pre>docker compose down</pre>
       <p>Data is preserved in Docker volume: <code>labby-data</code>.</p>
@@ -1563,18 +1599,26 @@ docker compose up -d</pre>
       <p>This is the easiest portable backup. It contains inventory, locations, racks, themes and the active theme. When secrets exist, credentials and API key records are included only in the encrypted secrets bundle and require the export key during import.</p>
       <h2>Scheduled encrypted Backup Config</h2>
       <p>Use <code>Config → Backup Config</code> to create encrypted backups on a schedule. You can choose hourly, daily or weekly runs, set the time/day, decide how many backups should be kept, run a manual backup and restore existing encrypted backups from the same screen.</p>
-      <h2>SMB backup mount</h2>
-      <p>Labby automatically shows an SMB target when the backend container has a writable mount at <code>/config-backup</code>. The host can be any SMB/NAS mount point.</p>
-      <pre><code>services:
-  backend:
+      <h2>External SMB/NAS backup mount</h2>
+      <p>Labby does not mount SMB shares by itself. The traditional and reliable Docker way is: mount the SMB share on the Docker host first, then bind that host path into the Labby backend container.</p>
+      <p>Example host mount:</p>
+      <pre>sudo mkdir -p /mnt/labby-backups
+sudo mount -t cifs //NAS/labby-backups /mnt/labby-backups \
+  -o username=YOUR_USER,password=YOUR_PASSWORD,vers=3.0,uid=$(id -u),gid=$(id -g)</pre>
+      <p>Then add the mounted host path to <code>docker-compose.yml</code> on the backend service:</p>
+      <pre>services:
+  labby-backend:
     volumes:
-      - ./data:/data
-      - /mnt/your-smb-share/labby-backups:/config-backup</code></pre>
-      <p>Mount the SMB share on the Docker host first, then bind that mounted host path into the container. Keep the container path exactly <code>/config-backup</code>; that is the path Labby checks automatically.</p>
+      - labby-data:/data
+      - /mnt/labby-backups:/config-backup</pre>
+      <p>The container path must be exactly <code>/config-backup</code>. On startup and refresh, Labby checks whether this path exists and is writable. When it is writable, the Backup Config screen shows an SMB target. When it is missing, only the local target is available.</p>
+      <p>Restart after changing the YAML:</p>
+      <pre>docker compose down
+docker compose up --build -d</pre>
       <h2>Restore encrypted backups</h2>
       <p>Scheduled backups are encrypted with a key stored inside the Labby data volume. Because the key is not shown to users, restore them through <code>Config → Backup Config</code> so the backend can decrypt and import the selected backup safely.</p>
       <h2>Demo Backup</h2>
-      <p>The demo stores changes in your browser only. Use Export Config before clearing browser storage or loading the demo seed again.</p>
+      <p>The public demo shows the Backup Config menu as a preview, but running scheduled backups, restore and delete require the self-hosted backend. The demo stores changes in your browser only. Use Export Config before clearing browser storage or loading the demo seed again.</p>
     `},
   };
 

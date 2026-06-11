@@ -896,7 +896,24 @@ function describeBackupSchedule(cfg) {
   return `Runs daily at ${cfg.time || '02:00'}.`;
 }
 
+function demoBackupStatus() {
+  return {
+    demoMode: true,
+    config: { enabled: false, frequency: 'daily', time: '02:00', weekday: '1', target: 'local', maxBackups: 10, lastRunAt: null },
+    targets: {
+      local: { label: 'Local demo storage (disabled)', path: '/data/backups', available: false },
+      smb: { label: 'SMB mount (/config-backup) - self-host only', path: '/config-backup', available: false },
+    },
+    backups: [],
+    logs: [{ level: 'info', at: new Date().toISOString(), message: 'Demo mode: encrypted scheduled backups are shown for layout preview only. Self-host Labby to run, restore or delete backups.' }],
+  };
+}
+
 async function fetchBackupStatus() {
+  if (DEMO_INTERACTIVE_SECURITY_DISABLED) {
+    lastBackupStatus = demoBackupStatus();
+    return lastBackupStatus;
+  }
   const res = await fetch(`${API_BASE}/api/backups/status`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   lastBackupStatus = await res.json();
@@ -905,10 +922,13 @@ async function fetchBackupStatus() {
 
 function backupPanelHtml(status) {
   const cfg = status?.config || {};
+  const isDemoBackup = !!status?.demoMode;
+  const disabledAttr = isDemoBackup ? ' disabled' : '';
+  const demoNotice = isDemoBackup ? '<p class="note backup-demo-notice">Demo mode: Backup Config is visible here, but running, restoring and deleting encrypted backups is available only in the self-hosted version.</p>' : '';
   const targets = status?.targets || {};
   const currentTarget = cfg.target === 'smb' && targets.smb?.available ? 'smb' : 'local';
   const targetOptions = [
-    `<option value="local">${escapeHtml(targets.local?.label || 'Local (/data/backups)')}</option>`,
+    `<option value="local" ${isDemoBackup ? 'disabled' : ''}>${escapeHtml(targets.local?.label || 'Local (/data/backups)')}</option>`,
     targets.smb?.available ? `<option value="smb">${escapeHtml(targets.smb?.label || 'SMB mount (/config-backup)')}</option>` : `<option value="smb" disabled>SMB mount not detected (/config-backup)</option>`,
   ].join('');
   const logs = Array.isArray(status?.logs) && status.logs.length
@@ -921,28 +941,29 @@ function backupPanelHtml(status) {
   return `
     <section class="backup-config-panel">
       <p class="note config-intro">Encrypted scheduled backups for your complete Labby config. The encryption key stays inside the Labby data volume; restore backups from this screen.</p>
+      ${demoNotice}
       <div class="backup-form-grid">
-        <label class="backup-toggle-row"><input data-backup-field="enabled" type="checkbox" ${cfg.enabled ? 'checked' : ''} /> Enable regular backups</label>
+        <label class="backup-toggle-row"><input data-backup-field="enabled" type="checkbox" ${cfg.enabled ? 'checked' : ''}${disabledAttr} /> Enable regular backups</label>
         <label>Schedule
-          <select data-backup-field="frequency">
+          <select data-backup-field="frequency"${disabledAttr}>
             <option value="hourly" ${cfg.frequency === 'hourly' ? 'selected' : ''}>Hourly</option>
             <option value="daily" ${cfg.frequency === 'daily' ? 'selected' : ''}>Daily</option>
             <option value="weekly" ${cfg.frequency === 'weekly' ? 'selected' : ''}>Weekly</option>
           </select>
         </label>
         <label>Time / minute
-          <input data-backup-field="time" type="time" value="${escapeAttr(cfg.time || '02:00')}" />
+          <input data-backup-field="time" type="time" value="${escapeAttr(cfg.time || '02:00')}"${disabledAttr} />
         </label>
         <label>Weekly day
-          <select data-backup-field="weekday">
+          <select data-backup-field="weekday"${disabledAttr}>
             ${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((day, idx) => `<option value="${idx}" ${String(cfg.weekday || '1') === String(idx) ? 'selected' : ''}>${day}</option>`).join('')}
           </select>
         </label>
         <label>Storage target
-          <select data-backup-field="target" data-current-target="${escapeAttr(currentTarget)}">${targetOptions}</select>
+          <select data-backup-field="target" data-current-target="${escapeAttr(currentTarget)}"${disabledAttr}>${targetOptions}</select>
         </label>
         <label>Max backups to keep
-          <input data-backup-field="maxBackups" type="number" min="1" max="100" value="${escapeAttr(cfg.maxBackups || 10)}" />
+          <input data-backup-field="maxBackups" type="number" min="1" max="100" value="${escapeAttr(cfg.maxBackups || 10)}"${disabledAttr} />
         </label>
       </div>
       <div class="backup-status-card">
@@ -952,8 +973,8 @@ function backupPanelHtml(status) {
         <span>SMB path: ${escapeHtml(targets.smb?.path || '/config-backup')} · ${targets.smb?.available ? 'detected' : 'not detected'}</span>
       </div>
       <div class="backup-actions-row">
-        <button class="button" type="button" data-backup-save>Save schedule</button>
-        <button class="button secondary" type="button" data-backup-run>Run backup now</button>
+        <button class="button" type="button" data-backup-save${disabledAttr}>Save schedule</button>
+        <button class="button secondary" type="button" data-backup-run${disabledAttr}>Run backup now</button>
         <button class="button secondary" type="button" data-backup-refresh>Refresh</button>
       </div>
       <div class="backup-section-title">Restore encrypted backups</div>
@@ -1073,6 +1094,27 @@ backupConfigBtn?.addEventListener('click', () => openBackupConfig({ returnToConf
 backupConfigBtnMobile?.addEventListener('click', () => openBackupConfig({ returnToConfig: true }));
 backupConfigClose?.addEventListener('click', () => backupConfigDialog?.close());
 backupConfigCloseMobile?.addEventListener('click', closeBackupConfigView);
+
+function ensureBackupConfigMenuButtons() {
+  const desktopGrid = document.querySelector('#config-dialog .config-menu-grid');
+  const mobileGrid = document.querySelector('#mobile-config .config-menu-grid');
+  const insertBeforeClear = (grid, buttonId, clearId) => {
+    if (!grid || document.getElementById(buttonId)) return;
+    const button = document.createElement('button');
+    button.id = buttonId;
+    button.className = 'button secondary config-wide-action';
+    button.type = 'button';
+    button.textContent = 'Backup Config';
+    button.addEventListener('click', () => openBackupConfig({ returnToConfig: true }));
+    const clearButton = document.getElementById(clearId);
+    if (clearButton && clearButton.parentNode === grid) grid.insertBefore(button, clearButton);
+    else grid.appendChild(button);
+  };
+  insertBeforeClear(desktopGrid, 'backup-config-btn', 'clear-all');
+  insertBeforeClear(mobileGrid, 'backup-config-btn-mobile', 'clear-all-mobile');
+}
+ensureBackupConfigMenuButtons();
+
 
 
 clearAll.addEventListener('click', async () => {

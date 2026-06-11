@@ -8191,3 +8191,16 @@ html body .demo-banner span {
     padding: 0.42rem 0.75rem;
   }
 }
+
+
+/* v111: public demo shows Backup Config as a read-only preview. */
+.backup-demo-notice {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--accent) 18%, var(--panel));
+}
+.backup-config-panel button:disabled,
+.backup-config-panel input:disabled,
+.backup-config-panel select:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+}

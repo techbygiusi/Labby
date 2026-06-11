@@ -20,6 +20,9 @@ services:
       - DATA_DIR=/data
     volumes:
       - labby-data:/data
+      # Optional external Backup Config target. Mount your SMB/NAS share on the host first.
+      # Labby auto-detects it only when the container path is exactly /config-backup.
+      # - /mnt/labby-backups:/config-backup
     restart: always
 
 volumes:
