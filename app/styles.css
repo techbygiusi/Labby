@@ -7871,3 +7871,86 @@ dialog.rack-form-dialog:not([open]) {
   font-weight: 700;
   line-height: 1.35;
 }
+
+
+/* v95: normalize Backup Config desktop typography and control sizing. */
+@media (min-width: 1101px) {
+  .backup-config-dialog[open] {
+    font-size: 14px;
+  }
+
+  .backup-config-dialog .tree-head h3 {
+    font-size: 1rem;
+    line-height: 1.25;
+    letter-spacing: 0;
+  }
+
+  .backup-config-dialog .backup-dialog-body {
+    font-size: 0.86rem;
+  }
+
+  .backup-config-dialog .backup-config-panel {
+    gap: 0.72rem;
+  }
+
+  .backup-config-dialog .config-intro,
+  .backup-config-dialog .backup-status-card,
+  .backup-config-dialog .backup-section-title,
+  .backup-config-dialog .backup-form-grid label,
+  .backup-config-dialog .backup-toggle-row,
+  .backup-config-dialog .backup-list li,
+  .backup-config-dialog .backup-log-list li {
+    font-size: 0.84rem;
+    line-height: 1.35;
+  }
+
+  .backup-config-dialog .backup-section-title,
+  .backup-config-dialog .backup-status-card {
+    padding: 0.62rem 0.75rem;
+    border-radius: 12px;
+  }
+
+  .backup-config-dialog .backup-toggle-row {
+    min-height: 40px;
+    padding: 0.55rem 0.7rem;
+  }
+
+  .backup-config-dialog .backup-form-grid {
+    gap: 0.7rem 0.85rem;
+  }
+
+  .backup-config-dialog .backup-form-grid input,
+  .backup-config-dialog .backup-form-grid select {
+    min-height: 38px;
+    font-size: 0.84rem;
+    line-height: 1.25;
+    padding: 0.45rem 0.65rem;
+  }
+
+  .backup-config-dialog .backup-list li,
+  .backup-config-dialog .backup-log-list li {
+    padding: 0.55rem 0.68rem;
+  }
+
+  .backup-config-dialog .backup-list li strong,
+  .backup-config-dialog .backup-log-list li strong,
+  .backup-config-dialog .backup-status-card strong {
+    font-size: 0.88rem;
+    line-height: 1.28;
+  }
+
+  .backup-config-dialog .backup-list li span,
+  .backup-config-dialog .backup-log-list li span,
+  .backup-config-dialog .backup-status-card span {
+    font-size: 0.78rem;
+    line-height: 1.3;
+  }
+
+  .backup-config-dialog .button,
+  .backup-config-dialog .dialog-footer .button {
+    min-height: 36px;
+    font-size: 0.8rem;
+    line-height: 1.2;
+    padding: 0.42rem 0.75rem;
+  }
+}

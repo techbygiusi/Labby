@@ -173,6 +173,8 @@ let lastHardwareKindSelection = hardwareKindSelect.value;
 let pollingInterval = null;
 let liveStatusData = {}; // Store live status data { itemId: { ipStatus: 'online'|'offline', urlStatus: 'online'|'offline' } }
 let importedAgentKeysForSave = null;
+let importedBackupConfigForSave = null;
+let importedBackupLogsForSave = null;
 const agentKeyStorage = 'labby-agent-keys';
 const agentScopes = [
   ['inventory:read', 'Read inventory'],
@@ -209,7 +211,7 @@ async function loadItemsFromAPI() {
     const data = await res.json();
     if (Array.isArray(data)) {
       // Legacy: bare array
-      return { items: data, locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [] };
+      return { items: data, locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [], backupConfig: null, backupLogs: [] };
     }
     return {
       items: Array.isArray(data.items) ? data.items : [],
@@ -218,6 +220,8 @@ async function loadItemsFromAPI() {
       agentStatus: data.agentStatus && typeof data.agentStatus === 'object' ? data.agentStatus : {},
       agentKeys: Array.isArray(data.agentKeys) ? data.agentKeys : [],
       commandSnippets: Array.isArray(data.commandSnippets) ? data.commandSnippets : [],
+      backupConfig: data.backupConfig && typeof data.backupConfig === 'object' ? data.backupConfig : null,
+      backupLogs: Array.isArray(data.backupLogs) ? data.backupLogs : [],
     };
   } catch (err) {
     console.warn('Labby: API not reachable, falling back to localStorage.', err);
@@ -227,9 +231,9 @@ async function loadItemsFromAPI() {
       const lsItems = Array.isArray(parsed) ? parsed : (parsed.items || []);
       const lsLocations = Array.isArray(parsed) ? [] : (parsed.locations || []);
       const lsRacks = Array.isArray(parsed) ? [] : (parsed.racks || []);
-      return { items: lsItems, locations: lsLocations, racks: lsRacks, agentStatus: parsed.agentStatus || {}, commandSnippets: Array.isArray(parsed.commandSnippets) ? parsed.commandSnippets : [] };
+      return { items: lsItems, locations: lsLocations, racks: lsRacks, agentStatus: parsed.agentStatus || {}, commandSnippets: Array.isArray(parsed.commandSnippets) ? parsed.commandSnippets : [], backupConfig: parsed.backupConfig && typeof parsed.backupConfig === 'object' ? parsed.backupConfig : null, backupLogs: Array.isArray(parsed.backupLogs) ? parsed.backupLogs : [] };
     } catch {
-      return { items: [], locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [] };
+      return { items: [], locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [], backupConfig: null, backupLogs: [] };
     }
   }
 }
@@ -243,6 +247,8 @@ async function saveItemsToAPI(itemList) {
     commandSnippets: commandSnippets,
   };
   if (Array.isArray(importedAgentKeysForSave)) payload.agentKeys = importedAgentKeysForSave;
+  if (importedBackupConfigForSave && typeof importedBackupConfigForSave === 'object') payload.backupConfig = importedBackupConfigForSave;
+  if (Array.isArray(importedBackupLogsForSave)) payload.backupLogs = importedBackupLogsForSave;
   try {
     const res = await fetch(`${API_BASE}/api/data`, {
       method: 'POST',
@@ -251,6 +257,8 @@ async function saveItemsToAPI(itemList) {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     if (Array.isArray(importedAgentKeysForSave)) importedAgentKeysForSave = null;
+    importedBackupConfigForSave = null;
+    importedBackupLogsForSave = null;
   } catch (err) {
     console.warn('Labby: API save failed, writing to localStorage as fallback.', err);
     try { localStorage.setItem(storageKey, JSON.stringify(payload)); } catch {}
@@ -1179,9 +1187,22 @@ function openKeyPopup({ title, message, key = '', mode = 'copy' } = {}) {
   });
 }
 
+async function loadBackupConfigForExport() {
+  try {
+    const status = await fetchBackupStatus();
+    return {
+      backupConfig: status?.config && typeof status.config === 'object' ? status.config : null,
+      backupLogs: Array.isArray(status?.logs) ? status.logs.slice().reverse() : [],
+    };
+  } catch {
+    return { backupConfig: null, backupLogs: [] };
+  }
+}
+
 async function buildConfigExport() {
   const activeTheme = getActiveThemeId();
   const rawAgentKeys = await loadRawAgentKeysForExport();
+  const backupExport = await loadBackupConfigForExport();
   const exportHasCredentials = hasAnyCredentials(items);
   const exportHasAgentKeys = rawAgentKeys.length > 0;
   let exportedItems = items;
@@ -1215,6 +1236,8 @@ async function buildConfigExport() {
     racks,
     agentStatus: liveStatusData,
     commandSnippets: commandSnippets,
+    backupConfig: backupExport.backupConfig,
+    backupLogs: backupExport.backupLogs,
     encryptedSecrets: {
       credentials: encryptedCredentials,
       agentKeys: encryptedAgentKeys,
@@ -1248,6 +1271,8 @@ async function applyImportedConfig(parsed) {
     locations = [];
     racks = [];
     importedAgentKeysForSave = null;
+    importedBackupConfigForSave = null;
+    importedBackupLogsForSave = null;
     return;
   }
 
@@ -1288,6 +1313,8 @@ async function applyImportedConfig(parsed) {
   locations = Array.isArray(parsed.locations) ? parsed.locations : [];
   racks     = Array.isArray(parsed.racks) ? parsed.racks : [];
   commandSnippets = normalizeCommandSnippets(parsed.commandSnippets || []);
+  importedBackupConfigForSave = parsed.backupConfig && typeof parsed.backupConfig === 'object' ? parsed.backupConfig : null;
+  importedBackupLogsForSave = Array.isArray(parsed.backupLogs) ? parsed.backupLogs : null;
   liveStatusData = parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {};
 
   if (Array.isArray(parsed.customThemes)) importCustomThemes(parsed.customThemes);
