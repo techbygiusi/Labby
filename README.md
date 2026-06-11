@@ -619,3 +619,20 @@ General rules:
 
 MIT License  
 © [TechByGiusi](https://techbygiusi.com/)
+
+
+## Backup Config and SMB target
+
+Labby can create encrypted configuration backups from **Config → Backup Config**. Local backups are written below the Labby data volume. To offer an SMB/NAS location in the UI, mount a host folder into the backend container as `/config-backup`.
+
+Example `docker-compose.yml` volume section:
+
+```yaml
+services:
+  backend:
+    volumes:
+      - ./data:/data
+      - /mnt/your-smb-share/labby-backups:/config-backup
+```
+
+Mount the SMB share on the Docker host first, then bind that mounted path into the container. The container path must be exactly `/config-backup`; Labby detects it automatically and shows it as the SMB backup target. Backups are encrypted with a key stored in the Labby data volume and should be restored from **Config → Backup Config**.

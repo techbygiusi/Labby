@@ -349,6 +349,7 @@
               <input id="import-file-mobile" type="file" accept="application/json" />
             </label>
           </div>
+          <button id="backup-config-btn-mobile" class="button secondary config-wide-action" type="button">Backup Config</button>
           <button id="clear-all-mobile" class="button danger config-wide-action" type="button">Clear All</button>
           <div class="config-section-title">Customization</div>
           <div class="config-menu-row config-menu-row-two">
@@ -360,6 +361,16 @@
       </div>
       <div class="mobile-view-footer">
         <button class="button secondary" id="mobile-config-close">← Back to Topology</button>
+      </div>
+    </div>
+
+    <div class="mobile-view" id="mobile-backup-config">
+      <div class="mobile-view-head">
+        <h2>Backup Config</h2>
+      </div>
+      <div class="mobile-view-body" id="mobile-backup-config-body"></div>
+      <div class="mobile-view-footer">
+        <button class="button secondary" id="mobile-backup-config-close">← Back to Config</button>
       </div>
     </div>
 
@@ -501,6 +512,7 @@
             <input id="import-file" type="file" accept="application/json" />
           </label>
         </div>
+        <button id="backup-config-btn" class="button secondary config-wide-action" type="button">Backup Config</button>
         <button id="clear-all" class="button danger config-wide-action" type="button">Clear All</button>
 
         <div class="config-section-title">Customization</div>
@@ -512,6 +524,17 @@
       </div>
       <div class="dialog-footer">
         <button class="button secondary" onclick="document.getElementById('config-dialog').close()">✕ Close</button>
+      </div>
+    </dialog>
+
+
+    <dialog id="backup-config-dialog" class="tree-dialog backup-config-dialog mobile-fullscreen-dialog">
+      <div class="tree-head">
+        <h3>Backup Config</h3>
+      </div>
+      <div class="backup-dialog-body" id="backup-config-body"></div>
+      <div class="dialog-footer">
+        <button id="backup-config-close" class="button secondary" type="button">✕ Close</button>
       </div>
     </dialog>
 

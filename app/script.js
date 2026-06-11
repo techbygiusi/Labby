@@ -796,6 +796,195 @@ document.getElementById('agent-api-close')?.addEventListener('click', () => {
   agentApiDialog?.close();
 });
 
+// ── Backup Config UI ───────────────────────────────────────────────────────
+const backupConfigDialog = document.getElementById('backup-config-dialog');
+const backupConfigBtn = document.getElementById('backup-config-btn');
+const backupConfigBtnMobile = document.getElementById('backup-config-btn-mobile');
+const backupConfigClose = document.getElementById('backup-config-close');
+const backupConfigCloseMobile = document.getElementById('mobile-backup-config-close');
+let backupConfigReturnToConfig = false;
+let lastBackupStatus = null;
+
+function weekdayLabel(value) {
+  return ({ '0': 'Sunday', '1': 'Monday', '2': 'Tuesday', '3': 'Wednesday', '4': 'Thursday', '5': 'Friday', '6': 'Saturday' })[String(value)] || 'Monday';
+}
+
+function formatBackupDate(value) {
+  if (!value) return 'Never';
+  try { return new Date(value).toLocaleString(); } catch { return value; }
+}
+
+function describeBackupSchedule(cfg) {
+  if (!cfg?.enabled) return 'Scheduled backups are disabled.';
+  if (cfg.frequency === 'hourly') return `Runs hourly at minute ${String(cfg.time || '00:00').slice(3, 5)}.`;
+  if (cfg.frequency === 'weekly') return `Runs weekly on ${weekdayLabel(cfg.weekday)} at ${cfg.time || '02:00'}.`;
+  return `Runs daily at ${cfg.time || '02:00'}.`;
+}
+
+async function fetchBackupStatus() {
+  const res = await fetch(`${API_BASE}/api/backups/status`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  lastBackupStatus = await res.json();
+  return lastBackupStatus;
+}
+
+function backupPanelHtml(status) {
+  const cfg = status?.config || {};
+  const targets = status?.targets || {};
+  const currentTarget = cfg.target === 'smb' && targets.smb?.available ? 'smb' : 'local';
+  const targetOptions = [
+    `<option value="local">${escapeHtml(targets.local?.label || 'Local (/data/backups)')}</option>`,
+    targets.smb?.available ? `<option value="smb">${escapeHtml(targets.smb?.label || 'SMB mount (/config-backup)')}</option>` : `<option value="smb" disabled>SMB mount not detected (/config-backup)</option>`,
+  ].join('');
+  const logs = Array.isArray(status?.logs) && status.logs.length
+    ? status.logs.map(log => `<li class="backup-log-${escapeAttr(log.level)}"><strong>${escapeHtml(formatBackupDate(log.at))}</strong><span>${escapeHtml(log.message)}</span></li>`).join('')
+    : '<li><span>No backup logs yet.</span></li>';
+  const backups = Array.isArray(status?.backups) && status.backups.length
+    ? status.backups.map(backup => `<li><div><strong>${escapeHtml(backup.name)}</strong><span>${escapeHtml(formatBackupDate(backup.createdAt))} · ${Math.ceil((backup.size || 0) / 1024)} KB · ${escapeHtml(backup.target)}</span></div><button class="button secondary" type="button" data-restore-backup="${escapeAttr(backup.id)}" data-restore-target="${escapeAttr(backup.target)}">Restore</button></li>`).join('')
+    : '<li><span>No encrypted backups found for this target.</span></li>';
+
+  return `
+    <section class="backup-config-panel">
+      <p class="note config-intro">Encrypted scheduled backups for your complete Labby config. The encryption key stays inside the Labby data volume; restore backups from this screen.</p>
+      <div class="backup-form-grid">
+        <label class="backup-toggle-row"><input data-backup-field="enabled" type="checkbox" ${cfg.enabled ? 'checked' : ''} /> Enable regular backups</label>
+        <label>Schedule
+          <select data-backup-field="frequency">
+            <option value="hourly" ${cfg.frequency === 'hourly' ? 'selected' : ''}>Hourly</option>
+            <option value="daily" ${cfg.frequency === 'daily' ? 'selected' : ''}>Daily</option>
+            <option value="weekly" ${cfg.frequency === 'weekly' ? 'selected' : ''}>Weekly</option>
+          </select>
+        </label>
+        <label>Time / minute
+          <input data-backup-field="time" type="time" value="${escapeAttr(cfg.time || '02:00')}" />
+        </label>
+        <label>Weekly day
+          <select data-backup-field="weekday">
+            ${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((day, idx) => `<option value="${idx}" ${String(cfg.weekday || '1') === String(idx) ? 'selected' : ''}>${day}</option>`).join('')}
+          </select>
+        </label>
+        <label>Storage target
+          <select data-backup-field="target" data-current-target="${escapeAttr(currentTarget)}">${targetOptions}</select>
+        </label>
+        <label>Max backups to keep
+          <input data-backup-field="maxBackups" type="number" min="1" max="100" value="${escapeAttr(cfg.maxBackups || 10)}" />
+        </label>
+      </div>
+      <div class="backup-status-card">
+        <strong>${escapeHtml(describeBackupSchedule(cfg))}</strong>
+        <span>Last backup: ${escapeHtml(formatBackupDate(cfg.lastRunAt))}</span>
+        <span>Local path: ${escapeHtml(targets.local?.path || '/data/backups')}</span>
+        <span>SMB path: ${escapeHtml(targets.smb?.path || '/config-backup')} · ${targets.smb?.available ? 'detected' : 'not detected'}</span>
+      </div>
+      <div class="backup-actions-row">
+        <button class="button" type="button" data-backup-save>Save schedule</button>
+        <button class="button secondary" type="button" data-backup-run>Run backup now</button>
+        <button class="button secondary" type="button" data-backup-refresh>Refresh</button>
+      </div>
+      <div class="backup-section-title">Restore encrypted backups</div>
+      <ul class="backup-list">${backups}</ul>
+      <div class="backup-section-title">Latest backup logs</div>
+      <ul class="backup-log-list">${logs}</ul>
+    </section>
+  `;
+}
+
+function readBackupForm(container) {
+  const get = (name) => container.querySelector(`[data-backup-field="${name}"]`);
+  return {
+    enabled: !!get('enabled')?.checked,
+    frequency: get('frequency')?.value || 'daily',
+    time: get('time')?.value || '02:00',
+    weekday: get('weekday')?.value || '1',
+    target: get('target')?.value || 'local',
+    maxBackups: Number.parseInt(get('maxBackups')?.value || '10', 10),
+  };
+}
+
+function bindBackupPanel(container) {
+  container.querySelector('[data-backup-save]')?.addEventListener('click', async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/backups/settings`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(readBackupForm(container)),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      showToast('Backup schedule saved.');
+      await renderBackupConfigPanels();
+    } catch (err) { showToast('Could not save backup schedule.', 'error'); console.warn(err); }
+  });
+  container.querySelector('[data-backup-run]')?.addEventListener('click', async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/backups/run`, { method: 'POST' });
+      if (!res.ok) throw new Error(await res.text());
+      showToast('Encrypted backup created.');
+      await renderBackupConfigPanels();
+    } catch (err) { showToast('Backup failed.', 'error'); console.warn(err); }
+  });
+  container.querySelector('[data-backup-refresh]')?.addEventListener('click', () => renderBackupConfigPanels());
+  container.querySelectorAll('[data-restore-backup]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const id = button.getAttribute('data-restore-backup');
+      const target = button.getAttribute('data-restore-target') || 'local';
+      if (!confirm(`Restore Labby config from ${id}? Current config will be overwritten.`)) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/backups/restore`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, target }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast('Backup restored. Reloading…');
+        setTimeout(() => window.location.reload(), 700);
+      } catch (err) { showToast('Restore failed.', 'error'); console.warn(err); }
+    });
+  });
+  const targetSelect = container.querySelector('[data-backup-field="target"]');
+  if (targetSelect) targetSelect.value = targetSelect.getAttribute('data-current-target') || 'local';
+}
+
+async function renderBackupConfigPanels() {
+  let status;
+  try { status = await fetchBackupStatus(); }
+  catch (err) {
+    status = { config: { enabled: false, frequency: 'daily', time: '02:00', weekday: '1', target: 'local', maxBackups: 10 }, targets: {}, logs: [{ level: 'error', at: new Date().toISOString(), message: 'Backend backup API is not reachable.' }], backups: [] };
+  }
+  ['backup-config-body', 'mobile-backup-config-body'].forEach((id) => {
+    const container = document.getElementById(id);
+    if (!container) return;
+    container.innerHTML = backupPanelHtml(status);
+    bindBackupPanel(container);
+  });
+}
+
+function closeBackupConfigView() {
+  if (isMobile()) {
+    showMobileView('mobile-config');
+    setActiveMobileNav('nav-more');
+    return;
+  }
+  if (backupConfigDialog?.open) backupConfigDialog.close();
+}
+
+async function openBackupConfig(options = {}) {
+  backupConfigReturnToConfig = !!options.returnToConfig;
+  await renderBackupConfigPanels();
+  if (isMobile()) {
+    showMobileView('mobile-backup-config');
+    setActiveMobileNav('nav-more');
+    return;
+  }
+  if (configDialog?.open) configDialog.close();
+  backupConfigDialog.onclose = () => {
+    if (backupConfigReturnToConfig && configDialog && !configDialog.open) configDialog.showModal();
+    backupConfigReturnToConfig = false;
+  };
+  if (typeof backupConfigDialog?.showModal === 'function' && !backupConfigDialog.open) backupConfigDialog.showModal();
+}
+
+backupConfigBtn?.addEventListener('click', () => openBackupConfig({ returnToConfig: true }));
+backupConfigBtnMobile?.addEventListener('click', () => openBackupConfig({ returnToConfig: true }));
+backupConfigClose?.addEventListener('click', () => backupConfigDialog?.close());
+backupConfigCloseMobile?.addEventListener('click', closeBackupConfigView);
+
+
 clearAll.addEventListener('click', async () => {
   if (!confirm('Delete all resources? This also clears all rack, location, custom theme and API key data.')) return;
   items = []; locations = []; racks = []; commandSnippets = []; selectedCommandSnippetId = null;
