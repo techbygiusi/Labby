@@ -662,7 +662,3 @@ General rules:
 
 MIT License  
 © [TechByGiusi](https://techbygiusi.com/)
-
-## Documentation
-
-Detailed Backup Config, SMB/NAS mount, YAML deployment and CLI behavior docs are maintained in the Labby website Wiki.
