@@ -17,8 +17,6 @@
 
 const storageKey = 'labby-data-v8';
 const themeKey = 'labby-theme';
-const demoStorageVersionKey = 'labby-demo-storage-version';
-const demoStorageVersion = '2026-v61-demo-sync';
 const types = ['hardware', 'vm', 'lxc', 'app', 'network'];
 const networkPalette = ['#3b82f6', '#10b981', '#22c55e', '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#a855f7', '#14b8a6', '#84cc16', '#06b6d4', '#8b5cf6'];
 
@@ -28,8 +26,6 @@ const form = document.getElementById('resource-form');
 const typeSelect = document.getElementById('type');
 const symbolInput = document.getElementById('symbol');
 const clearAll = document.getElementById('clear-all');
-const seedDemo = document.getElementById('seed-demo');
-const seedDemoMobile = document.getElementById('seed-demo-mobile');
 const template = document.getElementById('item-template');
 const hostedOnSelect = document.getElementById('hosted-on');
 const hostedOnWrap = document.getElementById('hosted-on-wrap');
@@ -100,6 +96,7 @@ const cliInput = document.getElementById('cli-input');
 const cliSend = document.getElementById('cli-send');
 const cliCopy = document.getElementById('cli-copy');
 const cliPaste = document.getElementById('cli-paste');
+const cliSudoPassword = document.getElementById('cli-sudo-password');
 const cliClearKey = document.getElementById('cli-clear-key');
 const cliClose = document.getElementById('cli-close');
 const mobileCliView = document.getElementById('mobile-cli');
@@ -110,6 +107,7 @@ const mobileCliInput = document.getElementById('mobile-cli-input');
 const mobileCliSend = document.getElementById('mobile-cli-send');
 const mobileCliCopy = document.getElementById('mobile-cli-copy');
 const mobileCliPaste = document.getElementById('mobile-cli-paste');
+const mobileCliSudoPassword = document.getElementById('mobile-cli-sudo-password');
 const mobileCliClearKey = document.getElementById('mobile-cli-clear-key');
 const mobileCliClose = document.getElementById('mobile-cli-close');
 const cliCommandSearch = document.getElementById('cli-command-search');
@@ -132,6 +130,16 @@ const cliHistoryStore = new Map();
 let cliHistoryScope = 'default';
 let cliHistoryCursor = 0;
 let cliHistoryDraft = '';
+let cliRemoteHistoryLoadedFor = '';
+  cliRemoteHistoryPromise = null;
+  cliPlainOutputBuffer = '';
+let cliTerminalState = createCliTerminalState();
+let cliXtermInstances = new Map();
+let cliXtermOutputBuffer = '';
+let cliXtermPreferred = false;
+let cliPlainOutputBuffer = '';
+let cliRemoteHistoryPromise = null;
+
 let credentialFields = null;
 const formTitle = document.getElementById('form-title');
 const searchInput = document.getElementById('search');
@@ -180,7 +188,6 @@ let importedAgentKeysForSave = null;
 let importedBackupConfigForSave = null;
 let importedBackupLogsForSave = null;
 const agentKeyStorage = 'labby-agent-keys';
-const DEMO_INTERACTIVE_SECURITY_DISABLED = true;
 const agentScopes = [
   ['inventory:read', 'Read inventory'],
   ['inventory:write', 'Write inventory'],
@@ -211,38 +218,62 @@ const API_BASE = (() => {
 
 async function loadItemsFromAPI() {
   try {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return { items: [], locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [], backupConfig: null, backupLogs: [] };
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return { items: parsed, locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [] };
+    const res = await fetch(`${API_BASE}/api/data`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      // Legacy: bare array
+      return { items: data, locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [], backupConfig: null, backupLogs: [] };
+    }
     return {
-      items: Array.isArray(parsed.items) ? parsed.items : [],
-      locations: Array.isArray(parsed.locations) ? parsed.locations : [],
-      racks: Array.isArray(parsed.racks) ? parsed.racks : [],
-      agentStatus: parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {},
-      agentKeys: Array.isArray(parsed.agentKeys) ? parsed.agentKeys : [],
-      commandSnippets: Array.isArray(parsed.commandSnippets) ? parsed.commandSnippets : [],
+      items: Array.isArray(data.items) ? data.items : [],
+      locations: Array.isArray(data.locations) ? data.locations : [],
+      racks: Array.isArray(data.racks) ? data.racks : [],
+      agentStatus: data.agentStatus && typeof data.agentStatus === 'object' ? data.agentStatus : {},
+      agentKeys: Array.isArray(data.agentKeys) ? data.agentKeys : [],
+      commandSnippets: Array.isArray(data.commandSnippets) ? data.commandSnippets : [],
+      backupConfig: data.backupConfig && typeof data.backupConfig === 'object' ? data.backupConfig : null,
+      backupLogs: Array.isArray(data.backupLogs) ? data.backupLogs : [],
     };
-  } catch {
-    return { items: [], locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [], backupConfig: null, backupLogs: [] };
+  } catch (err) {
+    console.warn('Labby: API not reachable, falling back to localStorage.', err);
+    try {
+      const raw = localStorage.getItem(storageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      const lsItems = Array.isArray(parsed) ? parsed : (parsed.items || []);
+      const lsLocations = Array.isArray(parsed) ? [] : (parsed.locations || []);
+      const lsRacks = Array.isArray(parsed) ? [] : (parsed.racks || []);
+      return { items: lsItems, locations: lsLocations, racks: lsRacks, agentStatus: parsed.agentStatus || {}, commandSnippets: Array.isArray(parsed.commandSnippets) ? parsed.commandSnippets : [], backupConfig: parsed.backupConfig && typeof parsed.backupConfig === 'object' ? parsed.backupConfig : null, backupLogs: Array.isArray(parsed.backupLogs) ? parsed.backupLogs : [] };
+    } catch {
+      return { items: [], locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [], backupConfig: null, backupLogs: [] };
+    }
   }
 }
 
 async function saveItemsToAPI(itemList) {
   const payload = {
     items: itemList,
-    locations,
-    racks,
+    locations: locations,
+    racks: racks,
     agentStatus: liveStatusData,
     commandSnippets: commandSnippets,
   };
   if (Array.isArray(importedAgentKeysForSave)) payload.agentKeys = importedAgentKeysForSave;
   if (importedBackupConfigForSave && typeof importedBackupConfigForSave === 'object') payload.backupConfig = importedBackupConfigForSave;
   if (Array.isArray(importedBackupLogsForSave)) payload.backupLogs = importedBackupLogsForSave;
-  try { localStorage.setItem(storageKey, JSON.stringify(payload)); } catch {}
-  if (Array.isArray(importedAgentKeysForSave)) {
-    setLocalAgentKeys(importedAgentKeysForSave);
-    importedAgentKeysForSave = null;
+  try {
+    const res = await fetch(`${API_BASE}/api/data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (Array.isArray(importedAgentKeysForSave)) importedAgentKeysForSave = null;
+    importedBackupConfigForSave = null;
+    importedBackupLogsForSave = null;
+  } catch (err) {
+    console.warn('Labby: API save failed, writing to localStorage as fallback.', err);
+    try { localStorage.setItem(storageKey, JSON.stringify(payload)); } catch {}
   }
 }
 
@@ -261,103 +292,17 @@ initAdvancedResourceSettings();
 applyTypeVisibility();
 
 (async () => {
-  await seedFullDemoData();
-  initAgentApiPanel();
-  render();
-  startPolling();
-  openDemoTutorialAfterLayout();
-})();
-
-function migrateDemoDataTo192Subnets() {
-  const replaceValue = (value) => {
-    if (typeof value !== 'string') return value;
-    return value
-      .replaceAll('10.10.0.', '192.168.10.')
-      .replaceAll('10.20.0.', '192.168.20.')
-      .replaceAll('10.40.0.', '192.168.40.');
-  };
-  const walk = (value) => {
-    if (Array.isArray(value)) return value.map(walk);
-    if (value && typeof value === 'object') {
-      Object.keys(value).forEach((key) => { value[key] = walk(value[key]); });
-      return value;
-    }
-    return replaceValue(value);
-  };
-  items = walk(items);
-  locations = walk(locations);
-  racks = walk(racks);
-}
-
-function ensureDemoRackData() {
-  if (!Array.isArray(locations) || !locations.length) locations = getDemoLocations();
-  if (!Array.isArray(racks) || !racks.length) racks = getDemoRacks();
-}
-
-function isDemoDataMissingOrStale(loaded) {
-  const version = localStorage.getItem(demoStorageVersionKey);
-  const loadedItems = Array.isArray(loaded?.items) ? loaded.items : [];
-  const loadedLocations = Array.isArray(loaded?.locations) ? loaded.locations : [];
-  const loadedRacks = Array.isArray(loaded?.racks) ? loaded.racks : [];
-  if (version !== demoStorageVersion) return true;
-  if (!loadedItems.length) return true;
-  if (!loadedItems.some((item) => item.id === 'hw-router' || item.id === 'hw-proxmox')) return true;
-  if (!loadedLocations.length) return true;
-  if (!loadedRacks.length) return true;
-  return false;
-}
-
-async function seedFullDemoData({ force = false } = {}) {
   const loaded = await loadItemsFromAPI();
-  const loadedCommandSnippets = normalizeCommandSnippets(loaded.commandSnippets || []);
-  if (force || isDemoDataMissingOrStale(loaded)) {
-    items = sanitizeItems(getDemoItems());
-    locations = getDemoLocations();
-    racks = getDemoRacks();
-    // Command snippets are user-created CLI helpers. Keep them across demo-data
-    // migrations so opening the CLI never starts with an empty list while the
-    // saved config still contains commands.
-    commandSnippets = force ? commandSnippets : loadedCommandSnippets;
-    migrateDemoDataTo192Subnets();
-    ensureDemoRackData();
-    localStorage.setItem(demoStorageVersionKey, demoStorageVersion);
-    await saveItems();
-    renderCommandSnippets();
-    return;
-  }
   items = sanitizeItems(loaded.items);
   locations = loaded.locations || [];
   racks = loaded.racks || [];
   liveStatusData = loaded.agentStatus || {};
-  commandSnippets = loadedCommandSnippets;
-  migrateDemoDataTo192Subnets();
-  ensureDemoRackData();
-  localStorage.setItem(demoStorageVersionKey, demoStorageVersion);
-  await saveItems();
+  commandSnippets = normalizeCommandSnippets(loaded.commandSnippets || []);
   renderCommandSnippets();
-}
-
-function openDemoTutorialAfterLayout() {
-  const open = () => {
-    try { if (typeof openTutorial === 'function') openTutorial(); } catch {}
-  };
-  requestAnimationFrame(() => requestAnimationFrame(open));
-}
-
-async function loadDemoData() {
-  if (!confirm('Replace current browser demo data with the default demo entries?')) return;
-  await seedFullDemoData({ force: true });
-  stopEditing();
-  showToast('Demo data loaded with sample rack layouts.');
   initAgentApiPanel();
   render();
-  if (typeof renderRackOverview === 'function') renderRackOverview();
-  openDemoTutorialAfterLayout();
-}
-
-seedDemo?.addEventListener('click', loadDemoData);
-seedDemoMobile?.addEventListener('click', loadDemoData);
-
+  startPolling();
+})();
 
 async function startPolling() {
   if (pollingInterval) clearInterval(pollingInterval);
@@ -533,19 +478,19 @@ document.addEventListener('click', (event) => {
     if (event.key === 'ArrowUp') {
       event.preventDefault();
       event.stopPropagation();
-      sendCliArrowKey('up', input);
+      loadCliHistoryIntoInput(-1);
       return;
     }
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       event.stopPropagation();
-      sendCliArrowKey('down', input);
+      loadCliHistoryIntoInput(1);
       return;
     }
     if (event.key === 'Tab') {
       event.preventDefault();
       event.stopPropagation();
-      sendCliTabCompletion(input);
+      completeCliInputFromRemote(input);
       return;
     }
     if (event.key !== 'Enter') return;
@@ -562,17 +507,21 @@ document.addEventListener('click', (event) => {
 
 document.addEventListener('keydown', (event) => {
   if (!isCliVisible()) return;
-  if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
-  const input = activeCliInput();
-  if (!input) return;
-  event.preventDefault();
-  event.stopPropagation();
-  sendCliArrowKey(event.key === 'ArrowUp' ? 'up' : 'down', input);
+  const terminal = activeCliEls()?.terminal;
+  if (!terminal || document.activeElement !== terminal) return;
+  if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+    event.preventDefault();
+    event.stopPropagation();
+    const input = activeCliInput();
+    input?.focus();
+    loadCliHistoryIntoInput(event.key === 'ArrowUp' ? -1 : 1);
+  }
 }, true);
 
 [cliClearKey, mobileCliClearKey].filter(Boolean).forEach((btn) => btn.addEventListener('click', clearCliKnownHostAndReconnect));
 [cliCopy, mobileCliCopy].filter(Boolean).forEach((btn) => btn.addEventListener('click', copyCliOutput));
 [cliPaste, mobileCliPaste].filter(Boolean).forEach((btn) => btn.addEventListener('click', pasteClipboardToCliInput));
+[cliSudoPassword, mobileCliSudoPassword].filter(Boolean).forEach((btn) => btn.addEventListener('click', pasteSudoPasswordToCli));
 [cliClose, mobileCliClose].filter(Boolean).forEach((btn) => btn.addEventListener('click', closeCliSession));
 if (cliDialog) {
   cliDialog.addEventListener('cancel', (event) => {
@@ -902,24 +851,7 @@ function describeBackupSchedule(cfg) {
   return `Runs daily at ${cfg.time || '02:00'}.`;
 }
 
-function demoBackupStatus() {
-  return {
-    demoMode: true,
-    config: { enabled: false, frequency: 'daily', time: '02:00', weekday: '1', target: 'local', maxBackups: 10, lastRunAt: null },
-    targets: {
-      local: { label: 'Local demo storage (disabled)', path: '/data/backups', available: false },
-      smb: { label: 'SMB mount (/config-backup) - self-host only', path: '/config-backup', available: false },
-    },
-    backups: [],
-    logs: [{ level: 'info', at: new Date().toISOString(), message: 'Demo mode: encrypted scheduled backups are shown for layout preview only. Self-host Labby to run, restore or delete backups.' }],
-  };
-}
-
 async function fetchBackupStatus() {
-  if (DEMO_INTERACTIVE_SECURITY_DISABLED) {
-    lastBackupStatus = demoBackupStatus();
-    return lastBackupStatus;
-  }
   const res = await fetch(`${API_BASE}/api/backups/status`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   lastBackupStatus = await res.json();
@@ -928,13 +860,10 @@ async function fetchBackupStatus() {
 
 function backupPanelHtml(status) {
   const cfg = status?.config || {};
-  const isDemoBackup = !!status?.demoMode;
-  const disabledAttr = isDemoBackup ? ' disabled' : '';
-  const demoNotice = isDemoBackup ? '<p class="note backup-demo-notice">Demo mode: Backup Config is visible here, but running, restoring and deleting encrypted backups is available only in the self-hosted version.</p>' : '';
   const targets = status?.targets || {};
   const currentTarget = cfg.target === 'smb' && targets.smb?.available ? 'smb' : 'local';
   const targetOptions = [
-    `<option value="local" ${isDemoBackup ? 'disabled' : ''}>${escapeHtml(targets.local?.label || 'Local (/data/backups)')}</option>`,
+    `<option value="local">${escapeHtml(targets.local?.label || 'Local (/data/backups)')}</option>`,
     targets.smb?.available ? `<option value="smb">${escapeHtml(targets.smb?.label || 'SMB mount (/config-backup)')}</option>` : `<option value="smb" disabled>SMB mount not detected (/config-backup)</option>`,
   ].join('');
   const logs = Array.isArray(status?.logs) && status.logs.length
@@ -947,29 +876,28 @@ function backupPanelHtml(status) {
   return `
     <section class="backup-config-panel">
       <p class="note config-intro">Encrypted scheduled backups for your complete Labby config. The encryption key stays inside the Labby data volume; restore backups from this screen.</p>
-      ${demoNotice}
       <div class="backup-form-grid">
-        <label class="backup-toggle-row"><input data-backup-field="enabled" type="checkbox" ${cfg.enabled ? 'checked' : ''}${disabledAttr} /> Enable regular backups</label>
+        <label class="backup-toggle-row"><input data-backup-field="enabled" type="checkbox" ${cfg.enabled ? 'checked' : ''} /> Enable regular backups</label>
         <label>Schedule
-          <select data-backup-field="frequency"${disabledAttr}>
+          <select data-backup-field="frequency">
             <option value="hourly" ${cfg.frequency === 'hourly' ? 'selected' : ''}>Hourly</option>
             <option value="daily" ${cfg.frequency === 'daily' ? 'selected' : ''}>Daily</option>
             <option value="weekly" ${cfg.frequency === 'weekly' ? 'selected' : ''}>Weekly</option>
           </select>
         </label>
         <label>Time / minute
-          <input data-backup-field="time" type="time" value="${escapeAttr(cfg.time || '02:00')}"${disabledAttr} />
+          <input data-backup-field="time" type="time" value="${escapeAttr(cfg.time || '02:00')}" />
         </label>
         <label>Weekly day
-          <select data-backup-field="weekday"${disabledAttr}>
+          <select data-backup-field="weekday">
             ${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((day, idx) => `<option value="${idx}" ${String(cfg.weekday || '1') === String(idx) ? 'selected' : ''}>${day}</option>`).join('')}
           </select>
         </label>
         <label>Storage target
-          <select data-backup-field="target" data-current-target="${escapeAttr(currentTarget)}"${disabledAttr}>${targetOptions}</select>
+          <select data-backup-field="target" data-current-target="${escapeAttr(currentTarget)}">${targetOptions}</select>
         </label>
         <label>Max backups to keep
-          <input data-backup-field="maxBackups" type="number" min="1" max="100" value="${escapeAttr(cfg.maxBackups || 10)}"${disabledAttr} />
+          <input data-backup-field="maxBackups" type="number" min="1" max="100" value="${escapeAttr(cfg.maxBackups || 10)}" />
         </label>
       </div>
       <div class="backup-status-card">
@@ -979,8 +907,8 @@ function backupPanelHtml(status) {
         <span>SMB path: ${escapeHtml(targets.smb?.path || '/config-backup')} · ${targets.smb?.available ? 'detected' : 'not detected'}</span>
       </div>
       <div class="backup-actions-row">
-        <button class="button" type="button" data-backup-save${disabledAttr}>Save schedule</button>
-        <button class="button secondary" type="button" data-backup-run${disabledAttr}>Run backup now</button>
+        <button class="button" type="button" data-backup-save>Save schedule</button>
+        <button class="button secondary" type="button" data-backup-run>Run backup now</button>
         <button class="button secondary" type="button" data-backup-refresh>Refresh</button>
       </div>
       <div class="backup-section-title">Restore encrypted backups</div>
@@ -1101,27 +1029,6 @@ backupConfigBtnMobile?.addEventListener('click', () => openBackupConfig({ return
 backupConfigClose?.addEventListener('click', () => backupConfigDialog?.close());
 backupConfigCloseMobile?.addEventListener('click', closeBackupConfigView);
 
-function ensureBackupConfigMenuButtons() {
-  const desktopGrid = document.querySelector('#config-dialog .config-menu-grid');
-  const mobileGrid = document.querySelector('#mobile-config .config-menu-grid');
-  const insertBeforeClear = (grid, buttonId, clearId) => {
-    if (!grid || document.getElementById(buttonId)) return;
-    const button = document.createElement('button');
-    button.id = buttonId;
-    button.className = 'button secondary config-wide-action';
-    button.type = 'button';
-    button.textContent = 'Backup Config';
-    button.addEventListener('click', () => openBackupConfig({ returnToConfig: true }));
-    const clearButton = document.getElementById(clearId);
-    if (clearButton && clearButton.parentNode === grid) grid.insertBefore(button, clearButton);
-    else grid.appendChild(button);
-  };
-  insertBeforeClear(desktopGrid, 'backup-config-btn', 'clear-all');
-  insertBeforeClear(mobileGrid, 'backup-config-btn-mobile', 'clear-all-mobile');
-}
-ensureBackupConfigMenuButtons();
-
-
 
 clearAll.addEventListener('click', async () => {
   if (!confirm('Delete all resources? This also clears all rack, location, custom theme and API key data.')) return;
@@ -1235,7 +1142,14 @@ async function decryptCredentialBundle(payload, keyHex) {
 }
 
 async function loadRawAgentKeysForExport() {
-  return getLocalAgentKeys();
+  try {
+    const res = await fetch(`${API_BASE}/api/data`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.agentKeys) ? data.agentKeys : [];
+  } catch {
+    return [];
+  }
 }
 
 function openKeyPopup({ title, message, key = '', mode = 'copy' } = {}) {
@@ -1448,16 +1362,19 @@ function setLocalAgentKeys(keys) {
 }
 
 function createLocalAgentToken() {
-  // Demo tokens are deliberately visual-only placeholders. They are never accepted
-  // by the demo backend and cannot be used for inventory, status, ping or credential APIs.
-  const bytes = new Uint8Array(8);
+  const bytes = new Uint8Array(24);
   if (crypto?.getRandomValues) crypto.getRandomValues(bytes);
   else bytes.forEach((_, i) => bytes[i] = Math.floor(Math.random() * 256));
-  return 'labby_demo_visual_only_' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  return 'labby_demo_' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 async function agentApiRequest(path, options = {}) {
-  throw new Error('Demo mode keeps API key records in browser storage only.');
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
 }
 
 async function loadAgentKeys() {
@@ -1486,8 +1403,7 @@ async function createAgentKey(name, scopes, expiresAt) {
       enabled: true,
       createdAt: new Date().toISOString(),
       expiresAt,
-      lastUsed: 'demo only',
-      demoOnly: true,
+      lastUsed: '',
     };
     const keys = getLocalAgentKeys();
     keys.push(key);
@@ -1553,7 +1469,7 @@ function showAgentToken(box, token) {
   box.hidden = false;
   const inputId = `agent-token-copy-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   box.innerHTML = `
-    <strong>Demo-only placeholder key. It is shown once for UI testing and is not accepted by any API endpoint:</strong>
+    <strong>Copy this key now. It is shown once and cannot be recovered later:</strong>
     <div class="agent-token-copy-row">
       <input id="${inputId}" type="text" readonly value="${escapeAttr(token)}" aria-label="New API key" />
       <button class="button secondary" type="button" data-copy-agent-token="${inputId}">Copy</button>
@@ -1573,7 +1489,7 @@ async function renderAgentKeyLists() {
       <article class="agent-key-card" data-agent-key="${escapeAttr(key.id)}">
         <div>
           <strong>${escapeAttr(key.name)}</strong>
-          <div class="agent-key-meta">${key.demoOnly ? 'Demo only · not usable' : (key.enabled === false ? 'Disabled' : 'Enabled')} · ${escapeAttr(key.prefix || 'labby_…')} · ${escapeAttr((key.scopes || []).join(', '))}</div>
+          <div class="agent-key-meta">${key.enabled === false ? 'Disabled' : 'Enabled'} · ${escapeAttr(key.prefix || 'labby_…')} · ${escapeAttr((key.scopes || []).join(', '))}</div>
           <div class="agent-key-meta">Created: ${escapeAttr(key.createdAt || '-')} · Expires: ${escapeAttr(key.expiresAt || '-')} · Last used: ${escapeAttr(key.lastUsed || 'never')}</div>
         </div>
         <div class="agent-key-actions">
@@ -1603,7 +1519,7 @@ function bindAgentKeyForm(formId, nameId, tokenId, expiryId) {
     nameNode.value = '';
     showAgentToken(tokenNode, result.token);
     await renderAgentKeyLists();
-    showToast('Demo API key placeholder created. It is not usable for API access.');
+    showToast('Agent API key created.');
   });
 }
 
@@ -2703,17 +2619,305 @@ function cliTargetForItem(item) {
 function activeCliEls() {
   const mobile = isMobile();
   return mobile
-    ? { terminal: mobileCliTerminal, input: mobileCliInput, send: mobileCliSend, copy: mobileCliCopy, paste: mobileCliPaste, clearKey: mobileCliClearKey, close: mobileCliClose }
-    : { terminal: cliTerminal, input: cliInput, send: cliSend, copy: cliCopy, paste: cliPaste, clearKey: cliClearKey, close: cliClose };
+    ? { terminal: mobileCliTerminal, input: mobileCliInput, send: mobileCliSend, copy: mobileCliCopy, paste: mobileCliPaste, sudoPassword: mobileCliSudoPassword, clearKey: mobileCliClearKey, close: mobileCliClose }
+    : { terminal: cliTerminal, input: cliInput, send: cliSend, copy: cliCopy, paste: cliPaste, sudoPassword: cliSudoPassword, clearKey: cliClearKey, close: cliClose };
+}
+
+
+function cliTerminalFontSize() {
+  return isMobile() ? 12 : 13;
+}
+
+function cliTerminalRows() {
+  return isMobile() ? 28 : 34;
+}
+
+function cliXtermAvailable() {
+  return Boolean(cliXtermPreferred && window.Terminal);
+}
+
+function getCliXterm(terminalEl) {
+  if (!terminalEl || !cliXtermAvailable()) return null;
+  if (cliXtermInstances.has(terminalEl)) return cliXtermInstances.get(terminalEl);
+  try {
+    terminalEl.textContent = '';
+    terminalEl.classList.add('xterm-enabled');
+    const term = new window.Terminal({
+      cols: estimateCliTerminalCols(),
+      rows: cliTerminalRows(),
+      cursorBlink: true,
+      convertEol: true,
+      scrollback: 2500,
+      fontFamily: "'Space Mono', ui-monospace, monospace",
+      fontSize: cliTerminalFontSize(),
+      fontWeight: 700,
+      lineHeight: 1.25,
+      theme: {
+        background: '#05070a',
+        foreground: '#ffffff',
+        cursor: '#f4d371',
+        selectionBackground: '#f4d37188',
+      },
+    });
+    term.open(terminalEl);
+    term.onData((data) => {
+      // Full-screen tools such as nano need raw keystrokes. Normal command history
+      // stays on the separate Labby input field; click/focus the terminal only when
+      // controlling an interactive program.
+      if (cliSession && document.activeElement === terminalEl) sendCliRawInput(data);
+    });
+    terminalEl.addEventListener('focus', () => term.focus());
+    cliXtermInstances.set(terminalEl, term);
+    return term;
+  } catch (err) {
+    cliXtermPreferred = false;
+    terminalEl.classList.remove('xterm-enabled');
+    return null;
+  }
+}
+
+function activeCliXterm() {
+  return getCliXterm(activeCliEls()?.terminal);
+}
+
+function initActiveCliTerminal() {
+  const term = activeCliXterm();
+  if (term) {
+    try { term.resize(estimateCliTerminalCols(), cliTerminalRows()); } catch {}
+  }
+  return term;
+}
+
+function clearCliXterms() {
+  cliXtermOutputBuffer = '';
+  cliXtermInstances.forEach((term) => {
+    try { term.clear(); term.reset(); } catch {}
+  });
+}
+
+function writeCliXterm(text, append = true) {
+  const value = String(text || '');
+  if (!append) clearCliXterms();
+  cliXtermOutputBuffer = (append ? cliXtermOutputBuffer : '') + value;
+  if (cliXtermOutputBuffer.length > 200000) cliXtermOutputBuffer = cliXtermOutputBuffer.slice(-100000);
+  const term = initActiveCliTerminal();
+  if (!term) return false;
+  try {
+    if (!append) term.clear();
+    term.write(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function normalizeCliPlainOutput(text) {
+  return String(text || '')
+    .replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, '')
+    .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '')
+    .replace(/\x1b[()#][0-9A-Za-z]/g, '')
+    .replace(/\x1b[78]/g, '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\x00/g, '')
+    .replace(/[\x01-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '');
+}
+
+function cliPlainOutputForCopy() {
+  return cliPlainOutputBuffer || normalizeCliPlainOutput(cliXtermOutputBuffer);
+}
+
+function renderCliPlainOutput() {
+  const text = cliPlainOutputBuffer.replace(/\n+$/g, '');
+  [cliTerminal, mobileCliTerminal].filter(Boolean).forEach((terminal) => {
+    terminal.textContent = text;
+    terminal.scrollTop = terminal.scrollHeight;
+  });
+}
+
+
+function createCliTerminalState() {
+  const rows = isMobile() ? 28 : 34;
+  const cols = estimateCliTerminalCols();
+  return {
+    rows,
+    cols,
+    buffer: Array.from({ length: rows }, () => []),
+    row: 0,
+    col: 0,
+    savedRow: 0,
+    savedCol: 0,
+    parser: '',
+    osc: false,
+    normal: null,
+    alt: false,
+  };
+}
+
+function estimateCliTerminalCols() {
+  const terminal = activeCliEls?.()?.terminal || cliTerminal || mobileCliTerminal;
+  const width = terminal?.clientWidth || 1200;
+  return Math.max(80, Math.min(220, Math.floor(width / 9)));
+}
+
+function resizeCliTerminalState() {
+  if (!cliTerminalState) cliTerminalState = createCliTerminalState();
+  const cols = estimateCliTerminalCols();
+  cliTerminalState.cols = cols;
+  cliTerminalState.rows = isMobile() ? 28 : 34;
+}
+
+function clearCliTerminalBuffer(state = cliTerminalState) {
+  state.buffer = Array.from({ length: state.rows }, () => []);
+  state.row = 0;
+  state.col = 0;
+}
+
+function ensureCliTerminalLine(state, row) {
+  while (state.buffer.length <= row) state.buffer.push([]);
+  return state.buffer[row];
+}
+
+function scrollCliTerminal(state) {
+  state.buffer.push([]);
+  const maxLines = state.alt ? state.rows : 1200;
+  while (state.buffer.length > maxLines) state.buffer.shift();
+  state.row = Math.max(0, Math.min(state.buffer.length - 1, state.row));
+}
+
+function putCliTerminalChar(state, ch) {
+  if (ch === '\r') { state.col = 0; return; }
+  if (ch === '\n') {
+    state.row += 1;
+    if (state.alt && state.row >= state.rows) state.row = state.rows - 1;
+    else if (state.row >= state.buffer.length) scrollCliTerminal(state);
+    return;
+  }
+  if (ch === '\b') { state.col = Math.max(0, state.col - 1); return; }
+  if (ch === '\t') {
+    const spaces = 8 - (state.col % 8);
+    for (let i = 0; i < spaces; i += 1) putCliTerminalChar(state, ' ');
+    return;
+  }
+  if (ch < ' ') return;
+  const line = ensureCliTerminalLine(state, state.row);
+  while (line.length < state.col) line.push(' ');
+  line[state.col] = ch;
+  state.col += 1;
+  if (state.col >= state.cols) {
+    state.col = 0;
+    state.row += 1;
+    if (state.alt && state.row >= state.rows) state.row = state.rows - 1;
+    else if (state.row >= state.buffer.length) scrollCliTerminal(state);
+  }
+}
+
+function parseCliCsiParams(seq) {
+  const final = seq.slice(-1);
+  const raw = seq.slice(0, -1).replace(/[?>!]/g, '');
+  const params = raw.split(';').filter((v) => v !== '').map((v) => Number.parseInt(v, 10) || 0);
+  return { final, params, privateMode: seq.includes('?') };
+}
+
+function handleCliCsi(seq) {
+  const state = cliTerminalState;
+  const { final, params, privateMode } = parseCliCsiParams(seq);
+  const first = params[0] || 0;
+  if ((final === 'h' || final === 'l') && privateMode) {
+    if (seq.includes('1049') || seq.includes('47') || seq.includes('1047')) {
+      if (final === 'h' && !state.alt) {
+        state.normal = { buffer: state.buffer, row: state.row, col: state.col };
+        state.alt = true;
+        clearCliTerminalBuffer(state);
+      } else if (final === 'l' && state.alt) {
+        const normal = state.normal;
+        state.alt = false;
+        state.normal = null;
+        if (normal) {
+          state.buffer = normal.buffer;
+          state.row = normal.row;
+          state.col = normal.col;
+        }
+      }
+    }
+    return;
+  }
+  if (final === 'm') return;
+  if (final === 'A') { state.row = Math.max(0, state.row - (first || 1)); return; }
+  if (final === 'B') { state.row = Math.min(state.buffer.length - 1, state.row + (first || 1)); return; }
+  if (final === 'C') { state.col = Math.min(state.cols - 1, state.col + (first || 1)); return; }
+  if (final === 'D') { state.col = Math.max(0, state.col - (first || 1)); return; }
+  if (final === 'G') { state.col = Math.max(0, Math.min(state.cols - 1, (first || 1) - 1)); return; }
+  if (final === 'H' || final === 'f') {
+    state.row = Math.max(0, Math.min(state.buffer.length - 1, (params[0] || 1) - 1));
+    state.col = Math.max(0, Math.min(state.cols - 1, (params[1] || 1) - 1));
+    return;
+  }
+  if (final === 'J') {
+    if (first === 2 || first === 3) clearCliTerminalBuffer(state);
+    else if (first === 0) {
+      const line = ensureCliTerminalLine(state, state.row);
+      line.length = state.col;
+      for (let r = state.row + 1; r < state.buffer.length; r += 1) state.buffer[r] = [];
+    }
+    return;
+  }
+  if (final === 'K') {
+    const line = ensureCliTerminalLine(state, state.row);
+    if (first === 2) state.buffer[state.row] = [];
+    else if (first === 1) {
+      for (let i = 0; i <= state.col; i += 1) line[i] = ' ';
+    } else {
+      line.length = state.col;
+    }
+    return;
+  }
+  if (final === 's') { state.savedRow = state.row; state.savedCol = state.col; return; }
+  if (final === 'u') { state.row = state.savedRow; state.col = state.savedCol; }
+}
+
+function appendCliTerminalChunk(text) {
+  resizeCliTerminalState();
+  const state = cliTerminalState;
+  const value = String(text || '');
+  for (let i = 0; i < value.length; i += 1) {
+    const ch = value[i];
+    if (state.osc) {
+      if (ch === '\x07' || (ch === '\\' && value[i - 1] === '\x1b')) state.osc = false;
+      continue;
+    }
+    if (state.parser) {
+      state.parser += ch;
+      if (state.parser === '\x1b]') { state.osc = true; state.parser = ''; continue; }
+      if (state.parser.length === 2 && !['[', '(', ')', '#', ']', '7', '8'].includes(state.parser[1])) { state.parser = ''; continue; }
+      if (state.parser[1] === '[' && /[A-Za-z~]/.test(ch)) { handleCliCsi(state.parser.slice(2)); state.parser = ''; continue; }
+      if (['(', ')', '#'].includes(state.parser[1]) && state.parser.length >= 3) { state.parser = ''; continue; }
+      if (state.parser === '\x1b7') { state.savedRow = state.row; state.savedCol = state.col; state.parser = ''; continue; }
+      if (state.parser === '\x1b8') { state.row = state.savedRow; state.col = state.savedCol; state.parser = ''; continue; }
+      if (state.parser.length > 80) state.parser = '';
+      continue;
+    }
+    if (ch === '\x1b') { state.parser = ch; continue; }
+    putCliTerminalChar(state, ch);
+  }
+  renderCliTerminalState();
+}
+
+function renderCliTerminalState() {
+  const state = cliTerminalState;
+  const lines = state.buffer.map((line) => line.join('').replace(/\s+$/g, ''));
+  const text = lines.join('\n').replace(/\n+$/g, '');
+  [cliTerminal, mobileCliTerminal].filter(Boolean).forEach((terminal) => {
+    terminal.textContent = text;
+    terminal.scrollTop = terminal.scrollHeight;
+  });
 }
 
 function setCliOutput(text, append = false) {
-  const desktopTerm = cliTerminal;
-  const mobileTerm = mobileCliTerminal;
-  [desktopTerm, mobileTerm].filter(Boolean).forEach((terminal) => {
-    terminal.textContent = append ? `${terminal.textContent}${text}` : text;
-    terminal.scrollTop = terminal.scrollHeight;
-  });
+  const value = normalizeCliPlainOutput(text);
+  cliPlainOutputBuffer = append ? cliPlainOutputBuffer + value : value;
+  if (cliPlainOutputBuffer.length > 200000) cliPlainOutputBuffer = cliPlainOutputBuffer.slice(-100000);
+  renderCliPlainOutput();
 }
 
 async function openCliSession(item, options = {}) {
@@ -2724,7 +2928,7 @@ async function openCliSession(item, options = {}) {
   }
   cliActiveItem = item;
   resetCliHistoryScope(item);
-  resetCliHistoryScope(item);
+  cliRemoteHistoryLoadedFor = '';
   renderCommandSnippets();
   const els = activeCliEls();
   if (els.title) els.title.textContent = `CLI · ${item.name}`;
@@ -2739,38 +2943,6 @@ async function openCliSession(item, options = {}) {
     cliDialog.showModal();
   }
 
-  if (DEMO_INTERACTIVE_SECURITY_DISABLED) {
-    cliSession = null;
-    stopCliPolling();
-    [cliInput, mobileCliInput].filter(Boolean).forEach((input) => {
-      input.value = '';
-      input.disabled = true;
-      input.placeholder = 'Demo mode: SSH input disabled';
-    });
-    [cliSend, mobileCliSend, cliClearKey, mobileCliClearKey].filter(Boolean).forEach((button) => {
-      button.disabled = true;
-      button.title = 'Disabled in the public demo';
-    });
-    setCliOutput(
-      `Labby public demo mode
-
-` +
-      `No SSH connection is opened from my-labby.com.
-` +
-      `This protects visitors, the demo host and third-party systems from misuse.
-
-` +
-      `Configured target shown for preview only:
-ssh ${target}
-
-` +
-      `Run the self-hosted Main version to use the real browser console.
-`
-    );
-    showToast('CLI is disabled in the public demo.');
-    return;
-  }
-
   try {
     const res = await fetch(`${API_BASE}/api/ssh/start`, {
       method: 'POST',
@@ -2780,6 +2952,7 @@ ssh ${target}
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Could not start SSH session.');
     cliSession = data.sessionId;
+    loadCliRemoteHistory();
     setCliOutput(data.output || `Connected to ${target}.\n`);
     window.setTimeout(() => activeCliInput()?.focus(), 60);
   window.setTimeout(() => autosizeAndFocusCliInput(activeCliInput()), 80);
@@ -2966,6 +3139,45 @@ function rememberCliCommand(command) {
   cliHistoryDraft = '';
 }
 
+
+function mergeCliHistory(remoteHistory = []) {
+  const current = cliHistory();
+  const local = current.slice();
+  current.length = 0;
+  const seen = new Set();
+  [...remoteHistory, ...local].forEach((entry) => {
+    const value = String(entry || '').trim();
+    if (!value) return;
+    // Keep the newest occurrence when the same command exists in shell history and
+    // the current Labby session. This makes ArrowUp show the last real command first.
+    if (seen.has(value)) {
+      const oldIndex = current.indexOf(value);
+      if (oldIndex >= 0) current.splice(oldIndex, 1);
+    }
+    seen.add(value);
+    current.push(value);
+  });
+  while (current.length > 300) current.shift();
+  cliHistoryCursor = current.length;
+}
+
+async function loadCliRemoteHistory() {
+  if (!cliSession) return;
+  const key = `${cliSession}|${cliHistoryScope}`;
+  if (cliRemoteHistoryLoadedFor === key) return cliRemoteHistoryPromise;
+  cliRemoteHistoryLoadedFor = key;
+  cliRemoteHistoryPromise = (async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(cliSession)}/history`);
+      if (!res.ok) return;
+      const data = await res.json().catch(() => ({}));
+      const history = Array.isArray(data.history) ? data.history : [];
+      if (history.length) mergeCliHistory(history);
+    } catch {}
+  })();
+  return cliRemoteHistoryPromise;
+}
+
 function activeCliInput() {
   return activeCliEls()?.input || (mobileCliView?.classList.contains('active') ? mobileCliInput : cliInput);
 }
@@ -2979,7 +3191,12 @@ function loadCliHistoryIntoInput(direction) {
   const input = activeCliInput();
   if (!input) return false;
   const history = cliHistory();
-  if (!history.length) return false;
+  if (!history.length) {
+    loadCliRemoteHistory().then(() => {
+      if (cliHistory().length) loadCliHistoryIntoInput(direction);
+    });
+    return false;
+  }
   if (cliHistoryCursor < 0 || cliHistoryCursor > history.length) cliHistoryCursor = history.length;
   if (cliHistoryCursor === history.length) cliHistoryDraft = input.value || '';
   cliHistoryCursor = Math.max(0, Math.min(history.length, cliHistoryCursor + direction));
@@ -3011,29 +3228,99 @@ async function sendCliRawInput(raw) {
   }
 }
 
-async function sendCliTabCompletion(input) {
-  if (!cliSession) return;
-  const field = input || activeCliInput();
-  const value = field?.value || '';
-  if (field) {
-    field.value = '';
-    autosizeCliInput(field);
-  }
-  const ok = await sendCliRawInput(`${value.replace(/\r\n/g, '\n')}\t`);
-  if (!ok) showToast('Could not send Tab to SSH session.', 'error');
+function cliCurrentTokenBounds(value) {
+  const text = String(value || '');
+  let end = text.length;
+  let start = end;
+  while (start > 0 && !/\s/.test(text[start - 1])) start -= 1;
+  return { start, end, token: text.slice(start, end) };
 }
 
-async function sendCliArrowKey(direction, input) {
+function commonPrefix(values) {
+  const list = (values || []).map((v) => String(v || '')).filter(Boolean);
+  if (!list.length) return '';
+  let prefix = list[0];
+  for (const item of list.slice(1)) {
+    while (prefix && !item.startsWith(prefix)) prefix = prefix.slice(0, -1);
+    if (!prefix) break;
+  }
+  return prefix;
+}
+
+async function completeCliInputFromRemote(input) {
   if (!cliSession) return;
   const field = input || activeCliInput();
-  const value = field?.value || '';
-  if (field) {
-    field.value = '';
-    autosizeCliInput(field);
+  if (!field) return;
+  const value = field.value || '';
+  const bounds = cliCurrentTokenBounds(value);
+  try {
+    const res = await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(cliSession)}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ line: value, token: bounds.token }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Completion failed.');
+    const matches = Array.isArray(data.matches) ? data.matches.map(String).filter(Boolean) : [];
+    if (!matches.length) return;
+    let replacement = matches.length === 1 ? matches[0] : commonPrefix(matches);
+    if (!replacement || replacement === bounds.token) {
+      const preview = matches.slice(0, 8).join('   ');
+      if (preview) showToast(`${matches.length} matches: ${preview}${matches.length > 8 ? ' …' : ''}`);
+      return;
+    }
+    field.value = `${value.slice(0, bounds.start)}${replacement}${value.slice(bounds.end)}`;
+    field.selectionStart = field.selectionEnd = bounds.start + replacement.length;
+    autosizeAndFocusCliInput(field);
+  } catch (err) {
+    showToast(err.message || 'Could not complete input.', 'error');
   }
-  const sequence = direction === 'down' ? '\x1b[B' : '\x1b[A';
-  const ok = await sendCliRawInput(`${value.replace(/\r\n/g, '\n')}${sequence}`);
-  if (!ok) showToast('Could not send arrow key to SSH session.', 'error');
+}
+
+function cliKeyEventToRawInput(event) {
+  if (event.ctrlKey && !event.altKey && event.key && event.key.length === 1) {
+    const code = event.key.toUpperCase().charCodeAt(0);
+    if (code >= 64 && code <= 95) return String.fromCharCode(code - 64);
+  }
+  if (event.key === 'Enter') return '\r';
+  if (event.key === 'Backspace') return '\x7f';
+  if (event.key === 'Tab') return '\t';
+  if (event.key === 'Escape') return '\x1b';
+  if (event.key === 'ArrowUp') return '\x1b[A';
+  if (event.key === 'ArrowDown') return '\x1b[B';
+  if (event.key === 'ArrowRight') return '\x1b[C';
+  if (event.key === 'ArrowLeft') return '\x1b[D';
+  if (event.key === 'Home') return '\x1b[H';
+  if (event.key === 'End') return '\x1b[F';
+  if (event.key === 'Delete') return '\x1b[3~';
+  if (!event.ctrlKey && !event.metaKey && event.key && event.key.length === 1) return event.key;
+  return '';
+}
+
+
+function cliConfiguredSudoPassword() {
+  const credentials = normalizeCredentials(cliActiveItem?.credentials);
+  const password = credentials?.password ? String(credentials.password) : '';
+  return password.replace(/[\r\n]+/g, '');
+}
+
+async function pasteSudoPasswordToCli() {
+  if (!cliSession) {
+    showToast('No active SSH session.', 'error');
+    return;
+  }
+  const password = cliConfiguredSudoPassword();
+  if (!password) {
+    showToast('No password is saved for this CLI target.', 'error');
+    return;
+  }
+  const ok = await sendCliRawInput(`${password}\n`);
+  if (ok) {
+    showToast('Sudo password sent.');
+    activeCliInput()?.focus();
+  } else {
+    showToast('Could not send sudo password.', 'error');
+  }
 }
 
 async function sendCliInput() {
@@ -3044,7 +3331,6 @@ async function sendCliInput() {
   rememberCliCommand(value);
   els.input.value = '';
   autosizeCliInput(els.input);
-  setCliOutput(`$ ${value}\n`, true);
   const ok = await sendCliRawInput(`${value.replace(/\r\n/g, '\n')}\n`);
   if (!ok) showToast('Could not send command.', 'error');
 }
@@ -3121,7 +3407,7 @@ async function clearCliKnownHostAndReconnect() {
 
 async function copyCliOutput() {
   const els = activeCliEls();
-  const text = els.terminal?.innerText || els.terminal?.textContent || '';
+  const text = cliPlainOutputForCopy() || (els.terminal?.innerText || els.terminal?.textContent || '');
   try { await navigator.clipboard.writeText(text); showToast('CLI output copied.'); }
   catch { showToast('Could not copy CLI output.', 'error'); }
 }
@@ -6784,139 +7070,5 @@ updateRackSelectedComponentUI();
 // Theme initialization moved after definitions
 try { initTheme();
 initCommandSnippetPanel(); } catch(e){ console.error(e); }
-
-
-
-function getDemoLocations() {
-  return [
-    {
-      id: 'loc-home-lab',
-      name: 'Home Lab',
-      notes: 'Primary demo location with the main network and compute rack.',
-    },
-    {
-      id: 'loc-backup-room',
-      name: 'Backup Room',
-      notes: 'Secondary demo location for storage and backup equipment.',
-    },
-  ];
-}
-
-function rackSlot(componentType, heightU, label, category, extra = {}) {
-  return {
-    componentType,
-    heightU,
-    label,
-    category,
-    ...extra,
-  };
-}
-
-function getDemoRacks() {
-  return [
-    {
-      id: 'rack-main-42u',
-      locationId: 'loc-home-lab',
-      name: 'Main Rack 42U',
-      notes: 'Core networking, virtualization and service hosts.',
-      heightUnits: 42,
-      formFactor: '19inch',
-      slots: {
-        'front-1': rackSlot('1u-patch-panel', 1, 'Patch Panel', 'network', { isPassive: true }),
-        'front-2': rackSlot('1u-switch', 1, 'Core Switch', 'network', { linkedDeviceId: 'hw-switch' }),
-        'front-3': rackSlot('1u-router', 1, 'Gateway Router', 'network', { linkedDeviceId: 'hw-router' }),
-        'front-4': rackSlot('1u-cable-mgmt', 1, 'Cable Management', 'network', { isPassive: true }),
-        'front-6': rackSlot('2u-server', 2, 'Proxmox Host', 'compute', { linkedDeviceId: 'hw-proxmox' }),
-        'front-9': rackSlot('2pc-2u', 2, 'Service VMs', 'compute', { multiDevice: 2, linkedDevices: ['vm-docker', 'vm-monitoring'] }),
-        'front-12': rackSlot('2pc-2u', 2, 'Media + DNS', 'compute', { multiDevice: 2, linkedDevices: ['vm-media', 'lxc-dns'] }),
-        'front-16': rackSlot('1u-server', 1, 'Reverse Proxy LXC', 'compute', { linkedDeviceId: 'lxc-proxy' }),
-        'front-20': rackSlot('2u-ups', 2, 'Rack UPS', 'power'),
-        'front-24': rackSlot('1u-blank', 1, 'Blank Panel', 'filler', { isBlank: true }),
-        'front-25': rackSlot('2u-blank', 2, 'Blank Panel', 'filler', { isBlank: true }),
-        'rear-1': rackSlot('1u-pdu', 1, 'Rear PDU A', 'power', { isPDU: true, pduPorts: 12 }),
-        'rear-3': rackSlot('1u-pdu', 1, 'Rear PDU B', 'power', { isPDU: true, pduPorts: 12 }),
-        'rear-5': rackSlot('1u-cable-mgmt', 1, 'Rear Cable Management', 'network', { isPassive: true }),
-        'rear-8': rackSlot('1u-kvm', 1, 'Rack KVM', 'mgmt'),
-      },
-    },
-    {
-      id: 'rack-storage-24u',
-      locationId: 'loc-backup-room',
-      name: 'Storage Rack 24U',
-      notes: 'NAS, backup vault and storage networking.',
-      heightUnits: 24,
-      formFactor: '19inch',
-      slots: {
-        'front-1': rackSlot('1u-patch-panel', 1, 'Storage Patch Panel', 'network', { isPassive: true }),
-        'front-2': rackSlot('1u-switch', 1, 'Storage Switch', 'network'),
-        'front-5': rackSlot('4u-server', 4, 'NAS Main', 'compute', { linkedDeviceId: 'hw-nas' }),
-        'front-10': rackSlot('4u-server', 4, 'Backup Vault', 'compute', { linkedDeviceId: 'hw-backup' }),
-        'front-16': rackSlot('2u-ups', 2, 'Storage UPS', 'power'),
-        'front-20': rackSlot('2u-blank', 2, 'Blank Panel', 'filler', { isBlank: true }),
-        'rear-1': rackSlot('1u-pdu', 1, 'Rear PDU', 'power', { isPDU: true, pduPorts: 8 }),
-        'rear-4': rackSlot('1u-cable-mgmt', 1, 'Rear Cable Management', 'network', { isPassive: true }),
-      },
-    },
-  ];
-}
-
-
-function getDemoItems() {
-  return [
-    { id: 'net-core', type: 'network', name: 'Core LAN', description: 'Main management network', notes: 'All infrastructure devices', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '192.168.10.0/24', gateway: '192.168.10.1', networkColor: '#10b981', hostedOn: '', appHostedOn: '', status: '' },
-    { id: 'net-services', type: 'network', name: 'Services', description: 'Internal services VLAN', notes: 'Apps and APIs', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '192.168.20.0/24', gateway: '192.168.20.1', networkColor: '#3b82f6', hostedOn: '', appHostedOn: '', status: '' },
-    { id: 'net-storage', type: 'network', name: 'Storage', description: 'Storage replication network', notes: 'NAS and backup traffic', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '192.168.40.0/24', gateway: '192.168.40.1', networkColor: '#8b5cf6', hostedOn: '', appHostedOn: '', status: '' },
-
-    { id: 'hw-router', type: 'hardware', hardwareKind: 'router-gateway', manufacturer: 'MikroTik', os: 'RouterOS 7', symbol: '📡', name: 'EdgeRouter-1', description: 'Main internet gateway', notes: 'Fiber uplink, managed by admin', connections: ['hw-switch'], ip: '192.168.10.1/24', webUrl: 'https://192.168.10.1', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: [], ipPort: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
-    { id: 'hw-switch', type: 'hardware', hardwareKind: 'switch', manufacturer: 'Ubiquiti', os: 'UniFi 8.4', symbol: '🔀', name: 'Switch-Core-24', description: '24-port managed switch', notes: 'Rack U1, VLAN configured', connections: ['hw-router', 'hw-proxmox', 'hw-nas', 'hw-backup'], ip: '192.168.10.2/24', webUrl: 'https://unifi.ui.com/', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: [], ipPort: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '24', nasShares: [], nasRaids: [], status: 'online' },
-    { id: 'hw-proxmox', type: 'hardware', hardwareKind: 'hypervisor', manufacturer: 'Dell', os: 'Proxmox VE 8.2', symbol: '🖥️', name: 'Proxmox-01', description: 'Primary virtualization host', notes: 'Rack U2, 2x NVMe pool', connections: [], ip: '192.168.10.10/24', webUrl: 'https://192.168.10.10:8006', cpu: '16 cores', ram: '2 x 32 DDR5', disks: '2 x 2 TB NVMe', cpuCount: '16', ramModules: [{ size: '32', type: 'DDR5' }, { size: '32', type: 'DDR5' }], diskRows: [{ size: '2 TB', type: 'NVMe' }, { size: '2 TB', type: 'NVMe' }], ipPort: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
-    { id: 'hw-nas', type: 'hardware', hardwareKind: 'nas', manufacturer: 'Synology', os: 'DSM 7.2', symbol: '🗄️', name: 'NAS-Main', description: 'Primary shared storage', notes: 'Rack U4, SMB + NFS shares', connections: [], ip: '192.168.40.20/24', webUrl: 'https://192.168.40.20:5001', cpu: '8 cores', ram: '2 x 16 DDR4 ECC', disks: '4 x 12 TB HDD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }], diskRows: [{ size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }], ipPort: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [{ name: 'media', link: '/volume1/media' }, { name: 'backups', link: '/volume1/backups' }], nasRaids: [{ name: 'Array-A', level: 'RAID5', size: '36 TB' }], status: 'online' },
-    { id: 'hw-backup', type: 'hardware', hardwareKind: 'backup', manufacturer: 'Supermicro', os: 'TrueNAS SCALE', symbol: '💾', name: 'Backup-Vault', description: 'Offsite backup node', notes: 'Immutable snapshots, Rack U5', connections: [], ip: '192.168.40.30/24', cpu: '8 cores', ram: '4 x 16 DDR4 ECC', disks: '6 x 8 TB HDD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }], diskRows: [{ size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [{ name: 'archive', link: '/mnt/backup/archive' }], nasRaids: [{ name: 'Backup-Pool', level: 'RAIDZ2', size: '32 TB' }], status: 'maintenance' },
-
-    { id: 'vm-docker', type: 'vm', name: 'vm-docker-01', description: 'Docker workloads', notes: 'Compose stacks, main app host', connections: [], ip: '192.168.20.21/24', cpu: '6 vCPU', ram: '2 x 8 DDR5', disks: '2 x 120 GB SSD', cpuCount: '6', ramModules: [{ size: '8', type: 'DDR5' }, { size: '8', type: 'DDR5' }], diskRows: [{ size: '120 GB', type: 'SSD' }, { size: '120 GB', type: 'SSD' }], os: 'Ubuntu 24.04 LTS', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hw-proxmox', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
-    { id: 'vm-media', type: 'vm', name: 'vm-media-01', description: 'Media processing VM', notes: 'Jellyfin + *arr stack', connections: [], ip: '192.168.20.22/24', cpu: '8 vCPU', ram: '2 x 16 DDR5', disks: '1 x 500 GB SSD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR5' }, { size: '16', type: 'DDR5' }], diskRows: [{ size: '500 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hw-proxmox', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
-    { id: 'vm-monitoring', type: 'vm', name: 'vm-monitoring', description: 'Metrics and alerting', notes: 'Grafana + Prometheus + Loki', connections: [], ip: '192.168.20.23/24', cpu: '4 vCPU', ram: '2 x 8 DDR5', disks: '1 x 200 GB SSD', cpuCount: '4', ramModules: [{ size: '8', type: 'DDR5' }, { size: '8', type: 'DDR5' }], diskRows: [{ size: '200 GB', type: 'SSD' }], os: 'Ubuntu 22.04 LTS', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hw-proxmox', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'offline' },
-
-    { id: 'lxc-dns', type: 'lxc', name: 'lxc-dns-01', description: 'DNS resolver', notes: 'AdGuard Home + Unbound', connections: [], ip: '192.168.10.40/24', cpu: '2 vCPU', ram: '2 x 2 DDR5', disks: '1 x 20 GB SSD', cpuCount: '2', ramModules: [{ size: '2', type: 'DDR5' }, { size: '2', type: 'DDR5' }], diskRows: [{ size: '20 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hw-proxmox', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
-    { id: 'lxc-proxy', type: 'lxc', name: 'lxc-proxy-01', description: 'Reverse proxy', notes: 'Nginx Proxy Manager', connections: [], ip: '192.168.20.50/24', cpu: '2 vCPU', ram: '2 x 2 DDR5', disks: '1 x 20 GB SSD', cpuCount: '2', ramModules: [{ size: '2', type: 'DDR5' }, { size: '2', type: 'DDR5' }], diskRows: [{ size: '20 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hw-proxmox', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
-
-    { id: 'app-jellyfin', type: 'app', name: 'Jellyfin', description: 'Media server', notes: 'Streams from NAS media share', connections: [], ip: '', ipPort: '192.168.20.22:8096', webUrl: 'https://media.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-media', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online', symbol: '🎬', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
-    { id: 'app-grafana', type: 'app', name: 'Grafana', description: 'Metrics dashboard', notes: 'Connected to Prometheus', connections: [], ip: '', ipPort: '192.168.20.23:3000', webUrl: 'https://grafana.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-monitoring', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'offline', symbol: '📊', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
-    { id: 'app-portainer', type: 'app', name: 'Portainer', description: 'Docker management UI', notes: 'Manages vm-docker-01 containers', connections: [], ip: '', ipPort: '192.168.20.21:9000', webUrl: 'https://portainer.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-docker', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online', symbol: '🐳', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
-    { id: 'app-adguard', type: 'app', name: 'AdGuard Home', description: 'DNS ad blocker', notes: 'Network-wide ad blocking', connections: [], ip: '', ipPort: '192.168.10.40:3000', webUrl: 'https://adguard.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'lxc-dns', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online', symbol: '🛡️', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
-    { id: 'app-npm', type: 'app', name: 'Nginx Proxy Manager', description: 'Reverse proxy UI', notes: 'SSL termination for all services', connections: [], ip: '', ipPort: '192.168.20.50:81', webUrl: 'https://proxy.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'lxc-proxy', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online', symbol: '🔒', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
-  ];
-}
-
-
-function initDemoBannerMarquee() {
-  const banner = document.querySelector('.demo-banner');
-  const track = document.querySelector('.demo-banner-track');
-  const message = document.querySelector('.demo-banner-message:not(.demo-banner-message-clone)');
-  if (!banner || !track || !message) return;
-
-  const update = () => {
-    banner.classList.remove('is-scrolling');
-    track.style.removeProperty('--demo-marquee-duration');
-    // Wait one frame so measurements are taken without the animation clone affecting layout.
-    requestAnimationFrame(() => {
-      const overflow = message.scrollWidth > banner.clientWidth - 8;
-      banner.classList.toggle('is-scrolling', overflow);
-      if (overflow) {
-        const distance = Math.max(message.scrollWidth, banner.clientWidth);
-        const seconds = Math.min(28, Math.max(10, distance / 42));
-        track.style.setProperty('--demo-marquee-duration', `${seconds}s`);
-      }
-    });
-  };
-
-  update();
-  window.addEventListener('resize', update, { passive: true });
-  if ('ResizeObserver' in window) {
-    new ResizeObserver(update).observe(banner);
-  }
-}
-
-initDemoBannerMarquee();
 
 

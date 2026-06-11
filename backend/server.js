@@ -36,17 +36,6 @@ app.use((req, res, next) => {
 
 
 
-// Public demo safety: my-labby.com is intentionally visual/browser-only.
-// Do not allow this demo backend to open SSH sessions or accept Agent API keys.
-function rejectDemoRuntimeApi(req, res) {
-  res.status(403).json({
-    error: 'Disabled in the public Labby demo. Use the self-hosted Main version for real SSH and Agent API access.',
-    demoOnly: true,
-  });
-}
-
-app.use(['/api/ssh', '/api/agent', '/api/agent-keys'], rejectDemoRuntimeApi);
-
 // ── Agent API keys and automation endpoints ────────────────────────────────
 const crypto = require('crypto');
 
@@ -550,6 +539,11 @@ const { spawn, execFile } = require('child_process');
 const sshSessions = new Map();
 const SSH_TMP_DIR = '/tmp/labby-ssh';
 
+function shellQuote(value) {
+  return `'${String(value).replace(/'/g, `'\''`)}'`;
+}
+
+
 function ensureSshTmpDir() {
   try { fs.mkdirSync(SSH_TMP_DIR, { recursive: true, mode: 0o700 }); } catch {}
 }
@@ -636,6 +630,8 @@ printf '%s\n' "$LABBY_SSH_KEY_PASSPHRASE"
     '-o', 'StrictHostKeyChecking=accept-new',
     '-o', 'ServerAliveInterval=30',
     '-o', 'NumberOfPasswordPrompts=1',
+    '-o', 'RequestTTY=force',
+    '-o', 'SendEnv=TERM',
   ];
   if (keyPath) sshArgs.push('-i', keyPath, '-o', 'IdentitiesOnly=yes', '-o', 'PreferredAuthentications=publickey');
   sshArgs.push(target);
@@ -645,6 +641,8 @@ printf '%s\n' "$LABBY_SSH_KEY_PASSPHRASE"
   const env = { ...process.env };
   env.TERM = 'xterm-256color';
   env.COLORTERM = env.COLORTERM || 'truecolor';
+  env.COLUMNS = env.COLUMNS || '160';
+  env.LINES = env.LINES || '34';
   if (command === 'sshpass') env.SSHPASS = password;
   if (askPassPath) {
     env.SSH_ASKPASS = askPassPath;
@@ -662,7 +660,7 @@ printf '%s\n' "$LABBY_SSH_KEY_PASSPHRASE"
   }
 
   const session = { id: sessionId, proc, tempDir, output: `ssh ${target}${authMethod === 'key' ? ' [key]' : ''}
-`, closed: false, createdAt: Date.now(), term: env.TERM };
+`, closed: false, createdAt: Date.now(), term: env.TERM, complete: { command, args, env, target } };
   sshSessions.set(sessionId, session);
 
   const collect = (chunk) => {
@@ -695,6 +693,66 @@ app.get('/api/ssh/:id/output', (req, res) => {
   const output = session.output;
   session.output = '';
   res.json({ output, closed: session.closed });
+});
+
+
+app.post('/api/ssh/:id/complete', (req, res) => {
+  const session = sshSessions.get(req.params.id);
+  if (!session || session.closed || !session.complete) return res.status(404).json({ error: 'SSH session not found or closed.' });
+  const token = String(req.body?.token || '').slice(0, 300);
+  const line = String(req.body?.line || '').slice(0, 1000);
+  const beforeToken = line.slice(0, Math.max(0, line.length - token.length));
+  const mode = beforeToken.trim() ? 'file' : 'command';
+  const quotedToken = shellQuote(token);
+  const remoteScript = mode === 'command'
+    ? `bash -lc ${shellQuote(`compgen -c -- ${quotedToken} | sort -u | head -80`)}`
+    : `bash -lc ${shellQuote(`compgen -f -- ${quotedToken} | sort -u | head -80`)}`;
+  const args = [...session.complete.args, remoteScript];
+  const child = spawn(session.complete.command, args, { stdio: ['ignore', 'pipe', 'pipe'], env: session.complete.env });
+  let stdout = '';
+  let stderr = '';
+  const timer = setTimeout(() => { try { child.kill('SIGTERM'); } catch {} }, 3000);
+  child.stdout.on('data', (chunk) => { stdout += chunk.toString('utf8'); if (stdout.length > 10000) stdout = stdout.slice(-10000); });
+  child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf8'); if (stderr.length > 2000) stderr = stderr.slice(-2000); });
+  child.on('close', () => {
+    clearTimeout(timer);
+    const matches = stdout.split(/\r?\n/).map((v) => v.trim()).filter(Boolean).slice(0, 80);
+    res.json({ matches, mode });
+  });
+  child.on('error', (err) => {
+    clearTimeout(timer);
+    res.status(500).json({ error: err.message || 'Completion failed.' });
+  });
+});
+
+
+app.get('/api/ssh/:id/history', (req, res) => {
+  const session = sshSessions.get(req.params.id);
+  if (!session || session.closed || !session.complete) return res.status(404).json({ error: 'SSH session not found or closed.' });
+  // Keep this remote command deliberately simple: OpenSSH executes it
+  // through the target user's login shell, and nested quoting easily breaks on
+  // minimal systems. Read common shell history files directly instead.
+  const remoteScript = 'test -r ~/.bash_history && tail -n 250 ~/.bash_history; test -r ~/.zsh_history && tail -n 250 ~/.zsh_history';
+  const args = [...session.complete.args, remoteScript];
+  const child = spawn(session.complete.command, args, { stdio: ['ignore', 'pipe', 'pipe'], env: session.complete.env });
+  let stdout = '';
+  let stderr = '';
+  const timer = setTimeout(() => { try { child.kill('SIGTERM'); } catch {} }, 4000);
+  child.stdout.on('data', (chunk) => { stdout += chunk.toString('utf8'); if (stdout.length > 30000) stdout = stdout.slice(-30000); });
+  child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf8'); if (stderr.length > 3000) stderr = stderr.slice(-3000); });
+  child.on('close', () => {
+    clearTimeout(timer);
+    const history = stdout
+      .split(/\r?\n/)
+      .map((v) => v.replace(/^: \d+:\d+;/, '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim())
+      .filter((v) => v && !/^\d+\s+/.test(v))
+      .slice(-200);
+    res.json({ history });
+  });
+  child.on('error', (err) => {
+    clearTimeout(timer);
+    res.status(500).json({ error: err.message || 'Could not read remote history.' });
+  });
 });
 
 app.post('/api/ssh/:id/input', (req, res) => {
