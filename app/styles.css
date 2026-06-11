@@ -7959,3 +7959,16 @@ dialog.rack-form-dialog:not([open]) {
   outline: 3px solid color-mix(in srgb, var(--mint) 58%, transparent);
   outline-offset: 3px;
 }
+
+
+/* v104: sudo password button fits into the existing CLI footer. */
+#cli-sudo-password,
+#mobile-cli-sudo-password {
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .cli-footer #mobile-cli-close {
+    grid-column: 1 / -1;
+  }
+}

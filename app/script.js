@@ -96,6 +96,7 @@ const cliInput = document.getElementById('cli-input');
 const cliSend = document.getElementById('cli-send');
 const cliCopy = document.getElementById('cli-copy');
 const cliPaste = document.getElementById('cli-paste');
+const cliSudoPassword = document.getElementById('cli-sudo-password');
 const cliClearKey = document.getElementById('cli-clear-key');
 const cliClose = document.getElementById('cli-close');
 const mobileCliView = document.getElementById('mobile-cli');
@@ -106,6 +107,7 @@ const mobileCliInput = document.getElementById('mobile-cli-input');
 const mobileCliSend = document.getElementById('mobile-cli-send');
 const mobileCliCopy = document.getElementById('mobile-cli-copy');
 const mobileCliPaste = document.getElementById('mobile-cli-paste');
+const mobileCliSudoPassword = document.getElementById('mobile-cli-sudo-password');
 const mobileCliClearKey = document.getElementById('mobile-cli-clear-key');
 const mobileCliClose = document.getElementById('mobile-cli-close');
 const cliCommandSearch = document.getElementById('cli-command-search');
@@ -129,10 +131,14 @@ let cliHistoryScope = 'default';
 let cliHistoryCursor = 0;
 let cliHistoryDraft = '';
 let cliRemoteHistoryLoadedFor = '';
+  cliRemoteHistoryPromise = null;
+  cliPlainOutputBuffer = '';
 let cliTerminalState = createCliTerminalState();
 let cliXtermInstances = new Map();
 let cliXtermOutputBuffer = '';
 let cliXtermPreferred = false;
+let cliPlainOutputBuffer = '';
+let cliRemoteHistoryPromise = null;
 
 let credentialFields = null;
 const formTitle = document.getElementById('form-title');
@@ -503,30 +509,19 @@ document.addEventListener('keydown', (event) => {
   if (!isCliVisible()) return;
   const terminal = activeCliEls()?.terminal;
   if (!terminal || document.activeElement !== terminal) return;
-  if (event.key === 'ArrowUp') {
+  if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
     event.preventDefault();
     event.stopPropagation();
-    activeCliInput()?.focus();
-    loadCliHistoryIntoInput(-1);
-    return;
+    const input = activeCliInput();
+    input?.focus();
+    loadCliHistoryIntoInput(event.key === 'ArrowUp' ? -1 : 1);
   }
-  if (event.key === 'ArrowDown') {
-    event.preventDefault();
-    event.stopPropagation();
-    activeCliInput()?.focus();
-    loadCliHistoryIntoInput(1);
-    return;
-  }
-  const raw = cliKeyEventToRawInput(event);
-  if (!raw) return;
-  event.preventDefault();
-  event.stopPropagation();
-  sendCliRawInput(raw);
 }, true);
 
 [cliClearKey, mobileCliClearKey].filter(Boolean).forEach((btn) => btn.addEventListener('click', clearCliKnownHostAndReconnect));
 [cliCopy, mobileCliCopy].filter(Boolean).forEach((btn) => btn.addEventListener('click', copyCliOutput));
 [cliPaste, mobileCliPaste].filter(Boolean).forEach((btn) => btn.addEventListener('click', pasteClipboardToCliInput));
+[cliSudoPassword, mobileCliSudoPassword].filter(Boolean).forEach((btn) => btn.addEventListener('click', pasteSudoPasswordToCli));
 [cliClose, mobileCliClose].filter(Boolean).forEach((btn) => btn.addEventListener('click', closeCliSession));
 if (cliDialog) {
   cliDialog.addEventListener('cancel', (event) => {
@@ -2624,8 +2619,8 @@ function cliTargetForItem(item) {
 function activeCliEls() {
   const mobile = isMobile();
   return mobile
-    ? { terminal: mobileCliTerminal, input: mobileCliInput, send: mobileCliSend, copy: mobileCliCopy, paste: mobileCliPaste, clearKey: mobileCliClearKey, close: mobileCliClose }
-    : { terminal: cliTerminal, input: cliInput, send: cliSend, copy: cliCopy, paste: cliPaste, clearKey: cliClearKey, close: cliClose };
+    ? { terminal: mobileCliTerminal, input: mobileCliInput, send: mobileCliSend, copy: mobileCliCopy, paste: mobileCliPaste, sudoPassword: mobileCliSudoPassword, clearKey: mobileCliClearKey, close: mobileCliClose }
+    : { terminal: cliTerminal, input: cliInput, send: cliSend, copy: cliCopy, paste: cliPaste, sudoPassword: cliSudoPassword, clearKey: cliClearKey, close: cliClose };
 }
 
 
@@ -2716,12 +2711,28 @@ function writeCliXterm(text, append = true) {
   }
 }
 
-function cliPlainOutputForCopy() {
-  return cliXtermOutputBuffer
+function normalizeCliPlainOutput(text) {
+  return String(text || '')
     .replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, '')
     .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '')
     .replace(/\x1b[()#][0-9A-Za-z]/g, '')
-    .replace(/\x1b[78]/g, '');
+    .replace(/\x1b[78]/g, '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\x00/g, '')
+    .replace(/[\x01-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '');
+}
+
+function cliPlainOutputForCopy() {
+  return cliPlainOutputBuffer || normalizeCliPlainOutput(cliXtermOutputBuffer);
+}
+
+function renderCliPlainOutput() {
+  const text = cliPlainOutputBuffer.replace(/\n+$/g, '');
+  [cliTerminal, mobileCliTerminal].filter(Boolean).forEach((terminal) => {
+    terminal.textContent = text;
+    terminal.scrollTop = terminal.scrollHeight;
+  });
 }
 
 
@@ -2903,9 +2914,10 @@ function renderCliTerminalState() {
 }
 
 function setCliOutput(text, append = false) {
-  if (writeCliXterm(text, append)) return;
-  if (!append) cliTerminalState = createCliTerminalState();
-  appendCliTerminalChunk(text);
+  const value = normalizeCliPlainOutput(text);
+  cliPlainOutputBuffer = append ? cliPlainOutputBuffer + value : value;
+  if (cliPlainOutputBuffer.length > 200000) cliPlainOutputBuffer = cliPlainOutputBuffer.slice(-100000);
+  renderCliPlainOutput();
 }
 
 async function openCliSession(item, options = {}) {
@@ -3152,15 +3164,18 @@ function mergeCliHistory(remoteHistory = []) {
 async function loadCliRemoteHistory() {
   if (!cliSession) return;
   const key = `${cliSession}|${cliHistoryScope}`;
-  if (cliRemoteHistoryLoadedFor === key) return;
+  if (cliRemoteHistoryLoadedFor === key) return cliRemoteHistoryPromise;
   cliRemoteHistoryLoadedFor = key;
-  try {
-    const res = await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(cliSession)}/history`);
-    if (!res.ok) return;
-    const data = await res.json().catch(() => ({}));
-    const history = Array.isArray(data.history) ? data.history : [];
-    if (history.length) mergeCliHistory(history);
-  } catch {}
+  cliRemoteHistoryPromise = (async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(cliSession)}/history`);
+      if (!res.ok) return;
+      const data = await res.json().catch(() => ({}));
+      const history = Array.isArray(data.history) ? data.history : [];
+      if (history.length) mergeCliHistory(history);
+    } catch {}
+  })();
+  return cliRemoteHistoryPromise;
 }
 
 function activeCliInput() {
@@ -3176,7 +3191,12 @@ function loadCliHistoryIntoInput(direction) {
   const input = activeCliInput();
   if (!input) return false;
   const history = cliHistory();
-  if (!history.length) return false;
+  if (!history.length) {
+    loadCliRemoteHistory().then(() => {
+      if (cliHistory().length) loadCliHistoryIntoInput(direction);
+    });
+    return false;
+  }
   if (cliHistoryCursor < 0 || cliHistoryCursor > history.length) cliHistoryCursor = history.length;
   if (cliHistoryCursor === history.length) cliHistoryDraft = input.value || '';
   cliHistoryCursor = Math.max(0, Math.min(history.length, cliHistoryCursor + direction));
@@ -3277,6 +3297,32 @@ function cliKeyEventToRawInput(event) {
   return '';
 }
 
+
+function cliConfiguredSudoPassword() {
+  const credentials = normalizeCredentials(cliActiveItem?.credentials);
+  const password = credentials?.password ? String(credentials.password) : '';
+  return password.replace(/[\r\n]+/g, '');
+}
+
+async function pasteSudoPasswordToCli() {
+  if (!cliSession) {
+    showToast('No active SSH session.', 'error');
+    return;
+  }
+  const password = cliConfiguredSudoPassword();
+  if (!password) {
+    showToast('No password is saved for this CLI target.', 'error');
+    return;
+  }
+  const ok = await sendCliRawInput(`${password}\n`);
+  if (ok) {
+    showToast('Sudo password sent.');
+    activeCliInput()?.focus();
+  } else {
+    showToast('Could not send sudo password.', 'error');
+  }
+}
+
 async function sendCliInput() {
   if (!cliSession) return;
   const els = activeCliEls();
@@ -3361,7 +3407,7 @@ async function clearCliKnownHostAndReconnect() {
 
 async function copyCliOutput() {
   const els = activeCliEls();
-  const text = cliXtermAvailable() ? cliPlainOutputForCopy() : (els.terminal?.innerText || els.terminal?.textContent || '');
+  const text = cliPlainOutputForCopy() || (els.terminal?.innerText || els.terminal?.textContent || '');
   try { await navigator.clipboard.writeText(text); showToast('CLI output copied.'); }
   catch { showToast('Could not copy CLI output.', 'error'); }
 }
