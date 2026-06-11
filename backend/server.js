@@ -513,6 +513,22 @@ app.post('/api/backups/restore', (req, res) => {
   }
 });
 
+app.delete('/api/backups/:target/:id', (req, res) => {
+  try {
+    const target = req.params.target === 'smb' && isSmbBackupAvailable() ? 'smb' : 'local';
+    const id = path.basename(String(req.params.id || ''));
+    if (!id.endsWith('.labbybackup')) return res.status(400).json({ error: 'Invalid backup id.' });
+    const full = path.join(getBackupDir(target), id);
+    if (!fs.existsSync(full)) return res.status(404).json({ error: 'Backup not found.' });
+    fs.unlinkSync(full);
+    addBackupLog('info', `Backup deleted from ${target}: ${id}`);
+    res.json({ ok: true });
+  } catch (err) {
+    addBackupLog('error', `Delete backup failed: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // ── Browser SSH bridge ─────────────────────────────────────────────────────
 // Starts the system SSH client and streams stdout/stderr through small polling

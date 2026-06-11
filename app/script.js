@@ -840,7 +840,7 @@ function backupPanelHtml(status) {
     ? status.logs.map(log => `<li class="backup-log-${escapeAttr(log.level)}"><strong>${escapeHtml(formatBackupDate(log.at))}</strong><span>${escapeHtml(log.message)}</span></li>`).join('')
     : '<li><span>No backup logs yet.</span></li>';
   const backups = Array.isArray(status?.backups) && status.backups.length
-    ? status.backups.map(backup => `<li><div><strong>${escapeHtml(backup.name)}</strong><span>${escapeHtml(formatBackupDate(backup.createdAt))} · ${Math.ceil((backup.size || 0) / 1024)} KB · ${escapeHtml(backup.target)}</span></div><button class="button secondary" type="button" data-restore-backup="${escapeAttr(backup.id)}" data-restore-target="${escapeAttr(backup.target)}">Restore</button></li>`).join('')
+    ? status.backups.map(backup => `<li><div><strong>${escapeHtml(backup.name)}</strong><span>${escapeHtml(formatBackupDate(backup.createdAt))} · ${Math.ceil((backup.size || 0) / 1024)} KB · ${escapeHtml(backup.target)}</span></div><div class="backup-list-actions"><button class="button secondary" type="button" data-restore-backup="${escapeAttr(backup.id)}" data-restore-target="${escapeAttr(backup.target)}">Restore</button><button class="button danger" type="button" data-delete-backup="${escapeAttr(backup.id)}" data-delete-target="${escapeAttr(backup.target)}">Delete</button></div></li>`).join('')
     : '<li><span>No encrypted backups found for this target.</span></li>';
 
   return `
@@ -934,6 +934,21 @@ function bindBackupPanel(container) {
         showToast('Backup restored. Reloading…');
         setTimeout(() => window.location.reload(), 700);
       } catch (err) { showToast('Restore failed.', 'error'); console.warn(err); }
+    });
+  });
+  container.querySelectorAll('[data-delete-backup]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const id = button.getAttribute('data-delete-backup');
+      const target = button.getAttribute('data-delete-target') || 'local';
+      if (!confirm(`Delete encrypted backup ${id}? This cannot be undone.`)) return;
+      try {
+        const encodedTarget = encodeURIComponent(target);
+        const encodedId = encodeURIComponent(id);
+        const res = await fetch(`${API_BASE}/api/backups/${encodedTarget}/${encodedId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error(await res.text());
+        showToast('Backup deleted.');
+        await renderBackupConfigPanels();
+      } catch (err) { showToast('Could not delete backup.', 'error'); console.warn(err); }
     });
   });
   const targetSelect = container.querySelector('[data-backup-field="target"]');

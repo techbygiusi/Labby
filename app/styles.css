@@ -7809,6 +7809,14 @@ dialog.rack-form-dialog:not([open]) {
 .backup-log-list li {
   min-width: 0;
 }
+.backup-list-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  min-width: max-content;
+}
 .backup-list li span,
 .backup-log-list li span,
 .backup-status-card span {
@@ -7829,5 +7837,37 @@ dialog.rack-form-dialog:not([open]) {
   .backup-actions-row { grid-template-columns: 1fr; }
   .backup-list li,
   .backup-log-list li { align-items: stretch; flex-direction: column; }
+  .backup-list-actions { width: 100%; display: grid; grid-template-columns: 1fr; }
   .backup-list li .button { width: 100%; }
+}
+
+/* v93: keep Backup Config typography consistent with the Labby mono UI */
+.backup-config-dialog,
+.backup-config-dialog *,
+#mobile-backup-config,
+#mobile-backup-config * {
+  font-family: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.backup-config-panel,
+.backup-config-panel p,
+.backup-config-panel label,
+.backup-status-card,
+.backup-section-title,
+.backup-list,
+.backup-log-list,
+.backup-list li,
+.backup-log-list li,
+.backup-list li span,
+.backup-log-list li span,
+.backup-status-card span {
+  font-family: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.backup-config-panel .config-intro,
+.backup-status-card span,
+.backup-list li span,
+.backup-log-list li span {
+  font-weight: 700;
+  line-height: 1.35;
 }
