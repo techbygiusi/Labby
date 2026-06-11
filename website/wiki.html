@@ -1561,6 +1561,18 @@ docker compose up -d</pre>
       <h2>App-Level Backup</h2>
       <pre>Config → Export Config</pre>
       <p>This is the easiest portable backup. It contains inventory, locations, racks, themes and the active theme. When secrets exist, credentials and API key records are included only in the encrypted secrets bundle and require the export key during import.</p>
+      <h2>Scheduled encrypted Backup Config</h2>
+      <p>Use <code>Config → Backup Config</code> to create encrypted backups on a schedule. You can choose hourly, daily or weekly runs, set the time/day, decide how many backups should be kept, run a manual backup and restore existing encrypted backups from the same screen.</p>
+      <h2>SMB backup mount</h2>
+      <p>Labby automatically shows an SMB target when the backend container has a writable mount at <code>/config-backup</code>. The host can be any SMB/NAS mount point.</p>
+      <pre><code>services:
+  backend:
+    volumes:
+      - ./data:/data
+      - /mnt/your-smb-share/labby-backups:/config-backup</code></pre>
+      <p>Mount the SMB share on the Docker host first, then bind that mounted host path into the container. Keep the container path exactly <code>/config-backup</code>; that is the path Labby checks automatically.</p>
+      <h2>Restore encrypted backups</h2>
+      <p>Scheduled backups are encrypted with a key stored inside the Labby data volume. Because the key is not shown to users, restore them through <code>Config → Backup Config</code> so the backend can decrypt and import the selected backup safely.</p>
       <h2>Demo Backup</h2>
       <p>The demo stores changes in your browser only. Use Export Config before clearing browser storage or loading the demo seed again.</p>
     `},
