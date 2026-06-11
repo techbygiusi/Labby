@@ -533,13 +533,19 @@ document.addEventListener('click', (event) => {
     if (event.key === 'ArrowUp') {
       event.preventDefault();
       event.stopPropagation();
-      loadCliHistoryIntoInput(-1);
+      sendCliArrowKey('up', input);
       return;
     }
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       event.stopPropagation();
-      loadCliHistoryIntoInput(1);
+      sendCliArrowKey('down', input);
+      return;
+    }
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      event.stopPropagation();
+      sendCliTabCompletion(input);
       return;
     }
     if (event.key !== 'Enter') return;
@@ -561,7 +567,7 @@ document.addEventListener('keydown', (event) => {
   if (!input) return;
   event.preventDefault();
   event.stopPropagation();
-  loadCliHistoryIntoInput(event.key === 'ArrowUp' ? -1 : 1);
+  sendCliArrowKey(event.key === 'ArrowUp' ? 'up' : 'down', input);
 }, true);
 
 [cliClearKey, mobileCliClearKey].filter(Boolean).forEach((btn) => btn.addEventListener('click', clearCliKnownHostAndReconnect));
@@ -2989,6 +2995,47 @@ function isCliVisible() {
 }
 
 
+async function sendCliRawInput(raw) {
+  if (!cliSession) return false;
+  const input = String(raw || '');
+  if (!input) return false;
+  try {
+    const res = await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(cliSession)}/input`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function sendCliTabCompletion(input) {
+  if (!cliSession) return;
+  const field = input || activeCliInput();
+  const value = field?.value || '';
+  if (field) {
+    field.value = '';
+    autosizeCliInput(field);
+  }
+  const ok = await sendCliRawInput(`${value.replace(/\r\n/g, '\n')}\t`);
+  if (!ok) showToast('Could not send Tab to SSH session.', 'error');
+}
+
+async function sendCliArrowKey(direction, input) {
+  if (!cliSession) return;
+  const field = input || activeCliInput();
+  const value = field?.value || '';
+  if (field) {
+    field.value = '';
+    autosizeCliInput(field);
+  }
+  const sequence = direction === 'down' ? '\x1b[B' : '\x1b[A';
+  const ok = await sendCliRawInput(`${value.replace(/\r\n/g, '\n')}${sequence}`);
+  if (!ok) showToast('Could not send arrow key to SSH session.', 'error');
+}
+
 async function sendCliInput() {
   if (!cliSession) return;
   const els = activeCliEls();
@@ -2998,15 +3045,8 @@ async function sendCliInput() {
   els.input.value = '';
   autosizeCliInput(els.input);
   setCliOutput(`$ ${value}\n`, true);
-  try {
-    await fetch(`${API_BASE}/api/ssh/${encodeURIComponent(cliSession)}/input`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ input: `${value.replace(/\r\n/g, '\n')}\n` }),
-    });
-  } catch {
-    showToast('Could not send command.', 'error');
-  }
+  const ok = await sendCliRawInput(`${value.replace(/\r\n/g, '\n')}\n`);
+  if (!ok) showToast('Could not send command.', 'error');
 }
 
 async function copySelectedCliText() {
