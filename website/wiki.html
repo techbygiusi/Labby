@@ -897,36 +897,36 @@
       <aside class="wiki-sidebar">
         <nav class="wiki-nav">
           <div class="wiki-nav-group">
-            <p class="wiki-nav-heading">Getting Started</p>
-            <a class="wiki-nav-link active" href="#" data-page="home">Home</a>
+            <p class="wiki-nav-heading">Start</p>
+            <a class="wiki-nav-link active" href="#" data-page="home">Übersicht</a>
             <a class="wiki-nav-link" href="#" data-page="installation">Installation</a>
-            <a class="wiki-nav-link" href="#" data-page="quickstart">Quick Start</a>
-            <a class="wiki-nav-link" href="#" data-page="demomode">Demo Mode</a>
-            <a class="wiki-nav-link" href="#" data-page="architecture">Technical Structure</a>
+            <a class="wiki-nav-link" href="#" data-page="quickstart">Schnellstart</a>
+            <a class="wiki-nav-link" href="#" data-page="demomode">Demo-Modus</a>
+            <a class="wiki-nav-link" href="#" data-page="architecture">Technischer Aufbau</a>
           </div>
           <div class="wiki-nav-group">
-            <p class="wiki-nav-heading">Features</p>
-            <a class="wiki-nav-link" href="#" data-page="features">Features</a>
-            <a class="wiki-nav-link" href="#" data-page="mobileux">Mobile UX</a>
-            <a class="wiki-nav-link" href="#" data-page="topologycards">Topology Cards</a>
-            <a class="wiki-nav-link" href="#" data-page="rackview">Rack Editor</a>
+            <p class="wiki-nav-heading">Funktionen</p>
+            <a class="wiki-nav-link" href="#" data-page="features">Funktionen</a>
+            <a class="wiki-nav-link" href="#" data-page="mobileux">Mobile Ansicht</a>
+            <a class="wiki-nav-link" href="#" data-page="topologycards">Topology-Karten</a>
+            <a class="wiki-nav-link" href="#" data-page="rackview">Rack-Editor</a>
             <a class="wiki-nav-link" href="#" data-page="treegraph">Tree &amp; Graph View</a>
-            <a class="wiki-nav-link" href="#" data-page="ipview">IP View</a>
+            <a class="wiki-nav-link" href="#" data-page="ipview">IP-Ansicht</a>
             <a class="wiki-nav-link" href="#" data-page="themes">Themes</a>
-            <a class="wiki-nav-link" href="#" data-page="console">Console</a>
-            <a class="wiki-nav-link" href="#" data-page="agentapi">Agent API Access</a>
+            <a class="wiki-nav-link" href="#" data-page="console">CLI-Konsole</a>
+            <a class="wiki-nav-link" href="#" data-page="agentapi">Agent API</a>
           </div>
           <div class="wiki-nav-group">
-            <p class="wiki-nav-heading">Data</p>
+            <p class="wiki-nav-heading">Daten</p>
             <a class="wiki-nav-link" href="#" data-page="config">Config, Import &amp; Export</a>
-            <a class="wiki-nav-link" href="#" data-page="backup">Data &amp; Backup</a>
+            <a class="wiki-nav-link" href="#" data-page="backup">Daten &amp; Backup</a>
           </div>
           <div class="wiki-nav-group">
-            <p class="wiki-nav-heading">Security</p>
-            <a class="wiki-nav-link" href="#" data-page="externalaccess">External Reachability</a>
+            <p class="wiki-nav-heading">Sicherheit</p>
+            <a class="wiki-nav-link" href="#" data-page="externalaccess">Externer Zugriff</a>
           </div>
         </nav>
-        <a class="btn btn-secondary" href="#" data-page="home" style="justify-content:center;font-size:.72rem;">Wiki Home</a>
+        <a class="btn btn-secondary" href="#" data-page="home" style="justify-content:center;font-size:.72rem;">Wiki Übersicht</a>
       </aside>
 
       <div class="wiki-content" id="wiki-content"></div>
@@ -978,676 +978,362 @@ btn.addEventListener('click', () => {
 (function(){
   const PAGES = {
     home:{title:'🧪 Labby Wiki',content:`
-      <p>Labby is a lightweight homelab inventory, rack and topology tool with persistent, browser-independent storage. Track hardware, VMs, LXCs, apps, networks, rack layouts, themes and relationships in one clean dashboard.</p>
+      <p>Labby hilft dir, dein Homelab übersichtlich zu dokumentieren: Hardware, VMs, LXCs, Apps, Netzwerke, Racks, Links, Credentials, SSH-Zugriff und Backups gehören an einen Ort.</p>
       <div class="wiki-shot-grid">
-        <figure class="wiki-shot"><img src="images/labby-topology.png" alt="Labby topology overview" loading="lazy" /><figcaption>Topology overview</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-topology.png" alt="Labby Topology Übersicht" loading="lazy" /><figcaption>Topology Übersicht</figcaption></figure>
       </div>
-      <h2>Main Highlights</h2>
+      <h2>Was Labby abdeckt</h2>
       <ul>
-        <li>🖥️ Resource tracking for Hardware, VMs, LXCs, Apps and Networks</li>
-        <li>🌐 Topology cards with inline details, Edit/Delete actions and optional live checks</li>
-        <li>🌳 Relationship Tree view for host, guest, app and network structure</li>
-        <li>🗄️ Rack Editor with locations, racks, front/rear layouts and linked resources</li>
-        <li>🎨 Built-in themes, the redesigned custom theme editor and the Matrix theme</li>
-        <li>📱 Mobile bottom navigation: Boards, Add, Rack, IP and More</li>
-        <li>🧱 Technical Structure page with architecture overview and file layout</li>
-        <li>⌨️ Browser Console with SSH access from CLI-enabled credentials</li>
-        <li>🔐 Optional encrypted credentials for Hardware, VMs, LXCs and Apps</li>
-        <li>💾 Export / Import JSON backups including resources, racks, locations, custom themes, active theme and encrypted secrets</li>
-        <li>🧪 Demo mode with browser-only storage and Load Demo seed data</li>
+        <li>Du pflegst Hardware, VMs, LXCs, Apps und Netzwerke als strukturierte Ressourcen.</li>
+        <li>Du verknüpfst Hosts, Guests, Apps und Netzwerke miteinander.</li>
+        <li>Du dokumentierst Racks, Standorte, IP-Adressen und Web-Links.</li>
+        <li>Du nutzt Themes und eigene Farben für deine Oberfläche.</li>
+        <li>Du öffnest SSH-Sessions direkt aus Ressourcen mit CLI-Credentials.</li>
+        <li>Du speicherst wiederverwendbare CLI-Commands in der Command Library.</li>
+        <li>Du sicherst deine Config per Export oder per verschlüsseltem Backup-Zeitplan.</li>
+        <li>Du kannst Backups lokal oder über einen externen Mount unter <code>/config-backup</code> ablegen.</li>
       </ul>
-      <h2>Fast Start</h2>
-      <pre>git clone https://github.com/techbygiusi/Labby.git
-cd Labby
-docker compose up --build -d</pre>
-      <p>Open: <code>http://localhost:8080</code></p>
-      <h2>Recommended Reading Order</h2>
+      <h2>Empfohlene Reihenfolge</h2>
       <ol>
-        <li>Quick Start</li>
-        <li>Topology Cards</li>
-        <li>Mobile UX</li>
-        <li>Rack Editor</li>
-        <li>Console</li>
-        <li>Config, Import &amp; Export</li>
-        <li>External Reachability and access protection</li>
+        <li>Installation einrichten</li>
+        <li>Netzwerke anlegen</li>
+        <li>Hardware, VMs und LXCs hinzufügen</li>
+        <li>Apps und Web-Links ergänzen</li>
+        <li>Rack und IP-Ansicht prüfen</li>
+        <li>Config exportieren oder Backup Config aktivieren</li>
       </ol>
     `},
     installation:{title:'🚀 Installation',content:`
-      <h2>Requirements</h2>
-      <ul><li>Docker</li><li>Docker Compose</li></ul>
-      <h2>Start Labby</h2>
-      <pre>docker compose up --build -d</pre>
-      <p>Open Labby in your browser: <code>http://localhost:8080</code></p>
-      <h2>Example docker-compose.yml</h2>
-      <p>A normal self-hosted installation uses one frontend container, one backend container and the persistent <code>labby-data</code> volume.</p>
+      <h2>Docker Image starten</h2>
+      <p>Für die normale Installation nutzt du das veröffentlichte Single-Container-Image. Es enthält Frontend, Nginx und Backend in einem Container.</p>
+      <pre>docker run -d \
+  --name labby \
+  -p 8080:80 \
+  -v labby-data:/data \
+  --restart unless-stopped \
+  techbygiusi/labby:latest</pre>
+      <p>Danach öffnest du Labby unter <code>http://localhost:8080</code>.</p>
+      <h2>Docker Compose</h2>
       <pre>services:
-  labby-frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: labby-frontend
+  labby:
+    image: techbygiusi/labby:latest
+    container_name: labby
     ports:
       - "8080:80"
-    depends_on:
-      - labby-backend
-    restart: unless-stopped
-
-  labby-backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: labby-backend
-    environment:
-      - DATA_DIR=/data
     volumes:
       - labby-data:/data
     restart: unless-stopped
 
 volumes:
-  labby-data:
-    driver: local</pre>
-      <h2>Example with external backup mount</h2>
-      <p>When you want the Backup Config screen to offer an external SMB/NAS target, mount the host folder into the backend container as <code>/config-backup</code>.</p>
+  labby-data:</pre>
+      <p>Starten:</p>
+      <pre>docker compose up -d</pre>
+      <h2>Externer Backup-Ordner</h2>
+      <p>Wenn du verschlüsselte Config-Backups auf einem NAS oder SMB-Ziel ablegen willst, reichst du zusätzlich einen Host-Ordner in den Container durch. Der Container-Pfad muss genau <code>/config-backup</code> heißen.</p>
       <pre>services:
-  labby-backend:
-    volumes:
-      - labby-data:/data
-      - /mnt/your-smb-share/labby-backups:/config-backup</pre>
-      <p>The container reacts only to the fixed path <code>/config-backup</code>. If that path exists and is writable, Labby shows it as the SMB backup target.</p>
-      <h2>Stop Labby</h2>
-      <pre>docker compose down</pre>
-      <p>Data is preserved in Docker volume: <code>labby-data</code>.</p>
-      <h2>Update Existing Installation</h2>
-      <pre>cd ~/Labby
-git pull
-docker compose down
-docker compose up --build -d</pre>
-      <h2>Full Clean Rebuild</h2>
-      <pre>cd ~/Labby
-git pull
-docker compose down --remove-orphans
-docker compose build --no-cache
-docker compose up -d</pre>
-      <h2>Change Port</h2>
-      <p>Edit <code>docker-compose.yml</code>:</p>
-      <pre>ports:
-  - "9090:80"</pre>
-      <p>Then restart and open <code>http://localhost:9090</code>.</p>
-    `},
-    quickstart:{title:'🧭 Quick Start',content:`
-      <h2>1. Add Networks First</h2>
-      <p>Create networks with name, subnet, gateway and color. Labby auto-matches IPs to subnets.</p>
-      <pre>Core LAN
-192.168.10.0/24
-Gateway: 192.168.10.1</pre>
-      <h2>2. Add Hardware</h2>
-      <p>Add routers, switches, hypervisors, servers, NAS systems, backup nodes or PCs. Fill OS, manufacturer, CPU, RAM, disks, IP, notes and relationships where useful.</p>
-      <h2>3. Add VMs and LXCs</h2>
-      <p>Select the hardware host they run on. This builds the Tree view and relationship structure.</p>
-      <pre>VM: docker-01
-Hosted on: Proxmox Node 1</pre>
-      <h2>4. Add Apps</h2>
-      <p>Add apps with IP:Port and URL where available. Apps can be linked to VMs, LXCs or hardware.</p>
-      <pre>App: Portainer
-IP:Port: 192.168.20.21:9000
-Web URL: https://portainer.home.local
-Hosted on: docker-01</pre>
-      <h2>5. Use the Main Views</h2>
-      <ul>
-        <li><strong>Boards / Topology</strong> - resource cards, relationships, Edit/Delete and status</li>
-        <li><strong>Add</strong> - create or update resources</li>
-        <li><strong>Rack</strong> - locations, racks and rack editor</li>
-        <li><strong>IP</strong> - all used IPs grouped by subnet</li>
-        <li><strong>More</strong> - Tree, Config and Themes on mobile</li>
-      </ul>
-      <h2>6. Back Up Your Setup</h2>
-      <pre>Config → Export Config</pre>
-    `},
-    demomode:{title:'🧪 Demo Mode',content:`
-      <p>The public demo is intentionally browser-only. It is safe to try because changes stay in your own browser storage and do not change the real self-hosted backend.</p>
-      <h2>What Is Preserved in the Demo</h2>
-      <ul>
-        <li>Demo banner at the top of the app</li>
-        <li>Browser-only storage</li>
-        <li>Load Demo buttons and seed data</li>
-        <li>Demo tutorial behavior</li>
-        <li>Demo racks, locations and sample devices</li>
-      </ul>
-      <h2>Scrolling Demo Banner</h2>
-      <p>On narrow screens, the demo banner text scrolls automatically in a loop when it does not fit. Hovering or focusing the banner pauses the movement so the self-host link remains easy to click.</p>
-      <h2>Resetting Demo Data</h2>
-      <p>Use the <strong>Load Demo</strong> button to restore the prepared example inventory. Export your own test data first if you want to keep it.</p>
-      <h2>Difference to Self-Hosted Labby</h2>
-      <p>The self-hosted version stores data server-side. The demo stores data locally in the browser only.</p>
-    `},
-
-    architecture:{title:'🧱 Technical Structure',content:`
-      <p>Labby is built as a small self-hosted web application. The frontend is plain HTML, CSS and JavaScript. The optional backend provides API endpoints and persists the inventory data as JSON.</p>
-      <h2>Architecture Overview</h2>
-      <div class="arch-diagram" aria-label="Labby architecture diagram">
-        <div class="arch-row">
-          <div class="arch-card">
-            <strong>Browser</strong>
-            <span>Runs the Labby user interface, renders cards, rack views, themes and mobile pages.</span>
-          </div>
-          <div class="arch-card">
-            <strong>Static App Files</strong>
-            <span><code>index.html</code>, <code>styles.css</code> and <code>script.js</code> contain the app shell, styling and client-side logic.</span>
-          </div>
-          <div class="arch-card">
-            <strong>Backend API</strong>
-            <span>Serves and saves inventory data for the self-hosted version.</span>
-          </div>
-        </div>
-        <div class="arch-arrow">Browser ⇄ Frontend ⇄ API ⇄ JSON data</div>
-        <div class="arch-row">
-          <div class="arch-card">
-            <strong>Demo Storage</strong>
-            <span>The demo stores changes in the browser so visitors can test Labby without a server-side account.</span>
-          </div>
-          <div class="arch-card">
-            <strong>Docker / Nginx</strong>
-            <span>The deployment serves the website, demo app and backend through the provided container setup.</span>
-          </div>
-          <div class="arch-card">
-            <strong>Config Export</strong>
-            <span>Inventory, racks, locations and themes can be exported as a portable JSON backup.</span>
-          </div>
-        </div>
-      </div>
-      <h2>Request Flow</h2>
-      <div class="arch-flow">Open Labby → load frontend files → fetch inventory data → render views → save changes through API or demo browser storage</div>
-      <h2>Main Parts</h2>
-      <div class="arch-list">
-        <div>
-          <strong>Frontend</strong>
-          <p>Contains the complete UI: Topology, Add/Edit forms, Rack Editor, IP View, Tree View, Config, Themes and mobile navigation.</p>
-        </div>
-        <div>
-          <strong>Backend</strong>
-          <p>Provides simple data endpoints for loading and saving the inventory in the self-hosted version.</p>
-        </div>
-        <div>
-          <strong>Website</strong>
-          <p>Contains the landing page, screenshots and wiki documentation for users.</p>
-        </div>
-        <div>
-          <strong>Demo</strong>
-          <p>Uses the same app UI with demo-specific storage and seed data so users can try the app immediately.</p>
-        </div>
-      </div>
-      <h2>File Layout</h2>
-      <pre>app/
-  index.html
-  styles.css
-  script.js
-  images/logo.svg
-backend/
-  server.js
-website/
-  index.html
-  wiki.html
-  images/
-nginx/
-  default.conf
-docker-compose.yml</pre>
-      <h2>Data Model</h2>
-      <p>The inventory is represented as JSON. Resources, locations, racks, rack placements, custom themes and the active theme are part of the portable config export.</p>
-      <h2>Technology Choices</h2>
-      <ul>
-        <li>No frontend framework</li>
-        <li>No build step for the app frontend</li>
-        <li>Plain browser APIs for rendering and interaction</li>
-        <li>Docker-based self-hosting for simple deployment</li>
-      </ul>
-    `},
-    features:{title:'✨ Features',content:`
-      <h2>Core</h2>
-      <ul>
-        <li>🖥️ Resource tracking for Hardware, VMs, LXCs, Apps and Networks</li>
-        <li>🌐 Topology cards with Search, Type filter, Details, Edit and Delete</li>
-        <li>🌳 Tree relationship view</li>
-        <li>🗄️ Rack Editor with physical rack placement</li>
-        <li>🎨 Theme presets and custom theme editor</li>
-        <li>🧠 Automatic network matching by IP/CIDR</li>
-        <li>📡 Optional Live IP and Live URL checks</li>
-        <li>🤖 Agent API Access for trusted automation tools</li>
-        <li>🔑 Scoped API keys for automation agents</li>
-        <li>🧾 Saved credentials for Web and CLI access</li>
-        <li>💾 Persistent server-side storage in self-hosted Labby</li>
-      </ul>
-      <h2>Resource Metadata</h2>
-      <p>Labby can store OS, manufacturer, CPU, RAM, disks, notes, links, URLs, live status, hosted-on relationships and connected devices.</p>
-      <div class="wiki-shot-grid">
-        <figure class="wiki-shot"><img src="images/labby-topology.png" alt="Topology" loading="lazy" /><figcaption>Topology</figcaption></figure>
-        <figure class="wiki-shot"><img src="images/labby-theme-selector.png" alt="Themes" loading="lazy" /><figcaption>Themes</figcaption></figure>
-      </div>
-      <h2>Live Status</h2>
-      <p>Manual statuses include Online, Offline and Maintenance. Optional live checks can ping an IP or check a URL when those fields are configured on a resource.</p>
-      <h2>Responsive UX</h2>
-      <p>Desktop provides a wide workspace layout for fast editing and overview. Mobile provides full-screen pages, large tap targets, bottom navigation and focused sheets for secondary actions.</p>
-    `},
-    mobileux:{title:'📱 Mobile UX',content:`
-      <p>Mobile is designed as its own app-like flow, not a shrunken desktop layout.</p>
-      <div class="wiki-shot-grid mobile-ux-row">
-        <figure class="wiki-shot"><img src="images/labby-mobile-startscreen.png" alt="Mobile start screen" loading="lazy" /><figcaption>Start</figcaption></figure>
-        <figure class="wiki-shot"><img src="images/labby-mobile-menu.png" alt="Mobile More menu" loading="lazy" /><figcaption>More</figcaption></figure>
-        <figure class="wiki-shot"><img src="images/labby-mobile-config.png" alt="Mobile config" loading="lazy" /><figcaption>Config</figcaption></figure>
-      </div>
-      <h2>Bottom Navigation</h2>
-      <ul>
-        <li><strong>Boards</strong> - opens the Topology card view</li>
-        <li><strong>Add</strong> - opens the resource form without auto-focusing the first field</li>
-        <li><strong>Rack</strong> - opens the Rack Editor</li>
-        <li><strong>IP</strong> - opens the IP overview</li>
-        <li><strong>More</strong> - opens Tree, Config and Themes in a clean sheet</li>
-      </ul>
-      <h2>More Sheet</h2>
-      <p>Tap <strong>More</strong> to open secondary views. The sheet stays minimal: icon and label only. Tree, Config and Themes open as mobile pages with matching topbars.</p>
-      <h2>Forms</h2>
-      <ul>
-        <li>Inputs use at least 16px font size to avoid iOS zoom</li>
-        <li>No field is focused automatically when opening Add</li>
-        <li>Optional sections are grouped and visually separated</li>
-        <li>Focused fields scroll into view above the keyboard</li>
-      </ul>
-      <h2>Topology Cards</h2>
-      <ul>
-        <li>Tap a card to expand or collapse details</li>
-        <li>Swipe right to edit</li>
-        <li>Swipe left to delete with confirmation</li>
-        <li>Buttons remain large enough for touch</li>
-      </ul>
-      <h2>Mobile Graph View</h2>
-      <p>Mobile Graph View is currently in development. Mobile Relationship view uses Tree View, while Desktop Graph remains available on larger screens.</p>
-    `},
-    topologycards:{title:'🧩 Topology Cards',content:`
-      <p>Topology cards are the main way to browse, edit and understand your homelab resources.</p>
-      <div class="wiki-shot-grid">
-        <figure class="wiki-shot"><img src="images/labby-topology.png" alt="Topology cards" loading="lazy" /><figcaption>Topology cards</figcaption></figure>
-        <figure class="wiki-shot"><img src="images/labby-advanced-settings.png" alt="Advanced resource settings" loading="lazy" /><figcaption>Advanced resource settings</figcaption></figure>
-      </div>
-      <h2>Desktop Usage</h2>
-      <ul>
-        <li>Use Search to filter by name, IP, hostname, port or notes</li>
-        <li>Use the Type filter to focus Hardware, VMs, LXCs, Apps or Networks</li>
-        <li>Click <strong>Edit</strong> on a card to load that object into the editor</li>
-        <li>Click <strong>Delete</strong> to remove an object after confirmation</li>
-        <li>Copy/Open buttons appear only when useful data exists</li>
-      </ul>
-      <h2>Mobile Usage</h2>
-      <ul>
-        <li>Tap a card to reveal details inline</li>
-        <li>Swipe right to edit</li>
-        <li>Swipe left to delete</li>
-        <li>Use visible Copy/Open buttons for IPs and URLs</li>
-      </ul>
-      <h2>Live and Action Areas</h2>
-      <p>Live status controls appear for resources that have Live Ping or Live URL checks configured. IP and URL actions appear when the resource contains values that can be copied or opened.</p>
-      <h2>Copy and Open Buttons</h2>
-      <p>IP and URL actions are shown as real buttons with consistent height, padding and rounded corners. On mobile, they stay touch-friendly.</p>
-      <h2>Relationships Shown on Cards</h2>
-      <pre>Hardware hosts VM/LXC
-VM/LXC hosts App
-Network matches IP/CIDR
-Connected devices are listed on hardware cards</pre>
-    `},
-
-    agentapi:{title:'🤖 Agent API Access',content:`
-      <p>Agent API Access lets trusted automation tools connect to Labby with scoped API keys. This is useful for inventory import, rack automation, monitoring agents, status updates, ping checks and credential workflows.</p>
-      <p><strong>Public demo note:</strong> In the public demo, Agent API keys are visual placeholders only. They can be created to preview the UI, but they are not accepted by any backend endpoint and cannot read or write data.</p>
-      <div class="wiki-shot-grid">
-        <figure class="wiki-shot"><img src="images/labby-api-key.png" alt="API Keys dialog" loading="lazy" /><figcaption>API Keys management</figcaption></figure>
-      </div>
-      <h2>What Agents Can Do</h2>
-      <ul>
-        <li>Read the current inventory, locations and racks</li>
-        <li>Write inventory or rack updates when the key has write permission</li>
-        <li>Submit live status updates for existing resources</li>
-        <li>Run ping checks through the Labby backend when allowed</li>
-        <li>Synchronize data from external tools or scripts</li>
-        <li>Restore encrypted API key records through Config Import when the export key is available</li>
-      </ul>
-      <h2>Creating an API Key</h2>
-      <ol>
-        <li>Open <strong>Config</strong> and choose <strong>API Keys</strong>.</li>
-        <li>Enter a descriptive agent name, for example <code>Hermes</code> or <code>OpenClaw</code>.</li>
-        <li>Select only the required scopes.</li>
-        <li>Select an expiration: <strong>1 day</strong>, <strong>1 week</strong>, <strong>1 month</strong> or <strong>1 year</strong>.</li>
-        <li>Create the key and copy it immediately. The token is only shown once and cannot be recovered later.</li>
-      </ol>
-      <h2>Expiration</h2>
-      <p>Every API key has an expiration date. The longest supported lifetime is one year. Expired keys are rejected by the backend and should be revoked or replaced.</p>
-      <h2>Backup and Restore</h2>
-      <p>API key records are included in Config Export only inside the encrypted secrets bundle. Tokens are never exported as readable plain text. During import, Labby asks for the export key before restoring encrypted credentials or API key records.</p>
-      <h2>Scopes</h2>
-      <table>
-        <thead><tr><th>Scope</th><th>Purpose</th></tr></thead>
-        <tbody>
-          <tr><td><code>inventory:read</code></td><td>Read resources, locations and racks.</td></tr>
-          <tr><td><code>inventory:write</code></td><td>Update resources, locations and racks.</td></tr>
-          <tr><td><code>rack:read</code></td><td>Read rack-related data.</td></tr>
-          <tr><td><code>rack:write</code></td><td>Change rack-related data.</td></tr>
-          <tr><td><code>status:read</code></td><td>Read agent-submitted status information.</td></tr>
-          <tr><td><code>status:write</code></td><td>Submit status information for resources.</td></tr>
-          <tr><td><code>ping:run</code></td><td>Run backend ping checks.</td></tr>
-          <tr><td><code>config:read</code></td><td>Read exported configuration data.</td></tr>
-          <tr><td><code>credentials:read</code></td><td>Read stored usernames, passwords, SSH private keys, passphrases and credential flags when explicitly allowed.</td></tr>
-          <tr><td><code>credentials:write</code></td><td>Create or update stored credentials, including SSH keys, when explicitly allowed.</td></tr>
-        </tbody>
-      </table>
-      <h2>Authentication</h2>
-      <p>Agents send the token as a Bearer token in the HTTP Authorization header.</p>
-      <pre>Authorization: Bearer labby_xxxxxxxxxxxxxxxxx</pre>
-      <h2>Common Endpoints</h2>
-      <pre>GET  /api/agent/inventory
-PUT  /api/agent/inventory
-GET  /api/agent/status
-POST /api/agent/status
-POST /api/agent/ping</pre>
-      <h2>Status Update Example</h2>
-      <pre>POST /api/agent/status
-Authorization: Bearer labby_xxxxxxxxxxxxxxxxx
-Content-Type: application/json
-
-{
-  "itemId": "resource-id",
-  "ipStatus": "online",
-  "urlStatus": "offline",
-  "message": "Checked by monitoring agent"
-}</pre>
-      <h2>Example Agent Prompt</h2>
-      <p>The following prompt can be given to an automation agent so it understands how to use Labby's API safely.</p>
-      <pre>You are an automation agent for my Labby homelab inventory.
-
-Labby base URL: https://your-labby.example.com
-API key: &lt;paste the one-time Labby API key here&gt;
-
-Use the API key only in this header:
-Authorization: Bearer &lt;API key&gt;
-
-First call GET /api/agent/inventory to read the current inventory.
-When creating or updating inventory, preserve existing fields that you do not need to change.
-Use PUT /api/agent/inventory only when the key has inventory:write.
-Use POST /api/agent/status to update live status when the key has status:write.
-Use POST /api/agent/ping only when the key has ping:run.
-Only read or write credentials when the key explicitly has credentials:read or credentials:write.
-
-Never print the API key in logs, messages or reports.
-Do not make destructive changes unless I explicitly approve them.
-Summarize all planned changes before writing them.</pre>
-      <h2>Architecture</h2>
-      <div class="arch-diagram" aria-label="Agent API architecture diagram">
-        <div class="arch-row">
-          <div class="arch-card"><strong>Agent</strong><span>Hermes, OpenClaw, monitoring script or custom automation.</span></div>
-          <div class="arch-card"><strong>API Key</strong><span>Bearer token with selected scopes and expiration.</span></div>
-          <div class="arch-card"><strong>Labby Backend</strong><span>Validates the token, expiration and requested scope.</span></div>
-        </div>
-        <div class="arch-arrow">Agent → Authorization Header → Expiration Check → Scope Check → Inventory / Status / Ping / Credentials</div>
-      </div>
-      <h2>Demo Mode</h2>
-      <p>In the public demo, API key management is shown for evaluation. External agents and real network access are intended for the self-hosted backend.</p>
-      <h2>Security Notes</h2>
-      <ul>
-        <li>Use one key per agent.</li>
-        <li>Grant only the scopes that the agent needs.</li>
-        <li>Use the shortest practical expiration.</li>
-        <li>Revoke unused or expired keys.</li>
-        <li>Store tokens outside of source code and public repositories.</li>
-      </ul>
-    `},
-
-    console:{title:'⌨️ Console',content:`
-      <p>The Console opens SSH sessions directly from Labby resources that have CLI credentials enabled. It is designed for quick administration from the Topology view without opening a separate terminal application.</p>
-      <p><strong>Public demo note:</strong> In the public demo, Console is disabled and opens a static safety message instead of an SSH session. This prevents visitors from using my-labby.com to connect to third-party hosts.</p>
-      <div class="wiki-shot-grid">
-        <figure class="wiki-shot"><img src="images/labby-console.png" alt="Labby console" loading="lazy" /><figcaption>Browser console</figcaption></figure>
-      </div>
-      <h2>Enable Console Access</h2>
-      <ol>
-        <li>Open a Hardware, VM, LXC or App resource.</li>
-        <li>Open <strong>Advanced Settings</strong>.</li>
-        <li>Add credentials and choose <strong>Password</strong> or <strong>SSH private key</strong> as the authentication method. Username is recommended; if it is left empty, OpenSSH uses the backend container user for the SSH attempt.</li>
-        <li>Enable the <strong>CLI / SSH</strong> option for those credentials.</li>
-        <li>Save the resource.</li>
-      </ol>
-      <h2>Open a Session</h2>
-      <p>When CLI is enabled, a terminal icon appears next to the resource IP in Topology. Click it to open the browser console.</p>
-      <h2>Desktop Behavior</h2>
-      <ul>
-        <li>Console opens in a large Labby-styled window.</li>
-        <li>The terminal surface stays black with white text.</li>
-        <li><strong>Copy output</strong> copies the complete terminal output.</li>
-        <li>Selecting terminal text copies the selection automatically.</li>
-        <li><strong>Clear SSH key</strong> removes the known-host key for the current target and reconnects.</li>
-        <li><strong>Close SSH</strong> closes the session cleanly.</li>
-      </ul>
-      <h2>Mobile Behavior</h2>
-      <p>On mobile, Console opens as a full page with the normal bottom navigation preserved. The topbar is hidden so the terminal has more vertical space.</p>
-
-      <h2>CLI Input, History and Shortcuts</h2>
-      <ul>
-        <li><strong>Arrow Up / Arrow Down</strong> fill the command input from the selected machine history plus commands entered during the current Labby session.</li>
-        <li><strong>Tab</strong> requests completion and writes the result into the command input instead of printing raw control characters into the terminal output.</li>
-        <li><strong>Ctrl+C</strong> is forwarded to the active SSH session to stop running commands such as <code>ping</code>, <code>tail -f</code> or <code>docker compose logs -f</code>.</li>
-        <li>The visible <strong>Ctrl+C</strong> button offers the same interrupt action for mobile devices and browsers that reserve keyboard shortcuts.</li>
-      </ul>
-      <h2>Requirements</h2>
-      <p>The self-hosted backend container includes <code>openssh-client</code> and <code>sshpass</code>. Password login uses the stored password. SSH private-key login writes the key to a temporary backend file for the session, sets secure file permissions and removes it again when the session closes. Optional key passphrases are passed through an askpass helper. Credentials are part of encrypted config exports only, never readable plain JSON. Rebuild the container after updating if SSH packages were added in the new version.</p>
-      <pre>docker compose down
-docker compose build --no-cache
-docker compose up -d</pre>
-    `},
-
-    rackview:{title:'🗄️ Rack Editor',content:`
-      <p>Rack Editor documents the physical side of your homelab: locations, racks, rack units, front/rear layouts, components and linked resources. There is no separate Rack View anymore; the Rack tab opens the editor workspace directly.</p>
-      <div class="wiki-shot-grid">
-        <figure class="wiki-shot"><img src="images/labby-rack-editor.png" alt="Rack Editor" loading="lazy" /><figcaption>Rack Editor workspace</figcaption></figure>
-      </div>
-      <h2>Desktop Rack Editor</h2>
-      <ul>
-        <li>Locations and racks are managed in the left column</li>
-        <li>Front and rear rack layouts are shown in the main workspace</li>
-        <li>Components are available from the component palette</li>
-        <li>Drag components into free rack slots</li>
-        <li>Assign placed components to Labby resources with the centered assignment popup</li>
-        <li>Assign router, gateway, switch and PDU ports to connected devices where port data is configured</li>
-      </ul>
-      <h2>Mobile Rack Editor</h2>
-      <ul>
-        <li>Rack has its own bottom-nav tab</li>
-        <li>Front and Rear are switched with tabs</li>
-        <li>Open the component palette from the floating rack button</li>
-        <li>Tap a component, then tap an empty rack slot to place it</li>
-        <li>Use the selected-component pill to clear the current selection</li>
-        <li>Vertical scrolling works directly over the rack area</li>
-      </ul>
-      <h2>Supported Rack Components</h2>
-      <ul>
-        <li>1U / 2U / 4U servers and multi-PC rows</li>
-        <li>Router, Gateway, Switch, Patch Panel</li>
-        <li>Cable Management, UPS, PDU, KVM and Blank panels</li>
-      </ul>
-      <h2>Backup</h2>
-      <p>Locations, racks and rack layouts are included in normal config export/import.</p>
-    `},
-    treegraph:{title:'🌳 Tree and Graph View',content:`
-      <p>Labby provides relationship views for understanding how the homelab is connected.</p>
-      <div class="wiki-shot-grid">
-        <figure class="wiki-shot"><img src="images/labby-graph-view.png" alt="Graph View" loading="lazy" /><figcaption>Desktop Graph View</figcaption></figure>
-      </div>
-      <h2>Tree View</h2>
-      <p>Tree View groups infrastructure by type and relationship. It shows hardware groups, hosts, VMs, LXCs, apps running on guests and unassigned resources.</p>
-      <h2>Mobile Tree View</h2>
-      <p>On mobile, Tree View opens from the More sheet and is the only relationship view. It includes bottom clearance so the last entries are not hidden behind the bottom navigation.</p>
-      <h2>Desktop Graph View</h2>
-      <p>Graph View remains available on desktop. It visualizes relationships as connected bubbles and helps inspect larger dependency structures.</p>
-      <ul>
-        <li>Pan and zoom the graph on desktop</li>
-        <li>Node names stay visible below bubbles</li>
-        <li>Clicking or selecting a node can open details or editing depending on the current UI state</li>
-      </ul>
-      <h2>Mobile Graph Status</h2>
-      <p>Mobile Graph View is currently in development. Mobile uses Tree View for relationship browsing while the mobile graph experience is being refined.</p>
-      <h2>Relationship Examples</h2>
-      <pre>Router → Switch → Hypervisor → VM → App</pre>
-      <pre>NAS → Backup Server</pre>
-    `},
-    ipview:{title:'🌐 IP View',content:`
-      <p>IP View shows all used addresses in one place.</p>
-      <div class="wiki-shot-grid">
-        <figure class="wiki-shot"><img src="images/labby-ip-view.png" alt="IP View" loading="lazy" /><figcaption>Desktop IP View</figcaption></figure>
-      </div>
-      <h2>Features</h2>
-      <ul>
-        <li>Dedicated IP overview sorted by subnet</li>
-        <li>Network color coding</li>
-        <li>Gateway and subnet awareness</li>
-        <li>App port display</li>
-        <li>Search by IP, hostname or port</li>
-      </ul>
-      <p>Example app entry: <code>192.168.20.21:2283</code></p>
-      <h2>Mobile</h2>
-      <p>IP View has its own bottom-nav tab and uses the same mobile header spacing as the other pages.</p>
-      <h2>Best Practice</h2>
-      <p>Add networks before adding devices. This allows Labby to match devices to the correct subnet automatically.</p>
-    `},
-    themes:{title:'🎨 Themes',content:`
-      <div class="wiki-shot-grid">
-        <figure class="wiki-shot"><img src="images/labby-theme-selector.png" alt="Theme selector" loading="lazy" /><figcaption>Theme selector</figcaption></figure>
-        <figure class="wiki-shot"><img src="images/labby-theme-customization.png" alt="Theme customization" loading="lazy" /><figcaption>Theme customization</figcaption></figure>
-      </div>
-      <h2>Built-in Themes</h2>
-      <ul>
-        <li>Light, Ocean, Forest, Rose, Solar</li>
-        <li>Dark, Midnight, Carbon, Nord, Matrix</li>
-      </ul>
-      <h2>Matrix Theme</h2>
-      <p><strong>Matrix</strong> provides black base colors with neon-green accents for a terminal-inspired look.</p>
-      <h2>Theme Selection</h2>
-      <p>Open <strong>Themes</strong> from Config or from the mobile More sheet. Select a preset card to apply it.</p>
-      <h2>Custom Themes</h2>
-      <p>The redesigned custom theme editor uses fully filled color circles. On desktop, colors are grouped into interface colors and resource colors, and every setting includes a short description. On mobile, the same color controls are optimized for touch with compact labels.</p>
-      <h2>Desktop Customize Layout</h2>
-      <p>On desktop, the customizer uses the available dialog width with larger color cards. <strong>Save Theme</strong> is a full-width action above the Close footer.</p>
-      <h2>Mobile Customize Layout</h2>
-      <p>On mobile, the name input uses the full width and color controls use a two-column card grid. <strong>Save Theme</strong> is placed inline as the final action below the color controls.</p>
-      <h2>Import and Export</h2>
-      <p>You can change background, bottom background, panel surface, card/input surface, text, muted text, borders, accent buttons, info boxes, highlights, danger color and resource type colors. Custom themes and the active theme are included in config exports and restored on import.</p>
-    `},
-    config:{title:'💾 Config, Import and Export',content:`
-      <p>Labby supports app-level JSON backup and restore.</p>
-      <div class="wiki-shot-grid">
-        <figure class="wiki-shot"><img src="images/labby-config.png" alt="Config menu" loading="lazy" /><figcaption>Config menu</figcaption></figure>
-      </div>
-      <h2>Export Config</h2>
-      <pre>Config → Export Config</pre>
-      <p>The export includes:</p>
-      <ul>
-        <li>Resources / inventory items</li>
-        <li>Locations</li>
-        <li>Racks and rack layouts</li>
-        <li>Custom themes</li>
-        <li>Active selected theme</li>
-        <li>Live status data submitted by agents</li>
-        <li>Tutorial state and export metadata</li>
-        <li>Encrypted credentials when credentials exist, including usernames, passwords, SSH private keys, optional key passphrases and Web/CLI credential flags</li>
-        <li>Encrypted API key records when API keys exist, including scopes, expiration, enabled/disabled state and hashed token data</li>
-      </ul>
-      <h2>Encrypted Secrets</h2>
-      <p>Credentials and API key records are never written into the export as readable plain text. When the export contains secrets, Labby shows an <strong>Export Key</strong> in a Labby-styled popup. Copy and store this key safely; it is required to decrypt saved passwords, SSH private keys, key passphrases and API key records during import.</p>
-      <p>The export key is required during import to decrypt credentials and API key records. Without the key, Labby can still restore non-secret data, but encrypted secrets cannot be recovered.</p>
-      <h2>Import Config</h2>
-      <pre>Config → Import Config</pre>
-      <p>Import restores Labby JSON backups on both desktop and mobile. Full config exports include resources, locations, racks, themes, agent-submitted status data and encrypted secrets when present.</p>
-      <p>If the import contains encrypted credentials or API key records, Labby asks for the export key before restoring them. Without the correct key, Labby restores the normal inventory data but skips encrypted secrets.</p>
-      <h2>Clear All</h2>
-      <p><strong>Clear All</strong> removes the current inventory and should only be used after exporting a backup.</p>
-      <h2>Tutorial</h2>
-      <p>Open <strong>Tutorial</strong> from Config to view the guided quick-start help.</p>
-    `},
-
-    externalaccess:{title:'🔐 External Reachability',content:`
-      <p>Labby is intended for trusted homelab environments. If you make Labby reachable from outside your private network, protect it before exposing it.</p>
-      <h2>No Built-in Login System</h2>
-      <p>Labby does not include its own user login system. The app can contain sensitive infrastructure data, saved credentials, API-key records and console access. Do not publish an unprotected Labby instance directly to the internet.</p>
-      <h2>Recommended Protection</h2>
-      <ul>
-        <li>Put Labby behind an authentication layer such as <strong>Cloudflare Access</strong>.</li>
-        <li>Expose Labby only through a private overlay network such as <strong>Tailscale</strong>.</li>
-        <li>Alternatively use a reverse proxy with strong authentication in front of Labby.</li>
-        <li>Use HTTPS when Labby is reachable outside localhost or a fully trusted LAN.</li>
-        <li>Grant Agent API keys only to trusted systems and keep expiration times short.</li>
-      </ul>
-      <h2>Example Setups</h2>
-      <pre>Internet → Cloudflare Access → Reverse Proxy → Labby</pre>
-      <pre>Your Devices → Tailscale Network → Labby</pre>
-      <h2>Why This Matters</h2>
-      <p>Labby can store infrastructure metadata, rack layouts, IP addresses, URLs, encrypted credentials and scoped Agent API key records. Even when secrets are encrypted in exports, a running Labby instance should be treated as an internal administration tool.</p>
-      <h2>Practical Rule</h2>
-      <p>If Labby is not limited to your own trusted network, place an access-control layer in front of it first.</p>
-    `},
-    backup:{title:'🗄️ Data and Backup',content:`
-      <p>The self-hosted version stores data server-side in a JSON file inside Docker volume <code>labby-data</code>.</p>
-      <h2>Docker Volume Backup</h2>
-      <p>Create a backup:</p>
-      <pre>docker run --rm \
-  -v labby-data:/data \
-  -v $(pwd):/backup \
-  alpine tar czf /backup/labby-backup.tar.gz /data</pre>
-      <p>Restore:</p>
-      <pre>docker run --rm \
-  -v labby-data:/data \
-  -v $(pwd):/backup \
-  alpine tar xzf /backup/labby-backup.tar.gz -C /</pre>
-      <h2>App-Level Backup</h2>
-      <pre>Config → Export Config</pre>
-      <p>This is the easiest portable backup. It contains inventory, locations, racks, themes and the active theme. When secrets exist, credentials and API key records are included only in the encrypted secrets bundle and require the export key during import.</p>
-      <h2>Scheduled encrypted Backup Config</h2>
-      <p>Use <code>Config → Backup Config</code> to create encrypted backups on a schedule. You can choose hourly, daily or weekly runs, set the time/day, decide how many backups should be kept, run a manual backup and restore existing encrypted backups from the same screen.</p>
-      <h2>External SMB/NAS backup mount</h2>
-      <p>Labby does not mount SMB shares by itself. The traditional and reliable Docker way is: mount the SMB share on the Docker host first, then bind that host path into the Labby backend container.</p>
-      <p>Example host mount:</p>
-      <pre>sudo mkdir -p /mnt/labby-backups
-sudo mount -t cifs //NAS/labby-backups /mnt/labby-backups \
-  -o username=YOUR_USER,password=YOUR_PASSWORD,vers=3.0,uid=$(id -u),gid=$(id -g)</pre>
-      <p>Then add the mounted host path to <code>docker-compose.yml</code> on the backend service:</p>
-      <pre>services:
-  labby-backend:
-    volumes:
-      - labby-data:/data
-      - /mnt/labby-backups:/config-backup</pre>
-      <h2>Full docker-compose.yml example with external backup target</h2>
-      <pre>services:
-  labby-backend:
-    image: labby-backend
-    build: ./backend
+  labby:
+    image: techbygiusi/labby:latest
+    container_name: labby
+    ports:
+      - "8080:80"
     volumes:
       - labby-data:/data
       - /mnt/labby-backups:/config-backup
     restart: unless-stopped
 
-  labby-web:
-    image: labby-web
-    build: .
+volumes:
+  labby-data:</pre>
+      <h2>ZimaOS oder CasaOS</h2>
+      <ul>
+        <li>Docker Image: <code>techbygiusi/labby</code></li>
+        <li>Tag: <code>latest</code></li>
+        <li>Host Port: <code>8080</code></li>
+        <li>Container Port: <code>80</code></li>
+        <li>Volume für Daten: <code>labby-data</code> oder Host-Ordner nach <code>/data</code></li>
+        <li>Optionaler Backup-Ordner: dein NAS-/SMB-/Host-Pfad nach <code>/config-backup</code></li>
+      </ul>
+      <h2>Update</h2>
+      <pre>docker pull techbygiusi/labby:latest
+docker stop labby
+docker rm labby
+docker run -d \
+  --name labby \
+  -p 8080:80 \
+  -v labby-data:/data \
+  --restart unless-stopped \
+  techbygiusi/labby:latest</pre>
+      <p>Bei Docker Compose reicht meistens:</p>
+      <pre>docker compose pull
+docker compose up -d</pre>
+    `},
+    quickstart:{title:'🧭 Schnellstart',content:`
+      <h2>1. Netzwerke zuerst anlegen</h2>
+      <p>Lege zuerst deine Subnetze an. Dadurch kann Labby IP-Adressen später automatisch den richtigen Netzwerken zuordnen.</p>
+      <pre>Core LAN
+192.168.10.0/24
+Gateway: 192.168.10.1</pre>
+      <h2>2. Hardware hinzufügen</h2>
+      <p>Erfasse Router, Switches, NAS, Server, Hypervisor, Mini-PCs und Backup-Nodes. Wichtige Felder sind Name, IP, Hersteller, OS, CPU, RAM, Disks, Status und Notizen.</p>
+      <h2>3. VMs und LXCs verknüpfen</h2>
+      <p>Wähle bei VMs und LXCs den Host aus. So entstehen die Tree- und Graph-Beziehungen.</p>
+      <pre>VM: docker-01
+Hosted on: Proxmox Node 1</pre>
+      <h2>4. Apps dokumentieren</h2>
+      <p>Apps können URL, IP:Port, Icon, Beschreibung und den Host bekommen, auf dem sie laufen.</p>
+      <pre>App: Portainer
+IP:Port: 192.168.20.21:9000
+URL: https://portainer.home.local
+Hosted on: docker-01</pre>
+      <h2>5. Ansichten nutzen</h2>
+      <ul>
+        <li><strong>Boards / Topology</strong>: Ressourcen, Status, Beziehungen und Links</li>
+        <li><strong>Add</strong>: Ressourcen erstellen oder bearbeiten</li>
+        <li><strong>Rack</strong>: Standorte, Racks und Rack-Layouts</li>
+        <li><strong>IP</strong>: IP-Adressen nach Subnetzen gruppiert</li>
+        <li><strong>More</strong>: Tree, Config, Themes und weitere Werkzeuge auf Mobile</li>
+      </ul>
+      <h2>6. Backup aktivieren</h2>
+      <p>Nutze entweder <code>Config → Export Config</code> für einen manuellen JSON-Export oder <code>Config → Backup Config</code> für verschlüsselte geplante Backups.</p>
+    `},
+    demomode:{title:'🧪 Demo-Modus',content:`
+      <p>Die öffentliche Demo läuft absichtlich nur im Browser. Du kannst alles ausprobieren, ohne den Self-Hosted-Backend-Datensatz zu verändern.</p>
+      <h2>Was in der Demo funktioniert</h2>
+      <ul>
+        <li>Ressourcen, Racks, Netzwerke und Themes ausprobieren</li>
+        <li>Demo-Daten neu laden</li>
+        <li>Config exportieren und importieren</li>
+        <li>Backup Config als Vorschau ansehen</li>
+      </ul>
+      <h2>Was in der Demo bewusst nicht aktiv ist</h2>
+      <ul>
+        <li>echte SSH-Verbindungen</li>
+        <li>echte geplante Backups</li>
+        <li>Restore und Delete echter verschlüsselter Backups</li>
+        <li>Agent-Schreibzugriffe auf ein echtes Backend</li>
+      </ul>
+      <h2>Demo zurücksetzen</h2>
+      <p>Mit <strong>Load Demo</strong> stellst du die vorbereiteten Beispieldaten wieder her. Exportiere vorher deine Testdaten, falls du sie behalten willst.</p>
+    `},
+    architecture:{title:'🧱 Technischer Aufbau',content:`
+      <p>Labby ist eine kleine Self-Hosted-Web-App. Das Single-Container-Image startet Nginx für die Oberfläche und ein Node.js-Backend für API, Persistenz, SSH-Funktionen und Backups.</p>
+      <h2>Ablauf</h2>
+      <pre>Browser → Nginx → Labby Frontend
+Browser → /api → Backend → /data</pre>
+      <h2>Wichtige Pfade</h2>
+      <ul>
+        <li><code>/data</code>: persistente Labby-Daten, Backup-Key, Config und Runtime-Daten</li>
+        <li><code>/config-backup</code>: optionaler externer Zielordner für verschlüsselte Config-Backups</li>
+        <li><code>app/</code>: Frontend-Dateien</li>
+        <li><code>backend/</code>: API, SSH, Backup-Logik und Datenzugriff</li>
+        <li><code>website/</code>: öffentliche Demo-Webseite und Wiki</li>
+      </ul>
+      <h2>Persistenz</h2>
+      <p>Self-Hosted Labby speichert die Daten serverseitig. Deshalb muss <code>/data</code> immer als Volume oder Host-Pfad erhalten bleiben.</p>
+      <h2>Demo</h2>
+      <p>Die Demo nutzt Browser-Speicher und simuliert sicherheitskritische Funktionen nur als Vorschau.</p>
+    `},
+    features:{title:'✨ Funktionen',content:`
+      <h2>Ressourcen</h2>
+      <p>Du kannst Hardware, VMs, LXCs, Apps und Netzwerke pflegen. Jede Ressource kann eigene Details, Notizen, Links, IPs, Status und Beziehungen haben.</p>
+      <h2>Beziehungen</h2>
+      <p>Hosts, Guests, Apps und Netzwerke lassen sich verknüpfen. Diese Struktur wird in Topology, Tree und Graph sichtbar.</p>
+      <h2>Live Checks</h2>
+      <p>Ressourcen können sichtbare Statusinformationen zeigen. Agenten können Statusdaten über API Keys melden.</p>
+      <h2>Credentials</h2>
+      <p>Für Hardware, VMs, LXCs und Apps kannst du Credentials speichern. Web- und CLI-Nutzung lassen sich getrennt aktivieren.</p>
+      <h2>Command Library</h2>
+      <p>In der CLI kannst du wiederverwendbare Commands speichern, suchen und direkt einfügen.</p>
+      <h2>Backups</h2>
+      <p>Export/Import und Backup Config ergänzen sich. Der Export ist portabel, Backup Config ist verschlüsselt und für regelmäßige Sicherungen gedacht.</p>
+    `},
+    mobileux:{title:'📱 Mobile Ansicht',content:`
+      <p>Auf Mobile arbeitet Labby mit einer eigenen unteren Menüleiste. Die wichtigsten Bereiche bleiben mit dem Daumen erreichbar.</p>
+      <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-mobile-startscreen.png" alt="Mobile Startscreen" loading="lazy" /><figcaption>Mobile Startscreen</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-mobile-menu.png" alt="Mobile Menü" loading="lazy" /><figcaption>Mobile Menü</figcaption></figure>
+      </div>
+      <h2>Menübereiche</h2>
+      <ul>
+        <li><strong>Boards</strong>: Topology und Ressourcenliste</li>
+        <li><strong>Add</strong>: Ressourcen hinzufügen</li>
+        <li><strong>Rack</strong>: Racks und Standorte</li>
+        <li><strong>IP</strong>: IP-Ansicht</li>
+        <li><strong>More</strong>: Config, Themes, Tree und weitere Dialoge</li>
+      </ul>
+      <h2>Dialoge</h2>
+      <p>Config, Themes, Tree und Backup Config öffnen auf Mobile als vollwertige Ansicht mit Topbar, Inhalt und unterer Menüleiste.</p>
+    `},
+    topologycards:{title:'🧩 Topology-Karten',content:`
+      <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-topology.png" alt="Topology Karten" loading="lazy" /><figcaption>Topology Karten</figcaption></figure>
+      </div>
+      <h2>Aufbau</h2>
+      <p>Topology-Karten zeigen dir Ressourcentyp, Name, IPs, URLs, Status, technische Details, Notizen und Beziehungen.</p>
+      <h2>Aktionen</h2>
+      <ul>
+        <li><strong>Edit</strong>: Ressource bearbeiten</li>
+        <li><strong>Delete</strong>: Ressource entfernen</li>
+        <li><strong>Open</strong>: Web-Link öffnen</li>
+        <li><strong>CLI</strong>: SSH-Session starten, wenn CLI-Credentials aktiv sind</li>
+      </ul>
+      <h2>Filter</h2>
+      <p>Du kannst suchen und nach Ressourcentyp filtern. Die sichtbare Anzahl wird oben angezeigt.</p>
+    `},
+    rackview:{title:'🗄️ Rack-Editor',content:`
+      <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-rack-editor.png" alt="Rack Editor" loading="lazy" /><figcaption>Rack Editor</figcaption></figure>
+      </div>
+      <h2>Standorte und Racks</h2>
+      <p>Du legst Standorte an und ordnest ihnen Racks zu. Racks können Front- und Rückansicht haben.</p>
+      <h2>Geräte platzieren</h2>
+      <p>Ressourcen lassen sich im Rack positionieren. So dokumentierst du nicht nur logisch, sondern auch physisch.</p>
+      <h2>Mobile Nutzung</h2>
+      <p>Auf Mobile bleibt der Rack-Bereich über die untere Navigation erreichbar.</p>
+    `},
+    treegraph:{title:'🌳 Tree & Graph View',content:`
+      <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-graph-view.png" alt="Graph View" loading="lazy" /><figcaption>Graph View</figcaption></figure>
+      </div>
+      <h2>Tree View</h2>
+      <p>Die Tree View zeigt Host-, Guest-, App- und Netzwerkbeziehungen als klassische Baumstruktur.</p>
+      <h2>Graph View</h2>
+      <p>Die Graph View zeigt dieselben Beziehungen grafisch. Das hilft, Abhängigkeiten und vergessene Verknüpfungen schnell zu erkennen.</p>
+      <h2>Pflege</h2>
+      <p>Je sauberer du Hosts und Parent-Beziehungen pflegst, desto nützlicher werden Tree und Graph.</p>
+    `},
+    ipview:{title:'🌐 IP-Ansicht',content:`
+      <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-ip-view.png" alt="IP Ansicht" loading="lazy" /><figcaption>IP Ansicht</figcaption></figure>
+      </div>
+      <h2>Subnetze</h2>
+      <p>Die IP-Ansicht gruppiert IP-Adressen nach Netzwerken. Deshalb solltest du Netzwerke früh anlegen.</p>
+      <h2>Nutzung</h2>
+      <p>Du siehst schnell, welche IPs bereits belegt sind, welche Ressource dahintersteht und welche Einträge noch sauberer dokumentiert werden sollten.</p>
+    `},
+    themes:{title:'🎨 Themes',content:`
+      <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-theme-selector.png" alt="Theme Selector" loading="lazy" /><figcaption>Theme Selector</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-theme-customization.png" alt="Theme Customization" loading="lazy" /><figcaption>Theme Customization</figcaption></figure>
+      </div>
+      <h2>Theme Selector</h2>
+      <p>Im Theme Selector wählst du ein vorhandenes Theme aus. Dazu gehören helle, dunkle und farbige Varianten.</p>
+      <h2>Theme Customization</h2>
+      <p>In der Customization passt du Interface-Farben und Ressourcentyp-Farben an. Eigene Themes werden mit der Config exportiert und beim Import wiederhergestellt.</p>
+      <h2>Desktop und Mobile</h2>
+      <p>Auf Desktop nutzt der Editor breite Karten. Auf Mobile sind die Felder kompakter und touchfreundlich angeordnet.</p>
+    `},
+    console:{title:'⌨️ CLI-Konsole',content:`
+      <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-console.png" alt="CLI Konsole" loading="lazy" /><figcaption>CLI Konsole</figcaption></figure>
+      </div>
+      <h2>Voraussetzung</h2>
+      <p>Eine Ressource braucht CLI-Credentials. Danach kannst du aus der Topology-Karte eine SSH-Session öffnen.</p>
+      <h2>Command Library</h2>
+      <p>Rechts in der CLI findest du wiederverwendbare Commands. Du kannst sie suchen, neu anlegen, bearbeiten und in die Session übernehmen.</p>
+      <h2>Eingabefeld</h2>
+      <p>Pfeil hoch und Pfeil runter laden Befehle in das Eingabefeld. Genutzt werden die History der Zielmaschine und neue Befehle aus der aktuellen Labby-Session.</p>
+      <h2>Shortcuts</h2>
+      <ul>
+        <li><strong>Strg+C</strong>: laufenden Prozess abbrechen</li>
+        <li><strong>Strg+D</strong>: EOF senden</li>
+        <li><strong>Strg+Z</strong>: Prozess pausieren</li>
+        <li><strong>Strg+L</strong>: Ausgabe leeren</li>
+        <li><strong>Tab</strong>: Autovervollständigung ins Eingabefeld übernehmen</li>
+      </ul>
+      <h2>Sudo Passwort</h2>
+      <p>Der Button <strong>Paste sudo pw</strong> sendet das gespeicherte Passwort der aktuellen Ressource an die aktive SSH-Session. Das Passwort wird nicht in die Command-History geschrieben.</p>
+      <h2>Hinweis zu Vollbildprogrammen</h2>
+      <p>Die Labby-CLI ist für Administration, Commands und Logs gedacht. Vollbildprogramme wie <code>nano</code>, <code>htop</code> oder <code>mc</code> können je nach Terminalausgabe eingeschränkt wirken. Für längere interaktive Arbeiten bleibt ein echtes Terminal die zuverlässigste Lösung.</p>
+      <h2>Demo</h2>
+      <p>In der öffentlichen Demo ist echte SSH-Verbindung deaktiviert.</p>
+    `},
+    agentapi:{title:'🤖 Agent API',content:`
+      <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-api-key.png" alt="Agent API Keys" loading="lazy" /><figcaption>Agent API Keys</figcaption></figure>
+      </div>
+      <h2>Zweck</h2>
+      <p>Mit Agent API Keys können vertrauenswürdige Systeme Statusinformationen an Labby melden.</p>
+      <h2>API Keys</h2>
+      <p>Du erstellst Keys in der Config. Keys können Ablaufzeiten, Scopes und einen Aktivstatus haben.</p>
+      <h2>Sicherheit</h2>
+      <p>Vergib nur die Scopes, die ein Agent wirklich braucht. Halte Ablaufzeiten kurz und entferne alte Keys.</p>
+      <h2>Export</h2>
+      <p>API-Key-Datensätze sind Teil des verschlüsselten Secret-Bundles im Config Export.</p>
+    `},
+    config:{title:'💾 Config, Import & Export',content:`
+      <div class="wiki-shot-grid">
+        <figure class="wiki-shot"><img src="images/labby-config.png" alt="Config Menü" loading="lazy" /><figcaption>Config Menü</figcaption></figure>
+      </div>
+      <h2>Export Config</h2>
+      <p>Der JSON-Export ist der einfachste portable Stand deiner Labby-Konfiguration.</p>
+      <pre>Config → Export Config</pre>
+      <p>Enthalten sind Ressourcen, Netzwerke, Racks, Standorte, Themes, aktive Theme-Auswahl, Command Snippets, Agent-Statusdaten und Backup-Config-Einstellungen.</p>
+      <h2>Secrets</h2>
+      <p>Credentials und API-Key-Datensätze werden nicht lesbar in den Export geschrieben. Wenn Secrets enthalten sind, zeigt Labby einen Export Key an. Diesen Schlüssel brauchst du beim Import.</p>
+      <h2>Import Config</h2>
+      <p>Beim Import stellt Labby die normale Konfiguration wieder her. Für verschlüsselte Secrets brauchst du den passenden Export Key.</p>
+      <h2>Backup Config im Export</h2>
+      <p>Backup-Zeitplan, Ziel, Aufbewahrungsanzahl und Logs werden mit exportiert. Die eigentlichen <code>.labbybackup</code>-Dateien werden nicht in den JSON-Export eingebettet.</p>
+      <h2>Clear All</h2>
+      <p><strong>Clear All</strong> setzt deine aktuelle Labby-Konfiguration zurück. Verschlüsselte Backup-Dateien sollen getrennt behandelt und über Backup Config gelöscht werden.</p>
+    `},
+    backup:{title:'🗄️ Daten & Backup',content:`
+      <h2>Normale App-Daten</h2>
+      <p>Self-Hosted Labby speichert seine Daten unter <code>/data</code>. Dieser Pfad muss als Docker Volume oder Host-Ordner erhalten bleiben.</p>
+      <h2>Manueller JSON Export</h2>
+      <pre>Config → Export Config</pre>
+      <p>Dieser Export ist gut für Umzüge, manuelle Sicherungen und schnelle Tests.</p>
+      <h2>Backup Config</h2>
+      <p>Über <code>Config → Backup Config</code> richtest du verschlüsselte regelmäßige Backups ein.</p>
+      <ul>
+        <li>Intervall: hourly, daily oder weekly</li>
+        <li>Uhrzeit und Wochentag je nach Zeitplan</li>
+        <li>Ziel: lokal unter <code>/data/backups</code> oder extern unter <code>/config-backup</code></li>
+        <li>maximale Anzahl aufzubewahrender Backups</li>
+        <li>manuelles Backup</li>
+        <li>Restore vorhandener verschlüsselter Backups</li>
+        <li>manuelles Löschen einzelner Backups</li>
+        <li>Logs der letzten Backup-Aktionen</li>
+      </ul>
+      <h2>Externer SMB/NAS Mount</h2>
+      <p>Labby mountet SMB nicht selbst. Du mountest dein NAS auf dem Docker-Host und reichst diesen Pfad in den Container durch.</p>
+      <pre>sudo mkdir -p /mnt/labby-backups
+sudo mount -t cifs //NAS/labby-backups /mnt/labby-backups \
+  -o username=YOUR_USER,password=YOUR_PASSWORD,vers=3.0,uid=$(id -u),gid=$(id -g)</pre>
+      <p>Danach bindest du den Host-Pfad nach <code>/config-backup</code> ein:</p>
+      <pre>services:
+  labby:
+    image: techbygiusi/labby:latest
+    container_name: labby
     ports:
       - "8080:80"
-    depends_on:
-      - labby-backend
+    volumes:
+      - labby-data:/data
+      - /mnt/labby-backups:/config-backup
     restart: unless-stopped
 
 volumes:
   labby-data:</pre>
-      <p>This is also the pattern to use when Labby was deployed from a YAML file: only the host path on the left side changes. The right side inside the backend container must remain <code>/config-backup</code>.</p>
-      <p>The container path must be exactly <code>/config-backup</code>. On startup and refresh, Labby checks whether this path exists and is writable. When it is writable, the Backup Config screen shows an SMB target. When it is missing, only the local target is available.</p>
-      <p>Restart after changing the YAML:</p>
-      <pre>docker compose down
-docker compose up --build -d</pre>
-      <h2>Restore encrypted backups</h2>
-      <p>Scheduled backups are encrypted with a key stored inside the Labby data volume. Because the key is not shown to users, restore them through <code>Config → Backup Config</code> so the backend can decrypt and import the selected backup safely.</p>
-      <h2>Demo Backup</h2>
-      <p>The public demo shows the Backup Config menu as a preview, but running scheduled backups, restore and delete require the self-hosted backend. The demo stores changes in your browser only. Use Export Config before clearing browser storage or loading the demo seed again.</p>
+      <h2>Wichtig</h2>
+      <p>Der rechte Container-Pfad muss exakt <code>/config-backup</code> heißen. Wenn der Pfad existiert und beschreibbar ist, zeigt Labby ihn als externes Backup-Ziel an.</p>
+      <h2>Restore</h2>
+      <p>Geplante Backups sind verschlüsselt. Der Schlüssel bleibt im Labby-Datenvolume. Deshalb stellst du diese Backups über <code>Config → Backup Config</code> wieder her.</p>
+      <h2>Demo</h2>
+      <p>In der Demo ist Backup Config sichtbar, aber echte Backup-Läufe, Restore und Delete sind deaktiviert.</p>
     `},
+    externalaccess:{title:'🔐 Externer Zugriff',content:`
+      <p>Labby ist ein Administrationswerkzeug für vertrauenswürdige Umgebungen. Wenn du Labby von außen erreichbar machst, schütze es vorher.</p>
+      <h2>Empfehlung</h2>
+      <ul>
+        <li>Cloudflare Access vor Labby setzen</li>
+        <li>Tailscale oder ein anderes privates Overlay-Netz nutzen</li>
+        <li>Reverse Proxy mit Authentifizierung verwenden</li>
+        <li>HTTPS nutzen, sobald Labby nicht nur lokal erreichbar ist</li>
+        <li>Agent API Keys kurz halten und alte Keys entfernen</li>
+      </ul>
+      <h2>Warum das wichtig ist</h2>
+      <p>Labby kann IP-Adressen, Infrastrukturdetails, Credentials, API-Key-Datensätze und SSH-Zugriffe enthalten. Behandle die Instanz wie ein internes Admin-Tool.</p>
+    `}
   };
 
   const content = document.getElementById('wiki-content');
