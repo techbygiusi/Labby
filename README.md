@@ -12,5 +12,6 @@ The public demo is browser-only. CLI/SSH and Agent API are disabled in the publi
 
 ## 📝 License
 
-MIT License  
+GNU Affero General Public License v3.0  
+SPDX-License-Identifier: AGPL-3.0-only  
 © [TechByGiusi](https://techbygiusi.com/)
