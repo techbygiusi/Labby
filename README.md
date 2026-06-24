@@ -658,7 +658,6 @@ General rules:
 
 ---
 
-## 📄 License
+## 📝 License
 
-GNU Affero General Public License v3.0
-© [TechByGiusi](https://techbygiusi.com/)
+GNU Affero General Public License v3.0  © [TechByGiusi](https://techbygiusi.com/)
