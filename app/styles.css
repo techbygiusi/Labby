@@ -8222,3 +8222,30 @@ html body .demo-banner span {
     grid-column: 1 / -1;
   }
 }
+
+/* v105: direct SMB backup configuration */
+.backup-smb-settings {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 88%, var(--blue));
+}
+.backup-smb-settings[hidden] { display: none !important; }
+.backup-inline-toggle {
+  grid-column: auto;
+  min-height: 38px;
+  background: var(--panel);
+}
+.backup-smb-note {
+  margin: 0;
+  line-height: 1.45;
+}
+.backup-actions-row {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 1100px) {
+  .backup-actions-row { grid-template-columns: 1fr; }
+  .backup-smb-settings { padding: 0.65rem; }
+}

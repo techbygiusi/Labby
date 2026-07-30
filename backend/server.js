@@ -270,10 +270,15 @@ app.post('/api/agent/ping', requireAgentScope('ping:run'), (req, res) => {
 
 
 // ── Encrypted Labby config backups ─────────────────────────────────────────
-const BACKUP_MOUNT_PATH = process.env.BACKUP_MOUNT_PATH || '/config-backup';
+// Local backups are written into the persistent Labby data volume. SMB backups
+// use smbclient directly, so no host mount or bind mount is required.
 const LOCAL_BACKUP_DIR = path.join(DATA_DIR, 'backups');
 const BACKUP_KEY_PATH = path.join(DATA_DIR, 'backup.key');
+const SMB_SECRET_PATH = path.join(DATA_DIR, 'backup-smb-secret.json');
+const SMB_TMP_ROOT = '/tmp/labby-backups';
+const { spawnSync: spawnSyncProcess } = require('child_process');
 let backupTimer = null;
+let smbStatusCache = { key: '', checkedAt: 0, value: null };
 
 function defaultBackupConfig() {
   return {
@@ -283,9 +288,30 @@ function defaultBackupConfig() {
     weekday: '1',
     target: 'local',
     maxBackups: 10,
+    smbServer: '',
+    smbShare: '',
+    smbFolder: 'Labby',
+    smbUsername: '',
+    smbDomain: '',
+    smbPort: 445,
+    smbEncrypt: false,
+    smbGuest: false,
     lastRunAt: '',
     updatedAt: '',
   };
+}
+
+function normalizeSingleLine(value, maxLength = 255) {
+  return String(value || '').replace(/[\r\n\0]/g, '').trim().slice(0, maxLength);
+}
+
+function normalizeSmbFolder(value) {
+  const folder = normalizeSingleLine(value, 500).replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+  if (!folder) return '';
+  if (/[";\r\n\0]/.test(folder)) return '';
+  const segments = folder.split('/').filter(Boolean);
+  if (segments.some((segment) => segment === '.' || segment === '..')) return '';
+  return segments.join('/');
 }
 
 function normalizeBackupConfig(value) {
@@ -296,6 +322,7 @@ function normalizeBackupConfig(value) {
   const time = /^\d{2}:\d{2}$/.test(String(raw.time || '')) ? String(raw.time) : base.time;
   const weekday = /^[0-6]$/.test(String(raw.weekday || '')) ? String(raw.weekday) : base.weekday;
   const maxBackups = Math.min(100, Math.max(1, Number.parseInt(raw.maxBackups, 10) || base.maxBackups));
+  const smbPort = Math.min(65535, Math.max(1, Number.parseInt(raw.smbPort, 10) || base.smbPort));
   return {
     ...base,
     enabled: raw.enabled === true,
@@ -304,6 +331,14 @@ function normalizeBackupConfig(value) {
     weekday,
     target,
     maxBackups,
+    smbServer: normalizeSingleLine(raw.smbServer, 255).replace(/^smb:\/\//i, '').replace(/^\\\\/, '').replace(/[\\/]+$/, ''),
+    smbShare: normalizeSingleLine(raw.smbShare, 255).replace(/^[/\\]+|[/\\]+$/g, ''),
+    smbFolder: normalizeSmbFolder(raw.smbFolder),
+    smbUsername: normalizeSingleLine(raw.smbUsername, 255),
+    smbDomain: normalizeSingleLine(raw.smbDomain, 255),
+    smbPort,
+    smbEncrypt: raw.smbEncrypt === true,
+    smbGuest: raw.smbGuest === true,
     lastRunAt: typeof raw.lastRunAt === 'string' ? raw.lastRunAt : '',
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : '',
   };
@@ -336,45 +371,181 @@ function ensureBackupKey() {
 
 function getBackupKeyBuffer() {
   const raw = ensureBackupKey();
+  if (Buffer.isBuffer(raw) && raw.length === 32) return raw;
   const str = Buffer.isBuffer(raw) ? raw.toString('utf8').trim() : String(raw || '').trim();
   const decoded = Buffer.from(str, 'base64');
   return decoded.length === 32 ? decoded : crypto.createHash('sha256').update(str).digest();
 }
 
-function isSmbBackupAvailable() {
+function encryptProtectedValue(payload, kind) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', getBackupKeyBuffer(), iv);
+  const plaintext = Buffer.from(JSON.stringify(payload), 'utf8');
+  const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  return {
+    app: 'Labby',
+    kind,
+    algorithm: 'AES-256-GCM',
+    createdAt: new Date().toISOString(),
+    iv: iv.toString('base64'),
+    tag: cipher.getAuthTag().toString('base64'),
+    ciphertext: encrypted.toString('base64'),
+  };
+}
+
+function decryptProtectedValue(payload) {
+  if (!payload || payload.algorithm !== 'AES-256-GCM') throw new Error('Unsupported encrypted data format.');
+  const decipher = crypto.createDecipheriv('aes-256-gcm', getBackupKeyBuffer(), Buffer.from(payload.iv, 'base64'));
+  decipher.setAuthTag(Buffer.from(payload.tag, 'base64'));
+  const decrypted = Buffer.concat([decipher.update(Buffer.from(payload.ciphertext, 'base64')), decipher.final()]);
+  return JSON.parse(decrypted.toString('utf8'));
+}
+
+function getStoredSmbPassword() {
   try {
-    const stat = fs.existsSync(BACKUP_MOUNT_PATH) ? fs.statSync(BACKUP_MOUNT_PATH) : null;
-    if (!stat || !stat.isDirectory()) return false;
-    fs.accessSync(BACKUP_MOUNT_PATH, fs.constants.W_OK | fs.constants.R_OK);
-    return true;
-  } catch { return false; }
+    if (!fs.existsSync(SMB_SECRET_PATH)) return '';
+    const protectedValue = JSON.parse(fs.readFileSync(SMB_SECRET_PATH, 'utf8'));
+    const secret = decryptProtectedValue(protectedValue);
+    return typeof secret?.password === 'string' ? secret.password : '';
+  } catch {
+    return '';
+  }
 }
 
-function getBackupDir(target) {
-  if (target === 'smb' && isSmbBackupAvailable()) return BACKUP_MOUNT_PATH;
-  return LOCAL_BACKUP_DIR;
+function saveSmbPassword(password) {
+  const value = String(password ?? '');
+  if (!value) return;
+  if (/[\r\n\0]/.test(value)) throw new Error('The SMB password cannot contain line breaks.');
+  fs.writeFileSync(SMB_SECRET_PATH, JSON.stringify(encryptProtectedValue({ password: value }, 'smb-credentials'), null, 2), { mode: 0o600 });
+  try { fs.chmodSync(SMB_SECRET_PATH, 0o600); } catch {}
 }
 
-function ensureBackupDir(target) {
-  const dir = getBackupDir(target);
-  fs.mkdirSync(dir, { recursive: true });
-  return dir;
+function clearSmbPassword() {
+  try { fs.unlinkSync(SMB_SECRET_PATH); } catch {}
 }
 
-function backupFileName(date = new Date()) {
-  return `labby-config-backup-${date.toISOString().replace(/[:.]/g, '-')}Z.labbybackup`;
+function smbPasswordConfigured(cfg, passwordOverride) {
+  return cfg.smbGuest || Boolean(typeof passwordOverride === 'string' ? passwordOverride : getStoredSmbPassword());
 }
 
-function listBackupsForTarget(target) {
-  const dir = getBackupDir(target);
+function validateSmbConfig(cfg, passwordOverride) {
+  if (!cfg.smbServer || !/^[a-zA-Z0-9_.:\-]+$/.test(cfg.smbServer)) throw new Error('Enter a valid SMB server name or IP address.');
+  if (!cfg.smbShare || /[\\/\r\n\0]/.test(cfg.smbShare)) throw new Error('Enter a valid SMB share name.');
+  if (!cfg.smbGuest && !cfg.smbUsername) throw new Error('Enter an SMB username or enable guest access.');
+  if (!smbPasswordConfigured(cfg, passwordOverride)) throw new Error('Enter and save the SMB password first.');
+  return cfg;
+}
+
+function smbTargetPath(cfg) {
+  if (!cfg.smbServer || !cfg.smbShare) return 'Not configured';
+  const folder = cfg.smbFolder ? `/${cfg.smbFolder}` : '';
+  return `smb://${cfg.smbServer}:${cfg.smbPort}/${cfg.smbShare}${folder}`;
+}
+
+function smbCommandPath(value) {
+  const clean = String(value || '').replace(/\\/g, '/');
+  if (!clean || /[";\r\n\0]/.test(clean)) throw new Error('The SMB folder contains unsupported characters.');
+  return `"${clean}"`;
+}
+
+function withSmbAuthFile(cfg, passwordOverride, callback) {
+  if (cfg.smbGuest) return callback(null);
+  const password = typeof passwordOverride === 'string' && passwordOverride !== '' ? passwordOverride : getStoredSmbPassword();
+  if (!password) throw new Error('No SMB password is saved.');
+  if (/[\r\n\0]/.test(password)) throw new Error('The SMB password cannot contain line breaks.');
+  fs.mkdirSync(SMB_TMP_ROOT, { recursive: true, mode: 0o700 });
+  const tempDir = fs.mkdtempSync(path.join(SMB_TMP_ROOT, 'auth-'));
+  const authFile = path.join(tempDir, 'credentials');
+  const lines = [
+    `username = ${cfg.smbUsername}`,
+    `password = ${password}`,
+    ...(cfg.smbDomain ? [`domain = ${cfg.smbDomain}`] : []),
+  ];
+  fs.writeFileSync(authFile, `${lines.join('\n')}\n`, { mode: 0o600 });
+  try { return callback(authFile); }
+  finally { try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch {} }
+}
+
+function runSmbClient(cfgInput, command, options = {}) {
+  const cfg = validateSmbConfig(normalizeBackupConfig(cfgInput), options.password);
+  return withSmbAuthFile(cfg, options.password, (authFile) => {
+    const args = [`//${cfg.smbServer}/${cfg.smbShare}`, '-m', 'SMB3', '-p', String(cfg.smbPort)];
+    if (cfg.smbEncrypt) args.push('-e');
+    if (cfg.smbGuest) args.push('-N');
+    else args.push('-A', authFile);
+    args.push('-c', command);
+    const result = spawnSyncProcess('smbclient', args, {
+      encoding: 'utf8',
+      timeout: options.timeout || 30000,
+      env: { ...process.env, LC_ALL: 'C', LANG: 'C' },
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
+    if (result.error) {
+      if (result.error.code === 'ENOENT') throw new Error('smbclient is not installed in the Labby container. Rebuild the current Docker image.');
+      throw new Error(result.error.message);
+    }
+    if (result.status !== 0 && !options.allowFailure) {
+      const useful = output.split('\n').map((line) => line.trim()).filter(Boolean).slice(-4).join(' ');
+      throw new Error(useful || `SMB command failed with exit code ${result.status}.`);
+    }
+    return { ok: result.status === 0, status: result.status, stdout: result.stdout || '', stderr: result.stderr || '', output };
+  });
+}
+
+function ensureSmbFolder(cfgInput, passwordOverride) {
+  const cfg = normalizeBackupConfig(cfgInput);
+  if (!cfg.smbFolder) return;
+  let current = '';
+  for (const segment of cfg.smbFolder.split('/').filter(Boolean)) {
+    current = current ? `${current}/${segment}` : segment;
+    const result = runSmbClient(cfg, `mkdir ${smbCommandPath(current)}`, { password: passwordOverride, allowFailure: true });
+    if (!result.ok && !/NT_STATUS_OBJECT_NAME_COLLISION|NT_STATUS_OBJECT_NAME_EXISTS/i.test(result.output)) {
+      throw new Error(result.output || `Could not create SMB folder ${current}.`);
+    }
+  }
+}
+
+function remoteBackupPath(cfg, fileName) {
+  const safeName = path.basename(String(fileName || ''));
+  if (!safeName.endsWith('.labbybackup')) throw new Error('Invalid backup file name.');
+  return cfg.smbFolder ? `${cfg.smbFolder}/${safeName}` : safeName;
+}
+
+function withBackupTempDir(callback) {
+  fs.mkdirSync(SMB_TMP_ROOT, { recursive: true, mode: 0o700 });
+  const tempDir = fs.mkdtempSync(path.join(SMB_TMP_ROOT, 'file-'));
+  try { return callback(tempDir); }
+  finally { try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch {} }
+}
+
+function parseSmbBackupList(output, cfg) {
+  const backups = [];
+  String(output || '').split(/\r?\n/).forEach((line) => {
+    const match = line.match(/^\s*(\S+\.labbybackup)\s+\S*\s+(\d+)\s+(.+?)\s*$/i);
+    if (!match) return;
+    const parsedDate = Date.parse(match[3]);
+    backups.push({
+      id: match[1],
+      name: match[1],
+      target: 'smb',
+      path: smbTargetPath(cfg),
+      size: Number.parseInt(match[2], 10) || 0,
+      createdAt: Number.isFinite(parsedDate) ? new Date(parsedDate).toISOString() : '',
+    });
+  });
+  return backups.sort((a, b) => Date.parse(b.createdAt || 0) - Date.parse(a.createdAt || 0));
+}
+
+function listLocalBackups() {
   try {
-    if (!fs.existsSync(dir)) return [];
-    return fs.readdirSync(dir)
+    fs.mkdirSync(LOCAL_BACKUP_DIR, { recursive: true });
+    return fs.readdirSync(LOCAL_BACKUP_DIR)
       .filter((name) => name.endsWith('.labbybackup'))
       .map((name) => {
-        const full = path.join(dir, name);
+        const full = path.join(LOCAL_BACKUP_DIR, name);
         const stat = fs.statSync(full);
-        return { id: name, name, target: target === 'smb' && dir === BACKUP_MOUNT_PATH ? 'smb' : 'local', path: dir, size: stat.size, createdAt: stat.mtime.toISOString() };
+        return { id: name, name, target: 'local', path: LOCAL_BACKUP_DIR, size: stat.size, createdAt: stat.mtime.toISOString() };
       })
       .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
   } catch {
@@ -382,55 +553,98 @@ function listBackupsForTarget(target) {
   }
 }
 
+function listSmbBackups(cfgInput, passwordOverride) {
+  const cfg = normalizeBackupConfig(cfgInput);
+  const commands = cfg.smbFolder ? `cd ${smbCommandPath(cfg.smbFolder)}; ls` : 'ls';
+  const result = runSmbClient(cfg, commands, { password: passwordOverride });
+  return parseSmbBackupList(result.stdout, cfg);
+}
+
+function listBackupsForTarget(target, cfgInput, passwordOverride) {
+  return target === 'smb' ? listSmbBackups(cfgInput, passwordOverride) : listLocalBackups();
+}
+
 function encryptBackupPayload(payload) {
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', getBackupKeyBuffer(), iv);
-  const plaintext = Buffer.from(JSON.stringify(payload), 'utf8');
-  const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return {
-    app: 'Labby',
-    kind: 'encrypted-config-backup',
-    algorithm: 'AES-256-GCM',
-    createdAt: new Date().toISOString(),
-    iv: iv.toString('base64'),
-    tag: tag.toString('base64'),
-    ciphertext: encrypted.toString('base64'),
-  };
+  return encryptProtectedValue(payload, 'encrypted-config-backup');
 }
 
 function decryptBackupPayload(payload) {
-  if (!payload || payload.algorithm !== 'AES-256-GCM') throw new Error('Unsupported backup format.');
-  const decipher = crypto.createDecipheriv('aes-256-gcm', getBackupKeyBuffer(), Buffer.from(payload.iv, 'base64'));
-  decipher.setAuthTag(Buffer.from(payload.tag, 'base64'));
-  const decrypted = Buffer.concat([decipher.update(Buffer.from(payload.ciphertext, 'base64')), decipher.final()]);
-  return JSON.parse(decrypted.toString('utf8'));
+  return decryptProtectedValue(payload);
 }
 
-function pruneBackups(target, maxBackups) {
-  const backups = listBackupsForTarget(target);
-  backups.slice(maxBackups).forEach((backup) => {
-    try { fs.unlinkSync(path.join(backup.path, backup.name)); } catch {}
+function writeBackupFile(target, cfg, fileName, content) {
+  if (target === 'local') {
+    fs.mkdirSync(LOCAL_BACKUP_DIR, { recursive: true });
+    fs.writeFileSync(path.join(LOCAL_BACKUP_DIR, fileName), content, { mode: 0o600 });
+    return LOCAL_BACKUP_DIR;
+  }
+  ensureSmbFolder(cfg);
+  return withBackupTempDir((tempDir) => {
+    const localFile = path.join(tempDir, fileName);
+    fs.writeFileSync(localFile, content, { mode: 0o600 });
+    const remoteFile = remoteBackupPath(cfg, fileName);
+    runSmbClient(cfg, `put ${smbCommandPath(localFile)} ${smbCommandPath(remoteFile)}`);
+    return smbTargetPath(cfg);
   });
+}
+
+function readBackupFile(target, cfg, fileName) {
+  const safeName = path.basename(String(fileName || ''));
+  if (!safeName.endsWith('.labbybackup')) throw new Error('Invalid backup id.');
+  if (target === 'local') {
+    const full = path.join(LOCAL_BACKUP_DIR, safeName);
+    if (!fs.existsSync(full)) throw new Error('Backup not found.');
+    return fs.readFileSync(full, 'utf8');
+  }
+  return withBackupTempDir((tempDir) => {
+    const localFile = path.join(tempDir, safeName);
+    runSmbClient(cfg, `get ${smbCommandPath(remoteBackupPath(cfg, safeName))} ${smbCommandPath(localFile)}`);
+    if (!fs.existsSync(localFile)) throw new Error('Backup could not be downloaded from SMB.');
+    return fs.readFileSync(localFile, 'utf8');
+  });
+}
+
+function deleteBackupFile(target, cfg, fileName) {
+  const safeName = path.basename(String(fileName || ''));
+  if (!safeName.endsWith('.labbybackup')) throw new Error('Invalid backup id.');
+  if (target === 'local') {
+    const full = path.join(LOCAL_BACKUP_DIR, safeName);
+    if (!fs.existsSync(full)) throw new Error('Backup not found.');
+    fs.unlinkSync(full);
+    return;
+  }
+  runSmbClient(cfg, `del ${smbCommandPath(remoteBackupPath(cfg, safeName))}`);
+}
+
+function pruneBackups(target, cfg, maxBackups) {
+  const backups = listBackupsForTarget(target, cfg);
+  backups.slice(maxBackups).forEach((backup) => {
+    try { deleteBackupFile(target, cfg, backup.name); } catch {}
+  });
+}
+
+function backupFileName(date = new Date()) {
+  return `labby-config-backup-${date.toISOString().replace(/[:.]/g, '-')}.labbybackup`;
 }
 
 function createEncryptedBackup(reason = 'manual') {
   const data = readDb();
   const cfg = normalizeBackupConfig(data.backupConfig);
-  const target = cfg.target === 'smb' && isSmbBackupAvailable() ? 'smb' : 'local';
-  const dir = ensureBackupDir(target);
+  const target = cfg.target;
+  if (target === 'smb') validateSmbConfig(cfg);
   const now = new Date();
   const encrypted = encryptBackupPayload({ ...data, backupMeta: { createdAt: now.toISOString(), reason } });
   const file = backupFileName(now);
-  fs.writeFileSync(path.join(dir, file), JSON.stringify(encrypted, null, 2), { mode: 0o600 });
-  pruneBackups(target, cfg.maxBackups);
+  const destination = writeBackupFile(target, cfg, file, JSON.stringify(encrypted, null, 2));
+  pruneBackups(target, cfg, cfg.maxBackups);
   cfg.lastRunAt = now.toISOString();
   data.backupConfig = cfg;
   data.backupLogs = normalizeBackupLogs(data.backupLogs);
-  data.backupLogs.push({ at: now.toISOString(), level: 'info', message: `Backup saved to ${target === 'smb' ? BACKUP_MOUNT_PATH : LOCAL_BACKUP_DIR}: ${file}` });
+  data.backupLogs.push({ at: now.toISOString(), level: 'info', message: `Backup saved to ${destination}: ${file}` });
   data.backupLogs = data.backupLogs.slice(-80);
   writeDb(data);
-  return { file, target, dir, createdAt: now.toISOString() };
+  smbStatusCache.checkedAt = 0;
+  return { file, target, destination, createdAt: now.toISOString() };
 }
 
 function isBackupDue(cfg, now = new Date()) {
@@ -439,13 +653,9 @@ function isBackupDue(cfg, now = new Date()) {
   const [hh, mm] = String(cfg.time || '02:00').split(':').map((v) => Number.parseInt(v, 10));
   const sameMinute = now.getMinutes() === (Number.isFinite(mm) ? mm : 0);
   if (!sameMinute) return false;
-  if (cfg.frequency === 'hourly') {
-    return !last || now.getTime() - last.getTime() >= 55 * 60 * 1000;
-  }
+  if (cfg.frequency === 'hourly') return !last || now.getTime() - last.getTime() >= 55 * 60 * 1000;
   if (now.getHours() !== (Number.isFinite(hh) ? hh : 2)) return false;
-  if (cfg.frequency === 'daily') {
-    return !last || last.toDateString() !== now.toDateString();
-  }
+  if (cfg.frequency === 'daily') return !last || last.toDateString() !== now.toDateString();
   if (cfg.frequency === 'weekly') {
     const wanted = Number.parseInt(cfg.weekday, 10);
     return now.getDay() === wanted && (!last || now.getTime() - last.getTime() >= 6 * 24 * 60 * 60 * 1000);
@@ -465,32 +675,98 @@ function startBackupScheduler() {
   }, 60 * 1000);
 }
 
+function testSmbConnection(cfgInput, passwordOverride) {
+  const cfg = validateSmbConfig(normalizeBackupConfig(cfgInput), passwordOverride);
+  ensureSmbFolder(cfg, passwordOverride);
+  return withBackupTempDir((tempDir) => {
+    const testName = `.labby-smb-test-${crypto.randomBytes(5).toString('hex')}.tmp`;
+    const localFile = path.join(tempDir, testName);
+    fs.writeFileSync(localFile, `Labby SMB connection test ${new Date().toISOString()}\n`, { mode: 0o600 });
+    const remoteFile = cfg.smbFolder ? `${cfg.smbFolder}/${testName}` : testName;
+    runSmbClient(cfg, `put ${smbCommandPath(localFile)} ${smbCommandPath(remoteFile)}`, { password: passwordOverride });
+    try { runSmbClient(cfg, `del ${smbCommandPath(remoteFile)}`, { password: passwordOverride }); } catch {}
+    return { ok: true, path: smbTargetPath(cfg) };
+  });
+}
+
+function getSmbStatus(cfgInput, force = false) {
+  const cfg = normalizeBackupConfig(cfgInput);
+  const passwordConfigured = smbPasswordConfigured(cfg);
+  const configured = Boolean(cfg.smbServer && cfg.smbShare && (cfg.smbGuest || cfg.smbUsername) && passwordConfigured);
+  const cacheKey = JSON.stringify({
+    server: cfg.smbServer, share: cfg.smbShare, folder: cfg.smbFolder, username: cfg.smbUsername,
+    domain: cfg.smbDomain, port: cfg.smbPort, encrypt: cfg.smbEncrypt, guest: cfg.smbGuest, passwordConfigured,
+  });
+  if (!configured) return { configured: false, available: false, passwordConfigured, path: smbTargetPath(cfg), error: 'SMB destination is not fully configured.' };
+  if (!force && smbStatusCache.key === cacheKey && Date.now() - smbStatusCache.checkedAt < 15000 && smbStatusCache.value) return smbStatusCache.value;
+  let value;
+  try {
+    const commands = cfg.smbFolder ? `cd ${smbCommandPath(cfg.smbFolder)}; ls` : 'ls';
+    runSmbClient(cfg, commands, { timeout: 12000 });
+    value = { configured: true, available: true, passwordConfigured, path: smbTargetPath(cfg), error: '' };
+  } catch (err) {
+    value = { configured: true, available: false, passwordConfigured, path: smbTargetPath(cfg), error: err.message };
+  }
+  smbStatusCache = { key: cacheKey, checkedAt: Date.now(), value };
+  return value;
+}
+
+function safeBackupConfigForClient(cfgInput) {
+  const cfg = normalizeBackupConfig(cfgInput);
+  return { ...cfg, smbPasswordConfigured: smbPasswordConfigured(cfg) };
+}
+
 app.get('/api/backups/status', (req, res) => {
   const data = readDb();
   const cfg = normalizeBackupConfig(data.backupConfig);
+  const smb = getSmbStatus(cfg);
+  let backups = [];
+  try {
+    backups = cfg.target === 'smb' ? (smb.available ? listSmbBackups(cfg) : []) : listLocalBackups();
+  } catch {}
   res.json({
-    config: cfg,
+    config: safeBackupConfigForClient(cfg),
     targets: {
-      local: { available: true, path: LOCAL_BACKUP_DIR, label: `Local (${LOCAL_BACKUP_DIR})` },
-      smb: { available: isSmbBackupAvailable(), path: BACKUP_MOUNT_PATH, label: `SMB mount (${BACKUP_MOUNT_PATH})` },
+      local: { available: true, configured: true, path: LOCAL_BACKUP_DIR, label: `Local (${LOCAL_BACKUP_DIR})` },
+      smb: { ...smb, label: `Direct SMB (${smb.path})` },
     },
     logs: normalizeBackupLogs(data.backupLogs).slice(-20).reverse(),
-    backups: listBackupsForTarget(cfg.target === 'smb' && isSmbBackupAvailable() ? 'smb' : 'local').slice(0, 30),
+    backups: backups.slice(0, 30),
   });
 });
 
 app.post('/api/backups/settings', (req, res) => {
-  const data = readDb();
-  const cfg = normalizeBackupConfig(req.body || {});
-  if (cfg.target === 'smb' && !isSmbBackupAvailable()) cfg.target = 'local';
-  cfg.updatedAt = new Date().toISOString();
-  cfg.lastRunAt = normalizeBackupConfig(data.backupConfig).lastRunAt;
-  data.backupConfig = cfg;
-  data.backupLogs = normalizeBackupLogs(data.backupLogs);
-  data.backupLogs.push({ at: cfg.updatedAt, level: 'info', message: `Backup schedule updated (${cfg.enabled ? cfg.frequency : 'disabled'}).` });
-  data.backupLogs = data.backupLogs.slice(-80);
-  writeDb(data);
-  res.json({ ok: true, config: cfg });
+  try {
+    const data = readDb();
+    const previous = normalizeBackupConfig(data.backupConfig);
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    if (body.clearSmbPassword === true) clearSmbPassword();
+    else if (typeof body.smbPassword === 'string' && body.smbPassword !== '') saveSmbPassword(body.smbPassword);
+    const cfg = normalizeBackupConfig(body);
+    cfg.updatedAt = new Date().toISOString();
+    cfg.lastRunAt = previous.lastRunAt;
+    data.backupConfig = cfg;
+    data.backupLogs = normalizeBackupLogs(data.backupLogs);
+    data.backupLogs.push({ at: cfg.updatedAt, level: 'info', message: `Backup settings updated (${cfg.enabled ? cfg.frequency : 'disabled'}, target: ${cfg.target}).` });
+    data.backupLogs = data.backupLogs.slice(-80);
+    writeDb(data);
+    smbStatusCache.checkedAt = 0;
+    res.json({ ok: true, config: safeBackupConfigForClient(cfg) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/backups/test-smb', (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const cfg = normalizeBackupConfig(body);
+    const password = typeof body.smbPassword === 'string' && body.smbPassword !== '' ? body.smbPassword : undefined;
+    const result = testSmbConnection(cfg, password);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 app.post('/api/backups/run', (req, res) => {
@@ -499,23 +775,27 @@ app.post('/api/backups/run', (req, res) => {
 });
 
 app.get('/api/backups/list', (req, res) => {
-  const target = req.query.target === 'smb' && isSmbBackupAvailable() ? 'smb' : 'local';
-  res.json({ backups: listBackupsForTarget(target).slice(0, 50) });
+  try {
+    const cfg = normalizeBackupConfig(readDb().backupConfig);
+    const target = req.query.target === 'smb' ? 'smb' : 'local';
+    res.json({ backups: listBackupsForTarget(target, cfg).slice(0, 50) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 app.post('/api/backups/restore', (req, res) => {
   try {
-    const target = req.body?.target === 'smb' && isSmbBackupAvailable() ? 'smb' : 'local';
+    const current = readDb();
+    const cfg = normalizeBackupConfig(current.backupConfig);
+    const target = req.body?.target === 'smb' ? 'smb' : 'local';
     const id = path.basename(String(req.body?.id || ''));
     if (!id.endsWith('.labbybackup')) return res.status(400).json({ error: 'Invalid backup id.' });
-    const full = path.join(getBackupDir(target), id);
-    if (!fs.existsSync(full)) return res.status(404).json({ error: 'Backup not found.' });
-    const encrypted = JSON.parse(fs.readFileSync(full, 'utf8'));
+    const encrypted = JSON.parse(readBackupFile(target, cfg, id));
     const restored = decryptBackupPayload(encrypted);
-    const current = readDb();
     restored.backupConfig = current.backupConfig;
     restored.backupLogs = normalizeBackupLogs(current.backupLogs);
-    restored.backupLogs.push({ at: new Date().toISOString(), level: 'info', message: `Config restored from ${id}.` });
+    restored.backupLogs.push({ at: new Date().toISOString(), level: 'info', message: `Config restored from ${target}: ${id}.` });
     writeDb(restored);
     res.json({ ok: true });
   } catch (err) {
@@ -526,12 +806,11 @@ app.post('/api/backups/restore', (req, res) => {
 
 app.delete('/api/backups/:target/:id', (req, res) => {
   try {
-    const target = req.params.target === 'smb' && isSmbBackupAvailable() ? 'smb' : 'local';
+    const cfg = normalizeBackupConfig(readDb().backupConfig);
+    const target = req.params.target === 'smb' ? 'smb' : 'local';
     const id = path.basename(String(req.params.id || ''));
     if (!id.endsWith('.labbybackup')) return res.status(400).json({ error: 'Invalid backup id.' });
-    const full = path.join(getBackupDir(target), id);
-    if (!fs.existsSync(full)) return res.status(404).json({ error: 'Backup not found.' });
-    fs.unlinkSync(full);
+    deleteBackupFile(target, cfg, id);
     addBackupLog('info', `Backup deleted from ${target}: ${id}`);
     res.json({ ok: true });
   } catch (err) {
@@ -670,8 +949,7 @@ printf '%s\n' "$LABBY_SSH_KEY_PASSPHRASE"
     return res.status(500).json({ error: `Unable to start ssh: ${err.message}` });
   }
 
-  const session = { id: sessionId, proc, tempDir, output: `ssh ${target}${authMethod === 'key' ? ' [key]' : ''}
-`, closed: false, createdAt: Date.now(), term: env.TERM, complete: { command, args, env, target } };
+  const session = { id: sessionId, proc, tempDir, output: '', closed: false, createdAt: Date.now(), term: env.TERM, complete: { command, args, env, target } };
   sshSessions.set(sessionId, session);
 
   const collect = (chunk) => {
@@ -695,7 +973,9 @@ printf '%s\n' "$LABBY_SSH_KEY_PASSPHRASE"
 `;
   });
 
-  res.json({ sessionId, output: session.output });
+  const initialOutput = session.output;
+  session.output = '';
+  res.json({ sessionId, output: initialOutput });
 });
 
 app.get('/api/ssh/:id/output', (req, res) => {
