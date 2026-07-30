@@ -418,7 +418,7 @@ volumes:
 
 ### Built-in local and SMB/NAS backups
 
-Labby can write encrypted `.labbybackup` files either to the local `/data/backups` directory or directly to an SMB/NAS share. An external `/config-backup` bind mount, a host-side CIFS mount and privileged container mode are no longer required.
+Labby can write encrypted `.labbybackup` files either to the local `/data/backups` directory or directly to an SMB/NAS share configured in **Config → Backup Config**.
 
 To configure a network destination:
 
