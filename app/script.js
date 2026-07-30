@@ -833,6 +833,7 @@ const backupConfigBtn = document.getElementById('backup-config-btn');
 const backupConfigBtnMobile = document.getElementById('backup-config-btn-mobile');
 const backupConfigClose = document.getElementById('backup-config-close');
 const backupConfigCloseMobile = document.getElementById('mobile-backup-config-close');
+const publicDemoBackupsDisabled = typeof DEMO_INTERACTIVE_SECURITY_DISABLED !== 'undefined' && DEMO_INTERACTIVE_SECURITY_DISABLED;
 let backupConfigReturnToConfig = false;
 let lastBackupStatus = null;
 
@@ -852,7 +853,41 @@ function describeBackupSchedule(cfg) {
   return `Runs daily at ${cfg.time || '02:00'}.`;
 }
 
+function demoBackupStatus() {
+  return {
+    demoMode: true,
+    config: {
+      enabled: false,
+      frequency: 'daily',
+      time: '02:00',
+      weekday: '1',
+      target: 'smb',
+      maxBackups: 10,
+      smbServer: 'nas.example.local',
+      smbShare: 'Backups',
+      smbFolder: 'Labby',
+      smbUsername: 'labby-backup',
+      smbDomain: '',
+      smbPort: 445,
+      smbEncrypt: true,
+      smbGuest: false,
+      smbPasswordConfigured: false,
+      lastRunAt: null,
+    },
+    targets: {
+      local: { label: 'Local demo storage (disabled)', path: '/data/backups', available: false, configured: true },
+      smb: { label: 'Direct SMB (self-host only)', path: 'smb://nas.example.local:445/Backups/Labby', available: false, configured: false, passwordConfigured: false, error: 'Demo preview only.' },
+    },
+    backups: [],
+    logs: [{ level: 'info', at: new Date().toISOString(), message: 'Demo mode: direct SMB backup configuration is shown as a read-only preview. Self-host Labby to test, run, restore or delete backups.' }],
+  };
+}
+
 async function fetchBackupStatus() {
+  if (publicDemoBackupsDisabled) {
+    lastBackupStatus = demoBackupStatus();
+    return lastBackupStatus;
+  }
   const res = await fetch(`${API_BASE}/api/backups/status`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   lastBackupStatus = await res.json();
@@ -861,55 +896,97 @@ async function fetchBackupStatus() {
 
 function backupPanelHtml(status) {
   const cfg = status?.config || {};
+  const isDemoBackup = !!status?.demoMode;
+  const disabledAttr = isDemoBackup ? ' disabled' : '';
+  const demoNotice = isDemoBackup ? '<p class="note backup-demo-notice">Demo mode: Backup Config is visible here, but direct SMB tests, backup runs, restore and delete are available only in the self-hosted version.</p>' : '';
   const targets = status?.targets || {};
-  const currentTarget = cfg.target === 'smb' && targets.smb?.available ? 'smb' : 'local';
-  const targetOptions = [
-    `<option value="local">${escapeHtml(targets.local?.label || 'Local (/data/backups)')}</option>`,
-    targets.smb?.available ? `<option value="smb">${escapeHtml(targets.smb?.label || 'SMB mount (/config-backup)')}</option>` : `<option value="smb" disabled>SMB mount not detected (/config-backup)</option>`,
-  ].join('');
+  const currentTarget = cfg.target === 'smb' ? 'smb' : 'local';
+  const smb = targets.smb || {};
+  const smbState = smb.available ? 'Connected' : (smb.configured ? 'Configured, but not reachable' : 'Not configured');
+  const passwordHint = cfg.smbPasswordConfigured || smb.passwordConfigured
+    ? 'Password is saved encrypted. Leave this empty to keep it.'
+    : 'Enter the password for the SMB account.';
   const logs = Array.isArray(status?.logs) && status.logs.length
     ? status.logs.map(log => `<li class="backup-log-${escapeAttr(log.level)}"><strong>${escapeHtml(formatBackupDate(log.at))}</strong><span>${escapeHtml(log.message)}</span></li>`).join('')
     : '<li><span>No backup logs yet.</span></li>';
   const backups = Array.isArray(status?.backups) && status.backups.length
-    ? status.backups.map(backup => `<li><div><strong>${escapeHtml(backup.name)}</strong><span>${escapeHtml(formatBackupDate(backup.createdAt))} · ${Math.ceil((backup.size || 0) / 1024)} KB · ${escapeHtml(backup.target)}</span></div><div class="backup-list-actions"><button class="button secondary" type="button" data-restore-backup="${escapeAttr(backup.id)}" data-restore-target="${escapeAttr(backup.target)}">Restore</button><button class="button danger" type="button" data-delete-backup="${escapeAttr(backup.id)}" data-delete-target="${escapeAttr(backup.target)}">Delete</button></div></li>`).join('')
+    ? status.backups.map(backup => `<li><div><strong>${escapeHtml(backup.name)}</strong><span>${escapeHtml(formatBackupDate(backup.createdAt))} · ${Math.ceil((backup.size || 0) / 1024)} KB · ${escapeHtml(backup.target)}</span></div><div class="backup-list-actions"><button class="button secondary" type="button" data-restore-backup="${escapeAttr(backup.id)}" data-restore-target="${escapeAttr(backup.target)}"${disabledAttr}>Restore</button><button class="button danger" type="button" data-delete-backup="${escapeAttr(backup.id)}" data-delete-target="${escapeAttr(backup.target)}"${disabledAttr}>Delete</button></div></li>`).join('')
     : '<li><span>No encrypted backups found for this target.</span></li>';
 
   return `
     <section class="backup-config-panel">
-      <p class="note config-intro">Encrypted scheduled backups for your complete Labby config. The encryption key stays inside the Labby data volume; restore backups from this screen.</p>
+      <p class="note config-intro">Create encrypted scheduled backups of the complete Labby configuration. Local backups stay in the data volume; SMB backups connect directly to the share without a Docker bind mount.</p>
+      ${demoNotice}
       <div class="backup-form-grid">
-        <label class="backup-toggle-row"><input data-backup-field="enabled" type="checkbox" ${cfg.enabled ? 'checked' : ''} /> Enable regular backups</label>
+        <label class="backup-toggle-row"><input data-backup-field="enabled" type="checkbox" ${cfg.enabled ? 'checked' : ''}${disabledAttr} /> Enable regular backups</label>
         <label>Schedule
-          <select data-backup-field="frequency">
+          <select data-backup-field="frequency"${disabledAttr}>
             <option value="hourly" ${cfg.frequency === 'hourly' ? 'selected' : ''}>Hourly</option>
             <option value="daily" ${cfg.frequency === 'daily' ? 'selected' : ''}>Daily</option>
             <option value="weekly" ${cfg.frequency === 'weekly' ? 'selected' : ''}>Weekly</option>
           </select>
         </label>
         <label>Time / minute
-          <input data-backup-field="time" type="time" value="${escapeAttr(cfg.time || '02:00')}" />
+          <input data-backup-field="time" type="time" value="${escapeAttr(cfg.time || '02:00')}"${disabledAttr} />
         </label>
         <label>Weekly day
-          <select data-backup-field="weekday">
+          <select data-backup-field="weekday"${disabledAttr}>
             ${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((day, idx) => `<option value="${idx}" ${String(cfg.weekday || '1') === String(idx) ? 'selected' : ''}>${day}</option>`).join('')}
           </select>
         </label>
         <label>Storage target
-          <select data-backup-field="target" data-current-target="${escapeAttr(currentTarget)}">${targetOptions}</select>
+          <select data-backup-field="target" data-current-target="${escapeAttr(currentTarget)}"${disabledAttr}>
+            <option value="local" ${currentTarget === 'local' ? 'selected' : ''}>${escapeHtml(targets.local?.label || 'Local (/data/backups)')}</option>
+            <option value="smb" ${currentTarget === 'smb' ? 'selected' : ''}>Direct SMB share</option>
+          </select>
         </label>
         <label>Max backups to keep
-          <input data-backup-field="maxBackups" type="number" min="1" max="100" value="${escapeAttr(cfg.maxBackups || 10)}" />
+          <input data-backup-field="maxBackups" type="number" min="1" max="100" value="${escapeAttr(cfg.maxBackups || 10)}"${disabledAttr} />
         </label>
       </div>
+
+      <div class="backup-smb-settings" data-smb-settings ${currentTarget === 'smb' ? '' : 'hidden'}>
+        <div class="backup-section-title">Direct SMB destination</div>
+        <div class="backup-form-grid">
+          <label>Server / IP
+            <input data-backup-field="smbServer" type="text" autocomplete="off" placeholder="nas.example.local" value="${escapeAttr(cfg.smbServer || '')}"${disabledAttr} />
+          </label>
+          <label>Share name
+            <input data-backup-field="smbShare" type="text" autocomplete="off" placeholder="Backups" value="${escapeAttr(cfg.smbShare || '')}"${disabledAttr} />
+          </label>
+          <label>Folder inside share
+            <input data-backup-field="smbFolder" type="text" autocomplete="off" placeholder="Labby" value="${escapeAttr(cfg.smbFolder || '')}"${disabledAttr} />
+          </label>
+          <label>SMB port
+            <input data-backup-field="smbPort" type="number" min="1" max="65535" value="${escapeAttr(cfg.smbPort || 445)}"${disabledAttr} />
+          </label>
+          <label>Username
+            <input data-backup-field="smbUsername" type="text" autocomplete="username" placeholder="labby-backup" value="${escapeAttr(cfg.smbUsername || '')}"${disabledAttr} />
+          </label>
+          <label>Domain / workgroup
+            <input data-backup-field="smbDomain" type="text" autocomplete="off" placeholder="Optional" value="${escapeAttr(cfg.smbDomain || '')}"${disabledAttr} />
+          </label>
+          <label>SMB password
+            <input data-backup-field="smbPassword" type="password" autocomplete="new-password" placeholder="${escapeAttr(passwordHint)}"${disabledAttr} />
+          </label>
+          <label class="backup-toggle-row backup-inline-toggle"><input data-backup-field="clearSmbPassword" type="checkbox"${disabledAttr} /> Clear saved password</label>
+          <label class="backup-toggle-row backup-inline-toggle"><input data-backup-field="smbEncrypt" type="checkbox" ${cfg.smbEncrypt ? 'checked' : ''}${disabledAttr} /> Require SMB encryption</label>
+          <label class="backup-toggle-row backup-inline-toggle"><input data-backup-field="smbGuest" type="checkbox" ${cfg.smbGuest ? 'checked' : ''}${disabledAttr} /> Use guest access</label>
+        </div>
+        <p class="note backup-smb-note">The SMB password is encrypted with Labby's backup key and stored only inside the persistent <code>/data</code> volume. It is never returned by the API or included in exports.</p>
+      </div>
+
       <div class="backup-status-card">
         <strong>${escapeHtml(describeBackupSchedule(cfg))}</strong>
         <span>Last backup: ${escapeHtml(formatBackupDate(cfg.lastRunAt))}</span>
         <span>Local path: ${escapeHtml(targets.local?.path || '/data/backups')}</span>
-        <span>SMB path: ${escapeHtml(targets.smb?.path || '/config-backup')} · ${targets.smb?.available ? 'detected' : 'not detected'}</span>
+        <span>SMB target: ${escapeHtml(smb.path || 'Not configured')} · ${escapeHtml(smbState)}</span>
+        ${smb.error && !smb.available ? `<span>SMB status: ${escapeHtml(smb.error)}</span>` : ''}
       </div>
       <div class="backup-actions-row">
-        <button class="button" type="button" data-backup-save>Save schedule</button>
-        <button class="button secondary" type="button" data-backup-run>Run backup now</button>
+        <button class="button" type="button" data-backup-save${disabledAttr}>Save settings</button>
+        <button class="button secondary" type="button" data-backup-test-smb${disabledAttr}>Test SMB connection</button>
+        <button class="button secondary" type="button" data-backup-run${disabledAttr}>Run backup now</button>
         <button class="button secondary" type="button" data-backup-refresh>Refresh</button>
       </div>
       <div class="backup-section-title">Restore encrypted backups</div>
@@ -929,28 +1006,74 @@ function readBackupForm(container) {
     weekday: get('weekday')?.value || '1',
     target: get('target')?.value || 'local',
     maxBackups: Number.parseInt(get('maxBackups')?.value || '10', 10),
+    smbServer: get('smbServer')?.value || '',
+    smbShare: get('smbShare')?.value || '',
+    smbFolder: get('smbFolder')?.value || '',
+    smbPort: Number.parseInt(get('smbPort')?.value || '445', 10),
+    smbUsername: get('smbUsername')?.value || '',
+    smbDomain: get('smbDomain')?.value || '',
+    smbPassword: get('smbPassword')?.value || '',
+    clearSmbPassword: !!get('clearSmbPassword')?.checked,
+    smbEncrypt: !!get('smbEncrypt')?.checked,
+    smbGuest: !!get('smbGuest')?.checked,
   };
 }
 
+async function backupApiError(res, fallback) {
+  try {
+    const body = await res.json();
+    return body?.error || fallback;
+  } catch {
+    try { return (await res.text()) || fallback; } catch { return fallback; }
+  }
+}
+
+function updateBackupSmbControls(container) {
+  const target = container.querySelector('[data-backup-field="target"]')?.value || 'local';
+  const smbBox = container.querySelector('[data-smb-settings]');
+  if (smbBox) smbBox.hidden = target !== 'smb';
+  const guest = !!container.querySelector('[data-backup-field="smbGuest"]')?.checked;
+  ['smbUsername', 'smbDomain', 'smbPassword', 'clearSmbPassword'].forEach((name) => {
+    const field = container.querySelector(`[data-backup-field="${name}"]`);
+    if (field && !publicDemoBackupsDisabled) field.disabled = guest;
+  });
+}
+
 function bindBackupPanel(container) {
+  container.querySelector('[data-backup-field="target"]')?.addEventListener('change', () => updateBackupSmbControls(container));
+  container.querySelector('[data-backup-field="smbGuest"]')?.addEventListener('change', () => updateBackupSmbControls(container));
+
   container.querySelector('[data-backup-save]')?.addEventListener('click', async () => {
     try {
       const res = await fetch(`${API_BASE}/api/backups/settings`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(readBackupForm(container)),
       });
-      if (!res.ok) throw new Error(await res.text());
-      showToast('Backup schedule saved.');
+      if (!res.ok) throw new Error(await backupApiError(res, 'Could not save backup settings.'));
+      showToast('Backup settings saved.');
       await renderBackupConfigPanels();
-    } catch (err) { showToast('Could not save backup schedule.', 'error'); console.warn(err); }
+    } catch (err) { showToast(err.message || 'Could not save backup settings.', 'error'); console.warn(err); }
   });
+
+  container.querySelector('[data-backup-test-smb]')?.addEventListener('click', async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/backups/test-smb`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(readBackupForm(container)),
+      });
+      if (!res.ok) throw new Error(await backupApiError(res, 'SMB connection test failed.'));
+      const result = await res.json();
+      showToast(`SMB connection successful: ${result.path || 'share is writable'}. Save the settings to use this destination.`);
+    } catch (err) { showToast(err.message || 'SMB connection test failed.', 'error'); console.warn(err); }
+  });
+
   container.querySelector('[data-backup-run]')?.addEventListener('click', async () => {
     try {
       const res = await fetch(`${API_BASE}/api/backups/run`, { method: 'POST' });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(await backupApiError(res, 'Backup failed.'));
       showToast('Encrypted backup created.');
       await renderBackupConfigPanels();
-    } catch (err) { showToast('Backup failed.', 'error'); console.warn(err); }
+    } catch (err) { showToast(err.message || 'Backup failed.', 'error'); console.warn(err); }
   });
+
   container.querySelector('[data-backup-refresh]')?.addEventListener('click', () => renderBackupConfigPanels());
   container.querySelectorAll('[data-restore-backup]').forEach((button) => {
     button.addEventListener('click', async () => {
@@ -961,10 +1084,10 @@ function bindBackupPanel(container) {
         const res = await fetch(`${API_BASE}/api/backups/restore`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, target }),
         });
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) throw new Error(await backupApiError(res, 'Restore failed.'));
         showToast('Backup restored. Reloading…');
         setTimeout(() => window.location.reload(), 700);
-      } catch (err) { showToast('Restore failed.', 'error'); console.warn(err); }
+      } catch (err) { showToast(err.message || 'Restore failed.', 'error'); console.warn(err); }
     });
   });
   container.querySelectorAll('[data-delete-backup]').forEach((button) => {
@@ -976,21 +1099,25 @@ function bindBackupPanel(container) {
         const encodedTarget = encodeURIComponent(target);
         const encodedId = encodeURIComponent(id);
         const res = await fetch(`${API_BASE}/api/backups/${encodedTarget}/${encodedId}`, { method: 'DELETE' });
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) throw new Error(await backupApiError(res, 'Could not delete backup.'));
         showToast('Backup deleted.');
         await renderBackupConfigPanels();
-      } catch (err) { showToast('Could not delete backup.', 'error'); console.warn(err); }
+      } catch (err) { showToast(err.message || 'Could not delete backup.', 'error'); console.warn(err); }
     });
   });
-  const targetSelect = container.querySelector('[data-backup-field="target"]');
-  if (targetSelect) targetSelect.value = targetSelect.getAttribute('data-current-target') || 'local';
+  updateBackupSmbControls(container);
 }
 
 async function renderBackupConfigPanels() {
   let status;
   try { status = await fetchBackupStatus(); }
   catch (err) {
-    status = { config: { enabled: false, frequency: 'daily', time: '02:00', weekday: '1', target: 'local', maxBackups: 10 }, targets: {}, logs: [{ level: 'error', at: new Date().toISOString(), message: 'Backend backup API is not reachable.' }], backups: [] };
+    status = {
+      config: { enabled: false, frequency: 'daily', time: '02:00', weekday: '1', target: 'local', maxBackups: 10, smbPort: 445 },
+      targets: {},
+      logs: [{ level: 'error', at: new Date().toISOString(), message: 'Backend backup API is not reachable.' }],
+      backups: [],
+    };
   }
   ['backup-config-body', 'mobile-backup-config-body'].forEach((id) => {
     const container = document.getElementById(id);
@@ -1029,6 +1156,26 @@ backupConfigBtn?.addEventListener('click', () => openBackupConfig({ returnToConf
 backupConfigBtnMobile?.addEventListener('click', () => openBackupConfig({ returnToConfig: true }));
 backupConfigClose?.addEventListener('click', () => backupConfigDialog?.close());
 backupConfigCloseMobile?.addEventListener('click', closeBackupConfigView);
+
+function ensureBackupConfigMenuButtons() {
+  const desktopGrid = document.querySelector('#config-dialog .config-menu-grid');
+  const mobileGrid = document.querySelector('#mobile-config .config-menu-grid');
+  const insertBeforeClear = (grid, buttonId, clearId) => {
+    if (!grid || document.getElementById(buttonId)) return;
+    const button = document.createElement('button');
+    button.id = buttonId;
+    button.className = 'button secondary config-wide-action';
+    button.type = 'button';
+    button.textContent = 'Backup Config';
+    button.addEventListener('click', () => openBackupConfig({ returnToConfig: true }));
+    const clearButton = document.getElementById(clearId);
+    if (clearButton && clearButton.parentNode === grid) grid.insertBefore(button, clearButton);
+    else grid.appendChild(button);
+  };
+  insertBeforeClear(desktopGrid, 'backup-config-btn', 'clear-all');
+  insertBeforeClear(mobileGrid, 'backup-config-btn-mobile', 'clear-all-mobile');
+}
+ensureBackupConfigMenuButtons();
 
 
 clearAll.addEventListener('click', async () => {
@@ -2620,8 +2767,8 @@ function cliTargetForItem(item) {
 function activeCliEls() {
   const mobile = isMobile();
   return mobile
-    ? { terminal: mobileCliTerminal, input: mobileCliInput, send: mobileCliSend, copy: mobileCliCopy, paste: mobileCliPaste, sudoPassword: mobileCliSudoPassword, ctrlC: mobileCliCtrlC, clearKey: mobileCliClearKey, close: mobileCliClose }
-    : { terminal: cliTerminal, input: cliInput, send: cliSend, copy: cliCopy, paste: cliPaste, sudoPassword: cliSudoPassword, ctrlC: cliCtrlC, clearKey: cliClearKey, close: cliClose };
+    ? { title: mobileCliTitle, subtitle: mobileCliSubtitle, terminal: mobileCliTerminal, input: mobileCliInput, send: mobileCliSend, copy: mobileCliCopy, paste: mobileCliPaste, sudoPassword: mobileCliSudoPassword, ctrlC: mobileCliCtrlC, clearKey: mobileCliClearKey, close: mobileCliClose }
+    : { title: cliTitle, subtitle: cliSubtitle, terminal: cliTerminal, input: cliInput, send: cliSend, copy: cliCopy, paste: cliPaste, sudoPassword: cliSudoPassword, ctrlC: cliCtrlC, clearKey: cliClearKey, close: cliClose };
 }
 
 
@@ -2932,9 +3079,9 @@ async function openCliSession(item, options = {}) {
   cliRemoteHistoryLoadedFor = '';
   renderCommandSnippets();
   const els = activeCliEls();
-  if (els.title) els.title.textContent = `CLI · ${item.name}`;
-  if (els.subtitle) els.subtitle.textContent = `ssh ${target}`;
-  setCliOutput(`Connecting to ${target}...\n`);
+  if (els.title) els.title.textContent = `CLI - ${item.name || 'Resource'}`;
+  if (els.subtitle) els.subtitle.textContent = 'SSH session';
+  setCliOutput('');
 
   if (isMobile()) {
     hideMobileViews?.();
@@ -2954,7 +3101,7 @@ async function openCliSession(item, options = {}) {
     if (!res.ok) throw new Error(data.error || 'Could not start SSH session.');
     cliSession = data.sessionId;
     loadCliRemoteHistory();
-    setCliOutput(data.output || `Connected to ${target}.\n`);
+    setCliOutput(data.output || '');
     window.setTimeout(() => activeCliInput()?.focus(), 60);
   window.setTimeout(() => autosizeAndFocusCliInput(activeCliInput()), 80);
   startCliPolling();

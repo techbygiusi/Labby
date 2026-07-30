@@ -392,26 +392,19 @@ Open:
 http://localhost:8080
 ```
 
-### Example docker-compose.yml
+### Single-container deployment
+
+The included Docker image runs the Labby frontend, nginx reverse proxy and Node.js backend together in one container.
 
 ```yaml
 services:
-  labby-frontend:
+  labby:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: labby-frontend
+    container_name: labby
     ports:
       - "8080:80"
-    depends_on:
-      - labby-backend
-    restart: unless-stopped
-
-  labby-backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: labby-backend
     environment:
       - DATA_DIR=/data
     volumes:
@@ -423,17 +416,21 @@ volumes:
     driver: local
 ```
 
-To let **Backup Config** use an external SMB/NAS target, bind the mounted host folder into the backend container as `/config-backup`:
+### Built-in local and SMB/NAS backups
 
-```yaml
-services:
-  labby-backend:
-    volumes:
-      - labby-data:/data
-      - /mnt/labby-backups:/config-backup
-```
+Labby can write encrypted `.labbybackup` files either to the local `/data/backups` directory or directly to an SMB/NAS share. An external `/config-backup` bind mount, a host-side CIFS mount and privileged container mode are no longer required.
 
-Labby only auto-detects the external backup target when `/config-backup` exists and is writable inside the backend container.
+To configure a network destination:
+
+1. Open **Config → Backup Config**.
+2. Select **Direct SMB share** as the storage target.
+3. Enter the server name or IP address, share name, optional folder, SMB account, optional domain/workgroup and port. Port `445` is the normal default.
+4. Enable **Require SMB encryption** when the server supports encrypted SMB 3 sessions, or enable guest access only for a deliberately anonymous share.
+5. Select **Save settings**, then run **Test SMB connection** before enabling the schedule.
+
+The connection test uploads and removes a temporary file. The backup account therefore needs permission to list, create, read and delete files in the selected destination. The Labby container must also be able to resolve and reach the SMB server over the configured port.
+
+The SMB password is encrypted and stored only in the persistent `/data` volume. It is never returned by the API and is not included in configuration exports. Keep `/data/backup.key` in a separate secure backup: encrypted `.labbybackup` files cannot be restored after a complete data-volume loss without that key.
 
 ### Stop
 
@@ -526,15 +523,18 @@ app/
   images/             # App images and shared assets
 
 backend/
-  server.js           # Express API, JSON file storage and Agent API
+  server.js           # Express API, JSON file storage, SSH bridge and Agent API
   package.json
-  Dockerfile
+  Dockerfile          # Optional backend-only development image
+
+docker/
+  start-labby.sh      # Starts backend and nginx inside the combined container
 
 nginx/
-  default.conf        # Reverse proxy /api/* to backend
+  default.conf        # Reverse proxy /api/* to the local backend
 
-Dockerfile            # Frontend nginx container
-docker-compose.yml
+Dockerfile            # Combined frontend and backend image
+docker-compose.yml    # Single-container deployment
 CONTRIBUTING.md       # Contributor notes and code conventions
 README.md
 ```
@@ -543,39 +543,74 @@ README.md
 
 ## 🗄️ Data & Backup
 
-All data is stored in a JSON file inside a named Docker volume:
+Labby stores its persistent application data, encryption key and backup configuration in the Docker volume mounted at `/data`.
+
+### Backup Config
+
+Open:
 
 ```text
-labby-data
+Config → Backup Config
 ```
 
-### Create a Docker volume backup
+Backup Config creates encrypted `.labbybackup` files and supports:
 
-```bash
-docker run --rm \
-  -v labby-data:/data \
-  -v $(pwd):/backup \
-  alpine tar czf /backup/labby-backup.tar.gz /data
+- Hourly, daily or weekly schedules
+- A configurable execution time and weekday
+- Local storage under `/data/backups`
+- Direct SMB/NAS storage without an additional Docker mount
+- A retention limit from 1 to 100 backup files
+- Manual backup runs
+- Restore and individual delete actions
+- Logs for recent backup operations
+
+For a direct SMB destination, configure the server or IP address, share, optional subfolder, username and password, optional domain/workgroup, port and SMB encryption requirement. Use **Test SMB connection** to verify authentication and write access before enabling scheduled backups.
+
+The SMB account should have list, create, read and delete permissions. Labby automatically creates the configured subfolder when the account is allowed to do so.
+
+### Recovery key
+
+All scheduled backups are encrypted with the key stored at:
+
+```text
+/data/backup.key
 ```
 
-### Restore from backup
+Keep a secure copy of this file or back up the complete `labby-data` volume. A remote `.labbybackup` file alone cannot be decrypted after the original `/data` volume has been lost.
 
-```bash
-docker run --rm \
-  -v labby-data:/data \
-  -v $(pwd):/backup \
-  alpine tar xzf /backup/labby-backup.tar.gz -C /
-```
+### Manual JSON export
 
-### App-level backup
-
-Inside Labby:
+For a portable manual snapshot, use:
 
 ```text
 Config → Export Config
 ```
 
-This exports a JSON file containing resources, locations, racks, agent status values, custom themes and the active theme. If saved credentials or API key records exist, they are included only in the encrypted secrets bundle and require the export key during import.
+The JSON export contains resources, locations, racks, networks, themes, command snippets and Backup Config settings. Saved secrets are included only in the encrypted secrets bundle and require the displayed export key during import. The SMB password and the actual `.labbybackup` files are not included.
+
+### Full Docker volume backup
+
+A full volume backup preserves Labby's database, backup key and encrypted SMB credential:
+
+```bash
+docker run --rm \
+  -v labby-data:/data \
+  -v "$(pwd)":/backup \
+  alpine tar czf /backup/labby-data-backup.tar.gz /data
+```
+
+Restore the volume while Labby is stopped:
+
+```bash
+docker compose down
+
+docker run --rm \
+  -v labby-data:/data \
+  -v "$(pwd)":/backup \
+  alpine sh -c 'rm -rf /data/* && tar xzf /backup/labby-data-backup.tar.gz -C /'
+
+docker compose up -d
+```
 
 ---
 
