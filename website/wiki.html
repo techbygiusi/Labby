@@ -1271,48 +1271,49 @@ Browser → /api → Backend → /data</pre>
       <div class="wiki-shot-grid">
         <figure class="wiki-shot"><img src="images/labby-backup-config.png" alt="Backup Config" loading="lazy" /><figcaption>Backup Config</figcaption></figure>
       </div>
-      <h2>Where Labby stores its data</h2>
-      <p>The self-hosted version stores application data, the backup encryption key and the encrypted SMB credential under <code>/data</code>. Keep this path attached to a persistent Docker volume or host directory.</p>
+      <h2>Persistent application data</h2>
+      <p>The self-hosted version stores its application data, Backup Config settings, encrypted SMB credential and backup encryption key under <code>/data</code>. Always attach this path to a persistent Docker volume or host directory.</p>
       <pre>volumes:
   - labby-data:/data</pre>
-      <h2>Backup destinations</h2>
-      <p>Open <code>Config → Backup Config</code>. Encrypted <code>.labbybackup</code> files can be written to either of these destinations:</p>
+      <h2>Open Backup Config</h2>
+      <p>Open <code>Config → Backup Config</code> to select a destination, configure the schedule, set retention and review recent backup jobs.</p>
+      <h2>Available destinations</h2>
       <ul>
-        <li><strong>Local</strong>: <code>/data/backups</code> inside the persistent Labby data volume</li>
-        <li><strong>Direct SMB share</strong>: a NAS or Windows share reached directly from inside the container</li>
+        <li><strong>Local storage</strong>: stores encrypted <code>.labbybackup</code> files in <code>/data/backups</code>.</li>
+        <li><strong>Direct SMB share</strong>: sends encrypted backups directly to a NAS or Windows file share.</li>
       </ul>
-      <p>The direct SMB option replaces the old external <code>/config-backup</code> mount workflow. No host-side CIFS mount, privileged container mode or additional bind mount is required.</p>
       <h2>Configure a direct SMB/NAS destination</h2>
       <ol>
         <li>Select <strong>Direct SMB share</strong> as the storage target.</li>
-        <li>Enter the server name or IP address. Enter the share name separately, without a UNC path.</li>
-        <li>Optionally enter a folder inside the share. Labby creates missing folder levels when the account has permission.</li>
-        <li>Enter the username and password, plus a domain or workgroup when required. Port <code>445</code> is the normal default.</li>
-        <li>Enable <strong>Require SMB encryption</strong> when supported by the server. Use guest access only for an intentionally anonymous share.</li>
-        <li>Select <strong>Save settings</strong> and then <strong>Test SMB connection</strong>.</li>
+        <li>Enter the SMB server name or IP address.</li>
+        <li>Enter the share name separately. Do not enter a complete UNC path.</li>
+        <li>Optionally enter a folder inside the share.</li>
+        <li>Enter the username and password. Add a domain or workgroup when the SMB server requires it.</li>
+        <li>Keep port <code>445</code> unless the server uses a different SMB port.</li>
+        <li>Enable <strong>Require SMB encryption</strong> when the server supports encrypted SMB 3 sessions. Use guest access only for an intentionally anonymous share.</li>
+        <li>Select <strong>Save settings</strong>, then use <strong>Test SMB connection</strong>.</li>
       </ol>
-      <p>The container must be able to resolve and reach the SMB server. Firewalls between the Docker host and the NAS must allow the configured SMB port.</p>
-      <h2>Required share permissions</h2>
-      <p>The backup account needs permission to list, create, read and delete files. These rights are required for connection tests, backup uploads, restore, retention cleanup and manual delete.</p>
+      <p>The Labby container must be able to resolve and reach the SMB server over the configured port.</p>
+      <h2>Required SMB permissions</h2>
+      <p>The backup account needs permission to list, create, read and delete files in the selected share and folder. Labby uses these permissions for connection tests, backup uploads, restore operations, retention cleanup and manual deletion.</p>
       <h2>Schedules and retention</h2>
       <ul>
         <li>Run backups hourly, daily or weekly.</li>
         <li>Select the execution time and, for weekly backups, the weekday.</li>
         <li>Keep between 1 and 100 backups.</li>
-        <li>Use <strong>Run backup now</strong> for an immediate encrypted backup.</li>
-        <li>Review recent jobs under <strong>Latest backup logs</strong>.</li>
+        <li>Use <strong>Run backup now</strong> to create an immediate encrypted backup.</li>
+        <li>Review recent activity under <strong>Latest backup logs</strong>.</li>
       </ul>
-      <h2>Password and recovery-key security</h2>
-      <p>The SMB password is encrypted and stored only in the persistent <code>/data</code> volume. It is never returned by the API and is not included in configuration exports.</p>
-      <p>Backup files are encrypted with <code>/data/backup.key</code>. Keep a separate secure copy of this file or back up the complete Labby data volume. A remote <code>.labbybackup</code> file cannot be restored after total loss of the original data volume without the matching key.</p>
-      <h2>Restore and delete</h2>
-      <p>Select the current storage target, refresh the backup list and use <strong>Restore</strong> or <strong>Delete</strong> next to the required file. Restore replaces the active Labby configuration, so create a current backup before restoring an older state.</p>
+      <h2>Credentials and encryption key</h2>
+      <p>The SMB password is encrypted and stored only in the persistent <code>/data</code> volume. It is not returned by the API and is not included in configuration exports.</p>
+      <p>Backup archives are encrypted with <code>/data/backup.key</code>. Preserve the complete Labby data volume or keep a separate secure copy of this key. Encrypted backup files cannot be restored after a complete data-volume loss without the matching key.</p>
+      <h2>Restore or delete a backup</h2>
+      <p>Select the configured destination, refresh the backup list and use <strong>Restore</strong> or <strong>Delete</strong> next to the required file. Restoring replaces the active Labby configuration, so create a current backup before restoring an older state.</p>
       <h2>Manual JSON export</h2>
       <pre>Config → Export Config</pre>
-      <p>JSON export remains useful for migrations and manual snapshots. It includes Backup Config settings, but it does not include the SMB password or the encrypted <code>.labbybackup</code> files.</p>
+      <p>The JSON export remains useful for migrations and manual snapshots. It includes Backup Config settings, but not the SMB password or the encrypted <code>.labbybackup</code> files.</p>
       <h2>Demo mode</h2>
-      <p>The public demo shows Backup Config as a read-only preview. Real scheduled jobs, SMB connection tests, restore and delete actions are available only in the self-hosted version.</p>
-
+      <p>The public demo displays Backup Config as a read-only preview. Scheduled jobs, SMB connection tests, restore and delete actions are available only in the self-hosted version.</p>
     `},
 
     license:{title:'📄 License',content:`
