@@ -5999,7 +5999,7 @@ const rackMobilePaletteFab = document.getElementById('rack-mobile-palette-fab');
 const rackSelectedComponentPill = document.getElementById('rack-selected-component-pill');
 const rackSelectedComponentText = document.getElementById('rack-selected-component-text');
 const rackSelectedComponentClear = document.getElementById('rack-selected-component-clear');
-// rackFormBack removed — dialog now uses inline close buttons
+// rackFormBack removed - dialog now uses inline close buttons
 const phoneGrid         = document.querySelector('.phone-grid');
 
 // ---- Helpers ----
@@ -6019,7 +6019,7 @@ function openDefaultRackWorkspace() {
 }
 
 function showRackOverlay(id) {
-  // Only toggle the full-screen overlays — never the form dialog
+  // Only toggle the full-screen overlays - never the form dialog
   if (id !== 'rack-editor') closeLinkPanel();
   [rackOverview, rackEditor].forEach(el => el && el.classList.add('hidden'));
   if (id !== 'rack-editor') closeRackPaletteSheet();
@@ -6050,7 +6050,7 @@ function renderRackOverview() {
   if (!rackOverviewBody) return;
   rackOverviewBody.innerHTML = '';
 
-  // Inner wrapper — same max-width as dashboard
+  // Inner wrapper - same max-width as dashboard
   const inner = document.createElement('div');
   inner.className = 'rack-overview-inner';
   rackOverviewBody.appendChild(inner);
@@ -6173,7 +6173,7 @@ function showRackContextMenu(x, y, rack, onDelete) {
     <div class="rack-ctx-item danger" id="ctx-delete">🗑 Delete Rack</div>
   `;
 
-  // Position — keep inside viewport
+  // Position - keep inside viewport
   menu.style.left = Math.min(x, window.innerWidth  - 200) + 'px';
   menu.style.top  = Math.min(y, window.innerHeight - 150) + 'px';
   document.body.appendChild(menu);
@@ -6569,7 +6569,7 @@ function createEmptySlot(side, u, rack) {
   el.className = 'rack-slot empty';
   el.dataset.u    = u;
   el.dataset.side = side;
-  el.innerHTML = `<span class="rack-slot-num">${u}</span><div class="rack-slot-content"><span class="rack-slot-label">— empty —</span></div>`;
+  el.innerHTML = `<span class="rack-slot-num">${u}</span><div class="rack-slot-content"><span class="rack-slot-label">- empty -</span></div>`;
 
   el.addEventListener('dragover', e => {
     e.preventDefault();
@@ -6610,13 +6610,13 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
   el.style.setProperty('min-height', totalH + 'px', 'important');
   el.style.setProperty('max-height', totalH + 'px', 'important');
 
-  // Build device label(s) — consistent plain-text style for all types
+  // Build device label(s) - consistent plain-text style for all types
   let deviceHtml = '';
   if (comp.multiDevice && comp.linkedDevices) {
     // Same plain style as single-device, each PC on its own .rack-slot-device line
     const lines = comp.linkedDevices.map((id, i) => {
       const dev = id ? findById(id) : null;
-      const name = dev ? escapeHtml((dev.symbol || '') + ' ' + dev.name) : '—';
+      const name = dev ? escapeHtml((dev.symbol || '') + ' ' + dev.name) : '-';
       return `<span class="rack-slot-device"><span class="rack-slot-device-idx">${i + 1}.</span> ${name}</span>`;
     }).join('');
     deviceHtml = `<div class="rack-multi-lines">${lines}</div>`;
@@ -6686,7 +6686,7 @@ function canFit(side, startU, heightU, rack, excludeSlot) {
 // ---- Link panel ----
 // The panel is rendered as a FIXED overlay appended to body so it never
 // gets clipped by overflow:hidden ancestors (rack-frame, rack-editor-body).
-// Closing: only via OK / Skip / Escape — NO outside-click-to-close, because
+// Closing: only via OK / Skip / Escape - NO outside-click-to-close, because
 // that interferes with native <select> dropdowns on every platform.
 
 
@@ -6778,7 +6778,7 @@ function showLinkPanel(slotKey, side) {
         <div class="rack-link-row">
           <span class="rack-link-row-label">PC ${i + 1}:</span>
           <select class="rack-link-multi" data-idx="${i}">
-            <option value="">— none —</option>${buildHwOpts(devs[i])}
+            <option value="">- none -</option>${buildHwOpts(devs[i])}
           </select>
         </div>`;
     }
@@ -6821,7 +6821,7 @@ function showLinkPanel(slotKey, side) {
         <div class="rack-link-row">
           <span class="rack-link-row-label">Port ${i + 1}:</span>
           <select class="rack-switch-port" data-port="${i}">
-            <option value="">— empty —</option>${buildHwOpts(comp.switchPortLinks[i] || null)}
+            <option value="">- empty -</option>${buildHwOpts(comp.switchPortLinks[i] || null)}
           </select>
         </div>`).join('');
     }
@@ -6830,7 +6830,7 @@ function showLinkPanel(slotKey, side) {
         <div class="rack-link-row">
           <span class="rack-link-row-label">${expectedKind === 'router-gateway' ? 'Router / Gateway:' : 'Switch:'}</span>
           <select id="rack-switch-device">
-            <option value="">— none —</option>${buildSwitchOpts(comp.linkedDeviceId)}
+            <option value="">- none -</option>${buildSwitchOpts(comp.linkedDeviceId)}
           </select>
         </div>
         <div id="rack-switch-port-rows">${buildSwitchPortRows()}</div>
@@ -6869,7 +6869,7 @@ function showLinkPanel(slotKey, side) {
         <div class="rack-link-row">
           <span class="rack-link-row-label">Port ${i + 1}:</span>
           <select class="rack-pdu-port" data-port="${i}">
-            <option value="">— empty —</option>${buildHwOpts(pduLinks[i] || null)}
+            <option value="">- empty -</option>${buildHwOpts(pduLinks[i] || null)}
           </select>
         </div>`).join('');
     }
@@ -6912,7 +6912,7 @@ function showLinkPanel(slotKey, side) {
       <div class="rack-link-row">
         <span class="rack-link-row-label">Gerät:</span>
         <select id="rack-link-select">
-          <option value="">— none —</option>${buildHwOpts(comp.linkedDeviceId)}
+          <option value="">- none -</option>${buildHwOpts(comp.linkedDeviceId)}
         </select>
       </div>
       <div class="rack-link-actions">
@@ -6939,7 +6939,7 @@ function showRackLinkModal(slotKey, side, comp) {
   const hardwareItems = items.filter(i => i.type === 'hardware');
   const deviceName = id => {
     const itm = hardwareItems.find(h => h.id === id);
-    return itm ? `${itm.symbol || ''} ${itm.name}`.trim() : '— empty —';
+    return itm ? `${itm.symbol || ''} ${itm.name}`.trim() : '- empty -';
   };
   const escapeAttr = v => escapeHtml(String(v || ''));
 
@@ -6957,7 +6957,7 @@ function showRackLinkModal(slotKey, side, comp) {
     picker.className = 'rack-device-picker';
     picker.id = 'rack-device-picker-active';
     const choices = [
-      `<button class="rack-device-choice ${!selectedId ? 'selected' : ''}" data-id="" type="button">— empty —</button>`,
+      `<button class="rack-device-choice ${!selectedId ? 'selected' : ''}" data-id="" type="button">- empty -</button>`,
       ...choiceItems.map(itm => `<button class="rack-device-choice ${selectedId === itm.id ? 'selected' : ''}" data-id="${escapeAttr(itm.id)}" type="button">${escapeHtml(`${itm.symbol || ''} ${itm.name}`.trim())}${['router-gateway', 'switch'].includes(itm.hardwareKind) && itm.switchPorts ? ` · ${escapeHtml(String(itm.switchPorts))} ports` : ''}</button>`)
     ].join('');
     picker.innerHTML = `
@@ -7104,7 +7104,7 @@ function closeLinkPanel() {
   rackLinkPanelTarget = null;
 }
 
-// Close panel with Escape key only — no outside-click, no mousedown tricks
+// Close panel with Escape key only - no outside-click, no mousedown tricks
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && rackLinkPanelTarget) closeLinkPanel();
 });
@@ -7151,7 +7151,7 @@ function equaliseRackHeights() {
   const diff = targetH - shorter.scrollHeight;
   const emptySlots = shorter.querySelectorAll('.rack-slot.empty');
   if (emptySlots.length === 0) {
-    // No empty slots to expand — just set minHeight on the frame
+    // No empty slots to expand - just set minHeight on the frame
     shorter.style.minHeight = targetH + 'px';
     return;
   }

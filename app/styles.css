@@ -1317,7 +1317,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   flex-direction: column;
   overflow: hidden;
 }
-/* Wave layer — mirrors body::before so the split background appears */
+/* Wave layer - mirrors body::before so the split background appears */
 .rack-overlay::before {
   content: '';
   position: absolute;
@@ -1384,7 +1384,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   flex-direction: column;
   gap: 0;
 }
-/* Inner wrapper — same max-width as dashboard */
+/* Inner wrapper - same max-width as dashboard */
 .rack-overview-inner {
   width: min(80vw, 1920px);
   margin: 0 auto;
@@ -1393,7 +1393,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   gap: 1rem;
   flex: 1;
 }
-/* Floating top bar — title + action buttons, no background */
+/* Floating top bar - title + action buttons, no background */
 .rack-ov-topbar {
   display: flex;
   align-items: center;
@@ -1417,7 +1417,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .rack-ov-btn-rack { background: var(--yellow); }
 .rack-ov-btn-close { background: var(--panel); color: var(--text); }
 
-/* Rounded panel — mirrors dashboard .phone style */
+/* Rounded panel - mirrors dashboard .phone style */
 .rack-ov-panel {
   background: color-mix(in srgb, var(--phone) 92%, white);
   border: 3px solid var(--line);
@@ -1673,12 +1673,12 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 }
 
 /* ── Rack slots ──────────────────────────────────────────────── */
-/* 1U base height — CSS custom property so JS can read/set it */
+/* 1U base height - CSS custom property so JS can read/set it */
 :root { --rack-u-height: clamp(28px, 1.8vh, 42px); }
 
 .rack-slot {
   border-bottom: 1px solid color-mix(in srgb, var(--line) 40%, transparent);
-  /* FIXED height — every 1U row is identical regardless of content */
+  /* FIXED height - every 1U row is identical regardless of content */
   height: var(--rack-u-height);
   min-height: var(--rack-u-height);
   max-height: var(--rack-u-height);
@@ -1704,7 +1704,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   align-self: center;
 }
 
-/* Content cell — clips overflow so it never pushes row height */
+/* Content cell - clips overflow so it never pushes row height */
 .rack-slot-content {
   grid-column: 2;
   display: flex;
@@ -1804,7 +1804,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .rack-slot.occupied.cat-mgmt:hover     { filter: brightness(0.94); }
 .rack-slot.occupied.cat-filler:hover   { filter: none; }
 
-/* U-count badge on occupied slots — always visible */
+/* U-count badge on occupied slots - always visible */
 .rack-slot.occupied .rack-slot-num {
   font-weight: 700;
   color: var(--text);
@@ -1842,7 +1842,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .rack-palette-section:first-child { margin-top: 0; padding-top: 0.2rem; }
 
 /* Multi-device tags inside a slot */
-/* Multi-device lines — same plain style as single device */
+/* Multi-device lines - same plain style as single device */
 .rack-multi-lines {
   display: flex;
   flex-direction: column;
@@ -3248,7 +3248,7 @@ dialog[open] {
   }
 }
 
-/* v6: Graph readability — use a real panning canvas instead of squeezing nodes together. */
+/* v6: Graph readability - use a real panning canvas instead of squeezing nodes together. */
 .graph-wrap {
   justify-content: start !important;
   align-items: start !important;
