@@ -8041,3 +8041,10 @@ dialog.rack-form-dialog:not([open]) {
   .backup-actions-row { grid-template-columns: 1fr; }
   .backup-smb-settings { padding: 0.65rem; }
 }
+
+/* Ensure conditional backup schedule fields stay hidden despite grid label rules. */
+.backup-schedule-field[hidden],
+.backup-schedule-field.hidden,
+[data-backup-test-smb][hidden] {
+  display: none !important;
+}
