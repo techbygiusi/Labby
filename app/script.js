@@ -906,6 +906,10 @@ function backupPanelHtml(status) {
   const passwordHint = cfg.smbPasswordConfigured || smb.passwordConfigured
     ? 'Password is saved encrypted. Leave this empty to keep it.'
     : 'Enter the password for the SMB account.';
+  const frequency = cfg.frequency || 'daily';
+  const configuredTime = String(cfg.time || '02:00');
+  const scheduledTime = /^\d{2}:\d{2}$/.test(configuredTime) ? configuredTime : '02:00';
+  const hourlyMinute = Number.parseInt(scheduledTime.split(':')[1] || '0', 10);
   const logs = Array.isArray(status?.logs) && status.logs.length
     ? status.logs.map(log => `<li class="backup-log-${escapeAttr(log.level)}"><strong>${escapeHtml(formatBackupDate(log.at))}</strong><span>${escapeHtml(log.message)}</span></li>`).join('')
     : '<li><span>No backup logs yet.</span></li>';
@@ -915,39 +919,74 @@ function backupPanelHtml(status) {
 
   return `
     <section class="backup-config-panel">
-      <p class="note config-intro">Create encrypted scheduled backups of the complete Labby configuration. Local backups stay in the data volume; SMB backups connect directly to the share without a Docker bind mount.</p>
+      <div class="backup-card backup-hero-card">
+        <div class="backup-card-header">
+          <div>
+            <div class="backup-card-title">Backup plan</div>
+            <div class="backup-card-subtitle">Encrypted backups for the complete Labby configuration.</div>
+          </div>
+        </div>
+        <div class="backup-chip-row">
+          <span class="backup-chip">Local: ${escapeHtml(targets.local?.path || '/data/backups')}</span>
+          <span class="backup-chip">SMB: direct share access</span>
+          <span class="backup-chip">Last run: ${escapeHtml(formatBackupDate(cfg.lastRunAt))}</span>
+        </div>
+      </div>
       ${demoNotice}
-      <div class="backup-form-grid">
-        <label class="backup-toggle-row"><input data-backup-field="enabled" type="checkbox" ${cfg.enabled ? 'checked' : ''}${disabledAttr} /> Enable regular backups</label>
-        <label>Schedule
-          <select data-backup-field="frequency"${disabledAttr}>
-            <option value="hourly" ${cfg.frequency === 'hourly' ? 'selected' : ''}>Hourly</option>
-            <option value="daily" ${cfg.frequency === 'daily' ? 'selected' : ''}>Daily</option>
-            <option value="weekly" ${cfg.frequency === 'weekly' ? 'selected' : ''}>Weekly</option>
-          </select>
-        </label>
-        <label>Time / minute
-          <input data-backup-field="time" type="time" value="${escapeAttr(cfg.time || '02:00')}"${disabledAttr} />
-        </label>
-        <label>Weekly day
-          <select data-backup-field="weekday"${disabledAttr}>
-            ${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((day, idx) => `<option value="${idx}" ${String(cfg.weekday || '1') === String(idx) ? 'selected' : ''}>${day}</option>`).join('')}
-          </select>
-        </label>
-        <label>Storage target
-          <select data-backup-field="target" data-current-target="${escapeAttr(currentTarget)}"${disabledAttr}>
-            <option value="local" ${currentTarget === 'local' ? 'selected' : ''}>${escapeHtml(targets.local?.label || 'Local (/data/backups)')}</option>
-            <option value="smb" ${currentTarget === 'smb' ? 'selected' : ''}>Direct SMB share</option>
-          </select>
-        </label>
-        <label>Max backups to keep
-          <input data-backup-field="maxBackups" type="number" min="1" max="100" value="${escapeAttr(cfg.maxBackups || 10)}"${disabledAttr} />
-        </label>
+
+      <div class="backup-card backup-schedule-card">
+        <div class="backup-card-header">
+          <div>
+            <div class="backup-card-title">Schedule</div>
+            <div class="backup-card-subtitle">Choose when Labby should create backups.</div>
+          </div>
+        </div>
+        <div class="backup-form-grid backup-schedule-grid">
+          <label class="backup-checkbox-card backup-grid-span-2">
+            <input data-backup-field="enabled" type="checkbox" ${cfg.enabled ? 'checked' : ''}${disabledAttr} />
+            <span>
+              <strong>Enable scheduled backups</strong>
+              <small>Turn the backup job on or off.</small>
+            </span>
+          </label>
+          <label>Schedule type
+            <select data-backup-field="frequency"${disabledAttr}>
+              <option value="hourly" ${frequency === 'hourly' ? 'selected' : ''}>Hourly</option>
+              <option value="daily" ${frequency === 'daily' ? 'selected' : ''}>Daily</option>
+              <option value="weekly" ${frequency === 'weekly' ? 'selected' : ''}>Weekly</option>
+            </select>
+          </label>
+          <label>Storage target
+            <select data-backup-field="target" data-current-target="${escapeAttr(currentTarget)}"${disabledAttr}>
+              <option value="local" ${currentTarget === 'local' ? 'selected' : ''}>${escapeHtml(targets.local?.label || 'Local (/data/backups)')}</option>
+              <option value="smb" ${currentTarget === 'smb' ? 'selected' : ''}>Direct SMB share</option>
+            </select>
+          </label>
+          <label data-backup-schedule-field="hourlyMinute">Minute of the hour
+            <input data-backup-field="hourlyMinute" type="number" min="0" max="59" value="${escapeAttr(Number.isFinite(hourlyMinute) ? hourlyMinute : 0)}"${disabledAttr} />
+          </label>
+          <label data-backup-schedule-field="scheduledTime">Time
+            <input data-backup-field="scheduledTime" type="time" value="${escapeAttr(scheduledTime)}"${disabledAttr} />
+          </label>
+          <label data-backup-schedule-field="weekday">Day of the week
+            <select data-backup-field="weekday"${disabledAttr}>
+              ${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((day, idx) => `<option value="${idx}" ${String(cfg.weekday || '1') === String(idx) ? 'selected' : ''}>${day}</option>`).join('')}
+            </select>
+          </label>
+          <label>Max backups to keep
+            <input data-backup-field="maxBackups" type="number" min="1" max="100" value="${escapeAttr(cfg.maxBackups || 10)}"${disabledAttr} />
+          </label>
+        </div>
       </div>
 
-      <div class="backup-smb-settings" data-smb-settings ${currentTarget === 'smb' ? '' : 'hidden'}>
-        <div class="backup-section-title">Direct SMB destination</div>
-        <div class="backup-form-grid">
+      <div class="backup-card backup-smb-settings" data-smb-settings ${currentTarget === 'smb' ? '' : 'hidden'}>
+        <div class="backup-card-header">
+          <div>
+            <div class="backup-card-title">Direct SMB destination</div>
+            <div class="backup-card-subtitle">Configure the share Labby should use for remote backups.</div>
+          </div>
+        </div>
+        <div class="backup-form-grid backup-smb-grid">
           <label>Server / IP
             <input data-backup-field="smbServer" type="text" autocomplete="off" placeholder="nas.example.local" value="${escapeAttr(cfg.smbServer || '')}"${disabledAttr} />
           </label>
@@ -966,29 +1005,57 @@ function backupPanelHtml(status) {
           <label>Domain / workgroup
             <input data-backup-field="smbDomain" type="text" autocomplete="off" placeholder="Optional" value="${escapeAttr(cfg.smbDomain || '')}"${disabledAttr} />
           </label>
-          <label>SMB password
+          <label class="backup-grid-span-2">SMB password
             <input data-backup-field="smbPassword" type="password" autocomplete="new-password" placeholder="${escapeAttr(passwordHint)}"${disabledAttr} />
           </label>
-          <label class="backup-toggle-row backup-inline-toggle"><input data-backup-field="clearSmbPassword" type="checkbox"${disabledAttr} /> Clear saved password</label>
-          <label class="backup-toggle-row backup-inline-toggle"><input data-backup-field="smbEncrypt" type="checkbox" ${cfg.smbEncrypt ? 'checked' : ''}${disabledAttr} /> Require SMB encryption</label>
-          <label class="backup-toggle-row backup-inline-toggle"><input data-backup-field="smbGuest" type="checkbox" ${cfg.smbGuest ? 'checked' : ''}${disabledAttr} /> Use guest access</label>
+          <label class="backup-checkbox-card">
+            <input data-backup-field="clearSmbPassword" type="checkbox"${disabledAttr} />
+            <span>
+              <strong>Clear saved password</strong>
+              <small>Remove the currently stored SMB password on save.</small>
+            </span>
+          </label>
+          <label class="backup-checkbox-card">
+            <input data-backup-field="smbEncrypt" type="checkbox" ${cfg.smbEncrypt ? 'checked' : ''}${disabledAttr} />
+            <span>
+              <strong>Require SMB encryption</strong>
+              <small>Use encrypted transport when the server supports it.</small>
+            </span>
+          </label>
+          <label class="backup-checkbox-card backup-grid-span-2">
+            <input data-backup-field="smbGuest" type="checkbox" ${cfg.smbGuest ? 'checked' : ''}${disabledAttr} />
+            <span>
+              <strong>Use guest access</strong>
+              <small>Disable username and password fields for guest logins.</small>
+            </span>
+          </label>
         </div>
-        <p class="note backup-smb-note">The SMB password is encrypted with Labby's backup key and stored only inside the persistent <code>/data</code> volume. It is never returned by the API or included in exports.</p>
+        <p class="note backup-smb-note">The SMB password is encrypted with Labby's backup key and stored only inside the persistent <code>/data</code> volume.</p>
       </div>
 
-      <div class="backup-status-card">
-        <strong>${escapeHtml(describeBackupSchedule(cfg))}</strong>
-        <span>Last backup: ${escapeHtml(formatBackupDate(cfg.lastRunAt))}</span>
-        <span>Local path: ${escapeHtml(targets.local?.path || '/data/backups')}</span>
-        <span>SMB target: ${escapeHtml(smb.path || 'Not configured')} · ${escapeHtml(smbState)}</span>
-        ${smb.error && !smb.available ? `<span>SMB status: ${escapeHtml(smb.error)}</span>` : ''}
+      <div class="backup-card backup-status-card">
+        <div class="backup-card-header">
+          <div>
+            <div class="backup-card-title">Current status</div>
+            <div class="backup-card-subtitle">Quick overview of the active backup setup.</div>
+          </div>
+        </div>
+        <div class="backup-status-grid">
+          <div><strong>Schedule</strong><span>${escapeHtml(describeBackupSchedule(cfg))}</span></div>
+          <div><strong>Target</strong><span>${escapeHtml(currentTarget === 'smb' ? 'Direct SMB share' : (targets.local?.label || 'Local storage'))}</span></div>
+          <div><strong>Local path</strong><span>${escapeHtml(targets.local?.path || '/data/backups')}</span></div>
+          <div><strong>SMB state</strong><span>${escapeHtml(smb.path || 'Not configured')} · ${escapeHtml(smbState)}</span></div>
+          ${smb.error && !smb.available ? `<div class="backup-grid-span-2"><strong>SMB message</strong><span>${escapeHtml(smb.error)}</span></div>` : ''}
+        </div>
       </div>
+
       <div class="backup-actions-row">
         <button class="button" type="button" data-backup-save${disabledAttr}>Save settings</button>
         <button class="button secondary" type="button" data-backup-test-smb${disabledAttr}>Test SMB connection</button>
         <button class="button secondary" type="button" data-backup-run${disabledAttr}>Run backup now</button>
         <button class="button secondary" type="button" data-backup-refresh>Refresh</button>
       </div>
+
       <div class="backup-section-title">Restore encrypted backups</div>
       <ul class="backup-list">${backups}</ul>
       <div class="backup-section-title">Latest backup logs</div>
@@ -999,10 +1066,17 @@ function backupPanelHtml(status) {
 
 function readBackupForm(container) {
   const get = (name) => container.querySelector(`[data-backup-field="${name}"]`);
+  const frequency = get('frequency')?.value || 'daily';
+  const scheduledTime = get('scheduledTime')?.value || '02:00';
+  const rawMinute = Number.parseInt(get('hourlyMinute')?.value || '0', 10);
+  const minute = Number.isFinite(rawMinute) ? Math.max(0, Math.min(59, rawMinute)) : 0;
+  const time = frequency === 'hourly'
+    ? `00:${String(minute).padStart(2, '0')}`
+    : scheduledTime;
   return {
     enabled: !!get('enabled')?.checked,
-    frequency: get('frequency')?.value || 'daily',
-    time: get('time')?.value || '02:00',
+    frequency,
+    time,
     weekday: get('weekday')?.value || '1',
     target: get('target')?.value || 'local',
     maxBackups: Number.parseInt(get('maxBackups')?.value || '10', 10),
@@ -1028,10 +1102,21 @@ async function backupApiError(res, fallback) {
   }
 }
 
-function updateBackupSmbControls(container) {
+function updateBackupPanelState(container) {
   const target = container.querySelector('[data-backup-field="target"]')?.value || 'local';
+  const frequency = container.querySelector('[data-backup-field="frequency"]')?.value || 'daily';
   const smbBox = container.querySelector('[data-smb-settings]');
   if (smbBox) smbBox.hidden = target !== 'smb';
+  const testButton = container.querySelector('[data-backup-test-smb]');
+  if (testButton) testButton.hidden = target !== 'smb';
+
+  const hourlyField = container.querySelector('[data-backup-schedule-field="hourlyMinute"]');
+  const timeField = container.querySelector('[data-backup-schedule-field="scheduledTime"]');
+  const weekdayField = container.querySelector('[data-backup-schedule-field="weekday"]');
+  if (hourlyField) hourlyField.hidden = frequency !== 'hourly';
+  if (timeField) timeField.hidden = frequency === 'hourly';
+  if (weekdayField) weekdayField.hidden = frequency !== 'weekly';
+
   const guest = !!container.querySelector('[data-backup-field="smbGuest"]')?.checked;
   ['smbUsername', 'smbDomain', 'smbPassword', 'clearSmbPassword'].forEach((name) => {
     const field = container.querySelector(`[data-backup-field="${name}"]`);
@@ -1040,8 +1125,9 @@ function updateBackupSmbControls(container) {
 }
 
 function bindBackupPanel(container) {
-  container.querySelector('[data-backup-field="target"]')?.addEventListener('change', () => updateBackupSmbControls(container));
-  container.querySelector('[data-backup-field="smbGuest"]')?.addEventListener('change', () => updateBackupSmbControls(container));
+  container.querySelector('[data-backup-field="target"]')?.addEventListener('change', () => updateBackupPanelState(container));
+  container.querySelector('[data-backup-field="frequency"]')?.addEventListener('change', () => updateBackupPanelState(container));
+  container.querySelector('[data-backup-field="smbGuest"]')?.addEventListener('change', () => updateBackupPanelState(container));
 
   container.querySelector('[data-backup-save]')?.addEventListener('click', async () => {
     try {
@@ -1105,7 +1191,7 @@ function bindBackupPanel(container) {
       } catch (err) { showToast(err.message || 'Could not delete backup.', 'error'); console.warn(err); }
     });
   });
-  updateBackupSmbControls(container);
+  updateBackupPanelState(container);
 }
 
 async function renderBackupConfigPanels() {
@@ -3055,6 +3141,10 @@ function renderCliTerminalState() {
   const state = cliTerminalState;
   const lines = state.buffer.map((line) => line.join('').replace(/\s+$/g, ''));
   const text = lines.join('\n').replace(/\n+$/g, '');
+  // Keep copy output synchronized with the rendered terminal screen instead of
+  // the raw stream. Progress renderers reuse lines with carriage returns and
+  // cursor movement, so appending normalized text would duplicate every frame.
+  cliPlainOutputBuffer = text;
   [cliTerminal, mobileCliTerminal].filter(Boolean).forEach((terminal) => {
     terminal.textContent = text;
     terminal.scrollTop = terminal.scrollHeight;
@@ -3062,10 +3152,15 @@ function renderCliTerminalState() {
 }
 
 function setCliOutput(text, append = false) {
-  const value = normalizeCliPlainOutput(text);
-  cliPlainOutputBuffer = append ? cliPlainOutputBuffer + value : value;
-  if (cliPlainOutputBuffer.length > 200000) cliPlainOutputBuffer = cliPlainOutputBuffer.slice(-100000);
-  renderCliPlainOutput();
+  const value = String(text || '');
+  if (!append) {
+    cliTerminalState = createCliTerminalState();
+    cliPlainOutputBuffer = '';
+  }
+  // Feed the raw SSH stream into the terminal-state parser. This preserves
+  // carriage returns, erase-line commands and cursor movement used by apt,
+  // Docker BuildKit and other installers to update progress in place.
+  appendCliTerminalChunk(value);
 }
 
 async function openCliSession(item, options = {}) {
