@@ -8054,8 +8054,12 @@ dialog.rack-form-dialog:not([open]) {
 }
 
 .demo-banner-track {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
   white-space: nowrap;
+  text-align: center;
 }
 
 .demo-banner-message {
