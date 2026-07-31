@@ -962,13 +962,13 @@ function backupPanelHtml(status) {
               <option value="smb" ${currentTarget === 'smb' ? 'selected' : ''}>Direct SMB share</option>
             </select>
           </label>
-          <label data-backup-schedule-field="hourlyMinute">Minute of the hour
+          <label class="backup-schedule-field" data-backup-schedule-field="hourlyMinute"${frequency === 'hourly' ? '' : ' hidden'}>Minute of the hour
             <input data-backup-field="hourlyMinute" type="number" min="0" max="59" value="${escapeAttr(Number.isFinite(hourlyMinute) ? hourlyMinute : 0)}"${disabledAttr} />
           </label>
-          <label data-backup-schedule-field="scheduledTime">Time
+          <label class="backup-schedule-field" data-backup-schedule-field="scheduledTime"${frequency === 'hourly' ? ' hidden' : ''}>Time
             <input data-backup-field="scheduledTime" type="time" value="${escapeAttr(scheduledTime)}"${disabledAttr} />
           </label>
-          <label data-backup-schedule-field="weekday">Day of the week
+          <label class="backup-schedule-field" data-backup-schedule-field="weekday"${frequency === 'weekly' ? '' : ' hidden'}>Day of the week
             <select data-backup-field="weekday"${disabledAttr}>
               ${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((day, idx) => `<option value="${idx}" ${String(cfg.weekday || '1') === String(idx) ? 'selected' : ''}>${day}</option>`).join('')}
             </select>
@@ -1113,9 +1113,14 @@ function updateBackupPanelState(container) {
   const hourlyField = container.querySelector('[data-backup-schedule-field="hourlyMinute"]');
   const timeField = container.querySelector('[data-backup-schedule-field="scheduledTime"]');
   const weekdayField = container.querySelector('[data-backup-schedule-field="weekday"]');
-  if (hourlyField) hourlyField.hidden = frequency !== 'hourly';
-  if (timeField) timeField.hidden = frequency === 'hourly';
-  if (weekdayField) weekdayField.hidden = frequency !== 'weekly';
+  const setScheduleFieldVisible = (field, visible) => {
+    if (!field) return;
+    field.hidden = !visible;
+    field.classList.toggle('hidden', !visible);
+  };
+  setScheduleFieldVisible(hourlyField, frequency === 'hourly');
+  setScheduleFieldVisible(timeField, frequency !== 'hourly');
+  setScheduleFieldVisible(weekdayField, frequency === 'weekly');
 
   const guest = !!container.querySelector('[data-backup-field="smbGuest"]')?.checked;
   ['smbUsername', 'smbDomain', 'smbPassword', 'clearSmbPassword'].forEach((name) => {

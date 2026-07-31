@@ -8118,3 +8118,10 @@ dialog.rack-form-dialog:not([open]) {
     display: none;
   }
 }
+
+/* Ensure conditional backup schedule fields stay hidden despite grid label rules. */
+.backup-schedule-field[hidden],
+.backup-schedule-field.hidden,
+[data-backup-test-smb][hidden] {
+  display: none !important;
+}
