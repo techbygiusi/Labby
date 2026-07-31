@@ -17,8 +17,6 @@
 
 const storageKey = 'labby-data-v8';
 const themeKey = 'labby-theme';
-const demoStorageVersionKey = 'labby-demo-storage-version';
-const demoStorageVersion = '2026-v61-demo-sync';
 const types = ['hardware', 'vm', 'lxc', 'app', 'network'];
 const networkPalette = ['#3b82f6', '#10b981', '#22c55e', '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#a855f7', '#14b8a6', '#84cc16', '#06b6d4', '#8b5cf6'];
 
@@ -28,8 +26,6 @@ const form = document.getElementById('resource-form');
 const typeSelect = document.getElementById('type');
 const symbolInput = document.getElementById('symbol');
 const clearAll = document.getElementById('clear-all');
-const seedDemo = document.getElementById('seed-demo');
-const seedDemoMobile = document.getElementById('seed-demo-mobile');
 const template = document.getElementById('item-template');
 const hostedOnSelect = document.getElementById('hosted-on');
 const hostedOnWrap = document.getElementById('hosted-on-wrap');
@@ -192,7 +188,6 @@ let importedAgentKeysForSave = null;
 let importedBackupConfigForSave = null;
 let importedBackupLogsForSave = null;
 const agentKeyStorage = 'labby-agent-keys';
-const DEMO_INTERACTIVE_SECURITY_DISABLED = true;
 const agentScopes = [
   ['inventory:read', 'Read inventory'],
   ['inventory:write', 'Write inventory'],
@@ -223,38 +218,62 @@ const API_BASE = (() => {
 
 async function loadItemsFromAPI() {
   try {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return { items: [], locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [], backupConfig: null, backupLogs: [] };
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return { items: parsed, locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [] };
+    const res = await fetch(`${API_BASE}/api/data`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      // Legacy: bare array
+      return { items: data, locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [], backupConfig: null, backupLogs: [] };
+    }
     return {
-      items: Array.isArray(parsed.items) ? parsed.items : [],
-      locations: Array.isArray(parsed.locations) ? parsed.locations : [],
-      racks: Array.isArray(parsed.racks) ? parsed.racks : [],
-      agentStatus: parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {},
-      agentKeys: Array.isArray(parsed.agentKeys) ? parsed.agentKeys : [],
-      commandSnippets: Array.isArray(parsed.commandSnippets) ? parsed.commandSnippets : [],
+      items: Array.isArray(data.items) ? data.items : [],
+      locations: Array.isArray(data.locations) ? data.locations : [],
+      racks: Array.isArray(data.racks) ? data.racks : [],
+      agentStatus: data.agentStatus && typeof data.agentStatus === 'object' ? data.agentStatus : {},
+      agentKeys: Array.isArray(data.agentKeys) ? data.agentKeys : [],
+      commandSnippets: Array.isArray(data.commandSnippets) ? data.commandSnippets : [],
+      backupConfig: data.backupConfig && typeof data.backupConfig === 'object' ? data.backupConfig : null,
+      backupLogs: Array.isArray(data.backupLogs) ? data.backupLogs : [],
     };
-  } catch {
-    return { items: [], locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [], backupConfig: null, backupLogs: [] };
+  } catch (err) {
+    console.warn('Labby: API not reachable, falling back to localStorage.', err);
+    try {
+      const raw = localStorage.getItem(storageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      const lsItems = Array.isArray(parsed) ? parsed : (parsed.items || []);
+      const lsLocations = Array.isArray(parsed) ? [] : (parsed.locations || []);
+      const lsRacks = Array.isArray(parsed) ? [] : (parsed.racks || []);
+      return { items: lsItems, locations: lsLocations, racks: lsRacks, agentStatus: parsed.agentStatus || {}, commandSnippets: Array.isArray(parsed.commandSnippets) ? parsed.commandSnippets : [], backupConfig: parsed.backupConfig && typeof parsed.backupConfig === 'object' ? parsed.backupConfig : null, backupLogs: Array.isArray(parsed.backupLogs) ? parsed.backupLogs : [] };
+    } catch {
+      return { items: [], locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [], backupConfig: null, backupLogs: [] };
+    }
   }
 }
 
 async function saveItemsToAPI(itemList) {
   const payload = {
     items: itemList,
-    locations,
-    racks,
+    locations: locations,
+    racks: racks,
     agentStatus: liveStatusData,
     commandSnippets: commandSnippets,
   };
   if (Array.isArray(importedAgentKeysForSave)) payload.agentKeys = importedAgentKeysForSave;
   if (importedBackupConfigForSave && typeof importedBackupConfigForSave === 'object') payload.backupConfig = importedBackupConfigForSave;
   if (Array.isArray(importedBackupLogsForSave)) payload.backupLogs = importedBackupLogsForSave;
-  try { localStorage.setItem(storageKey, JSON.stringify(payload)); } catch {}
-  if (Array.isArray(importedAgentKeysForSave)) {
-    setLocalAgentKeys(importedAgentKeysForSave);
-    importedAgentKeysForSave = null;
+  try {
+    const res = await fetch(`${API_BASE}/api/data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (Array.isArray(importedAgentKeysForSave)) importedAgentKeysForSave = null;
+    importedBackupConfigForSave = null;
+    importedBackupLogsForSave = null;
+  } catch (err) {
+    console.warn('Labby: API save failed, writing to localStorage as fallback.', err);
+    try { localStorage.setItem(storageKey, JSON.stringify(payload)); } catch {}
   }
 }
 
@@ -273,103 +292,17 @@ initAdvancedResourceSettings();
 applyTypeVisibility();
 
 (async () => {
-  await seedFullDemoData();
-  initAgentApiPanel();
-  render();
-  startPolling();
-  openDemoTutorialAfterLayout();
-})();
-
-function migrateDemoDataTo192Subnets() {
-  const replaceValue = (value) => {
-    if (typeof value !== 'string') return value;
-    return value
-      .replaceAll('10.10.0.', '192.168.10.')
-      .replaceAll('10.20.0.', '192.168.20.')
-      .replaceAll('10.40.0.', '192.168.40.');
-  };
-  const walk = (value) => {
-    if (Array.isArray(value)) return value.map(walk);
-    if (value && typeof value === 'object') {
-      Object.keys(value).forEach((key) => { value[key] = walk(value[key]); });
-      return value;
-    }
-    return replaceValue(value);
-  };
-  items = walk(items);
-  locations = walk(locations);
-  racks = walk(racks);
-}
-
-function ensureDemoRackData() {
-  if (!Array.isArray(locations) || !locations.length) locations = getDemoLocations();
-  if (!Array.isArray(racks) || !racks.length) racks = getDemoRacks();
-}
-
-function isDemoDataMissingOrStale(loaded) {
-  const version = localStorage.getItem(demoStorageVersionKey);
-  const loadedItems = Array.isArray(loaded?.items) ? loaded.items : [];
-  const loadedLocations = Array.isArray(loaded?.locations) ? loaded.locations : [];
-  const loadedRacks = Array.isArray(loaded?.racks) ? loaded.racks : [];
-  if (version !== demoStorageVersion) return true;
-  if (!loadedItems.length) return true;
-  if (!loadedItems.some((item) => item.id === 'hw-router' || item.id === 'hw-proxmox')) return true;
-  if (!loadedLocations.length) return true;
-  if (!loadedRacks.length) return true;
-  return false;
-}
-
-async function seedFullDemoData({ force = false } = {}) {
   const loaded = await loadItemsFromAPI();
-  const loadedCommandSnippets = normalizeCommandSnippets(loaded.commandSnippets || []);
-  if (force || isDemoDataMissingOrStale(loaded)) {
-    items = sanitizeItems(getDemoItems());
-    locations = getDemoLocations();
-    racks = getDemoRacks();
-    // Command snippets are user-created CLI helpers. Keep them across demo-data
-    // migrations so opening the CLI never starts with an empty list while the
-    // saved config still contains commands.
-    commandSnippets = force ? commandSnippets : loadedCommandSnippets;
-    migrateDemoDataTo192Subnets();
-    ensureDemoRackData();
-    localStorage.setItem(demoStorageVersionKey, demoStorageVersion);
-    await saveItems();
-    renderCommandSnippets();
-    return;
-  }
   items = sanitizeItems(loaded.items);
   locations = loaded.locations || [];
   racks = loaded.racks || [];
   liveStatusData = loaded.agentStatus || {};
-  commandSnippets = loadedCommandSnippets;
-  migrateDemoDataTo192Subnets();
-  ensureDemoRackData();
-  localStorage.setItem(demoStorageVersionKey, demoStorageVersion);
-  await saveItems();
+  commandSnippets = normalizeCommandSnippets(loaded.commandSnippets || []);
   renderCommandSnippets();
-}
-
-function openDemoTutorialAfterLayout() {
-  const open = () => {
-    try { if (typeof openTutorial === 'function') openTutorial(); } catch {}
-  };
-  requestAnimationFrame(() => requestAnimationFrame(open));
-}
-
-async function loadDemoData() {
-  if (!confirm('Replace current browser demo data with the default demo entries?')) return;
-  await seedFullDemoData({ force: true });
-  stopEditing();
-  showToast('Demo data loaded with sample rack layouts.');
   initAgentApiPanel();
   render();
-  if (typeof renderRackOverview === 'function') renderRackOverview();
-  openDemoTutorialAfterLayout();
-}
-
-seedDemo?.addEventListener('click', loadDemoData);
-seedDemoMobile?.addEventListener('click', loadDemoData);
-
+  startPolling();
+})();
 
 async function startPolling() {
   if (pollingInterval) clearInterval(pollingInterval);
@@ -973,6 +906,10 @@ function backupPanelHtml(status) {
   const passwordHint = cfg.smbPasswordConfigured || smb.passwordConfigured
     ? 'Password is saved encrypted. Leave this empty to keep it.'
     : 'Enter the password for the SMB account.';
+  const frequency = cfg.frequency || 'daily';
+  const configuredTime = String(cfg.time || '02:00');
+  const scheduledTime = /^\d{2}:\d{2}$/.test(configuredTime) ? configuredTime : '02:00';
+  const hourlyMinute = Number.parseInt(scheduledTime.split(':')[1] || '0', 10);
   const logs = Array.isArray(status?.logs) && status.logs.length
     ? status.logs.map(log => `<li class="backup-log-${escapeAttr(log.level)}"><strong>${escapeHtml(formatBackupDate(log.at))}</strong><span>${escapeHtml(log.message)}</span></li>`).join('')
     : '<li><span>No backup logs yet.</span></li>';
@@ -982,39 +919,74 @@ function backupPanelHtml(status) {
 
   return `
     <section class="backup-config-panel">
-      <p class="note config-intro">Create encrypted scheduled backups of the complete Labby configuration. Local backups stay in the data volume; SMB backups connect directly to the share without a Docker bind mount.</p>
+      <div class="backup-card backup-hero-card">
+        <div class="backup-card-header">
+          <div>
+            <div class="backup-card-title">Backup plan</div>
+            <div class="backup-card-subtitle">Encrypted backups for the complete Labby configuration.</div>
+          </div>
+        </div>
+        <div class="backup-chip-row">
+          <span class="backup-chip">Local: ${escapeHtml(targets.local?.path || '/data/backups')}</span>
+          <span class="backup-chip">SMB: direct share access</span>
+          <span class="backup-chip">Last run: ${escapeHtml(formatBackupDate(cfg.lastRunAt))}</span>
+        </div>
+      </div>
       ${demoNotice}
-      <div class="backup-form-grid">
-        <label class="backup-toggle-row"><input data-backup-field="enabled" type="checkbox" ${cfg.enabled ? 'checked' : ''}${disabledAttr} /> Enable regular backups</label>
-        <label>Schedule
-          <select data-backup-field="frequency"${disabledAttr}>
-            <option value="hourly" ${cfg.frequency === 'hourly' ? 'selected' : ''}>Hourly</option>
-            <option value="daily" ${cfg.frequency === 'daily' ? 'selected' : ''}>Daily</option>
-            <option value="weekly" ${cfg.frequency === 'weekly' ? 'selected' : ''}>Weekly</option>
-          </select>
-        </label>
-        <label>Time / minute
-          <input data-backup-field="time" type="time" value="${escapeAttr(cfg.time || '02:00')}"${disabledAttr} />
-        </label>
-        <label>Weekly day
-          <select data-backup-field="weekday"${disabledAttr}>
-            ${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((day, idx) => `<option value="${idx}" ${String(cfg.weekday || '1') === String(idx) ? 'selected' : ''}>${day}</option>`).join('')}
-          </select>
-        </label>
-        <label>Storage target
-          <select data-backup-field="target" data-current-target="${escapeAttr(currentTarget)}"${disabledAttr}>
-            <option value="local" ${currentTarget === 'local' ? 'selected' : ''}>${escapeHtml(targets.local?.label || 'Local (/data/backups)')}</option>
-            <option value="smb" ${currentTarget === 'smb' ? 'selected' : ''}>Direct SMB share</option>
-          </select>
-        </label>
-        <label>Max backups to keep
-          <input data-backup-field="maxBackups" type="number" min="1" max="100" value="${escapeAttr(cfg.maxBackups || 10)}"${disabledAttr} />
-        </label>
+
+      <div class="backup-card backup-schedule-card">
+        <div class="backup-card-header">
+          <div>
+            <div class="backup-card-title">Schedule</div>
+            <div class="backup-card-subtitle">Choose when Labby should create backups.</div>
+          </div>
+        </div>
+        <div class="backup-form-grid backup-schedule-grid">
+          <label class="backup-checkbox-card backup-grid-span-2">
+            <input data-backup-field="enabled" type="checkbox" ${cfg.enabled ? 'checked' : ''}${disabledAttr} />
+            <span>
+              <strong>Enable scheduled backups</strong>
+              <small>Turn the backup job on or off.</small>
+            </span>
+          </label>
+          <label>Schedule type
+            <select data-backup-field="frequency"${disabledAttr}>
+              <option value="hourly" ${frequency === 'hourly' ? 'selected' : ''}>Hourly</option>
+              <option value="daily" ${frequency === 'daily' ? 'selected' : ''}>Daily</option>
+              <option value="weekly" ${frequency === 'weekly' ? 'selected' : ''}>Weekly</option>
+            </select>
+          </label>
+          <label>Storage target
+            <select data-backup-field="target" data-current-target="${escapeAttr(currentTarget)}"${disabledAttr}>
+              <option value="local" ${currentTarget === 'local' ? 'selected' : ''}>${escapeHtml(targets.local?.label || 'Local (/data/backups)')}</option>
+              <option value="smb" ${currentTarget === 'smb' ? 'selected' : ''}>Direct SMB share</option>
+            </select>
+          </label>
+          <label data-backup-schedule-field="hourlyMinute">Minute of the hour
+            <input data-backup-field="hourlyMinute" type="number" min="0" max="59" value="${escapeAttr(Number.isFinite(hourlyMinute) ? hourlyMinute : 0)}"${disabledAttr} />
+          </label>
+          <label data-backup-schedule-field="scheduledTime">Time
+            <input data-backup-field="scheduledTime" type="time" value="${escapeAttr(scheduledTime)}"${disabledAttr} />
+          </label>
+          <label data-backup-schedule-field="weekday">Day of the week
+            <select data-backup-field="weekday"${disabledAttr}>
+              ${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((day, idx) => `<option value="${idx}" ${String(cfg.weekday || '1') === String(idx) ? 'selected' : ''}>${day}</option>`).join('')}
+            </select>
+          </label>
+          <label>Max backups to keep
+            <input data-backup-field="maxBackups" type="number" min="1" max="100" value="${escapeAttr(cfg.maxBackups || 10)}"${disabledAttr} />
+          </label>
+        </div>
       </div>
 
-      <div class="backup-smb-settings" data-smb-settings ${currentTarget === 'smb' ? '' : 'hidden'}>
-        <div class="backup-section-title">Direct SMB destination</div>
-        <div class="backup-form-grid">
+      <div class="backup-card backup-smb-settings" data-smb-settings ${currentTarget === 'smb' ? '' : 'hidden'}>
+        <div class="backup-card-header">
+          <div>
+            <div class="backup-card-title">Direct SMB destination</div>
+            <div class="backup-card-subtitle">Configure the share Labby should use for remote backups.</div>
+          </div>
+        </div>
+        <div class="backup-form-grid backup-smb-grid">
           <label>Server / IP
             <input data-backup-field="smbServer" type="text" autocomplete="off" placeholder="nas.example.local" value="${escapeAttr(cfg.smbServer || '')}"${disabledAttr} />
           </label>
@@ -1033,29 +1005,57 @@ function backupPanelHtml(status) {
           <label>Domain / workgroup
             <input data-backup-field="smbDomain" type="text" autocomplete="off" placeholder="Optional" value="${escapeAttr(cfg.smbDomain || '')}"${disabledAttr} />
           </label>
-          <label>SMB password
+          <label class="backup-grid-span-2">SMB password
             <input data-backup-field="smbPassword" type="password" autocomplete="new-password" placeholder="${escapeAttr(passwordHint)}"${disabledAttr} />
           </label>
-          <label class="backup-toggle-row backup-inline-toggle"><input data-backup-field="clearSmbPassword" type="checkbox"${disabledAttr} /> Clear saved password</label>
-          <label class="backup-toggle-row backup-inline-toggle"><input data-backup-field="smbEncrypt" type="checkbox" ${cfg.smbEncrypt ? 'checked' : ''}${disabledAttr} /> Require SMB encryption</label>
-          <label class="backup-toggle-row backup-inline-toggle"><input data-backup-field="smbGuest" type="checkbox" ${cfg.smbGuest ? 'checked' : ''}${disabledAttr} /> Use guest access</label>
+          <label class="backup-checkbox-card">
+            <input data-backup-field="clearSmbPassword" type="checkbox"${disabledAttr} />
+            <span>
+              <strong>Clear saved password</strong>
+              <small>Remove the currently stored SMB password on save.</small>
+            </span>
+          </label>
+          <label class="backup-checkbox-card">
+            <input data-backup-field="smbEncrypt" type="checkbox" ${cfg.smbEncrypt ? 'checked' : ''}${disabledAttr} />
+            <span>
+              <strong>Require SMB encryption</strong>
+              <small>Use encrypted transport when the server supports it.</small>
+            </span>
+          </label>
+          <label class="backup-checkbox-card backup-grid-span-2">
+            <input data-backup-field="smbGuest" type="checkbox" ${cfg.smbGuest ? 'checked' : ''}${disabledAttr} />
+            <span>
+              <strong>Use guest access</strong>
+              <small>Disable username and password fields for guest logins.</small>
+            </span>
+          </label>
         </div>
-        <p class="note backup-smb-note">The SMB password is encrypted with Labby's backup key and stored only inside the persistent <code>/data</code> volume. It is never returned by the API or included in exports.</p>
+        <p class="note backup-smb-note">The SMB password is encrypted with Labby's backup key and stored only inside the persistent <code>/data</code> volume.</p>
       </div>
 
-      <div class="backup-status-card">
-        <strong>${escapeHtml(describeBackupSchedule(cfg))}</strong>
-        <span>Last backup: ${escapeHtml(formatBackupDate(cfg.lastRunAt))}</span>
-        <span>Local path: ${escapeHtml(targets.local?.path || '/data/backups')}</span>
-        <span>SMB target: ${escapeHtml(smb.path || 'Not configured')} · ${escapeHtml(smbState)}</span>
-        ${smb.error && !smb.available ? `<span>SMB status: ${escapeHtml(smb.error)}</span>` : ''}
+      <div class="backup-card backup-status-card">
+        <div class="backup-card-header">
+          <div>
+            <div class="backup-card-title">Current status</div>
+            <div class="backup-card-subtitle">Quick overview of the active backup setup.</div>
+          </div>
+        </div>
+        <div class="backup-status-grid">
+          <div><strong>Schedule</strong><span>${escapeHtml(describeBackupSchedule(cfg))}</span></div>
+          <div><strong>Target</strong><span>${escapeHtml(currentTarget === 'smb' ? 'Direct SMB share' : (targets.local?.label || 'Local storage'))}</span></div>
+          <div><strong>Local path</strong><span>${escapeHtml(targets.local?.path || '/data/backups')}</span></div>
+          <div><strong>SMB state</strong><span>${escapeHtml(smb.path || 'Not configured')} · ${escapeHtml(smbState)}</span></div>
+          ${smb.error && !smb.available ? `<div class="backup-grid-span-2"><strong>SMB message</strong><span>${escapeHtml(smb.error)}</span></div>` : ''}
+        </div>
       </div>
+
       <div class="backup-actions-row">
         <button class="button" type="button" data-backup-save${disabledAttr}>Save settings</button>
         <button class="button secondary" type="button" data-backup-test-smb${disabledAttr}>Test SMB connection</button>
         <button class="button secondary" type="button" data-backup-run${disabledAttr}>Run backup now</button>
         <button class="button secondary" type="button" data-backup-refresh>Refresh</button>
       </div>
+
       <div class="backup-section-title">Restore encrypted backups</div>
       <ul class="backup-list">${backups}</ul>
       <div class="backup-section-title">Latest backup logs</div>
@@ -1066,10 +1066,17 @@ function backupPanelHtml(status) {
 
 function readBackupForm(container) {
   const get = (name) => container.querySelector(`[data-backup-field="${name}"]`);
+  const frequency = get('frequency')?.value || 'daily';
+  const scheduledTime = get('scheduledTime')?.value || '02:00';
+  const rawMinute = Number.parseInt(get('hourlyMinute')?.value || '0', 10);
+  const minute = Number.isFinite(rawMinute) ? Math.max(0, Math.min(59, rawMinute)) : 0;
+  const time = frequency === 'hourly'
+    ? `00:${String(minute).padStart(2, '0')}`
+    : scheduledTime;
   return {
     enabled: !!get('enabled')?.checked,
-    frequency: get('frequency')?.value || 'daily',
-    time: get('time')?.value || '02:00',
+    frequency,
+    time,
     weekday: get('weekday')?.value || '1',
     target: get('target')?.value || 'local',
     maxBackups: Number.parseInt(get('maxBackups')?.value || '10', 10),
@@ -1095,10 +1102,21 @@ async function backupApiError(res, fallback) {
   }
 }
 
-function updateBackupSmbControls(container) {
+function updateBackupPanelState(container) {
   const target = container.querySelector('[data-backup-field="target"]')?.value || 'local';
+  const frequency = container.querySelector('[data-backup-field="frequency"]')?.value || 'daily';
   const smbBox = container.querySelector('[data-smb-settings]');
   if (smbBox) smbBox.hidden = target !== 'smb';
+  const testButton = container.querySelector('[data-backup-test-smb]');
+  if (testButton) testButton.hidden = target !== 'smb';
+
+  const hourlyField = container.querySelector('[data-backup-schedule-field="hourlyMinute"]');
+  const timeField = container.querySelector('[data-backup-schedule-field="scheduledTime"]');
+  const weekdayField = container.querySelector('[data-backup-schedule-field="weekday"]');
+  if (hourlyField) hourlyField.hidden = frequency !== 'hourly';
+  if (timeField) timeField.hidden = frequency === 'hourly';
+  if (weekdayField) weekdayField.hidden = frequency !== 'weekly';
+
   const guest = !!container.querySelector('[data-backup-field="smbGuest"]')?.checked;
   ['smbUsername', 'smbDomain', 'smbPassword', 'clearSmbPassword'].forEach((name) => {
     const field = container.querySelector(`[data-backup-field="${name}"]`);
@@ -1107,8 +1125,9 @@ function updateBackupSmbControls(container) {
 }
 
 function bindBackupPanel(container) {
-  container.querySelector('[data-backup-field="target"]')?.addEventListener('change', () => updateBackupSmbControls(container));
-  container.querySelector('[data-backup-field="smbGuest"]')?.addEventListener('change', () => updateBackupSmbControls(container));
+  container.querySelector('[data-backup-field="target"]')?.addEventListener('change', () => updateBackupPanelState(container));
+  container.querySelector('[data-backup-field="frequency"]')?.addEventListener('change', () => updateBackupPanelState(container));
+  container.querySelector('[data-backup-field="smbGuest"]')?.addEventListener('change', () => updateBackupPanelState(container));
 
   container.querySelector('[data-backup-save]')?.addEventListener('click', async () => {
     try {
@@ -1172,7 +1191,7 @@ function bindBackupPanel(container) {
       } catch (err) { showToast(err.message || 'Could not delete backup.', 'error'); console.warn(err); }
     });
   });
-  updateBackupSmbControls(container);
+  updateBackupPanelState(container);
 }
 
 async function renderBackupConfigPanels() {
@@ -1357,7 +1376,14 @@ async function decryptCredentialBundle(payload, keyHex) {
 }
 
 async function loadRawAgentKeysForExport() {
-  return getLocalAgentKeys();
+  try {
+    const res = await fetch(`${API_BASE}/api/data`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.agentKeys) ? data.agentKeys : [];
+  } catch {
+    return [];
+  }
 }
 
 function openKeyPopup({ title, message, key = '', mode = 'copy' } = {}) {
@@ -1570,16 +1596,19 @@ function setLocalAgentKeys(keys) {
 }
 
 function createLocalAgentToken() {
-  // Demo tokens are deliberately visual-only placeholders. They are never accepted
-  // by the demo backend and cannot be used for inventory, status, ping or credential APIs.
-  const bytes = new Uint8Array(8);
+  const bytes = new Uint8Array(24);
   if (crypto?.getRandomValues) crypto.getRandomValues(bytes);
   else bytes.forEach((_, i) => bytes[i] = Math.floor(Math.random() * 256));
-  return 'labby_demo_visual_only_' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  return 'labby_demo_' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 async function agentApiRequest(path, options = {}) {
-  throw new Error('Demo mode keeps API key records in browser storage only.');
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
 }
 
 async function loadAgentKeys() {
@@ -1608,8 +1637,7 @@ async function createAgentKey(name, scopes, expiresAt) {
       enabled: true,
       createdAt: new Date().toISOString(),
       expiresAt,
-      lastUsed: 'demo only',
-      demoOnly: true,
+      lastUsed: '',
     };
     const keys = getLocalAgentKeys();
     keys.push(key);
@@ -1675,7 +1703,7 @@ function showAgentToken(box, token) {
   box.hidden = false;
   const inputId = `agent-token-copy-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   box.innerHTML = `
-    <strong>Demo-only placeholder key. It is shown once for UI testing and is not accepted by any API endpoint:</strong>
+    <strong>Copy this key now. It is shown once and cannot be recovered later:</strong>
     <div class="agent-token-copy-row">
       <input id="${inputId}" type="text" readonly value="${escapeAttr(token)}" aria-label="New API key" />
       <button class="button secondary" type="button" data-copy-agent-token="${inputId}">Copy</button>
@@ -1695,7 +1723,7 @@ async function renderAgentKeyLists() {
       <article class="agent-key-card" data-agent-key="${escapeAttr(key.id)}">
         <div>
           <strong>${escapeAttr(key.name)}</strong>
-          <div class="agent-key-meta">${key.demoOnly ? 'Demo only · not usable' : (key.enabled === false ? 'Disabled' : 'Enabled')} · ${escapeAttr(key.prefix || 'labby_…')} · ${escapeAttr((key.scopes || []).join(', '))}</div>
+          <div class="agent-key-meta">${key.enabled === false ? 'Disabled' : 'Enabled'} · ${escapeAttr(key.prefix || 'labby_…')} · ${escapeAttr((key.scopes || []).join(', '))}</div>
           <div class="agent-key-meta">Created: ${escapeAttr(key.createdAt || '-')} · Expires: ${escapeAttr(key.expiresAt || '-')} · Last used: ${escapeAttr(key.lastUsed || 'never')}</div>
         </div>
         <div class="agent-key-actions">
@@ -1725,7 +1753,7 @@ function bindAgentKeyForm(formId, nameId, tokenId, expiryId) {
     nameNode.value = '';
     showAgentToken(tokenNode, result.token);
     await renderAgentKeyLists();
-    showToast('Demo API key placeholder created. It is not usable for API access.');
+    showToast('Agent API key created.');
   });
 }
 
@@ -3113,6 +3141,10 @@ function renderCliTerminalState() {
   const state = cliTerminalState;
   const lines = state.buffer.map((line) => line.join('').replace(/\s+$/g, ''));
   const text = lines.join('\n').replace(/\n+$/g, '');
+  // Keep copy output synchronized with the rendered terminal screen instead of
+  // the raw stream. Progress renderers reuse lines with carriage returns and
+  // cursor movement, so appending normalized text would duplicate every frame.
+  cliPlainOutputBuffer = text;
   [cliTerminal, mobileCliTerminal].filter(Boolean).forEach((terminal) => {
     terminal.textContent = text;
     terminal.scrollTop = terminal.scrollHeight;
@@ -3120,10 +3152,15 @@ function renderCliTerminalState() {
 }
 
 function setCliOutput(text, append = false) {
-  const value = normalizeCliPlainOutput(text);
-  cliPlainOutputBuffer = append ? cliPlainOutputBuffer + value : value;
-  if (cliPlainOutputBuffer.length > 200000) cliPlainOutputBuffer = cliPlainOutputBuffer.slice(-100000);
-  renderCliPlainOutput();
+  const value = String(text || '');
+  if (!append) {
+    cliTerminalState = createCliTerminalState();
+    cliPlainOutputBuffer = '';
+  }
+  // Feed the raw SSH stream into the terminal-state parser. This preserves
+  // carriage returns, erase-line commands and cursor movement used by apt,
+  // Docker BuildKit and other installers to update progress in place.
+  appendCliTerminalChunk(value);
 }
 
 async function openCliSession(item, options = {}) {
@@ -3147,38 +3184,6 @@ async function openCliSession(item, options = {}) {
     document.getElementById('nav-topology')?.classList.remove('active');
   } else if (cliDialog && !cliDialog.open) {
     cliDialog.showModal();
-  }
-
-  if (DEMO_INTERACTIVE_SECURITY_DISABLED) {
-    cliSession = null;
-    stopCliPolling();
-    [cliInput, mobileCliInput].filter(Boolean).forEach((input) => {
-      input.value = '';
-      input.disabled = true;
-      input.placeholder = 'Demo mode: SSH input disabled';
-    });
-    [cliSend, mobileCliSend, cliClearKey, mobileCliClearKey].filter(Boolean).forEach((button) => {
-      button.disabled = true;
-      button.title = 'Disabled in the public demo';
-    });
-    setCliOutput(
-      `Labby public demo mode
-
-` +
-      `No SSH connection is opened from my-labby.com.
-` +
-      `This protects visitors, the demo host and third-party systems from misuse.
-
-` +
-      `Configured target shown for preview only:
-ssh ${target}
-
-` +
-      `Run the self-hosted Main version to use the real browser console.
-`
-    );
-    showToast('CLI is disabled in the public demo.');
-    return;
   }
 
   try {
@@ -7359,139 +7364,5 @@ updateRackSelectedComponentUI();
 // Theme initialization moved after definitions
 try { initTheme();
 initCommandSnippetPanel(); } catch(e){ console.error(e); }
-
-
-
-function getDemoLocations() {
-  return [
-    {
-      id: 'loc-home-lab',
-      name: 'Home Lab',
-      notes: 'Primary demo location with the main network and compute rack.',
-    },
-    {
-      id: 'loc-backup-room',
-      name: 'Backup Room',
-      notes: 'Secondary demo location for storage and backup equipment.',
-    },
-  ];
-}
-
-function rackSlot(componentType, heightU, label, category, extra = {}) {
-  return {
-    componentType,
-    heightU,
-    label,
-    category,
-    ...extra,
-  };
-}
-
-function getDemoRacks() {
-  return [
-    {
-      id: 'rack-main-42u',
-      locationId: 'loc-home-lab',
-      name: 'Main Rack 42U',
-      notes: 'Core networking, virtualization and service hosts.',
-      heightUnits: 42,
-      formFactor: '19inch',
-      slots: {
-        'front-1': rackSlot('1u-patch-panel', 1, 'Patch Panel', 'network', { isPassive: true }),
-        'front-2': rackSlot('1u-switch', 1, 'Core Switch', 'network', { linkedDeviceId: 'hw-switch' }),
-        'front-3': rackSlot('1u-router', 1, 'Gateway Router', 'network', { linkedDeviceId: 'hw-router' }),
-        'front-4': rackSlot('1u-cable-mgmt', 1, 'Cable Management', 'network', { isPassive: true }),
-        'front-6': rackSlot('2u-server', 2, 'Proxmox Host', 'compute', { linkedDeviceId: 'hw-proxmox' }),
-        'front-9': rackSlot('2pc-2u', 2, 'Service VMs', 'compute', { multiDevice: 2, linkedDevices: ['vm-docker', 'vm-monitoring'] }),
-        'front-12': rackSlot('2pc-2u', 2, 'Media + DNS', 'compute', { multiDevice: 2, linkedDevices: ['vm-media', 'lxc-dns'] }),
-        'front-16': rackSlot('1u-server', 1, 'Reverse Proxy LXC', 'compute', { linkedDeviceId: 'lxc-proxy' }),
-        'front-20': rackSlot('2u-ups', 2, 'Rack UPS', 'power'),
-        'front-24': rackSlot('1u-blank', 1, 'Blank Panel', 'filler', { isBlank: true }),
-        'front-25': rackSlot('2u-blank', 2, 'Blank Panel', 'filler', { isBlank: true }),
-        'rear-1': rackSlot('1u-pdu', 1, 'Rear PDU A', 'power', { isPDU: true, pduPorts: 12 }),
-        'rear-3': rackSlot('1u-pdu', 1, 'Rear PDU B', 'power', { isPDU: true, pduPorts: 12 }),
-        'rear-5': rackSlot('1u-cable-mgmt', 1, 'Rear Cable Management', 'network', { isPassive: true }),
-        'rear-8': rackSlot('1u-kvm', 1, 'Rack KVM', 'mgmt'),
-      },
-    },
-    {
-      id: 'rack-storage-24u',
-      locationId: 'loc-backup-room',
-      name: 'Storage Rack 24U',
-      notes: 'NAS, backup vault and storage networking.',
-      heightUnits: 24,
-      formFactor: '19inch',
-      slots: {
-        'front-1': rackSlot('1u-patch-panel', 1, 'Storage Patch Panel', 'network', { isPassive: true }),
-        'front-2': rackSlot('1u-switch', 1, 'Storage Switch', 'network'),
-        'front-5': rackSlot('4u-server', 4, 'NAS Main', 'compute', { linkedDeviceId: 'hw-nas' }),
-        'front-10': rackSlot('4u-server', 4, 'Backup Vault', 'compute', { linkedDeviceId: 'hw-backup' }),
-        'front-16': rackSlot('2u-ups', 2, 'Storage UPS', 'power'),
-        'front-20': rackSlot('2u-blank', 2, 'Blank Panel', 'filler', { isBlank: true }),
-        'rear-1': rackSlot('1u-pdu', 1, 'Rear PDU', 'power', { isPDU: true, pduPorts: 8 }),
-        'rear-4': rackSlot('1u-cable-mgmt', 1, 'Rear Cable Management', 'network', { isPassive: true }),
-      },
-    },
-  ];
-}
-
-
-function getDemoItems() {
-  return [
-    { id: 'net-core', type: 'network', name: 'Core LAN', description: 'Main management network', notes: 'All infrastructure devices', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '192.168.10.0/24', gateway: '192.168.10.1', networkColor: '#10b981', hostedOn: '', appHostedOn: '', status: '' },
-    { id: 'net-services', type: 'network', name: 'Services', description: 'Internal services VLAN', notes: 'Apps and APIs', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '192.168.20.0/24', gateway: '192.168.20.1', networkColor: '#3b82f6', hostedOn: '', appHostedOn: '', status: '' },
-    { id: 'net-storage', type: 'network', name: 'Storage', description: 'Storage replication network', notes: 'NAS and backup traffic', connections: [], ip: '', ipPort: '', webUrl: '', subnet: '192.168.40.0/24', gateway: '192.168.40.1', networkColor: '#8b5cf6', hostedOn: '', appHostedOn: '', status: '' },
-
-    { id: 'hw-router', type: 'hardware', hardwareKind: 'router-gateway', manufacturer: 'MikroTik', os: 'RouterOS 7', symbol: '📡', name: 'EdgeRouter-1', description: 'Main internet gateway', notes: 'Fiber uplink, managed by admin', connections: ['hw-switch'], ip: '192.168.10.1/24', webUrl: 'https://192.168.10.1', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: [], ipPort: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
-    { id: 'hw-switch', type: 'hardware', hardwareKind: 'switch', manufacturer: 'Ubiquiti', os: 'UniFi 8.4', symbol: '🔀', name: 'Switch-Core-24', description: '24-port managed switch', notes: 'Rack U1, VLAN configured', connections: ['hw-router', 'hw-proxmox', 'hw-nas', 'hw-backup'], ip: '192.168.10.2/24', webUrl: 'https://unifi.ui.com/', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: [], ipPort: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '24', nasShares: [], nasRaids: [], status: 'online' },
-    { id: 'hw-proxmox', type: 'hardware', hardwareKind: 'hypervisor', manufacturer: 'Dell', os: 'Proxmox VE 8.2', symbol: '🖥️', name: 'Proxmox-01', description: 'Primary virtualization host', notes: 'Rack U2, 2x NVMe pool', connections: [], ip: '192.168.10.10/24', webUrl: 'https://192.168.10.10:8006', cpu: '16 cores', ram: '2 x 32 DDR5', disks: '2 x 2 TB NVMe', cpuCount: '16', ramModules: [{ size: '32', type: 'DDR5' }, { size: '32', type: 'DDR5' }], diskRows: [{ size: '2 TB', type: 'NVMe' }, { size: '2 TB', type: 'NVMe' }], ipPort: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
-    { id: 'hw-nas', type: 'hardware', hardwareKind: 'nas', manufacturer: 'Synology', os: 'DSM 7.2', symbol: '🗄️', name: 'NAS-Main', description: 'Primary shared storage', notes: 'Rack U4, SMB + NFS shares', connections: [], ip: '192.168.40.20/24', webUrl: 'https://192.168.40.20:5001', cpu: '8 cores', ram: '2 x 16 DDR4 ECC', disks: '4 x 12 TB HDD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }], diskRows: [{ size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }, { size: '12 TB', type: 'HDD' }], ipPort: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [{ name: 'media', link: '/volume1/media' }, { name: 'backups', link: '/volume1/backups' }], nasRaids: [{ name: 'Array-A', level: 'RAID5', size: '36 TB' }], status: 'online' },
-    { id: 'hw-backup', type: 'hardware', hardwareKind: 'backup', manufacturer: 'Supermicro', os: 'TrueNAS SCALE', symbol: '💾', name: 'Backup-Vault', description: 'Offsite backup node', notes: 'Immutable snapshots, Rack U5', connections: [], ip: '192.168.40.30/24', cpu: '8 cores', ram: '4 x 16 DDR4 ECC', disks: '6 x 8 TB HDD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }, { size: '16', type: 'DDR4 ECC' }], diskRows: [{ size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }, { size: '8 TB', type: 'HDD' }], ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: '', switchPorts: '', nasShares: [{ name: 'archive', link: '/mnt/backup/archive' }], nasRaids: [{ name: 'Backup-Pool', level: 'RAIDZ2', size: '32 TB' }], status: 'maintenance' },
-
-    { id: 'vm-docker', type: 'vm', name: 'vm-docker-01', description: 'Docker workloads', notes: 'Compose stacks, main app host', connections: [], ip: '192.168.20.21/24', cpu: '6 vCPU', ram: '2 x 8 DDR5', disks: '2 x 120 GB SSD', cpuCount: '6', ramModules: [{ size: '8', type: 'DDR5' }, { size: '8', type: 'DDR5' }], diskRows: [{ size: '120 GB', type: 'SSD' }, { size: '120 GB', type: 'SSD' }], os: 'Ubuntu 24.04 LTS', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hw-proxmox', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
-    { id: 'vm-media', type: 'vm', name: 'vm-media-01', description: 'Media processing VM', notes: 'Jellyfin + *arr stack', connections: [], ip: '192.168.20.22/24', cpu: '8 vCPU', ram: '2 x 16 DDR5', disks: '1 x 500 GB SSD', cpuCount: '8', ramModules: [{ size: '16', type: 'DDR5' }, { size: '16', type: 'DDR5' }], diskRows: [{ size: '500 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hw-proxmox', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
-    { id: 'vm-monitoring', type: 'vm', name: 'vm-monitoring', description: 'Metrics and alerting', notes: 'Grafana + Prometheus + Loki', connections: [], ip: '192.168.20.23/24', cpu: '4 vCPU', ram: '2 x 8 DDR5', disks: '1 x 200 GB SSD', cpuCount: '4', ramModules: [{ size: '8', type: 'DDR5' }, { size: '8', type: 'DDR5' }], diskRows: [{ size: '200 GB', type: 'SSD' }], os: 'Ubuntu 22.04 LTS', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hw-proxmox', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'offline' },
-
-    { id: 'lxc-dns', type: 'lxc', name: 'lxc-dns-01', description: 'DNS resolver', notes: 'AdGuard Home + Unbound', connections: [], ip: '192.168.10.40/24', cpu: '2 vCPU', ram: '2 x 2 DDR5', disks: '1 x 20 GB SSD', cpuCount: '2', ramModules: [{ size: '2', type: 'DDR5' }, { size: '2', type: 'DDR5' }], diskRows: [{ size: '20 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hw-proxmox', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
-    { id: 'lxc-proxy', type: 'lxc', name: 'lxc-proxy-01', description: 'Reverse proxy', notes: 'Nginx Proxy Manager', connections: [], ip: '192.168.20.50/24', cpu: '2 vCPU', ram: '2 x 2 DDR5', disks: '1 x 20 GB SSD', cpuCount: '2', ramModules: [{ size: '2', type: 'DDR5' }, { size: '2', type: 'DDR5' }], diskRows: [{ size: '20 GB', type: 'SSD' }], os: 'Debian 12', ipPort: '', webUrl: '', subnet: '', gateway: '', networkColor: '', hostedOn: 'hw-proxmox', appHostedOn: '', hardwareKind: '', manufacturer: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online' },
-
-    { id: 'app-jellyfin', type: 'app', name: 'Jellyfin', description: 'Media server', notes: 'Streams from NAS media share', connections: [], ip: '', ipPort: '192.168.20.22:8096', webUrl: 'https://media.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-media', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online', symbol: '🎬', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
-    { id: 'app-grafana', type: 'app', name: 'Grafana', description: 'Metrics dashboard', notes: 'Connected to Prometheus', connections: [], ip: '', ipPort: '192.168.20.23:3000', webUrl: 'https://grafana.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-monitoring', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'offline', symbol: '📊', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
-    { id: 'app-portainer', type: 'app', name: 'Portainer', description: 'Docker management UI', notes: 'Manages vm-docker-01 containers', connections: [], ip: '', ipPort: '192.168.20.21:9000', webUrl: 'https://portainer.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'vm-docker', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online', symbol: '🐳', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
-    { id: 'app-adguard', type: 'app', name: 'AdGuard Home', description: 'DNS ad blocker', notes: 'Network-wide ad blocking', connections: [], ip: '', ipPort: '192.168.10.40:3000', webUrl: 'https://adguard.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'lxc-dns', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online', symbol: '🛡️', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
-    { id: 'app-npm', type: 'app', name: 'Nginx Proxy Manager', description: 'Reverse proxy UI', notes: 'SSL termination for all services', connections: [], ip: '', ipPort: '192.168.20.50:81', webUrl: 'https://proxy.home.local', subnet: '', gateway: '', networkColor: '', hostedOn: '', appHostedOn: 'lxc-proxy', hardwareKind: '', manufacturer: '', os: '', switchPorts: '', nasShares: [], nasRaids: [], status: 'online', symbol: '🔒', cpu: '', ram: '', disks: '', cpuCount: '', ramModules: [], diskRows: '' },
-  ];
-}
-
-
-function initDemoBannerMarquee() {
-  const banner = document.querySelector('.demo-banner');
-  const track = document.querySelector('.demo-banner-track');
-  const message = document.querySelector('.demo-banner-message:not(.demo-banner-message-clone)');
-  if (!banner || !track || !message) return;
-
-  const update = () => {
-    banner.classList.remove('is-scrolling');
-    track.style.removeProperty('--demo-marquee-duration');
-    // Wait one frame so measurements are taken without the animation clone affecting layout.
-    requestAnimationFrame(() => {
-      const overflow = message.scrollWidth > banner.clientWidth - 8;
-      banner.classList.toggle('is-scrolling', overflow);
-      if (overflow) {
-        const distance = Math.max(message.scrollWidth, banner.clientWidth);
-        const seconds = Math.min(28, Math.max(10, distance / 42));
-        track.style.setProperty('--demo-marquee-duration', `${seconds}s`);
-      }
-    });
-  };
-
-  update();
-  window.addEventListener('resize', update, { passive: true });
-  if ('ResizeObserver' in window) {
-    new ResizeObserver(update).observe(banner);
-  }
-}
-
-initDemoBannerMarquee();
 
 
