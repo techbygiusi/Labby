@@ -524,186 +524,225 @@
       transform: translateY(-1px);
     }
 
-    /* ── screenshot viewer ── */
+    /* Fullscreen photo viewer */
     .shot-viewer {
       position: fixed;
       inset: 0;
       z-index: 9999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1.25rem;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity .18s ease;
+      display: none;
+      background: #000;
+      color: #fff;
+      font-family: Inter, system-ui, sans-serif;
     }
     .shot-viewer.open {
-      opacity: 1;
-      pointer-events: auto;
+      display: block;
     }
     .shot-viewer-backdrop {
       position: absolute;
       inset: 0;
-      background: rgba(13, 16, 21, .84);
-      backdrop-filter: blur(4px);
+      background: #000;
     }
     .shot-viewer-dialog {
       position: relative;
-      width: min(1180px, calc(100vw - 2.5rem));
-      max-height: min(90vh, 100%);
-      display: flex;
-      flex-direction: column;
-      gap: .8rem;
-      background: color-mix(in srgb, var(--panel) 96%, white);
-      border: 3px solid var(--line);
-      border-radius: 22px;
-      box-shadow: 0 24px 60px rgba(0,0,0,.28);
-      padding: .7rem;
+      width: 100vw;
+      height: 100dvh;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      background: #000;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      overflow: hidden;
     }
     .shot-viewer-toolbar {
+      position: relative;
+      z-index: 4;
+      min-height: 64px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: .75rem;
-      flex-wrap: wrap;
+      gap: 1rem;
+      padding: .7rem 1rem;
+      background: linear-gradient(to bottom, rgba(0,0,0,.78), rgba(0,0,0,0));
+    }
+    .shot-viewer-info {
+      min-width: 0;
+      display: grid;
+      gap: .15rem;
     }
     .shot-viewer-title {
-      font: 700 .92rem/1.2 'Space Mono', monospace;
-      color: var(--text);
+      overflow: hidden;
+      color: #fff;
+      font-size: .95rem;
+      font-weight: 600;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .shot-viewer-meta {
-      font: 700 .72rem/1.2 'Space Mono', monospace;
-      color: var(--muted);
+      color: rgba(255,255,255,.7);
+      font-size: .78rem;
+      font-weight: 500;
+    }
+    .shot-viewer-close {
+      width: 44px;
+      height: 44px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(255,255,255,.12);
+      color: #fff;
+      cursor: pointer;
+      font: 400 1.8rem/1 Inter, system-ui, sans-serif;
+      transition: background .15s ease;
+    }
+    .shot-viewer-close:hover,
+    .shot-viewer-close:focus-visible {
+      background: rgba(255,255,255,.22);
+      outline: none;
     }
     .shot-viewer-main {
       position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      min-width: 0;
       min-height: 0;
-      flex: 1;
-      overflow: visible;
-      border: 0;
-      border-radius: 0;
-      background: transparent;
-      padding: 0 3.8rem;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
     }
     .shot-viewer-stage {
       width: 100%;
-      height: min(68vh, 720px);
-      display: flex;
-      align-items: stretch;
-      justify-content: stretch;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      place-items: center;
       overflow: hidden;
-      padding: 0;
-      touch-action: pan-x pan-y;
+      padding: .5rem 5.5rem;
+      background: #000;
+      touch-action: pan-y pinch-zoom;
       overscroll-behavior: contain;
-      border: 3px solid var(--line);
-      border-radius: 18px;
-      background: var(--line);
-      box-shadow: none;
     }
     .shot-viewer-stage img {
       display: block;
-      width: 100%;
-      height: 100%;
-      max-width: none;
-      max-height: none;
-      object-fit: cover;
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
       object-position: center;
       border: 0;
-      border-radius: 14px;
-      background: var(--panel);
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
       user-select: none;
       -webkit-user-drag: none;
-    }
-    .shot-viewer-stage.is-portrait img {
-      object-fit: contain;
     }
     .shot-viewer-nav {
       position: absolute;
       top: 50%;
-      transform: translateY(-50%);
+      z-index: 3;
       width: 48px;
       height: 48px;
-      border-radius: 999px;
-      border: 2px solid var(--line);
-      background: color-mix(in srgb, var(--panel) 92%, white);
-      color: var(--text);
       display: grid;
       place-items: center;
-      box-shadow: var(--shadow);
+      transform: translateY(-50%);
+      border: 0;
+      border-radius: 999px;
+      background: rgba(255,255,255,.12);
+      color: #fff;
       cursor: pointer;
-      font: 700 1.2rem/1 'Space Mono', monospace;
+      font: 300 2rem/1 Inter, system-ui, sans-serif;
+      transition: background .15s ease, transform .15s ease;
     }
-    .shot-viewer-nav:hover { transform: translateY(-50%) scale(1.03); }
-    .shot-viewer-prev { left: .9rem; }
-    .shot-viewer-next { right: .9rem; }
+    .shot-viewer-nav:hover,
+    .shot-viewer-nav:focus-visible {
+      background: rgba(255,255,255,.22);
+      outline: none;
+      transform: translateY(-50%) scale(1.04);
+    }
+    .shot-viewer-prev { left: 1rem; }
+    .shot-viewer-next { right: 1rem; }
     .shot-viewer-footer {
+      position: relative;
+      z-index: 4;
+      min-height: 96px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: .85rem;
-      flex-wrap: wrap;
+      padding: .7rem 1rem 1rem;
+      background: linear-gradient(to top, rgba(0,0,0,.82), rgba(0,0,0,0));
     }
     .shot-viewer-thumbs {
-      flex: 1;
-      min-width: 0;
+      width: 100%;
       display: flex;
-      gap: .65rem;
+      justify-content: center;
+      gap: .5rem;
       overflow-x: auto;
-      padding-bottom: .2rem;
+      padding: .25rem;
       scroll-snap-type: x proximity;
+      scrollbar-width: none;
       -webkit-overflow-scrolling: touch;
-      scrollbar-width: thin;
-      scrollbar-color: var(--yellow) color-mix(in srgb, var(--phone) 72%, var(--panel));
     }
-    .shot-viewer-thumbs::-webkit-scrollbar { height: 12px; }
-    .shot-viewer-thumbs::-webkit-scrollbar-track {
-      background: color-mix(in srgb, var(--phone) 72%, var(--panel));
-      border: 2px solid var(--line);
-      border-radius: 999px;
-    }
-    .shot-viewer-thumbs::-webkit-scrollbar-thumb {
-      background: var(--yellow);
-      border: 2px solid var(--line);
-      border-radius: 999px;
-    }
+    .shot-viewer-thumbs::-webkit-scrollbar { display: none; }
     .shot-viewer-thumb {
-      flex: 0 0 120px;
-      border: 2px solid var(--line);
-      border-radius: 12px;
-      background: var(--panel);
+      width: 72px;
+      height: 54px;
+      flex: 0 0 72px;
       overflow: hidden;
+      padding: 0;
+      border: 2px solid transparent;
+      border-radius: 6px;
+      background: rgba(255,255,255,.08);
       cursor: pointer;
-      opacity: .78;
-      transition: opacity .15s ease, transform .15s ease, border-color .15s ease;
-      scroll-snap-align: start;
+      opacity: .58;
+      scroll-snap-align: center;
+      transition: opacity .15s ease, border-color .15s ease, transform .15s ease;
     }
+    .shot-viewer-thumb:hover { opacity: .85; }
     .shot-viewer-thumb.active {
       opacity: 1;
-      border-color: var(--accent);
-      transform: translateY(-1px);
+      border-color: #fff;
+      transform: translateY(-2px);
     }
     .shot-viewer-thumb img {
       width: 100%;
-      height: 68px;
-      object-fit: cover;
+      height: 100%;
       display: block;
+      object-fit: cover;
     }
-    .shot-viewer-close {
-      flex: 0 0 auto;
+    .image-zoomable {
+      cursor: zoom-in;
     }
-    .shot-viewer-wiki-link.is-hidden { display: none; }
-
-
     @media (max-width: 760px) {
-      .shot-viewer-dialog { width: min(100%, calc(100vw - 1rem)); padding: .55rem; }
-      .shot-viewer-main { padding: 0 2.6rem; }
-      .shot-viewer-stage { height: min(66vh, 620px); }
-      .shot-viewer-nav { width: 42px; height: 42px; }
-      .shot-viewer-prev { left: .45rem; }
-      .shot-viewer-next { right: .45rem; }
+      .shot-viewer-toolbar {
+        min-height: 58px;
+        padding: .55rem .65rem;
+      }
+      .shot-viewer-title { font-size: .86rem; }
+      .shot-viewer-stage { padding: .25rem 0; }
+      .shot-viewer-nav {
+        width: 42px;
+        height: 42px;
+        top: auto;
+        bottom: .6rem;
+        transform: none;
+        background: rgba(0,0,0,.45);
+      }
+      .shot-viewer-nav:hover,
+      .shot-viewer-nav:focus-visible { transform: scale(1.04); }
+      .shot-viewer-prev { left: .65rem; }
+      .shot-viewer-next { right: .65rem; }
+      .shot-viewer-footer {
+        min-height: 84px;
+        padding: .55rem 3.5rem .75rem;
+      }
+      .shot-viewer-thumbs { justify-content: flex-start; }
+      .shot-viewer-thumb {
+        width: 60px;
+        height: 46px;
+        flex-basis: 60px;
+      }
     }
     /* ── install ── */
     .install-block {
@@ -1294,24 +1333,21 @@ docker compose up --build -d</pre>
   <div class="shot-viewer-backdrop" data-close-viewer></div>
   <div class="shot-viewer-dialog" role="dialog" aria-modal="true" aria-labelledby="shot-viewer-title">
     <div class="shot-viewer-toolbar">
-      <div>
-        <div class="shot-viewer-title" id="shot-viewer-title">Screenshot Viewer</div>
-        <div class="shot-viewer-meta" id="shot-viewer-meta">1 / 6</div>
+      <div class="shot-viewer-info">
+        <div class="shot-viewer-title" id="shot-viewer-title">Screenshot</div>
+        <div class="shot-viewer-meta" id="shot-viewer-meta">1 / 1</div>
       </div>
-      <button class="btn btn-secondary shot-viewer-close" type="button" id="shot-viewer-close">✕ Close</button>
+      <button class="shot-viewer-close" type="button" id="shot-viewer-close" aria-label="Close viewer">×</button>
     </div>
-
     <div class="shot-viewer-main">
-      <button class="shot-viewer-nav shot-viewer-prev" type="button" id="shot-viewer-prev" aria-label="Previous screenshot">‹</button>
+      <button class="shot-viewer-nav shot-viewer-prev" type="button" id="shot-viewer-prev" aria-label="Previous image">‹</button>
       <div class="shot-viewer-stage" id="shot-viewer-stage">
         <img id="shot-viewer-image" src="" alt="" />
       </div>
-      <button class="shot-viewer-nav shot-viewer-next" type="button" id="shot-viewer-next" aria-label="Next screenshot">›</button>
+      <button class="shot-viewer-nav shot-viewer-next" type="button" id="shot-viewer-next" aria-label="Next image">›</button>
     </div>
-
     <div class="shot-viewer-footer">
-      <div class="shot-viewer-thumbs" id="shot-viewer-thumbs"></div>
-      <a class="btn btn-secondary shot-viewer-wiki-link" id="shot-viewer-wiki-link" href="wiki.html">Open wiki entry</a>
+      <div class="shot-viewer-thumbs" id="shot-viewer-thumbs" aria-label="Image thumbnails"></div>
     </div>
   </div>
 </div>
@@ -1409,7 +1445,6 @@ docker compose up --build -d</pre>
     link.addEventListener('click', openDemoWithTransition);
   });
 
-  const galleryButtons = Array.from(document.querySelectorAll('.gallery-item[data-shot-src]'));
   const viewer = document.getElementById('shot-viewer');
   const viewerImage = document.getElementById('shot-viewer-image');
   const viewerTitle = document.getElementById('shot-viewer-title');
@@ -1419,58 +1454,55 @@ docker compose up --build -d</pre>
   const viewerPrev = document.getElementById('shot-viewer-prev');
   const viewerNext = document.getElementById('shot-viewer-next');
   const viewerStage = document.getElementById('shot-viewer-stage');
-  const viewerWikiLink = document.getElementById('shot-viewer-wiki-link');
   let activeShotIndex = 0;
   let touchStartX = 0;
   let touchStartY = 0;
+  let wheelLocked = false;
 
-  function syncViewerStageMode() {
-    const naturalWidth = viewerImage.naturalWidth || 0;
-    const naturalHeight = viewerImage.naturalHeight || 0;
-    const isPortrait = naturalHeight > naturalWidth * 1.02;
-    viewerStage.classList.toggle('is-portrait', isPortrait);
+  const allPageImages = Array.from(document.querySelectorAll('body img')).filter((img) => {
+    if (img.closest('.shot-viewer')) return false;
+    if (img.classList.contains('nav-logo') || img.classList.contains('demo-loader-logo')) return false;
+    return Boolean(img.getAttribute('src'));
+  });
+
+  const seenImageSources = new Set();
+  const pageShots = [];
+  allPageImages.forEach((img) => {
+    const source = new URL(img.getAttribute('src'), window.location.href).href;
+    if (seenImageSources.has(source)) return;
+    seenImageSources.add(source);
+    pageShots.push({
+      src: img.getAttribute('src'),
+      title: img.alt?.trim() || `Screenshot ${pageShots.length + 1}`
+    });
+  });
+
+  function imageIndexFor(img) {
+    const source = new URL(img.getAttribute('src'), window.location.href).href;
+    return pageShots.findIndex((shot) => new URL(shot.src, window.location.href).href === source);
   }
-
-  viewerImage.addEventListener('load', syncViewerStageMode);
-
-  let shots = galleryButtons.map((button, index) => ({
-    index,
-    src: button.dataset.shotSrc,
-    title: button.dataset.shotTitle || `Screenshot ${index + 1}`,
-    caption: button.querySelector('.gallery-caption')?.textContent?.trim() || button.dataset.shotTitle || `Screenshot ${index + 1}`,
-    wikiHref: button.dataset.wikiHref || 'wiki.html'
-  }));
-  const galleryShots = shots.slice();
-  let viewerShowsWikiLink = true;
 
   function buildViewerThumbs() {
     viewerThumbs.innerHTML = '';
-    shots.forEach((shot, index) => {
+    pageShots.forEach((shot, index) => {
       const thumb = document.createElement('button');
       thumb.type = 'button';
       thumb.className = 'shot-viewer-thumb';
       thumb.setAttribute('aria-label', `Open ${shot.title}`);
-      thumb.innerHTML = `<img src="${shot.src}" alt="${shot.title}" />`;
+      thumb.innerHTML = `<img src="${shot.src}" alt="" />`;
       thumb.addEventListener('click', () => showShot(index));
       viewerThumbs.appendChild(thumb);
     });
   }
 
   function showShot(index) {
-    if (!shots.length) return;
-    activeShotIndex = (index + shots.length) % shots.length;
-    const shot = shots[activeShotIndex];
+    if (!pageShots.length) return;
+    activeShotIndex = (index + pageShots.length) % pageShots.length;
+    const shot = pageShots[activeShotIndex];
     viewerImage.src = shot.src;
     viewerImage.alt = shot.title;
-    viewerStage.classList.remove('is-portrait');
-    viewerTitle.textContent = shot.caption;
-    viewerMeta.textContent = `${activeShotIndex + 1} / ${shots.length}`;
-    if (viewerWikiLink) {
-      viewerWikiLink.href = shot.wikiHref || '#';
-      viewerWikiLink.classList.toggle('is-hidden', !viewerShowsWikiLink || !shot.wikiHref);
-    }
-    if (viewerImage.complete) syncViewerStageMode();
-    viewerStage.scrollTo({ left: 0, top: 0, behavior: 'auto' });
+    viewerTitle.textContent = shot.title;
+    viewerMeta.textContent = `${activeShotIndex + 1} / ${pageShots.length}`;
     Array.from(viewerThumbs.children).forEach((thumb, thumbIndex) => {
       thumb.classList.toggle('active', thumbIndex === activeShotIndex);
       if (thumbIndex === activeShotIndex) {
@@ -1479,23 +1511,13 @@ docker compose up --build -d</pre>
     });
   }
 
-  function openViewer(index, overrideShots = null, showWikiLink = true) {
-    if (overrideShots) {
-      shots = overrideShots;
-      viewerShowsWikiLink = showWikiLink;
-      buildViewerThumbs();
-    } else if (shots !== galleryShots) {
-      shots = galleryShots;
-      viewerShowsWikiLink = true;
-      buildViewerThumbs();
-    } else {
-      viewerShowsWikiLink = true;
-    }
-    if (!shots.length) return;
+  function openViewer(index) {
+    if (!pageShots.length) return;
     viewer.classList.add('open');
     viewer.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
-    showShot(index);
+    showShot(index < 0 ? 0 : index);
+    viewerClose.focus({ preventScroll: true });
   }
 
   function closeViewer() {
@@ -1504,46 +1526,33 @@ docker compose up --build -d</pre>
     document.body.style.overflow = '';
   }
 
+  function bindPageImage(img) {
+    const index = imageIndexFor(img);
+    if (index < 0) return;
+    img.classList.add('image-zoomable');
+    const trigger = img.closest('.gallery-open, figure, .screenshot-card, .api-spotlight-shot') || img;
+    if (trigger.dataset.photoViewerBound === 'true') return;
+    trigger.dataset.photoViewerBound = 'true';
+    if (trigger.tagName !== 'BUTTON' && trigger.tagName !== 'A') {
+      trigger.tabIndex = 0;
+      trigger.setAttribute('role', 'button');
+    }
+    const open = (event) => {
+      if (event.target.closest('.gallery-wiki-link')) return;
+      event.preventDefault();
+      openViewer(index);
+    };
+    trigger.addEventListener('click', open);
+    trigger.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') open(event);
+    });
+  }
+
   document.querySelectorAll('.gallery-wiki-link').forEach((link) => {
     link.addEventListener('click', (event) => event.stopPropagation());
   });
-
-  galleryButtons.forEach((button, index) => {
-    button.addEventListener('click', () => openViewer(index));
-    button.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        openViewer(index);
-      }
-    });
-  });
-
+  allPageImages.forEach(bindPageImage);
   buildViewerThumbs();
-
-  function enhanceStandaloneImages() {
-    Array.from(document.querySelectorAll('img')).forEach((img) => {
-      if (img.dataset.lightboxBound === 'true') return;
-      if (img.closest('.gallery-item') || img.closest('.shot-viewer') || img.classList.contains('nav-logo') || img.classList.contains('demo-loader-logo')) return;
-      const rawSrc = img.currentSrc || img.getAttribute('src') || img.src;
-      if (!rawSrc || /labby-mobile-/i.test(rawSrc)) return;
-      const src = new URL(rawSrc, window.location.href).href;
-      img.dataset.lightboxBound = 'true';
-      img.classList.add('image-zoomable');
-      const trigger = img.closest('a, figure, .screenshot-card, .api-spotlight-shot') || img;
-      trigger.classList.add('image-zoomable-trigger');
-      if (trigger.tagName !== 'A') trigger.tabIndex = 0;
-      const openStandalone = (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        openViewer(0, [{ src, title: img.alt || 'Image', caption: img.alt || 'Image', wikiHref: '' }], false);
-      };
-      trigger.addEventListener('click', openStandalone);
-      trigger.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') openStandalone(event);
-      });
-    });
-  }
-  enhanceStandaloneImages();
 
   viewerPrev.addEventListener('click', () => showShot(activeShotIndex - 1));
   viewerNext.addEventListener('click', () => showShot(activeShotIndex + 1));
@@ -1568,18 +1577,18 @@ docker compose up --build -d</pre>
     const diffX = touch.clientX - touchStartX;
     const diffY = touch.clientY - touchStartY;
     if (Math.abs(diffX) > 45 && Math.abs(diffX) > Math.abs(diffY)) {
-      if (diffX < 0) showShot(activeShotIndex + 1);
-      else showShot(activeShotIndex - 1);
+      showShot(activeShotIndex + (diffX < 0 ? 1 : -1));
     }
   }, { passive: true });
 
   viewerStage.addEventListener('wheel', (event) => {
-    if (!viewer.classList.contains('open')) return;
-    if (Math.abs(event.deltaX) > Math.abs(event.deltaY) && Math.abs(event.deltaX) > 18) {
-      event.preventDefault();
-      if (event.deltaX > 0) showShot(activeShotIndex + 1);
-      else showShot(activeShotIndex - 1);
-    }
+    if (!viewer.classList.contains('open') || wheelLocked) return;
+    const movement = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+    if (Math.abs(movement) < 24) return;
+    event.preventDefault();
+    wheelLocked = true;
+    showShot(activeShotIndex + (movement > 0 ? 1 : -1));
+    window.setTimeout(() => { wheelLocked = false; }, 320);
   }, { passive: false });
 </script>
 
