@@ -1,11 +1,38 @@
 {
-  "name": "labby-backend",
-  "version": "1.0.0",
-  "main": "server.js",
+  "name": "hosting-portal-backend",
+  "version": "3.1.95",
+  "description": "Hosting Management Portal - Backend",
+  "main": "app.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "keywords": [
+    "hosting",
+    "proxmox",
+    "management"
+  ],
+  "author": "",
+  "license": "AGPL-3.0-or-later",
   "dependencies": {
-    "express": "^4.19.2"
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "sqlite3": "^5.1.6",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.0",
+    "axios": "^1.3.4",
+    "nodemailer": "^6.9.1",
+    "crypto": "^1.0.1",
+    "body-parser": "^1.20.2",
+    "helmet": "^7.0.0",
+    "express-validator": "^7.0.0",
+    "ws": "^8.17.0",
+    "express-rate-limit": "^7.2.0",
+    "ssh2": "^1.16.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.20"
   }
 }

@@ -1,17 +1,66 @@
 services:
-  labby:
+  backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
-    container_name: labby
+    container_name: hosting-portal-backend
     ports:
-      - "8080:80"
+      - "127.0.0.1:3001:3001"
     environment:
-      - DATA_DIR=/data
+      NODE_ENV: production
+      BACKEND_PORT: 3001
+      JWT_SECRET: ${JWT_SECRET:-}  # leer lassen = wird automatisch generiert und in ./backend/data persistiert
+      JWT_EXPIRATION: 24h
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}  # leer lassen = wird automatisch generiert (data/.encryption-key)
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-}  # z. B. https://portal.example.com – in Produktion setzen!
+      FRONTEND_URL: ${FRONTEND_URL:-}  # optional; leer lassen = wird aus der Portal-URL erkannt
+      DB_PATH: ./data/hosting.db
+      # v3.0: Monitoring & Branding
+      MONITOR_INTERVAL_SECONDS: ${MONITOR_INTERVAL_SECONDS:-60}
+      MONITOR_DEBOUNCE_CHECKS: ${MONITOR_DEBOUNCE_CHECKS:-2}
+      SELF_SERVICE_DNS_SERVERS: "${SELF_SERVICE_DNS_SERVERS:-1.1.1.1 1.0.0.1}"
+      SELF_SERVICE_BLOCKED_NETWORKS: "${SELF_SERVICE_BLOCKED_NETWORKS:-}"
+      BRAND_NAME: ${BRAND_NAME:-Hosting by TechByGiusi}
     volumes:
-      - labby-data:/data
+      - ./backend/data:/app/data
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - hosting-network
     restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >
+          node -e "const http = require('http'); const port = process.env.BACKEND_PORT || 3001; const req = http.get({ hostname: '127.0.0.1', port, path: '/api/health', timeout: 3000 }, (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }); req.on('timeout', () => { req.destroy(); process.exit(1); }); req.on('error', () => process.exit(1));"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
 
-volumes:
-  labby-data:
-    driver: local
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: hosting-portal-frontend
+    ports:
+      - "3000:80"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - hosting-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -qO- http://127.0.0.1/ >/dev/null || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+networks:
+  hosting-network:
+    driver: bridge
