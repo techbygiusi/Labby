@@ -6062,6 +6062,8 @@ const RACK_COMPONENTS = [
 // ---- State ----
 let rackEditorRackId = null;
 let rackDragComponent = null;
+let rackTouchDragState = null;
+let rackTouchDragSuppressClickUntil = 0;
 let rackLinkPanelTarget = null;
 let rackFormMode = null;
 let rackFormPendingLocationId = null;
@@ -6556,6 +6558,227 @@ function updateRackSelectedComponentUI() {
   rackSelectedComponentText.textContent = `${rackDragComponent.label} selected · tap an empty rack slot to place it.`;
 }
 
+// ---- Touch and pen drag support ----
+function isRackTouchPointer(event) {
+  return event.pointerType === 'touch' || event.pointerType === 'pen';
+}
+
+function rackTouchComponentFromDefinition(comp) {
+  return {
+    componentType: comp.componentType,
+    heightU: comp.heightU,
+    label: comp.label,
+    category: comp.category || 'compute',
+    multiDevice: comp.multiDevice || null,
+    isPDU: !!comp.isPDU,
+    isBlank: !!comp.isBlank,
+    isPassive: !!comp.isPassive,
+    source: 'palette',
+  };
+}
+
+function clearRackTouchDropHighlight() {
+  document.querySelectorAll('.rack-slot.drag-over, .rack-slot.drag-invalid').forEach((slot) => {
+    slot.classList.remove('drag-over', 'drag-invalid');
+  });
+}
+
+function createRackTouchDragGhost(component) {
+  const ghost = document.createElement('div');
+  ghost.className = `rack-touch-drag-ghost cat-${component.category || 'compute'}`;
+  ghost.innerHTML = `<span>${escapeHtml(component.label || 'Component')}</span><small>${Number(component.heightU) || 1}U</small>`;
+  document.body.appendChild(ghost);
+  return ghost;
+}
+
+function positionRackTouchDragGhost(state, clientX, clientY) {
+  if (!state?.ghost) return;
+  const offsetX = 18;
+  const offsetY = 18;
+  state.ghost.style.transform = `translate3d(${Math.round(clientX + offsetX)}px, ${Math.round(clientY + offsetY)}px, 0)`;
+}
+
+function rackTouchScrollContainer() {
+  const views = document.querySelector('#rack-editor .rack-views-wrap');
+  if (views && views.scrollHeight > views.clientHeight + 2) return views;
+  return rackEditorBody;
+}
+
+function stopRackTouchAutoScroll(state) {
+  if (!state) return;
+  state.autoScrollDirection = 0;
+  if (state.autoScrollFrame) cancelAnimationFrame(state.autoScrollFrame);
+  state.autoScrollFrame = 0;
+}
+
+function runRackTouchAutoScroll(state) {
+  if (!state || rackTouchDragState !== state || !state.started || !state.autoScrollDirection) {
+    stopRackTouchAutoScroll(state);
+    return;
+  }
+  const scroller = rackTouchScrollContainer();
+  if (scroller) scroller.scrollTop += state.autoScrollDirection * 12;
+  updateRackTouchDropTarget(state, state.lastX, state.lastY);
+  state.autoScrollFrame = requestAnimationFrame(() => runRackTouchAutoScroll(state));
+}
+
+function updateRackTouchAutoScroll(state, clientY) {
+  const scroller = rackTouchScrollContainer();
+  if (!scroller) return;
+  const rect = scroller.getBoundingClientRect();
+  const edge = Math.min(90, Math.max(52, rect.height * 0.13));
+  let direction = 0;
+  if (clientY < rect.top + edge) direction = -1;
+  else if (clientY > rect.bottom - edge) direction = 1;
+  if (direction === state.autoScrollDirection) return;
+  stopRackTouchAutoScroll(state);
+  state.autoScrollDirection = direction;
+  if (direction) state.autoScrollFrame = requestAnimationFrame(() => runRackTouchAutoScroll(state));
+}
+
+function updateRackTouchDropTarget(state, clientX, clientY) {
+  if (!state?.started) return;
+  clearRackTouchDropHighlight();
+  state.dropTarget = null;
+
+  const element = document.elementFromPoint(clientX, clientY);
+  const slot = element?.closest?.('.rack-slot');
+  if (!slot) return;
+
+  const side = slot.dataset.side;
+  const u = Number.parseInt(slot.dataset.u || '', 10);
+  const rack = rackById(rackEditorRackId);
+  if (!rack || !side || !Number.isFinite(u)) return;
+
+  const sourceSlot = state.component.fromSlot || null;
+  const isOwnSlot = sourceSlot === `${side}-${u}`;
+  const isEmpty = slot.classList.contains('empty');
+  const fits = isEmpty && canFit(side, u, state.component.heightU, rack, sourceSlot);
+
+  if (fits) {
+    slot.classList.add('drag-over');
+    state.dropTarget = { side, u };
+  } else if (!isOwnSlot) {
+    slot.classList.add('drag-invalid');
+  }
+}
+
+function startRackTouchDrag(state) {
+  if (!state || rackTouchDragState !== state || state.started) return;
+  state.started = true;
+  state.sourceEl.classList.add('rack-touch-source');
+  rackDragComponent = { ...state.component };
+  state.ghost = createRackTouchDragGhost(state.component);
+  document.body.classList.add('rack-touch-dragging');
+
+  if (state.component.source === 'palette' && isMobile()) closeRackPaletteSheet();
+  positionRackTouchDragGhost(state, state.lastX, state.lastY);
+}
+
+function cleanupRackTouchDrag(state, preserveComponent = false) {
+  if (!state) return;
+  clearTimeout(state.startTimer);
+  stopRackTouchAutoScroll(state);
+  clearRackTouchDropHighlight();
+  state.sourceEl?.classList.remove('rack-touch-source');
+  state.ghost?.remove();
+  document.body.classList.remove('rack-touch-dragging');
+  try {
+    if (state.sourceEl?.hasPointerCapture?.(state.pointerId)) state.sourceEl.releasePointerCapture(state.pointerId);
+  } catch {}
+  if (!preserveComponent) rackDragComponent = null;
+  if (rackTouchDragState === state) rackTouchDragState = null;
+}
+
+function finishRackTouchDrag(event) {
+  const state = rackTouchDragState;
+  if (!state || state.pointerId !== event.pointerId) return;
+  clearTimeout(state.startTimer);
+
+  if (!state.started) {
+    cleanupRackTouchDrag(state);
+    return;
+  }
+
+  event.preventDefault();
+  rackTouchDragSuppressClickUntil = Date.now() + 650;
+  const target = state.hasMovedAfterStart ? state.dropTarget : null;
+  const component = { ...state.component };
+  cleanupRackTouchDrag(state, true);
+
+  if (!target) {
+    rackDragComponent = null;
+    return;
+  }
+
+  rackDragComponent = component;
+  const rack = rackById(rackEditorRackId);
+  if (rack) placeRackComponentAt(target.side, target.u, rack);
+  else rackDragComponent = null;
+}
+
+function bindRackTouchDragSource(element, componentFactory) {
+  if (!element || element.dataset.rackTouchDragBound === '1') return;
+  element.dataset.rackTouchDragBound = '1';
+  element.classList.add('rack-touch-draggable');
+
+  element.addEventListener('pointerdown', (event) => {
+    if (!isRackTouchPointer(event) || event.isPrimary === false || event.button !== 0) return;
+    if (event.target.closest('button, input, select, textarea, a')) return;
+    const component = componentFactory();
+    if (!component) return;
+
+    cleanupRackTouchDrag(rackTouchDragState);
+    const state = {
+      pointerId: event.pointerId,
+      sourceEl: element,
+      component,
+      startX: event.clientX,
+      startY: event.clientY,
+      lastX: event.clientX,
+      lastY: event.clientY,
+      started: false,
+      hasMovedAfterStart: false,
+      dropTarget: null,
+      ghost: null,
+      autoScrollDirection: 0,
+      autoScrollFrame: 0,
+      startTimer: 0,
+    };
+    rackTouchDragState = state;
+    try { element.setPointerCapture(event.pointerId); } catch {}
+    state.startTimer = window.setTimeout(() => startRackTouchDrag(state), 180);
+  });
+}
+
+document.addEventListener('pointermove', (event) => {
+  const state = rackTouchDragState;
+  if (!state || state.pointerId !== event.pointerId) return;
+  state.lastX = event.clientX;
+  state.lastY = event.clientY;
+
+  if (!state.started) {
+    const distance = Math.hypot(event.clientX - state.startX, event.clientY - state.startY);
+    if (distance > 10) cleanupRackTouchDrag(state);
+    return;
+  }
+
+  event.preventDefault();
+  const dragDistance = Math.hypot(event.clientX - state.startX, event.clientY - state.startY);
+  if (dragDistance > 8) state.hasMovedAfterStart = true;
+  positionRackTouchDragGhost(state, event.clientX, event.clientY);
+  if (state.hasMovedAfterStart) {
+    updateRackTouchDropTarget(state, event.clientX, event.clientY);
+    updateRackTouchAutoScroll(state, event.clientY);
+  }
+}, { passive: false });
+
+document.addEventListener('pointerup', finishRackTouchDrag, { passive: false });
+document.addEventListener('pointercancel', (event) => {
+  const state = rackTouchDragState;
+  if (state?.pointerId === event.pointerId) cleanupRackTouchDrag(state);
+});
+
 // ---- Palette ----
 const CATEGORY_META = {
   compute: { label: 'Compute',    icon: '🖥' },
@@ -6591,6 +6814,7 @@ function renderPalette() {
       e.dataTransfer.effectAllowed = 'copy';
     });
     el.addEventListener('dragend', () => { rackDragComponent = null; });
+    bindRackTouchDragSource(el, () => rackTouchComponentFromDefinition(comp));
     rackPaletteItems.appendChild(el);
   });
 }
@@ -6650,8 +6874,10 @@ function placeRackComponentAt(side, u, rack) {
     isPassive: rackDragComponent.isPassive || false,
   };
   const placed = rackDragComponent;
+  const sourceSide = placed.fromSlot ? String(placed.fromSlot).split('-')[0] : null;
   saveRackData();
   renderRackDiagram(side);
+  if (sourceSide && sourceSide !== side) renderRackDiagram(sourceSide);
   if (!placed.isBlank && !placed.isPassive) showLinkPanel(slotKey, side);
   clearRackComponentSelection();
   closeRackPaletteSheet();
@@ -6677,7 +6903,11 @@ function createEmptySlot(side, u, rack) {
     el.classList.remove('drag-over', 'drag-invalid');
     placeRackComponentAt(side, u, rack);
   });
-  el.addEventListener('click', () => {
+  el.addEventListener('click', (event) => {
+    if (Date.now() < rackTouchDragSuppressClickUntil) {
+      event.preventDefault();
+      return;
+    }
     if (!isMobile() || !rackDragComponent) return;
     placeRackComponentAt(side, u, rack);
   });
@@ -6733,6 +6963,10 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
   `;
 
   el.addEventListener('click', e => {
+    if (Date.now() < rackTouchDragSuppressClickUntil) {
+      e.preventDefault();
+      return;
+    }
     if (e.target.classList.contains('rack-slot-remove')) return;
     if (comp.isBlank || comp.isPassive) return;
     showLinkPanel(slotKey, side);
@@ -6749,6 +6983,23 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
     setTimeout(() => el.style.opacity = '0.4', 0);
   });
   el.addEventListener('dragend', () => { el.style.opacity = ''; rackDragComponent = null; });
+  bindRackTouchDragSource(el, () => ({
+    componentType: comp.componentType,
+    heightU: comp.heightU,
+    label: comp.label,
+    category: comp.category || 'compute',
+    linkedDeviceId: comp.linkedDeviceId || null,
+    multiDevice: comp.multiDevice || null,
+    linkedDevices: comp.linkedDevices || null,
+    isPDU: !!comp.isPDU,
+    pduPorts: comp.pduPorts || null,
+    pduLinks: comp.pduLinks || null,
+    switchPortLinks: comp.switchPortLinks || null,
+    isBlank: !!comp.isBlank,
+    isPassive: !!comp.isPassive,
+    fromSlot: slotKey,
+    source: 'rack',
+  }));
   el.addEventListener('dragover', e => { if (!rackDragComponent || rackDragComponent.fromSlot === slotKey) return; e.preventDefault(); });
   el.addEventListener('drop', e => {
     e.preventDefault();
@@ -7407,6 +7658,10 @@ function initMobileRackControls() {
   rackSelectedComponentClear?.addEventListener('click', clearRackComponentSelection);
 
   rackPalette?.addEventListener('click', (event) => {
+    if (Date.now() < rackTouchDragSuppressClickUntil) {
+      event.preventDefault();
+      return;
+    }
     const item = event.target.closest('.rack-palette-item');
     if (!item || !isMobile()) return;
     const def = RACK_COMPONENTS.find(c => c.componentType === item.dataset.componentType) || {};

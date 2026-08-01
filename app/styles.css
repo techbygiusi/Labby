@@ -8574,3 +8574,69 @@ dialog.rack-form-dialog:not([open]) {
 #mobile-config .config-intro {
   border: 2px solid var(--line) !important;
 }
+
+/* Touch and pen drag support for rack components. */
+.rack-touch-drag-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100000;
+  min-width: 150px;
+  max-width: min(260px, calc(100vw - 32px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.8rem;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
+  font: 700 0.78rem/1.25 'Space Mono', monospace;
+  pointer-events: none;
+  user-select: none;
+  will-change: transform;
+}
+.rack-touch-drag-ghost small {
+  flex: 0 0 auto;
+  padding: 0.12rem 0.35rem;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--line) 14%, transparent);
+  color: var(--muted);
+  font: 700 0.66rem/1.2 'Space Mono', monospace;
+}
+.rack-touch-dragging,
+.rack-touch-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+.rack-touch-source {
+  opacity: 0.42 !important;
+}
+@media (pointer: coarse) {
+  .rack-touch-draggable {
+    -webkit-touch-callout: none;
+  }
+  .rack-palette-item.rack-touch-draggable {
+    touch-action: pan-y;
+  }
+  .rack-slot.occupied.rack-touch-draggable {
+    touch-action: none;
+  }
+  .rack-palette-drag {
+    min-width: 30px;
+    min-height: 30px;
+    display: inline-grid;
+    place-items: center;
+    margin: -0.2rem 0 -0.2rem -0.25rem;
+    touch-action: none;
+  }
+  .rack-slot.drag-over {
+    box-shadow: inset 0 0 0 3px var(--mint);
+  }
+  .rack-slot.drag-invalid {
+    box-shadow: inset 0 0 0 3px var(--danger);
+  }
+}
