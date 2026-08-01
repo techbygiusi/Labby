@@ -4938,6 +4938,8 @@ function buildInfrastructureTree() {
     const hasChildren = hostGuests.length > 0 || directApps.length > 0;
     const card = document.createElement(hasChildren ? 'details' : 'article');
     card.className = `tree-resource-card tree-host-card${hasChildren ? ' tree-resource-details' : ' tree-resource-leaf'}`;
+    card.dataset.hostId = host.id;
+    card._treeHost = host;
 
     const summary = document.createElement(hasChildren ? 'summary' : 'div');
     summary.className = 'tree-resource-summary tree-host-summary';
@@ -4984,6 +4986,106 @@ function buildInfrastructureTree() {
     return card;
   }
 
+  const desktopTreeMedia = window.matchMedia('(min-width: 901px)');
+
+  function createHostDetailPanel() {
+    const panel = document.createElement('aside');
+    panel.className = 'tree-desktop-host-detail';
+    panel.innerHTML = `
+      <div class="tree-detail-placeholder">
+        <span class="tree-detail-placeholder-icon">↳</span>
+        <strong>Select a host</strong>
+        <span>Choose a host on the left to view its guests and direct applications.</span>
+      </div>
+    `;
+    return panel;
+  }
+
+  function clearHostDetailPanel(grid, panel) {
+    grid.querySelectorAll('.tree-host-card').forEach((card) => card.classList.remove('tree-host-selected'));
+    panel.removeAttribute('data-active-host-id');
+    panel.innerHTML = `
+      <div class="tree-detail-placeholder">
+        <span class="tree-detail-placeholder-icon">↳</span>
+        <strong>Select a host</strong>
+        <span>Choose a host on the left to view its guests and direct applications.</span>
+      </div>
+    `;
+  }
+
+  function renderHostDetailPanel(grid, panel, card) {
+    const host = card._treeHost;
+    if (!host) return;
+
+    grid.querySelectorAll('.tree-host-card').forEach((entry) => entry.classList.toggle('tree-host-selected', entry === card));
+    panel.dataset.activeHostId = host.id;
+    panel.replaceChildren();
+
+    const header = document.createElement('div');
+    header.className = 'tree-detail-header';
+    const main = document.createElement('div');
+    main.className = 'tree-node-main';
+    main.append(resourceIcon(host), resourceText(host, resourceSubtitle(host)));
+    header.appendChild(main);
+
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'tree-detail-close';
+    closeButton.textContent = 'Close';
+    closeButton.addEventListener('click', () => {
+      if (card.tagName === 'DETAILS') card.open = false;
+      clearHostDetailPanel(grid, panel);
+    });
+    header.appendChild(closeButton);
+    panel.appendChild(header);
+
+    const sourceChildren = card.querySelector(':scope > .tree-host-children');
+    if (sourceChildren) {
+      const content = sourceChildren.cloneNode(true);
+      content.classList.add('tree-detail-content');
+      panel.appendChild(content);
+    } else {
+      const empty = document.createElement('div');
+      empty.className = 'tree-detail-empty';
+      empty.innerHTML = '<strong>No linked resources</strong><span>This host has no guests or direct applications.</span>';
+      panel.appendChild(empty);
+    }
+  }
+
+  function bindDesktopHostDetails(grid, panel) {
+    let syncing = false;
+    const cards = Array.from(grid.querySelectorAll('.tree-host-card'));
+
+    function selectCard(card) {
+      if (!desktopTreeMedia.matches) return;
+      syncing = true;
+      cards.forEach((entry) => {
+        if (entry !== card && entry.tagName === 'DETAILS') entry.open = false;
+      });
+      syncing = false;
+      renderHostDetailPanel(grid, panel, card);
+    }
+
+    cards.forEach((card) => {
+      if (card.tagName === 'DETAILS') {
+        card.addEventListener('toggle', () => {
+          if (syncing || !desktopTreeMedia.matches) return;
+          if (card.open) selectCard(card);
+          else if (panel.dataset.activeHostId === card.dataset.hostId) clearHostDetailPanel(grid, panel);
+        });
+      } else {
+        card.tabIndex = 0;
+        card.setAttribute('role', 'button');
+        card.addEventListener('click', () => selectCard(card));
+        card.addEventListener('keydown', (event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          selectCard(card);
+        });
+      }
+    });
+  }
+
   const preferredKindOrder = ['router-gateway', 'switch', 'hypervisor', 'server', 'nas', 'backup', 'pc'];
   const actualKinds = [...new Set(hardware.map((host) => host.hardwareKind || 'server'))];
   const orderedKinds = [
@@ -5006,10 +5108,17 @@ function buildInfrastructureTree() {
     summary.appendChild(countBadge(String(hosts.length), 'group'));
     group.appendChild(summary);
 
+    const layout = document.createElement('div');
+    layout.className = 'tree-kind-layout';
+
     const grid = document.createElement('div');
     grid.className = 'tree-host-grid';
     hosts.forEach((host) => grid.appendChild(createHostCard(host)));
-    group.appendChild(grid);
+
+    const detailPanel = createHostDetailPanel();
+    layout.append(grid, detailPanel);
+    group.appendChild(layout);
+    bindDesktopHostDetails(grid, detailPanel);
     body.appendChild(group);
   });
 
@@ -6108,7 +6217,7 @@ const rackMobilePaletteFab = document.getElementById('rack-mobile-palette-fab');
 const rackSelectedComponentPill = document.getElementById('rack-selected-component-pill');
 const rackSelectedComponentText = document.getElementById('rack-selected-component-text');
 const rackSelectedComponentClear = document.getElementById('rack-selected-component-clear');
-// rackFormBack removed - dialog now uses inline close buttons
+// rackFormBack removed — dialog now uses inline close buttons
 const phoneGrid         = document.querySelector('.phone-grid');
 
 // ---- Helpers ----
@@ -6128,7 +6237,7 @@ function openDefaultRackWorkspace() {
 }
 
 function showRackOverlay(id) {
-  // Only toggle the full-screen overlays - never the form dialog
+  // Only toggle the full-screen overlays — never the form dialog
   if (id !== 'rack-editor') closeLinkPanel();
   [rackOverview, rackEditor].forEach(el => el && el.classList.add('hidden'));
   if (id !== 'rack-editor') closeRackPaletteSheet();
@@ -6159,7 +6268,7 @@ function renderRackOverview() {
   if (!rackOverviewBody) return;
   rackOverviewBody.innerHTML = '';
 
-  // Inner wrapper - same max-width as dashboard
+  // Inner wrapper — same max-width as dashboard
   const inner = document.createElement('div');
   inner.className = 'rack-overview-inner';
   rackOverviewBody.appendChild(inner);
@@ -6282,7 +6391,7 @@ function showRackContextMenu(x, y, rack, onDelete) {
     <div class="rack-ctx-item danger" id="ctx-delete">🗑 Delete Rack</div>
   `;
 
-  // Position - keep inside viewport
+  // Position — keep inside viewport
   menu.style.left = Math.min(x, window.innerWidth  - 200) + 'px';
   menu.style.top  = Math.min(y, window.innerHeight - 150) + 'px';
   document.body.appendChild(menu);
@@ -6902,7 +7011,7 @@ function createEmptySlot(side, u, rack) {
   el.className = 'rack-slot empty';
   el.dataset.u    = u;
   el.dataset.side = side;
-  el.innerHTML = `<span class="rack-slot-num">${u}</span><div class="rack-slot-content"><span class="rack-slot-label">- empty -</span></div>`;
+  el.innerHTML = `<span class="rack-slot-num">${u}</span><div class="rack-slot-content"><span class="rack-slot-label">— empty —</span></div>`;
 
   el.addEventListener('dragover', e => {
     e.preventDefault();
@@ -6947,13 +7056,13 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
   el.style.setProperty('min-height', totalH + 'px', 'important');
   el.style.setProperty('max-height', totalH + 'px', 'important');
 
-  // Build device label(s) - consistent plain-text style for all types
+  // Build device label(s) — consistent plain-text style for all types
   let deviceHtml = '';
   if (comp.multiDevice && comp.linkedDevices) {
     // Same plain style as single-device, each PC on its own .rack-slot-device line
     const lines = comp.linkedDevices.map((id, i) => {
       const dev = id ? findById(id) : null;
-      const name = dev ? escapeHtml((dev.symbol || '') + ' ' + dev.name) : '-';
+      const name = dev ? escapeHtml((dev.symbol || '') + ' ' + dev.name) : '—';
       return `<span class="rack-slot-device"><span class="rack-slot-device-idx">${i + 1}.</span> ${name}</span>`;
     }).join('');
     deviceHtml = `<div class="rack-multi-lines">${lines}</div>`;
@@ -7044,7 +7153,7 @@ function canFit(side, startU, heightU, rack, excludeSlot) {
 // ---- Link panel ----
 // The panel is rendered as a FIXED overlay appended to body so it never
 // gets clipped by overflow:hidden ancestors (rack-frame, rack-editor-body).
-// Closing: only via OK / Skip / Escape - NO outside-click-to-close, because
+// Closing: only via OK / Skip / Escape — NO outside-click-to-close, because
 // that interferes with native <select> dropdowns on every platform.
 
 
@@ -7136,7 +7245,7 @@ function showLinkPanel(slotKey, side) {
         <div class="rack-link-row">
           <span class="rack-link-row-label">PC ${i + 1}:</span>
           <select class="rack-link-multi" data-idx="${i}">
-            <option value="">- none -</option>${buildHwOpts(devs[i])}
+            <option value="">— none —</option>${buildHwOpts(devs[i])}
           </select>
         </div>`;
     }
@@ -7179,7 +7288,7 @@ function showLinkPanel(slotKey, side) {
         <div class="rack-link-row">
           <span class="rack-link-row-label">Port ${i + 1}:</span>
           <select class="rack-switch-port" data-port="${i}">
-            <option value="">- empty -</option>${buildHwOpts(comp.switchPortLinks[i] || null)}
+            <option value="">— empty —</option>${buildHwOpts(comp.switchPortLinks[i] || null)}
           </select>
         </div>`).join('');
     }
@@ -7188,7 +7297,7 @@ function showLinkPanel(slotKey, side) {
         <div class="rack-link-row">
           <span class="rack-link-row-label">${expectedKind === 'router-gateway' ? 'Router / Gateway:' : 'Switch:'}</span>
           <select id="rack-switch-device">
-            <option value="">- none -</option>${buildSwitchOpts(comp.linkedDeviceId)}
+            <option value="">— none —</option>${buildSwitchOpts(comp.linkedDeviceId)}
           </select>
         </div>
         <div id="rack-switch-port-rows">${buildSwitchPortRows()}</div>
@@ -7227,7 +7336,7 @@ function showLinkPanel(slotKey, side) {
         <div class="rack-link-row">
           <span class="rack-link-row-label">Port ${i + 1}:</span>
           <select class="rack-pdu-port" data-port="${i}">
-            <option value="">- empty -</option>${buildHwOpts(pduLinks[i] || null)}
+            <option value="">— empty —</option>${buildHwOpts(pduLinks[i] || null)}
           </select>
         </div>`).join('');
     }
@@ -7270,7 +7379,7 @@ function showLinkPanel(slotKey, side) {
       <div class="rack-link-row">
         <span class="rack-link-row-label">Gerät:</span>
         <select id="rack-link-select">
-          <option value="">- none -</option>${buildHwOpts(comp.linkedDeviceId)}
+          <option value="">— none —</option>${buildHwOpts(comp.linkedDeviceId)}
         </select>
       </div>
       <div class="rack-link-actions">
@@ -7297,7 +7406,7 @@ function showRackLinkModal(slotKey, side, comp) {
   const hardwareItems = items.filter(i => i.type === 'hardware');
   const deviceName = id => {
     const itm = hardwareItems.find(h => h.id === id);
-    return itm ? `${itm.symbol || ''} ${itm.name}`.trim() : '- empty -';
+    return itm ? `${itm.symbol || ''} ${itm.name}`.trim() : '— empty —';
   };
   const escapeAttr = v => escapeHtml(String(v || ''));
 
@@ -7315,7 +7424,7 @@ function showRackLinkModal(slotKey, side, comp) {
     picker.className = 'rack-device-picker';
     picker.id = 'rack-device-picker-active';
     const choices = [
-      `<button class="rack-device-choice ${!selectedId ? 'selected' : ''}" data-id="" type="button">- empty -</button>`,
+      `<button class="rack-device-choice ${!selectedId ? 'selected' : ''}" data-id="" type="button">— empty —</button>`,
       ...choiceItems.map(itm => `<button class="rack-device-choice ${selectedId === itm.id ? 'selected' : ''}" data-id="${escapeAttr(itm.id)}" type="button">${escapeHtml(`${itm.symbol || ''} ${itm.name}`.trim())}${['router-gateway', 'switch'].includes(itm.hardwareKind) && itm.switchPorts ? ` · ${escapeHtml(String(itm.switchPorts))} ports` : ''}</button>`)
     ].join('');
     picker.innerHTML = `
@@ -7462,7 +7571,7 @@ function closeLinkPanel() {
   rackLinkPanelTarget = null;
 }
 
-// Close panel with Escape key only - no outside-click, no mousedown tricks
+// Close panel with Escape key only — no outside-click, no mousedown tricks
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && rackLinkPanelTarget) closeLinkPanel();
 });
@@ -7509,7 +7618,7 @@ function equaliseRackHeights() {
   const diff = targetH - shorter.scrollHeight;
   const emptySlots = shorter.querySelectorAll('.rack-slot.empty');
   if (emptySlots.length === 0) {
-    // No empty slots to expand - just set minHeight on the frame
+    // No empty slots to expand — just set minHeight on the frame
     shorter.style.minHeight = targetH + 'px';
     return;
   }
