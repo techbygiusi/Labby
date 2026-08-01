@@ -8640,3 +8640,43 @@ dialog.rack-form-dialog:not([open]) {
     box-shadow: inset 0 0 0 3px var(--danger);
   }
 }
+
+
+/* v113: keep CLI scrollbars inside the rounded terminal and hide the track. */
+.cli-terminal {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.42) transparent;
+  scrollbar-gutter: stable;
+}
+
+.cli-terminal::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.cli-terminal::-webkit-scrollbar-track {
+  background: transparent;
+  margin-block: 10px;
+  margin-inline: 10px;
+}
+
+.cli-terminal::-webkit-scrollbar-thumb {
+  min-height: 34px;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.38);
+  background-clip: padding-box;
+}
+
+.cli-terminal::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.62);
+  background-clip: padding-box;
+}
+
+.cli-terminal::-webkit-scrollbar-button,
+.cli-terminal::-webkit-scrollbar-corner {
+  display: none;
+  width: 0;
+  height: 0;
+  background: transparent;
+}

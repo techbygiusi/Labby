@@ -897,7 +897,6 @@
             <a class="wiki-nav-link active" href="#" data-page="home">Overview</a>
             <a class="wiki-nav-link" href="#" data-page="installation">Installation</a>
             <a class="wiki-nav-link" href="#" data-page="quickstart">Quick Start</a>
-            <a class="wiki-nav-link" href="#" data-page="demomode">Demo Mode</a>
             <a class="wiki-nav-link" href="#" data-page="architecture">Technical Structure</a>
           </div>
           <div class="wiki-nav-group">
@@ -1082,25 +1081,6 @@ Hosted on: docker-01</pre>
       <h2>6. Enable backups</h2>
       <p>Use <code>Config → Export Config</code> for a manual JSON export or <code>Config → Backup Config</code> for encrypted scheduled backups.</p>
     `},
-    demomode:{title:'🧪 Demo Mode',content:`
-      <p>The public demo intentionally runs in the browser. You can explore Labby without changing a self-hosted backend dataset.</p>
-      <h2>Available in the demo</h2>
-      <ul>
-        <li>Create and edit resources, racks, networks and themes.</li>
-        <li>Reload the prepared demo data.</li>
-        <li>Export and import the browser-based config.</li>
-        <li>Open Backup Config as a read-only preview.</li>
-      </ul>
-      <h2>Disabled in the demo</h2>
-      <ul>
-        <li>Real SSH connections.</li>
-        <li>Real scheduled backup jobs.</li>
-        <li>Restore and delete for encrypted backup files.</li>
-        <li>Agent write access to a real backend.</li>
-      </ul>
-      <h2>Reset the demo</h2>
-      <p>Use <strong>Load Demo</strong> to restore the prepared sample data. Export your test data first if you want to keep it.</p>
-    `},
     architecture:{title:'🧱 Technical Structure',content:`
       <p>Labby is a small self-hosted web app. The single-container image starts Nginx for the interface and a Node.js backend for API, persistence, SSH features and backups.</p>
       <h2>Flow</h2>
@@ -1112,12 +1092,10 @@ Browser → /api → Backend → /data</pre>
         <li><code>/data/backup-smb-secret.json</code>: encrypted SMB password used by Backup Config</li>
         <li><code>app/</code>: frontend files</li>
         <li><code>backend/</code>: API, SSH, backup logic and data access</li>
-        <li><code>website/</code>: public demo website and wiki</li>
+        <li><code>website/</code>: public website and wiki</li>
       </ul>
       <h2>Persistence</h2>
       <p>Self-hosted Labby stores data server-side. Keep <code>/data</code> mounted as a volume or host path.</p>
-      <h2>Demo</h2>
-      <p>The demo uses browser storage and shows security-sensitive backend features only as previews.</p>
     `},
     features:{title:'✨ Features',content:`
       <h2>Resource documentation</h2>
@@ -1236,8 +1214,6 @@ Browser → /api → Backend → /data</pre>
       <p>The <strong>Paste sudo pw</strong> button sends the saved password of the current resource to the active SSH session. The password is not written to command history.</p>
       <h2>Full-screen tools</h2>
       <p>The Labby CLI is designed for administration commands and logs. Full-screen programs such as <code>nano</code>, <code>htop</code> or <code>mc</code> may be limited depending on terminal output. For long interactive work, a native terminal is still the safest choice.</p>
-      <h2>Demo</h2>
-      <p>Real SSH connections are disabled in the public demo.</p>
     `},
     agentapi:{title:'🤖 Agent API',content:`
       <div class="wiki-shot-grid">
@@ -1314,8 +1290,6 @@ Browser → /api → Backend → /data</pre>
       <h2>Manual JSON export</h2>
       <pre>Config → Export Config</pre>
       <p>The JSON export remains useful for migrations and manual snapshots. It includes Backup Config settings, but not the SMB password or the encrypted <code>.labbybackup</code> files.</p>
-      <h2>Demo mode</h2>
-      <p>The public demo displays Backup Config as a read-only preview. Scheduled jobs, SMB connection tests, restore and delete actions are available only in the self-hosted version.</p>
     `},
 
     license:{title:'📄 License',content:`

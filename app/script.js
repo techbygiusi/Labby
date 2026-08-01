@@ -3208,11 +3208,25 @@ async function openCliSession(item, options = {}) {
     els.input?.focus();
   } catch (err) {
     const sshUrl = username ? `ssh://${encodeURIComponent(username)}@${ip}` : `ssh://${ip}`;
-    setCliOutput(
-      `Labby could not start the backend SSH session.\n\n` +
-      `You can still launch your system SSH client manually:\nssh ${target}\n\n` +
-      `Reason: ${err.message || err}\n`
-    );
+    const isPublicDemoCli = typeof DEMO_INTERACTIVE_SECURITY_DISABLED !== 'undefined' && DEMO_INTERACTIVE_SECURITY_DISABLED;
+    const outputLines = isPublicDemoCli
+      ? [
+          'SSH is unavailable in the public demo.',
+          '',
+          'Use the self-hosted version for live SSH sessions.',
+          '',
+          'Manual command:',
+          `ssh ${target}`,
+        ]
+      : [
+          'Labby could not start the backend SSH session.',
+          '',
+          'You can still launch your system SSH client manually:',
+          `ssh ${target}`,
+          '',
+          `Reason: ${err.message || err}`,
+        ];
+    setCliOutput(`${outputLines.join('\r\n')}\r\n`);
     const elsNow = activeCliEls();
     if (elsNow.terminal) {
       const a = document.createElement('a');
