@@ -8742,3 +8742,68 @@ dialog.rack-form-dialog:not([open]) {
   margin-block: 10px;
   background: transparent;
 }
+
+
+/* v111: unify desktop and tablet popup sizes */
+:root {
+  --popup-unified-width: min(1280px, calc(100vw - 96px));
+  --popup-unified-height: min(760px, calc(100dvh - 96px));
+  --popup-unified-max-width: calc(100vw - 96px);
+  --popup-unified-max-height: calc(100dvh - 96px);
+}
+
+@media (min-width: 821px) {
+  dialog.tree-dialog[open],
+  dialog.advanced-resource-dialog[open],
+  dialog.cli-dialog[open],
+  dialog#tree-dialog[open],
+  dialog#ip-dialog[open],
+  dialog#config-dialog[open],
+  dialog#backup-config-dialog[open],
+  dialog#agent-api-dialog[open],
+  dialog#theme-picker-dialog[open] {
+    width: var(--popup-unified-width) !important;
+    height: var(--popup-unified-height) !important;
+    max-width: var(--popup-unified-max-width) !important;
+    max-height: var(--popup-unified-max-height) !important;
+    margin: auto !important;
+  }
+
+  dialog.tree-dialog,
+  dialog.advanced-resource-dialog,
+  dialog.cli-dialog,
+  .backup-config-dialog,
+  .agent-api-dialog {
+    width: var(--popup-unified-width) !important;
+    height: var(--popup-unified-height) !important;
+    max-width: var(--popup-unified-max-width) !important;
+    max-height: var(--popup-unified-max-height) !important;
+  }
+
+  dialog#theme-picker-dialog[open] {
+    position: fixed !important;
+    inset: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    border: 3px solid var(--line) !important;
+    border-radius: 18px !important;
+    padding: 0.9rem !important;
+    overflow: hidden !important;
+    background: var(--phone) !important;
+  }
+
+  dialog#theme-picker-dialog::backdrop,
+  dialog#tree-dialog::backdrop,
+  dialog#ip-dialog::backdrop,
+  dialog#config-dialog::backdrop,
+  dialog#backup-config-dialog::backdrop,
+  dialog#agent-api-dialog::backdrop,
+  dialog.advanced-resource-dialog::backdrop,
+  dialog.cli-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.45) !important;
+  }
+
+  dialog#theme-picker-dialog > .sheet-handle {
+    display: none !important;
+  }
+}
