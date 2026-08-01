@@ -3208,11 +3208,25 @@ async function openCliSession(item, options = {}) {
     els.input?.focus();
   } catch (err) {
     const sshUrl = username ? `ssh://${encodeURIComponent(username)}@${ip}` : `ssh://${ip}`;
-    setCliOutput(
-      `Labby could not start the backend SSH session.\n\n` +
-      `You can still launch your system SSH client manually:\nssh ${target}\n\n` +
-      `Reason: ${err.message || err}\n`
-    );
+    const isPublicDemoCli = typeof DEMO_INTERACTIVE_SECURITY_DISABLED !== 'undefined' && DEMO_INTERACTIVE_SECURITY_DISABLED;
+    const outputLines = isPublicDemoCli
+      ? [
+          'SSH is unavailable in the public demo.',
+          '',
+          'Use the self-hosted version for live SSH sessions.',
+          '',
+          'Manual command:',
+          `ssh ${target}`,
+        ]
+      : [
+          'Labby could not start the backend SSH session.',
+          '',
+          'You can still launch your system SSH client manually:',
+          `ssh ${target}`,
+          '',
+          `Reason: ${err.message || err}`,
+        ];
+    setCliOutput(`${outputLines.join('\r\n')}\r\n`);
     const elsNow = activeCliEls();
     if (elsNow.terminal) {
       const a = document.createElement('a');
@@ -4784,169 +4798,262 @@ function positionGraphTooltip(event, tip, wrap) {
 
 function buildInfrastructureTree() {
   const section = document.createElement('section');
-  section.className = 'tree-section';
-  section.innerHTML = '<h4>Infrastructure</h4>';
-
-  const body = document.createElement('div');
-  body.className = 'tree-body';
+  section.className = 'tree-section tree-section-redesign';
 
   const hardware = items.filter((item) => item.type === 'hardware');
   const vms = items.filter((item) => item.type === 'vm');
   const lxcs = items.filter((item) => item.type === 'lxc');
   const apps = items.filter((item) => item.type === 'app');
+  const guests = [...vms, ...lxcs];
+  const hardwareById = new Map(hardware.map((item) => [item.id, item]));
+  const guestById = new Map(guests.map((item) => [item.id, item]));
 
-  const kindOrder = ['router-gateway', 'switch', 'hypervisor', 'server', 'nas', 'backup', 'pc'];
-  const groupedHardware = kindOrder
-    .map((kind) => ({
-      kind,
-      hosts: hardware
-        .filter((host) => (host.hardwareKind || 'server') === kind)
-        .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })),
-    }))
-    .filter((group) => group.hosts.length);
+  const byName = (a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base', numeric: true });
+  const guestSort = (a, b) => {
+    const rank = { vm: 0, lxc: 1 };
+    return (rank[a.type] ?? 9) - (rank[b.type] ?? 9) || byName(a, b);
+  };
 
-  groupedHardware.forEach((group) => {
-    const groupBlock = document.createElement('div');
-    groupBlock.className = 'tree-subgroup';
+  const header = document.createElement('div');
+  header.className = 'tree-overview-head';
 
-    const groupHead = document.createElement('div');
-    groupHead.className = 'tree-summary tree-group-head';
-    groupHead.textContent = `${hardwareTypeLabel(group.kind)} (${group.hosts.length})`;
-    groupBlock.appendChild(groupHead);
+  const titleWrap = document.createElement('div');
+  titleWrap.className = 'tree-overview-title';
+  titleWrap.innerHTML = '<h4>Infrastructure</h4><p>Resources are grouped by hardware type, host, guest and application.</p>';
+  header.appendChild(titleWrap);
 
-    const groupBody = document.createElement('div');
-    groupBody.className = 'tree-children';
+  const controls = document.createElement('div');
+  controls.className = 'tree-overview-controls';
+  const expandButton = document.createElement('button');
+  expandButton.type = 'button';
+  expandButton.className = 'button secondary tree-control-button';
+  expandButton.textContent = 'Expand all';
+  const collapseButton = document.createElement('button');
+  collapseButton.type = 'button';
+  collapseButton.className = 'button secondary tree-control-button';
+  collapseButton.textContent = 'Collapse all';
+  controls.append(expandButton, collapseButton);
+  header.appendChild(controls);
+  section.appendChild(header);
 
-    group.hosts.forEach((host) => {
-      const hostGuests = [...vms, ...lxcs].filter((guest) => guest.hostedOn === host.id);
+  const stats = document.createElement('div');
+  stats.className = 'tree-overview-stats';
+  [
+    ['Hardware', hardware.length, 'hardware'],
+    ['VMs', vms.length, 'vm'],
+    ['LXCs', lxcs.length, 'lxc'],
+    ['Apps', apps.length, 'app'],
+  ].forEach(([name, value, type]) => {
+    const stat = document.createElement('div');
+    stat.className = `tree-overview-stat ${type}`;
+    stat.innerHTML = `<strong>${value}</strong><span>${name}</span>`;
+    stats.appendChild(stat);
+  });
+  section.appendChild(stats);
 
-      const hostBlock = document.createElement('details');
-      hostBlock.className = 'tree-collapsible tree-host';
-      hostBlock.open = false;
+  const body = document.createElement('div');
+  body.className = 'tree-body tree-redesign-body';
 
-      const hostSummary = document.createElement('summary');
-      hostSummary.className = 'tree-summary tree-summary-host';
-      hostSummary.appendChild(treeChip(host));
-      const hostIp = treeIpMeta(host);
-      if (hostIp) hostSummary.appendChild(hostIp);
-      const guestCount = document.createElement('span');
-      guestCount.className = 'tree-count';
-      guestCount.textContent = `${hostGuests.length} guest${hostGuests.length === 1 ? '' : 's'}`;
-      hostSummary.appendChild(guestCount);
-      hostBlock.appendChild(hostSummary);
+  function resourceIcon(item) {
+    const icon = document.createElement('span');
+    icon.className = `tree-node-icon ${item.type}`;
+    icon.textContent = item.symbol || defaultSymbol(item.type, item.hardwareKind);
+    return icon;
+  }
 
-      const hostChildren = document.createElement('div');
-      hostChildren.className = 'tree-children tree-layer-host';
+  function resourceText(item, subtitle) {
+    const textWrap = document.createElement('span');
+    textWrap.className = 'tree-node-text';
+    const name = document.createElement('strong');
+    name.textContent = item.name || 'Unnamed resource';
+    const meta = document.createElement('small');
+    meta.textContent = subtitle;
+    textWrap.append(name, meta);
+    return textWrap;
+  }
 
-      hostGuests.forEach((guest) => {
-        const guestApps = apps.filter((app) => app.appHostedOn === guest.id);
+  function countBadge(text, kind = '') {
+    const badge = document.createElement('span');
+    badge.className = `tree-node-badge ${kind}`.trim();
+    badge.textContent = text;
+    return badge;
+  }
 
-        if (!guestApps.length) {
-          const guestLane = document.createElement('div');
-          guestLane.className = 'tree-lane nested';
-          guestLane.appendChild(treeChip(guest));
-          const guestIp = treeIpMeta(guest);
-          if (guestIp) guestLane.appendChild(guestIp);
-          hostChildren.appendChild(guestLane);
-          return;
-        }
+  function resourceSubtitle(item) {
+    const parts = [];
+    if (item.type === 'hardware') parts.push(hardwareTypeLabel(item.hardwareKind || 'server'));
+    else parts.push(label(item.type));
+    const ipValue = item.type === 'app' ? (item.ipPort || item.ip || '') : (item.ip || '');
+    if (ipValue) parts.push(ipValue);
+    return parts.join(' · ');
+  }
 
-        const guestBlock = document.createElement('details');
-        guestBlock.className = 'tree-collapsible tree-guest';
+  function createAppRow(app) {
+    const row = document.createElement('div');
+    row.className = 'tree-app-row';
+    const main = document.createElement('div');
+    main.className = 'tree-node-main';
+    main.append(resourceIcon(app), resourceText(app, resourceSubtitle(app)));
+    row.appendChild(main);
+    const link = appTreeLink(app);
+    if (link) {
+      link.classList.add('tree-app-link');
+      link.textContent = 'Open';
+      row.appendChild(link);
+    }
+    return row;
+  }
 
-        const guestSummary = document.createElement('summary');
-        guestSummary.className = 'tree-summary tree-summary-guest';
-        guestSummary.appendChild(treeChip(guest));
-        const guestIp = treeIpMeta(guest);
-        if (guestIp) guestSummary.appendChild(guestIp);
-        const appCount = document.createElement('span');
-        appCount.className = 'tree-count';
-        appCount.textContent = `${guestApps.length} app${guestApps.length === 1 ? '' : 's'}`;
-        guestSummary.appendChild(appCount);
-        guestBlock.appendChild(guestSummary);
+  function createGuestCard(guest) {
+    const guestApps = apps.filter((app) => app.appHostedOn === guest.id).sort(byName);
+    const hasApps = guestApps.length > 0;
+    const card = document.createElement(hasApps ? 'details' : 'article');
+    card.className = `tree-resource-card tree-guest-card ${guest.type}${hasApps ? ' tree-resource-details' : ' tree-resource-leaf'}`;
 
-        const appWrap = document.createElement('div');
-        appWrap.className = 'tree-children tree-layer-guest';
-        guestApps.forEach((app) => {
-          const appLane = document.createElement('div');
-          appLane.className = 'tree-lane nested';
-          appLane.appendChild(treeChip(app));
-          const appIp = treeIpMeta(app);
-          if (appIp) appLane.appendChild(appIp);
-          const appLink = appTreeLink(app);
-          if (appLink) appLane.appendChild(appLink);
-          appWrap.appendChild(appLane);
-        });
+    const summary = document.createElement(hasApps ? 'summary' : 'div');
+    summary.className = 'tree-resource-summary';
+    const main = document.createElement('div');
+    main.className = 'tree-node-main';
+    main.append(resourceIcon(guest), resourceText(guest, resourceSubtitle(guest)));
+    summary.appendChild(main);
+    const badges = document.createElement('div');
+    badges.className = 'tree-node-badges';
+    badges.appendChild(countBadge(guest.type === 'vm' ? 'VM' : 'LXC', guest.type));
+    if (hasApps) badges.appendChild(countBadge(`${guestApps.length} app${guestApps.length === 1 ? '' : 's'}`, 'app'));
+    summary.appendChild(badges);
+    card.appendChild(summary);
 
-        guestBlock.appendChild(appWrap);
-        hostChildren.appendChild(guestBlock);
-      });
+    if (hasApps) {
+      const children = document.createElement('div');
+      children.className = 'tree-resource-children tree-app-grid';
+      guestApps.forEach((app) => children.appendChild(createAppRow(app)));
+      card.appendChild(children);
+    }
+    return card;
+  }
 
-      hostBlock.appendChild(hostChildren);
-      groupBody.appendChild(hostBlock);
-    });
+  function createHostCard(host) {
+    const hostGuests = guests.filter((guest) => guest.hostedOn === host.id).sort(guestSort);
+    const directApps = apps.filter((app) => app.appHostedOn === host.id).sort(byName);
+    const hasChildren = hostGuests.length > 0 || directApps.length > 0;
+    const card = document.createElement(hasChildren ? 'details' : 'article');
+    card.className = `tree-resource-card tree-host-card${hasChildren ? ' tree-resource-details' : ' tree-resource-leaf'}`;
 
-    groupBlock.appendChild(groupBody);
-    body.appendChild(groupBlock);
+    const summary = document.createElement(hasChildren ? 'summary' : 'div');
+    summary.className = 'tree-resource-summary tree-host-summary';
+    const main = document.createElement('div');
+    main.className = 'tree-node-main';
+    main.append(resourceIcon(host), resourceText(host, resourceSubtitle(host)));
+    summary.appendChild(main);
+
+    const badges = document.createElement('div');
+    badges.className = 'tree-node-badges';
+    if (hostGuests.length) badges.appendChild(countBadge(`${hostGuests.length} guest${hostGuests.length === 1 ? '' : 's'}`, 'guest'));
+    if (directApps.length) badges.appendChild(countBadge(`${directApps.length} direct app${directApps.length === 1 ? '' : 's'}`, 'app'));
+    if (!hasChildren) badges.appendChild(countBadge('No children', 'empty'));
+    summary.appendChild(badges);
+    card.appendChild(summary);
+
+    if (hasChildren) {
+      const children = document.createElement('div');
+      children.className = 'tree-resource-children tree-host-children';
+
+      if (hostGuests.length) {
+        const guestSection = document.createElement('section');
+        guestSection.className = 'tree-child-section';
+        guestSection.innerHTML = `<div class="tree-child-title">Guests <span>${hostGuests.length}</span></div>`;
+        const guestGrid = document.createElement('div');
+        guestGrid.className = 'tree-guest-grid';
+        hostGuests.forEach((guest) => guestGrid.appendChild(createGuestCard(guest)));
+        guestSection.appendChild(guestGrid);
+        children.appendChild(guestSection);
+      }
+
+      if (directApps.length) {
+        const appSection = document.createElement('section');
+        appSection.className = 'tree-child-section';
+        appSection.innerHTML = `<div class="tree-child-title">Direct applications <span>${directApps.length}</span></div>`;
+        const appGrid = document.createElement('div');
+        appGrid.className = 'tree-app-grid';
+        directApps.forEach((app) => appGrid.appendChild(createAppRow(app)));
+        appSection.appendChild(appGrid);
+        children.appendChild(appSection);
+      }
+      card.appendChild(children);
+    }
+    return card;
+  }
+
+  const preferredKindOrder = ['router-gateway', 'switch', 'hypervisor', 'server', 'nas', 'backup', 'pc'];
+  const actualKinds = [...new Set(hardware.map((host) => host.hardwareKind || 'server'))];
+  const orderedKinds = [
+    ...preferredKindOrder.filter((kind) => actualKinds.includes(kind)),
+    ...actualKinds.filter((kind) => !preferredKindOrder.includes(kind)).sort(),
+  ];
+
+  orderedKinds.forEach((kind) => {
+    const hosts = hardware.filter((host) => (host.hardwareKind || 'server') === kind).sort(byName);
+    const group = document.createElement('details');
+    group.className = 'tree-kind-group';
+    group.open = true;
+
+    const summary = document.createElement('summary');
+    summary.className = 'tree-kind-summary';
+    const title = document.createElement('span');
+    title.className = 'tree-kind-title';
+    title.innerHTML = `<strong>${escapeHtml(hardwareTypeLabel(kind))}</strong><small>${hosts.length} resource${hosts.length === 1 ? '' : 's'}</small>`;
+    summary.appendChild(title);
+    summary.appendChild(countBadge(String(hosts.length), 'group'));
+    group.appendChild(summary);
+
+    const grid = document.createElement('div');
+    grid.className = 'tree-host-grid';
+    hosts.forEach((host) => grid.appendChild(createHostCard(host)));
+    group.appendChild(grid);
+    body.appendChild(group);
   });
 
+  const orphanGuests = guests.filter((guest) => !guest.hostedOn || !hardwareById.has(guest.hostedOn)).sort(guestSort);
+  const orphanApps = apps.filter((app) => {
+    if (!app.appHostedOn) return true;
+    return !hardwareById.has(app.appHostedOn) && !guestById.has(app.appHostedOn);
+  }).sort(byName);
 
-  const orphanGuests = [...vms, ...lxcs].filter((guest) => !guest.hostedOn);
-  if (orphanGuests.length) {
-    const orphan = document.createElement('details');
-    orphan.className = 'tree-subgroup tree-collapsible';
+  if (orphanGuests.length || orphanApps.length) {
+    const group = document.createElement('details');
+    group.className = 'tree-kind-group tree-unassigned-group';
+    group.open = true;
 
-    const title = document.createElement('summary');
-    title.className = 'tree-summary';
-    title.textContent = `Unassigned VMs/LXCs (${orphanGuests.length})`;
-    orphan.appendChild(title);
+    const summary = document.createElement('summary');
+    summary.className = 'tree-kind-summary';
+    const title = document.createElement('span');
+    title.className = 'tree-kind-title';
+    title.innerHTML = `<strong>Unassigned resources</strong><small>Missing or invalid parent relationship</small>`;
+    summary.appendChild(title);
+    summary.appendChild(countBadge(String(orphanGuests.length + orphanApps.length), 'warning'));
+    group.appendChild(summary);
 
-    const orphanBody = document.createElement('div');
-    orphanBody.className = 'tree-children';
-    orphanGuests.forEach((guest) => {
-      const row = document.createElement('div');
-      row.className = 'tree-lane';
-      row.appendChild(treeChip(guest));
-      const guestIp = treeIpMeta(guest);
-      if (guestIp) row.appendChild(guestIp);
-      orphanBody.appendChild(row);
-    });
-    orphan.appendChild(orphanBody);
-    body.appendChild(orphan);
+    const content = document.createElement('div');
+    content.className = 'tree-unassigned-grid';
+    orphanGuests.forEach((guest) => content.appendChild(createGuestCard(guest)));
+    orphanApps.forEach((app) => content.appendChild(createAppRow(app)));
+    group.appendChild(content);
+    body.appendChild(group);
   }
 
-  const orphanApps = apps.filter((app) => !app.appHostedOn);
-  if (orphanApps.length) {
-    const orphan = document.createElement('details');
-    orphan.className = 'tree-subgroup tree-collapsible';
-
-    const title = document.createElement('summary');
-    title.className = 'tree-summary';
-    title.textContent = `Unassigned Apps (${orphanApps.length})`;
-    orphan.appendChild(title);
-
-    const orphanBody = document.createElement('div');
-    orphanBody.className = 'tree-children';
-    orphanApps.forEach((app) => {
-      const row = document.createElement('div');
-      row.className = 'tree-lane';
-      row.appendChild(treeChip(app));
-      const appIp = treeIpMeta(app);
-      if (appIp) row.appendChild(appIp);
-      const appLink = appTreeLink(app);
-      if (appLink) row.appendChild(appLink);
-      orphanBody.appendChild(row);
-    });
-    orphan.appendChild(orphanBody);
-    body.appendChild(orphan);
-  }
-
-  if (!hardware.length && !vms.length && !lxcs.length && !apps.length) {
-    const empty = document.createElement('p');
-    empty.className = 'tree-empty';
-    empty.textContent = 'No infrastructure resources yet.';
+  if (!hardware.length && !guests.length && !apps.length) {
+    const empty = document.createElement('div');
+    empty.className = 'tree-empty-state';
+    empty.innerHTML = '<strong>No infrastructure resources yet.</strong><span>Add hardware, VMs, LXCs or apps to build the relationship tree.</span>';
     body.appendChild(empty);
   }
+
+  expandButton.addEventListener('click', () => {
+    body.querySelectorAll('details').forEach((details) => { details.open = true; });
+  });
+  collapseButton.addEventListener('click', () => {
+    body.querySelectorAll('details').forEach((details) => { details.open = false; });
+  });
 
   section.appendChild(body);
   return section;
@@ -5969,6 +6076,8 @@ const RACK_COMPONENTS = [
 // ---- State ----
 let rackEditorRackId = null;
 let rackDragComponent = null;
+let rackTouchDragState = null;
+let rackTouchDragSuppressClickUntil = 0;
 let rackLinkPanelTarget = null;
 let rackFormMode = null;
 let rackFormPendingLocationId = null;
@@ -6463,6 +6572,227 @@ function updateRackSelectedComponentUI() {
   rackSelectedComponentText.textContent = `${rackDragComponent.label} selected · tap an empty rack slot to place it.`;
 }
 
+// ---- Touch and pen drag support ----
+function isRackTouchPointer(event) {
+  return event.pointerType === 'touch' || event.pointerType === 'pen';
+}
+
+function rackTouchComponentFromDefinition(comp) {
+  return {
+    componentType: comp.componentType,
+    heightU: comp.heightU,
+    label: comp.label,
+    category: comp.category || 'compute',
+    multiDevice: comp.multiDevice || null,
+    isPDU: !!comp.isPDU,
+    isBlank: !!comp.isBlank,
+    isPassive: !!comp.isPassive,
+    source: 'palette',
+  };
+}
+
+function clearRackTouchDropHighlight() {
+  document.querySelectorAll('.rack-slot.drag-over, .rack-slot.drag-invalid').forEach((slot) => {
+    slot.classList.remove('drag-over', 'drag-invalid');
+  });
+}
+
+function createRackTouchDragGhost(component) {
+  const ghost = document.createElement('div');
+  ghost.className = `rack-touch-drag-ghost cat-${component.category || 'compute'}`;
+  ghost.innerHTML = `<span>${escapeHtml(component.label || 'Component')}</span><small>${Number(component.heightU) || 1}U</small>`;
+  document.body.appendChild(ghost);
+  return ghost;
+}
+
+function positionRackTouchDragGhost(state, clientX, clientY) {
+  if (!state?.ghost) return;
+  const offsetX = 18;
+  const offsetY = 18;
+  state.ghost.style.transform = `translate3d(${Math.round(clientX + offsetX)}px, ${Math.round(clientY + offsetY)}px, 0)`;
+}
+
+function rackTouchScrollContainer() {
+  const views = document.querySelector('#rack-editor .rack-views-wrap');
+  if (views && views.scrollHeight > views.clientHeight + 2) return views;
+  return rackEditorBody;
+}
+
+function stopRackTouchAutoScroll(state) {
+  if (!state) return;
+  state.autoScrollDirection = 0;
+  if (state.autoScrollFrame) cancelAnimationFrame(state.autoScrollFrame);
+  state.autoScrollFrame = 0;
+}
+
+function runRackTouchAutoScroll(state) {
+  if (!state || rackTouchDragState !== state || !state.started || !state.autoScrollDirection) {
+    stopRackTouchAutoScroll(state);
+    return;
+  }
+  const scroller = rackTouchScrollContainer();
+  if (scroller) scroller.scrollTop += state.autoScrollDirection * 12;
+  updateRackTouchDropTarget(state, state.lastX, state.lastY);
+  state.autoScrollFrame = requestAnimationFrame(() => runRackTouchAutoScroll(state));
+}
+
+function updateRackTouchAutoScroll(state, clientY) {
+  const scroller = rackTouchScrollContainer();
+  if (!scroller) return;
+  const rect = scroller.getBoundingClientRect();
+  const edge = Math.min(90, Math.max(52, rect.height * 0.13));
+  let direction = 0;
+  if (clientY < rect.top + edge) direction = -1;
+  else if (clientY > rect.bottom - edge) direction = 1;
+  if (direction === state.autoScrollDirection) return;
+  stopRackTouchAutoScroll(state);
+  state.autoScrollDirection = direction;
+  if (direction) state.autoScrollFrame = requestAnimationFrame(() => runRackTouchAutoScroll(state));
+}
+
+function updateRackTouchDropTarget(state, clientX, clientY) {
+  if (!state?.started) return;
+  clearRackTouchDropHighlight();
+  state.dropTarget = null;
+
+  const element = document.elementFromPoint(clientX, clientY);
+  const slot = element?.closest?.('.rack-slot');
+  if (!slot) return;
+
+  const side = slot.dataset.side;
+  const u = Number.parseInt(slot.dataset.u || '', 10);
+  const rack = rackById(rackEditorRackId);
+  if (!rack || !side || !Number.isFinite(u)) return;
+
+  const sourceSlot = state.component.fromSlot || null;
+  const isOwnSlot = sourceSlot === `${side}-${u}`;
+  const isEmpty = slot.classList.contains('empty');
+  const fits = isEmpty && canFit(side, u, state.component.heightU, rack, sourceSlot);
+
+  if (fits) {
+    slot.classList.add('drag-over');
+    state.dropTarget = { side, u };
+  } else if (!isOwnSlot) {
+    slot.classList.add('drag-invalid');
+  }
+}
+
+function startRackTouchDrag(state) {
+  if (!state || rackTouchDragState !== state || state.started) return;
+  state.started = true;
+  state.sourceEl.classList.add('rack-touch-source');
+  rackDragComponent = { ...state.component };
+  state.ghost = createRackTouchDragGhost(state.component);
+  document.body.classList.add('rack-touch-dragging');
+
+  if (state.component.source === 'palette' && isMobile()) closeRackPaletteSheet();
+  positionRackTouchDragGhost(state, state.lastX, state.lastY);
+}
+
+function cleanupRackTouchDrag(state, preserveComponent = false) {
+  if (!state) return;
+  clearTimeout(state.startTimer);
+  stopRackTouchAutoScroll(state);
+  clearRackTouchDropHighlight();
+  state.sourceEl?.classList.remove('rack-touch-source');
+  state.ghost?.remove();
+  document.body.classList.remove('rack-touch-dragging');
+  try {
+    if (state.sourceEl?.hasPointerCapture?.(state.pointerId)) state.sourceEl.releasePointerCapture(state.pointerId);
+  } catch {}
+  if (!preserveComponent) rackDragComponent = null;
+  if (rackTouchDragState === state) rackTouchDragState = null;
+}
+
+function finishRackTouchDrag(event) {
+  const state = rackTouchDragState;
+  if (!state || state.pointerId !== event.pointerId) return;
+  clearTimeout(state.startTimer);
+
+  if (!state.started) {
+    cleanupRackTouchDrag(state);
+    return;
+  }
+
+  event.preventDefault();
+  rackTouchDragSuppressClickUntil = Date.now() + 650;
+  const target = state.hasMovedAfterStart ? state.dropTarget : null;
+  const component = { ...state.component };
+  cleanupRackTouchDrag(state, true);
+
+  if (!target) {
+    rackDragComponent = null;
+    return;
+  }
+
+  rackDragComponent = component;
+  const rack = rackById(rackEditorRackId);
+  if (rack) placeRackComponentAt(target.side, target.u, rack);
+  else rackDragComponent = null;
+}
+
+function bindRackTouchDragSource(element, componentFactory) {
+  if (!element || element.dataset.rackTouchDragBound === '1') return;
+  element.dataset.rackTouchDragBound = '1';
+  element.classList.add('rack-touch-draggable');
+
+  element.addEventListener('pointerdown', (event) => {
+    if (!isRackTouchPointer(event) || event.isPrimary === false || event.button !== 0) return;
+    if (event.target.closest('button, input, select, textarea, a')) return;
+    const component = componentFactory();
+    if (!component) return;
+
+    cleanupRackTouchDrag(rackTouchDragState);
+    const state = {
+      pointerId: event.pointerId,
+      sourceEl: element,
+      component,
+      startX: event.clientX,
+      startY: event.clientY,
+      lastX: event.clientX,
+      lastY: event.clientY,
+      started: false,
+      hasMovedAfterStart: false,
+      dropTarget: null,
+      ghost: null,
+      autoScrollDirection: 0,
+      autoScrollFrame: 0,
+      startTimer: 0,
+    };
+    rackTouchDragState = state;
+    try { element.setPointerCapture(event.pointerId); } catch {}
+    state.startTimer = window.setTimeout(() => startRackTouchDrag(state), 180);
+  });
+}
+
+document.addEventListener('pointermove', (event) => {
+  const state = rackTouchDragState;
+  if (!state || state.pointerId !== event.pointerId) return;
+  state.lastX = event.clientX;
+  state.lastY = event.clientY;
+
+  if (!state.started) {
+    const distance = Math.hypot(event.clientX - state.startX, event.clientY - state.startY);
+    if (distance > 10) cleanupRackTouchDrag(state);
+    return;
+  }
+
+  event.preventDefault();
+  const dragDistance = Math.hypot(event.clientX - state.startX, event.clientY - state.startY);
+  if (dragDistance > 8) state.hasMovedAfterStart = true;
+  positionRackTouchDragGhost(state, event.clientX, event.clientY);
+  if (state.hasMovedAfterStart) {
+    updateRackTouchDropTarget(state, event.clientX, event.clientY);
+    updateRackTouchAutoScroll(state, event.clientY);
+  }
+}, { passive: false });
+
+document.addEventListener('pointerup', finishRackTouchDrag, { passive: false });
+document.addEventListener('pointercancel', (event) => {
+  const state = rackTouchDragState;
+  if (state?.pointerId === event.pointerId) cleanupRackTouchDrag(state);
+});
+
 // ---- Palette ----
 const CATEGORY_META = {
   compute: { label: 'Compute',    icon: '🖥' },
@@ -6498,6 +6828,7 @@ function renderPalette() {
       e.dataTransfer.effectAllowed = 'copy';
     });
     el.addEventListener('dragend', () => { rackDragComponent = null; });
+    bindRackTouchDragSource(el, () => rackTouchComponentFromDefinition(comp));
     rackPaletteItems.appendChild(el);
   });
 }
@@ -6557,8 +6888,10 @@ function placeRackComponentAt(side, u, rack) {
     isPassive: rackDragComponent.isPassive || false,
   };
   const placed = rackDragComponent;
+  const sourceSide = placed.fromSlot ? String(placed.fromSlot).split('-')[0] : null;
   saveRackData();
   renderRackDiagram(side);
+  if (sourceSide && sourceSide !== side) renderRackDiagram(sourceSide);
   if (!placed.isBlank && !placed.isPassive) showLinkPanel(slotKey, side);
   clearRackComponentSelection();
   closeRackPaletteSheet();
@@ -6584,7 +6917,11 @@ function createEmptySlot(side, u, rack) {
     el.classList.remove('drag-over', 'drag-invalid');
     placeRackComponentAt(side, u, rack);
   });
-  el.addEventListener('click', () => {
+  el.addEventListener('click', (event) => {
+    if (Date.now() < rackTouchDragSuppressClickUntil) {
+      event.preventDefault();
+      return;
+    }
     if (!isMobile() || !rackDragComponent) return;
     placeRackComponentAt(side, u, rack);
   });
@@ -6640,6 +6977,10 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
   `;
 
   el.addEventListener('click', e => {
+    if (Date.now() < rackTouchDragSuppressClickUntil) {
+      e.preventDefault();
+      return;
+    }
     if (e.target.classList.contains('rack-slot-remove')) return;
     if (comp.isBlank || comp.isPassive) return;
     showLinkPanel(slotKey, side);
@@ -6656,6 +6997,23 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
     setTimeout(() => el.style.opacity = '0.4', 0);
   });
   el.addEventListener('dragend', () => { el.style.opacity = ''; rackDragComponent = null; });
+  bindRackTouchDragSource(el, () => ({
+    componentType: comp.componentType,
+    heightU: comp.heightU,
+    label: comp.label,
+    category: comp.category || 'compute',
+    linkedDeviceId: comp.linkedDeviceId || null,
+    multiDevice: comp.multiDevice || null,
+    linkedDevices: comp.linkedDevices || null,
+    isPDU: !!comp.isPDU,
+    pduPorts: comp.pduPorts || null,
+    pduLinks: comp.pduLinks || null,
+    switchPortLinks: comp.switchPortLinks || null,
+    isBlank: !!comp.isBlank,
+    isPassive: !!comp.isPassive,
+    fromSlot: slotKey,
+    source: 'rack',
+  }));
   el.addEventListener('dragover', e => { if (!rackDragComponent || rackDragComponent.fromSlot === slotKey) return; e.preventDefault(); });
   el.addEventListener('drop', e => {
     e.preventDefault();
@@ -7314,6 +7672,10 @@ function initMobileRackControls() {
   rackSelectedComponentClear?.addEventListener('click', clearRackComponentSelection);
 
   rackPalette?.addEventListener('click', (event) => {
+    if (Date.now() < rackTouchDragSuppressClickUntil) {
+      event.preventDefault();
+      return;
+    }
     const item = event.target.closest('.rack-palette-item');
     if (!item || !isMobile()) return;
     const def = RACK_COMPONENTS.find(c => c.componentType === item.dataset.componentType) || {};
