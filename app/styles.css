@@ -1317,7 +1317,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   flex-direction: column;
   overflow: hidden;
 }
-/* Wave layer — mirrors body::before so the split background appears */
+/* Wave layer - mirrors body::before so the split background appears */
 .rack-overlay::before {
   content: '';
   position: absolute;
@@ -1384,7 +1384,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   flex-direction: column;
   gap: 0;
 }
-/* Inner wrapper — same max-width as dashboard */
+/* Inner wrapper - same max-width as dashboard */
 .rack-overview-inner {
   width: min(80vw, 1920px);
   margin: 0 auto;
@@ -1393,7 +1393,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   gap: 1rem;
   flex: 1;
 }
-/* Floating top bar — title + action buttons, no background */
+/* Floating top bar - title + action buttons, no background */
 .rack-ov-topbar {
   display: flex;
   align-items: center;
@@ -1417,7 +1417,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .rack-ov-btn-rack { background: var(--yellow); }
 .rack-ov-btn-close { background: var(--panel); color: var(--text); }
 
-/* Rounded panel — mirrors dashboard .phone style */
+/* Rounded panel - mirrors dashboard .phone style */
 .rack-ov-panel {
   background: color-mix(in srgb, var(--phone) 92%, white);
   border: 3px solid var(--line);
@@ -1673,12 +1673,12 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 }
 
 /* ── Rack slots ──────────────────────────────────────────────── */
-/* 1U base height — CSS custom property so JS can read/set it */
+/* 1U base height - CSS custom property so JS can read/set it */
 :root { --rack-u-height: clamp(28px, 1.8vh, 42px); }
 
 .rack-slot {
   border-bottom: 1px solid color-mix(in srgb, var(--line) 40%, transparent);
-  /* FIXED height — every 1U row is identical regardless of content */
+  /* FIXED height - every 1U row is identical regardless of content */
   height: var(--rack-u-height);
   min-height: var(--rack-u-height);
   max-height: var(--rack-u-height);
@@ -1704,7 +1704,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   align-self: center;
 }
 
-/* Content cell — clips overflow so it never pushes row height */
+/* Content cell - clips overflow so it never pushes row height */
 .rack-slot-content {
   grid-column: 2;
   display: flex;
@@ -1804,7 +1804,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .rack-slot.occupied.cat-mgmt:hover     { filter: brightness(0.94); }
 .rack-slot.occupied.cat-filler:hover   { filter: none; }
 
-/* U-count badge on occupied slots — always visible */
+/* U-count badge on occupied slots - always visible */
 .rack-slot.occupied .rack-slot-num {
   font-weight: 700;
   color: var(--text);
@@ -1842,7 +1842,7 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
 .rack-palette-section:first-child { margin-top: 0; padding-top: 0.2rem; }
 
 /* Multi-device tags inside a slot */
-/* Multi-device lines — same plain style as single device */
+/* Multi-device lines - same plain style as single device */
 .rack-multi-lines {
   display: flex;
   flex-direction: column;
@@ -1942,22 +1942,40 @@ textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 58%, trans
   font: 600 0.78rem/1.3 'Space Mono', monospace;
 }
 .rack-ctx-item {
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.42rem 0.85rem;
+  padding: 0.52rem 0.85rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   cursor: pointer;
   color: var(--text);
+  text-align: left;
   white-space: nowrap;
+  font: inherit;
   transition: background 0.08s;
 }
-.rack-ctx-item:hover { background: color-mix(in srgb, var(--yellow) 25%, var(--panel)); }
+.rack-ctx-item:hover,
+.rack-ctx-item:focus-visible {
+  background: color-mix(in srgb, var(--yellow) 25%, var(--panel));
+  outline: none;
+}
 .rack-ctx-item.danger { color: var(--danger); }
 .rack-ctx-item.danger:hover { background: color-mix(in srgb, var(--danger) 14%, var(--panel)); }
 .rack-ctx-sep {
   height: 1px;
   background: color-mix(in srgb, var(--line) 35%, transparent);
   margin: 0.25rem 0;
+}
+
+@media (min-width: 1101px) {
+  .rack-editor-location-name,
+  .rack-editor-rack-row {
+    cursor: context-menu;
+  }
 }
 
 /* ── Rack form dialog (popup, not full page) ─────────────────── */
@@ -3248,7 +3266,7 @@ dialog[open] {
   }
 }
 
-/* v6: Graph readability — use a real panning canvas instead of squeezing nodes together. */
+/* v6: Graph readability - use a real panning canvas instead of squeezing nodes together. */
 .graph-wrap {
   justify-content: start !important;
   align-items: start !important;
@@ -5047,6 +5065,12 @@ dialog.rack-form-dialog:not([open]) {
 }
 .agent-api-panel h3,
 .agent-api-panel h4 { margin: 0 0 0.45rem; }
+.agent-api-panel .note,
+.agent-api-panel input,
+.agent-api-panel select,
+.agent-api-panel textarea {
+  border-width: 2px;
+}
 .agent-key-form { display: grid; gap: 0.65rem; margin-top: 0.75rem; }
 .agent-key-form label { display: grid; gap: 0.35rem; font-weight: 700; }
 .agent-scope-grid {
@@ -8806,4 +8830,12 @@ dialog.rack-form-dialog:not([open]) {
   dialog#theme-picker-dialog > .sheet-handle {
     display: none !important;
   }
+}
+
+/* v118: tablet long-press feedback for rack and location context menus */
+.rack-card.rack-context-pressing,
+.rack-editor-rack-row.rack-context-pressing,
+.rack-editor-location-name.rack-context-pressing {
+  filter: brightness(0.96);
+  transform: scale(0.995);
 }
