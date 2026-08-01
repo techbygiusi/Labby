@@ -6187,6 +6187,7 @@ let rackEditorRackId = null;
 let rackDragComponent = null;
 let rackTouchDragState = null;
 let rackTouchDragSuppressClickUntil = 0;
+let rackContextSuppressClickUntil = 0;
 let rackLinkPanelTarget = null;
 let rackFormMode = null;
 let rackFormPendingLocationId = null;
@@ -6217,7 +6218,7 @@ const rackMobilePaletteFab = document.getElementById('rack-mobile-palette-fab');
 const rackSelectedComponentPill = document.getElementById('rack-selected-component-pill');
 const rackSelectedComponentText = document.getElementById('rack-selected-component-text');
 const rackSelectedComponentClear = document.getElementById('rack-selected-component-clear');
-// rackFormBack removed — dialog now uses inline close buttons
+// rackFormBack removed - dialog now uses inline close buttons
 const phoneGrid         = document.querySelector('.phone-grid');
 
 // ---- Helpers ----
@@ -6237,7 +6238,7 @@ function openDefaultRackWorkspace() {
 }
 
 function showRackOverlay(id) {
-  // Only toggle the full-screen overlays — never the form dialog
+  // Only toggle the full-screen overlays - never the form dialog
   if (id !== 'rack-editor') closeLinkPanel();
   [rackOverview, rackEditor].forEach(el => el && el.classList.add('hidden'));
   if (id !== 'rack-editor') closeRackPaletteSheet();
@@ -6268,7 +6269,7 @@ function renderRackOverview() {
   if (!rackOverviewBody) return;
   rackOverviewBody.innerHTML = '';
 
-  // Inner wrapper — same max-width as dashboard
+  // Inner wrapper - same max-width as dashboard
   const inner = document.createElement('div');
   inner.className = 'rack-overview-inner';
   rackOverviewBody.appendChild(inner);
@@ -6357,12 +6358,16 @@ function renderRackOverview() {
           <p class="rack-card-name">${escapeHtml(rack.name)}</p>
           <p class="rack-card-meta">${rack.heightUnits}U · ${rack.formFactor === '10inch' ? '10″' : '19″'}</p>
         `;
-        card.addEventListener('click', () => openRackEditor(rack.id));
-        // Right-click context menu
+        card.addEventListener('click', () => {
+          if (isRackContextClickSuppressed()) return;
+          openRackEditor(rack.id);
+        });
+        // Desktop right-click and tablet long press context menu.
         card.addEventListener('contextmenu', e => {
           e.preventDefault();
           showRackContextMenu(e.clientX, e.clientY, rack, renderCards);
         });
+        bindRackLongPressContext(card, (x, y) => showRackContextMenu(x, y, rack, renderCards));
         grid.appendChild(card);
       });
     }
@@ -6373,64 +6378,184 @@ function renderRackOverview() {
 }
 
 // ── Context menu ─────────────────────────────────────────────
+function isRackContextClickSuppressed() {
+  return Date.now() < rackContextSuppressClickUntil;
+}
+
+function bindRackLongPressContext(element, openMenu) {
+  if (!element || typeof openMenu !== 'function' || element.dataset.rackLongPressBound === 'true') return;
+  element.dataset.rackLongPressBound = 'true';
+  let pressState = null;
+
+  const clearPress = () => {
+    if (!pressState) return;
+    window.clearTimeout(pressState.timer);
+    element.classList.remove('rack-context-pressing');
+    pressState = null;
+  };
+
+  element.addEventListener('pointerdown', (event) => {
+    if (!['touch', 'pen'].includes(event.pointerType) || event.button !== 0) return;
+    clearPress();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    pressState = {
+      pointerId: event.pointerId,
+      startX,
+      startY,
+      triggered: false,
+      timer: window.setTimeout(() => {
+        if (!pressState || pressState.pointerId !== event.pointerId) return;
+        pressState.triggered = true;
+        rackContextSuppressClickUntil = Date.now() + 900;
+        element.classList.remove('rack-context-pressing');
+        navigator.vibrate?.(18);
+        openMenu(startX, startY);
+      }, 560),
+    };
+    element.classList.add('rack-context-pressing');
+  }, { passive: true });
+
+  element.addEventListener('pointermove', (event) => {
+    if (!pressState || pressState.pointerId !== event.pointerId) return;
+    if (Math.hypot(event.clientX - pressState.startX, event.clientY - pressState.startY) > 12) clearPress();
+  }, { passive: true });
+
+  const finishPress = (event) => {
+    if (!pressState || pressState.pointerId !== event.pointerId) return;
+    const triggered = pressState.triggered;
+    clearPress();
+    if (triggered) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  };
+
+  element.addEventListener('pointerup', finishPress, { passive: false });
+  element.addEventListener('pointercancel', clearPress, { passive: true });
+  element.addEventListener('lostpointercapture', clearPress, { passive: true });
+}
+
 function closeContextMenu() {
   const existing = document.getElementById('rack-ctx-menu');
   if (existing) existing.remove();
 }
 
-function showRackContextMenu(x, y, rack, onDelete) {
+function positionRackContextMenu(menu, x, y) {
+  document.body.appendChild(menu);
+  const rect = menu.getBoundingClientRect();
+  const gap = 10;
+  const left = Math.max(gap, Math.min(x, window.innerWidth - rect.width - gap));
+  const top = Math.max(gap, Math.min(y, window.innerHeight - rect.height - gap));
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+}
+
+function bindRackContextMenuDismiss(menu) {
+  const outsideHandler = (event) => {
+    if (!menu.contains(event.target)) {
+      closeContextMenu();
+      document.removeEventListener('pointerdown', outsideHandler, true);
+    }
+  };
+  setTimeout(() => document.addEventListener('pointerdown', outsideHandler, true), 0);
+}
+
+function refreshRackWorkspaceAfterDelete(deletedRackIds = []) {
+  const activeRackWasDeleted = deletedRackIds.includes(rackEditorRackId);
+  renderRackOverview();
+
+  if (activeRackWasDeleted) {
+    const nextRack = racks[0];
+    if (nextRack) openRackEditor(nextRack.id);
+    else showRackOverlay('rack-overview');
+    return;
+  }
+
+  if (rackEditor && !rackEditor.classList.contains('hidden')) {
+    renderRackEditorSidebar();
+  }
+}
+
+function deleteRackFromContext(rack) {
+  if (!rack || !confirm(`Delete rack "${rack.name}"? This cannot be undone.`)) return false;
+  racks = racks.filter((entry) => entry.id !== rack.id);
+  saveRackData();
+  refreshRackWorkspaceAfterDelete([rack.id]);
+  showToast('Rack deleted.');
+  return true;
+}
+
+function deleteLocationFromContext(location) {
+  if (!location || !confirm(`Delete location "${location.name}"? All racks there will also be deleted.`)) return false;
+  const deletedRackIds = racks.filter((rack) => rack.locationId === location.id).map((rack) => rack.id);
+  racks = racks.filter((rack) => rack.locationId !== location.id);
+  locations = locations.filter((entry) => entry.id !== location.id);
+  saveRackData();
+  refreshRackWorkspaceAfterDelete(deletedRackIds);
+  showToast('Location deleted.');
+  return true;
+}
+
+function showRackContextMenu(x, y, rack) {
   closeContextMenu();
   const menu = document.createElement('div');
   menu.className = 'rack-ctx-menu';
   menu.id = 'rack-ctx-menu';
-
+  menu.setAttribute('role', 'menu');
   menu.innerHTML = `
-    <div class="rack-ctx-item" id="ctx-open">📂 Open Editor</div>
-    <div class="rack-ctx-item" id="ctx-edit">✏️ Edit Rack</div>
-    <div class="rack-ctx-sep"></div>
-    <div class="rack-ctx-item danger" id="ctx-delete">🗑 Delete Rack</div>
+    <button class="rack-ctx-item" type="button" data-rack-context-action="open">📂 Open Editor</button>
+    <button class="rack-ctx-item" type="button" data-rack-context-action="edit">✏️ Edit Rack</button>
+    <div class="rack-ctx-sep" role="separator"></div>
+    <button class="rack-ctx-item danger" type="button" data-rack-context-action="delete">🗑 Delete Rack</button>
   `;
 
-  // Position — keep inside viewport
-  menu.style.left = Math.min(x, window.innerWidth  - 200) + 'px';
-  menu.style.top  = Math.min(y, window.innerHeight - 150) + 'px';
-  document.body.appendChild(menu);
-
-  menu.querySelector('#ctx-open').addEventListener('mousedown', e => e.stopPropagation());
-  menu.querySelector('#ctx-open').addEventListener('click', e => {
-    e.stopPropagation();
+  menu.addEventListener('click', (event) => {
+    const action = event.target.closest('[data-rack-context-action]')?.dataset.rackContextAction;
+    if (!action) return;
+    event.stopPropagation();
     closeContextMenu();
-    openRackEditor(rack.id);
-  });
-  menu.querySelector('#ctx-edit').addEventListener('mousedown', e => e.stopPropagation());
-  menu.querySelector('#ctx-edit').addEventListener('click', e => {
-    e.stopPropagation();
-    closeContextMenu();
-    openRackForm(rack.id, null);
-  });
-  menu.querySelector('#ctx-delete').addEventListener('mousedown', e => e.stopPropagation());
-  menu.querySelector('#ctx-delete').addEventListener('click', e => {
-    e.stopPropagation();
-    closeContextMenu();
-    if (!confirm(`Delete rack "${rack.name}"? This cannot be undone.`)) return;
-    racks = racks.filter(r => r.id !== rack.id);
-    saveRackData();
-    renderRackOverview();
-    showToast('Rack deleted.');
+    if (action === 'open') openRackEditor(rack.id);
+    if (action === 'edit') openRackForm(rack.id, null);
+    if (action === 'delete') deleteRackFromContext(rack);
   });
 
-  // Close on outside mousedown (after this event cycle finishes)
-  const outsideHandler = e => {
-    if (!menu.contains(e.target)) {
-      closeContextMenu();
-      document.removeEventListener('mousedown', outsideHandler);
-    }
-  };
-  setTimeout(() => document.addEventListener('mousedown', outsideHandler), 50);
+  positionRackContextMenu(menu, x, y);
+  bindRackContextMenuDismiss(menu);
+  menu.querySelector('[data-rack-context-action="open"]')?.focus({ preventScroll: true });
 }
 
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeContextMenu();
+function showLocationContextMenu(x, y, location) {
+  closeContextMenu();
+  const rackCount = racks.filter((rack) => rack.locationId === location.id).length;
+  const menu = document.createElement('div');
+  menu.className = 'rack-ctx-menu';
+  menu.id = 'rack-ctx-menu';
+  menu.setAttribute('role', 'menu');
+  menu.innerHTML = `
+    <button class="rack-ctx-item" type="button" data-location-context-action="edit">✏️ Edit Location</button>
+    <button class="rack-ctx-item" type="button" data-location-context-action="add-rack">➕ Add Rack Here</button>
+    <div class="rack-ctx-sep" role="separator"></div>
+    <button class="rack-ctx-item danger" type="button" data-location-context-action="delete">🗑 Delete Location${rackCount ? ` (${rackCount} rack${rackCount === 1 ? '' : 's'})` : ''}</button>
+  `;
+
+  menu.addEventListener('click', (event) => {
+    const action = event.target.closest('[data-location-context-action]')?.dataset.locationContextAction;
+    if (!action) return;
+    event.stopPropagation();
+    closeContextMenu();
+    if (action === 'edit') openLocationForm(null, location.id);
+    if (action === 'add-rack') openRackForm(null, location.id);
+    if (action === 'delete') deleteLocationFromContext(location);
+  });
+
+  positionRackContextMenu(menu, x, y);
+  bindRackContextMenuDismiss(menu);
+  menu.querySelector('[data-location-context-action="edit"]')?.focus({ preventScroll: true });
+}
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') closeContextMenu();
 });
 
 // ---- Location form ----
@@ -6481,25 +6606,27 @@ function openLocationForm(mode, existingId) {
     if (mode === 'create-flow') {
       openRackForm(null, rackFormPendingLocationId);
     } else {
+      rackFormDialog.close();
       renderRackOverview();
-      showRackOverlay('rack-overview');
+      if (isMobile()) {
+        showRackOverlay('rack-overview');
+      } else if (rackEditor && !rackEditor.classList.contains('hidden')) {
+        renderRackEditorSidebar();
+        const activeRack = rackById(rackEditorRackId);
+        const activeLocation = activeRack ? locationById(activeRack.locationId) : null;
+        if (rackEditorLocBadge) rackEditorLocBadge.textContent = activeLocation ? `📍 ${activeLocation.name}` : '';
+      }
       showToast(existing ? 'Location updated.' : 'Location added.');
     }
   });
 
   if (existing) {
     document.getElementById('rf-loc-delete').addEventListener('click', () => {
-      if (!confirm(`Delete location "${existing.name}"? All racks there will also be deleted.`)) return;
-      racks = racks.filter(r => r.locationId !== existing.id);
-      locations = locations.filter(l => l.id !== existing.id);
-      saveRackData();
-      renderRackOverview();
-      showRackOverlay('rack-overview');
-      showToast('Location deleted.');
+      if (deleteLocationFromContext(existing)) rackFormDialog.close();
     });
   }
 
-  rackFormDialog.showModal();
+  if (!rackFormDialog.open) rackFormDialog.showModal();
   const rfLocClose = document.getElementById('rf-loc-close');
   if (rfLocClose) rfLocClose.addEventListener('click', () => rackFormDialog.close());
 }
@@ -6556,18 +6683,20 @@ function openRackForm(existingId, preselectedLocationId) {
       existing.formFactor = ff;
       existing.locationId = locId;
       saveRackData();
+      rackFormDialog.close();
       showToast('Rack updated.');
       renderRackOverview();
-      showRackOverlay('rack-overview');
+      openRackEditor(existing.id);
     } else {
       const rack = { id: 'rack-' + Date.now(), name, notes: document.getElementById('rf-rack-notes').value.trim(), heightUnits: hu, formFactor: ff, locationId: locId, slots: {} };
       racks.push(rack);
       saveRackData();
+      rackFormDialog.close();
       openRackEditor(rack.id);
     }
   });
 
-  rackFormDialog.showModal();
+  if (!rackFormDialog.open) rackFormDialog.showModal();
   const rfRackClose = document.getElementById('rf-rack-close');
   if (rfRackClose) rfRackClose.addEventListener('click', () => rackFormDialog.close());
 }
@@ -6595,8 +6724,8 @@ function renderRackEditorSidebar() {
         <span class="rack-editor-rack-meta">${r.heightUnits || 42}U · ${r.formFactor === '10inch' ? '10″' : '19″'}</span>
       </button>`).join('') : '<p class="rack-editor-empty-list">No racks here.</p>';
     return `
-      <section class="rack-editor-location-group ${loc.id === activeLocationId ? 'active' : ''}">
-        <div class="rack-editor-location-name">📍 ${escapeHtml(loc.name)}</div>
+      <section class="rack-editor-location-group ${loc.id === activeLocationId ? 'active' : ''}" data-location-id="${escapeAttr(loc.id)}">
+        <div class="rack-editor-location-name" data-location-context="${escapeAttr(loc.id)}">📍 ${escapeHtml(loc.name)}</div>
         <div class="rack-editor-rack-list">${rackRows}</div>
       </section>`;
   }).join('');
@@ -6618,8 +6747,32 @@ function renderRackEditorSidebar() {
   sidebar.querySelector('#rack-sidebar-add-rack')?.addEventListener('click', () => openRackForm(null, activeLocationId || null));
   sidebar.querySelectorAll('[data-rack-id]').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (isRackContextClickSuppressed()) return;
       autoSaveRack();
       openRackEditor(btn.dataset.rackId);
+    });
+    btn.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const rack = rackById(btn.dataset.rackId);
+      if (rack) showRackContextMenu(event.clientX, event.clientY, rack);
+    });
+    bindRackLongPressContext(btn, (x, y) => {
+      const rack = rackById(btn.dataset.rackId);
+      if (rack) showRackContextMenu(x, y, rack);
+    });
+  });
+
+  sidebar.querySelectorAll('[data-location-context]').forEach(header => {
+    header.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const location = locationById(header.dataset.locationContext);
+      if (location) showLocationContextMenu(event.clientX, event.clientY, location);
+    });
+    bindRackLongPressContext(header, (x, y) => {
+      const location = locationById(header.dataset.locationContext);
+      if (location) showLocationContextMenu(x, y, location);
     });
   });
 }
@@ -7011,7 +7164,7 @@ function createEmptySlot(side, u, rack) {
   el.className = 'rack-slot empty';
   el.dataset.u    = u;
   el.dataset.side = side;
-  el.innerHTML = `<span class="rack-slot-num">${u}</span><div class="rack-slot-content"><span class="rack-slot-label">— empty —</span></div>`;
+  el.innerHTML = `<span class="rack-slot-num">${u}</span><div class="rack-slot-content"><span class="rack-slot-label">- empty -</span></div>`;
 
   el.addEventListener('dragover', e => {
     e.preventDefault();
@@ -7056,13 +7209,13 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
   el.style.setProperty('min-height', totalH + 'px', 'important');
   el.style.setProperty('max-height', totalH + 'px', 'important');
 
-  // Build device label(s) — consistent plain-text style for all types
+  // Build device label(s) - consistent plain-text style for all types
   let deviceHtml = '';
   if (comp.multiDevice && comp.linkedDevices) {
     // Same plain style as single-device, each PC on its own .rack-slot-device line
     const lines = comp.linkedDevices.map((id, i) => {
       const dev = id ? findById(id) : null;
-      const name = dev ? escapeHtml((dev.symbol || '') + ' ' + dev.name) : '—';
+      const name = dev ? escapeHtml((dev.symbol || '') + ' ' + dev.name) : '-';
       return `<span class="rack-slot-device"><span class="rack-slot-device-idx">${i + 1}.</span> ${name}</span>`;
     }).join('');
     deviceHtml = `<div class="rack-multi-lines">${lines}</div>`;
@@ -7153,7 +7306,7 @@ function canFit(side, startU, heightU, rack, excludeSlot) {
 // ---- Link panel ----
 // The panel is rendered as a FIXED overlay appended to body so it never
 // gets clipped by overflow:hidden ancestors (rack-frame, rack-editor-body).
-// Closing: only via OK / Skip / Escape — NO outside-click-to-close, because
+// Closing: only via OK / Skip / Escape - NO outside-click-to-close, because
 // that interferes with native <select> dropdowns on every platform.
 
 
@@ -7245,7 +7398,7 @@ function showLinkPanel(slotKey, side) {
         <div class="rack-link-row">
           <span class="rack-link-row-label">PC ${i + 1}:</span>
           <select class="rack-link-multi" data-idx="${i}">
-            <option value="">— none —</option>${buildHwOpts(devs[i])}
+            <option value="">- none -</option>${buildHwOpts(devs[i])}
           </select>
         </div>`;
     }
@@ -7288,7 +7441,7 @@ function showLinkPanel(slotKey, side) {
         <div class="rack-link-row">
           <span class="rack-link-row-label">Port ${i + 1}:</span>
           <select class="rack-switch-port" data-port="${i}">
-            <option value="">— empty —</option>${buildHwOpts(comp.switchPortLinks[i] || null)}
+            <option value="">- empty -</option>${buildHwOpts(comp.switchPortLinks[i] || null)}
           </select>
         </div>`).join('');
     }
@@ -7297,7 +7450,7 @@ function showLinkPanel(slotKey, side) {
         <div class="rack-link-row">
           <span class="rack-link-row-label">${expectedKind === 'router-gateway' ? 'Router / Gateway:' : 'Switch:'}</span>
           <select id="rack-switch-device">
-            <option value="">— none —</option>${buildSwitchOpts(comp.linkedDeviceId)}
+            <option value="">- none -</option>${buildSwitchOpts(comp.linkedDeviceId)}
           </select>
         </div>
         <div id="rack-switch-port-rows">${buildSwitchPortRows()}</div>
@@ -7336,7 +7489,7 @@ function showLinkPanel(slotKey, side) {
         <div class="rack-link-row">
           <span class="rack-link-row-label">Port ${i + 1}:</span>
           <select class="rack-pdu-port" data-port="${i}">
-            <option value="">— empty —</option>${buildHwOpts(pduLinks[i] || null)}
+            <option value="">- empty -</option>${buildHwOpts(pduLinks[i] || null)}
           </select>
         </div>`).join('');
     }
@@ -7379,7 +7532,7 @@ function showLinkPanel(slotKey, side) {
       <div class="rack-link-row">
         <span class="rack-link-row-label">Gerät:</span>
         <select id="rack-link-select">
-          <option value="">— none —</option>${buildHwOpts(comp.linkedDeviceId)}
+          <option value="">- none -</option>${buildHwOpts(comp.linkedDeviceId)}
         </select>
       </div>
       <div class="rack-link-actions">
@@ -7406,7 +7559,7 @@ function showRackLinkModal(slotKey, side, comp) {
   const hardwareItems = items.filter(i => i.type === 'hardware');
   const deviceName = id => {
     const itm = hardwareItems.find(h => h.id === id);
-    return itm ? `${itm.symbol || ''} ${itm.name}`.trim() : '— empty —';
+    return itm ? `${itm.symbol || ''} ${itm.name}`.trim() : '- empty -';
   };
   const escapeAttr = v => escapeHtml(String(v || ''));
 
@@ -7424,7 +7577,7 @@ function showRackLinkModal(slotKey, side, comp) {
     picker.className = 'rack-device-picker';
     picker.id = 'rack-device-picker-active';
     const choices = [
-      `<button class="rack-device-choice ${!selectedId ? 'selected' : ''}" data-id="" type="button">— empty —</button>`,
+      `<button class="rack-device-choice ${!selectedId ? 'selected' : ''}" data-id="" type="button">- empty -</button>`,
       ...choiceItems.map(itm => `<button class="rack-device-choice ${selectedId === itm.id ? 'selected' : ''}" data-id="${escapeAttr(itm.id)}" type="button">${escapeHtml(`${itm.symbol || ''} ${itm.name}`.trim())}${['router-gateway', 'switch'].includes(itm.hardwareKind) && itm.switchPorts ? ` · ${escapeHtml(String(itm.switchPorts))} ports` : ''}</button>`)
     ].join('');
     picker.innerHTML = `
@@ -7571,7 +7724,7 @@ function closeLinkPanel() {
   rackLinkPanelTarget = null;
 }
 
-// Close panel with Escape key only — no outside-click, no mousedown tricks
+// Close panel with Escape key only - no outside-click, no mousedown tricks
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && rackLinkPanelTarget) closeLinkPanel();
 });
@@ -7618,7 +7771,7 @@ function equaliseRackHeights() {
   const diff = targetH - shorter.scrollHeight;
   const emptySlots = shorter.querySelectorAll('.rack-slot.empty');
   if (emptySlots.length === 0) {
-    // No empty slots to expand — just set minHeight on the frame
+    // No empty slots to expand - just set minHeight on the frame
     shorter.style.minHeight = targetH + 'px';
     return;
   }

@@ -1,23 +1,29 @@
 # Labby for Unraid
 
-This directory provides the official Unraid Community Applications template for Labby.
+This repository contains the official Unraid Community Applications template for Labby.
 
-## Container
+## Container image
 
-- Image: `techbygiusi/labby:1.0.6`
-- Web interface: container port `80`, default host port `8080`
-- Persistent data: `/mnt/user/appdata/labby` mapped to `/data`
+```text
+techbygiusi/labby:1.0.7
+```
+
+## Default configuration
+
+- Web interface: host port `8080` to container port `80`
+- Persistent data: `/mnt/user/appdata/labby` to `/data`
 - Network mode: `bridge`
 - Privileged mode: disabled
 
-After installation, open the Labby WebUI from the Unraid Docker page.
+Labby stores its configuration, resources, encrypted credentials, local backups and backup key in `/data`.
 
-## Persistent data
+## Links
 
-Keep the `/data` mapping when updating or recreating the container. It contains the Labby configuration, resources, encrypted SMB credentials, local backups and the backup encryption key.
+- Project: https://github.com/techbygiusi/Labby
+- Website: https://my-labby.com
+- Support: https://github.com/techbygiusi/Labby/issues
+- Docker Hub: https://hub.docker.com/r/techbygiusi/labby
 
-## Support
+## License
 
-Report template or application issues in the Labby GitHub repository:
-
-`https://github.com/techbygiusi/Labby/issues`
+Labby is licensed under the GNU Affero General Public License v3.0.
