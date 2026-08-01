@@ -8125,3 +8125,452 @@ dialog.rack-form-dialog:not([open]) {
 [data-backup-test-smb][hidden] {
   display: none !important;
 }
+
+/* v108: organized relationship tree for desktop and mobile */
+.tree-section-redesign {
+  display: grid;
+  gap: 0.9rem;
+  min-width: 0;
+}
+.tree-overview-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.tree-overview-title {
+  min-width: 0;
+}
+.tree-overview-title h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+.tree-overview-title p {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.tree-overview-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+.tree-control-button {
+  min-height: 36px;
+  padding: 0.38rem 0.7rem;
+  font-size: 0.74rem;
+}
+.tree-overview-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+.tree-overview-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--phone);
+}
+.tree-overview-stat strong {
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  height: 34px;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  font-size: 0.9rem;
+}
+.tree-overview-stat span {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-overview-stat.hardware { background: color-mix(in srgb, var(--type-hardware) 45%, var(--phone)); }
+.tree-overview-stat.vm { background: color-mix(in srgb, var(--type-vm) 48%, var(--phone)); }
+.tree-overview-stat.lxc { background: color-mix(in srgb, var(--type-lxc) 48%, var(--phone)); }
+.tree-overview-stat.app { background: color-mix(in srgb, var(--type-app) 48%, var(--phone)); }
+
+.tree-redesign-body {
+  display: grid;
+  gap: 0.75rem;
+}
+.tree-kind-group {
+  min-width: 0;
+  overflow: hidden;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: var(--phone);
+}
+.tree-kind-group > summary,
+.tree-resource-details > summary {
+  list-style: none;
+}
+.tree-kind-group > summary::-webkit-details-marker,
+.tree-resource-details > summary::-webkit-details-marker {
+  display: none;
+}
+.tree-kind-summary {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  min-height: 54px;
+  padding: 0.65rem 2.8rem 0.65rem 0.85rem;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--blue) 62%, var(--panel));
+  user-select: none;
+}
+.tree-kind-summary::after,
+.tree-resource-details > .tree-resource-summary::after {
+  content: '›';
+  position: absolute;
+  top: 50%;
+  right: 0.9rem;
+  color: var(--muted);
+  font-size: 1.25rem;
+  font-weight: 900;
+  line-height: 1;
+  transform: translateY(-50%) rotate(90deg);
+  transition: transform 140ms ease;
+}
+.tree-kind-group:not([open]) > .tree-kind-summary::after,
+.tree-resource-details:not([open]) > .tree-resource-summary::after {
+  transform: translateY(-50%) rotate(0deg);
+}
+.tree-kind-title {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.tree-kind-title strong {
+  overflow: hidden;
+  font-size: 0.86rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-kind-title small {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.tree-host-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border-top: 2px solid var(--line);
+}
+.tree-resource-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.tree-resource-summary {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+  min-height: 58px;
+  padding: 0.65rem 0.8rem;
+}
+.tree-resource-details > .tree-resource-summary {
+  padding-right: 2.7rem;
+  cursor: pointer;
+  user-select: none;
+}
+.tree-host-summary {
+  background: color-mix(in srgb, var(--type-hardware) 30%, var(--panel));
+}
+.tree-node-main {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.tree-node-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border: 2px solid var(--line);
+  border-radius: 11px;
+  background: var(--phone);
+  font-size: 1rem;
+}
+.tree-node-icon.hardware { background: var(--type-hardware); }
+.tree-node-icon.vm { background: var(--type-vm); }
+.tree-node-icon.lxc { background: var(--type-lxc); }
+.tree-node-icon.app { background: var(--type-app); }
+.tree-node-text {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+.tree-node-text strong {
+  overflow: hidden;
+  font-size: 0.8rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-node-text small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-node-badges {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+.tree-node-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0.18rem 0.48rem;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  background: var(--phone);
+  color: var(--text);
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.tree-node-badge.vm { background: var(--type-vm); }
+.tree-node-badge.lxc { background: var(--type-lxc); }
+.tree-node-badge.app { background: var(--type-app); }
+.tree-node-badge.guest { background: color-mix(in srgb, var(--blue) 52%, var(--panel)); }
+.tree-node-badge.group { min-width: 28px; }
+.tree-node-badge.warning { background: var(--yellow); }
+.tree-node-badge.empty { color: var(--muted); background: transparent; }
+
+.tree-resource-children {
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
+  padding: 0.65rem;
+  border-top: 2px solid var(--line);
+  background: color-mix(in srgb, var(--phone) 86%, var(--panel));
+}
+.tree-child-section {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.tree-child-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.tree-child-title span {
+  display: inline-flex;
+  min-width: 24px;
+  justify-content: center;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text);
+  background: var(--panel);
+}
+.tree-guest-grid,
+.tree-app-grid,
+.tree-unassigned-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.tree-guest-card .tree-resource-summary {
+  min-height: 52px;
+  padding-block: 0.55rem;
+}
+.tree-guest-card .tree-node-icon {
+  width: 34px;
+  height: 34px;
+  flex-basis: 34px;
+  border-radius: 10px;
+}
+.tree-app-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.tree-app-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  min-width: 0;
+  padding: 0.55rem 0.6rem;
+  border: 2px solid var(--line);
+  border-radius: 11px;
+  background: var(--panel);
+}
+.tree-app-row .tree-node-icon {
+  width: 32px;
+  height: 32px;
+  flex-basis: 32px;
+  border-radius: 9px;
+  font-size: 0.88rem;
+}
+.tree-app-link {
+  flex: 0 0 auto;
+  padding: 0.28rem 0.48rem;
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  background: var(--phone);
+  color: var(--text);
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+.tree-app-link:hover { filter: brightness(0.96); }
+.tree-unassigned-group > .tree-kind-summary {
+  background: color-mix(in srgb, var(--yellow) 65%, var(--panel));
+}
+.tree-unassigned-grid {
+  padding: 0.75rem;
+  border-top: 2px solid var(--line);
+}
+.tree-empty-state {
+  display: grid;
+  gap: 0.3rem;
+  padding: 1.2rem;
+  border: 2px dashed var(--line);
+  border-radius: 14px;
+  color: var(--muted);
+  text-align: center;
+}
+.tree-empty-state strong { color: var(--text); }
+
+@media (max-width: 900px) {
+  .tree-overview-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .tree-overview-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+  .tree-control-button {
+    width: 100%;
+    min-height: 42px;
+  }
+  .tree-overview-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .tree-host-grid,
+  .tree-app-grid {
+    grid-template-columns: 1fr;
+  }
+  .tree-kind-summary {
+    min-height: 58px;
+  }
+  .tree-resource-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .tree-resource-details > .tree-resource-summary {
+    padding-right: 2.7rem;
+  }
+  .tree-node-main {
+    width: 100%;
+  }
+  .tree-node-badges {
+    justify-content: flex-start;
+    width: 100%;
+    padding-left: 3rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .tree-shell {
+    padding: 0.55rem;
+    border-width: 2px;
+  }
+  .tree-section-redesign {
+    gap: 0.7rem;
+  }
+  .tree-overview-title p {
+    font-size: 0.7rem;
+  }
+  .tree-overview-stat {
+    padding: 0.5rem;
+  }
+  .tree-overview-stat strong {
+    min-width: 30px;
+    height: 30px;
+  }
+  .tree-host-grid,
+  .tree-unassigned-grid {
+    padding: 0.55rem;
+  }
+  .tree-resource-summary {
+    min-height: 54px;
+    padding: 0.55rem;
+  }
+  .tree-node-text strong {
+    font-size: 0.76rem;
+  }
+  .tree-node-text small {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .tree-node-badges {
+    padding-left: 0;
+  }
+  .tree-resource-children {
+    padding: 0.5rem;
+  }
+  .tree-app-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .tree-app-link {
+    width: 100%;
+    min-height: 38px;
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+  }
+}
+
+
+/* Keep the Config intro border consistent with the other Config sections. */
+#config-dialog .config-intro,
+#mobile-config .config-intro {
+  border: 2px solid var(--line) !important;
+}
