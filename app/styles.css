@@ -8189,12 +8189,20 @@ dialog.rack-form-dialog:not([open]) {
   font-size: 0.7rem;
   font-weight: 700;
 }
-.tree-host-grid {
+.tree-kind-layout {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.65rem;
+  grid-template-columns: minmax(260px, 0.82fr) minmax(0, 1.38fr);
+  align-items: start;
+  gap: 0.75rem;
   padding: 0.75rem;
   border-top: 2px solid var(--line);
+}
+.tree-host-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-content: start;
+  gap: 0.55rem;
+  min-width: 0;
 }
 .tree-resource-card {
   min-width: 0;
@@ -8220,6 +8228,16 @@ dialog.rack-form-dialog:not([open]) {
 }
 .tree-host-summary {
   background: color-mix(in srgb, var(--type-hardware) 30%, var(--panel));
+}
+.tree-host-card {
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+.tree-host-card.tree-host-selected {
+  border-color: color-mix(in srgb, var(--line) 78%, var(--yellow));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--yellow) 42%, transparent);
+}
+.tree-host-card.tree-host-selected .tree-host-summary {
+  background: color-mix(in srgb, var(--yellow) 38%, var(--type-hardware));
 }
 .tree-node-main {
   display: flex;
@@ -8380,6 +8398,85 @@ dialog.rack-form-dialog:not([open]) {
   text-decoration: none;
 }
 .tree-app-link:hover { filter: brightness(0.96); }
+.tree-desktop-host-detail {
+  min-width: 0;
+  overflow: hidden;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.tree-detail-placeholder,
+.tree-detail-empty {
+  min-height: 176px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.35rem;
+  padding: 1.2rem;
+  color: var(--muted);
+  text-align: center;
+}
+.tree-detail-placeholder strong,
+.tree-detail-empty strong {
+  color: var(--text);
+  font-size: 0.85rem;
+}
+.tree-detail-placeholder span:last-child,
+.tree-detail-empty span {
+  max-width: 420px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+.tree-detail-placeholder-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--blue);
+  color: var(--text);
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+.tree-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 62px;
+  padding: 0.7rem 0.8rem;
+  border-bottom: 2px solid var(--line);
+  background: color-mix(in srgb, var(--type-hardware) 34%, var(--panel));
+}
+.tree-detail-close {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0.35rem 0.65rem;
+  border: 2px solid var(--line);
+  border-radius: 9px;
+  background: var(--phone);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.tree-detail-close:hover,
+.tree-detail-close:focus-visible {
+  background: var(--yellow);
+  outline: none;
+}
+.tree-detail-content {
+  border-top: 0;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--phone) 86%, var(--panel));
+}
+.tree-detail-content .tree-guest-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .tree-unassigned-group > .tree-kind-summary {
   background: color-mix(in srgb, var(--yellow) 65%, var(--panel));
 }
@@ -8398,7 +8495,29 @@ dialog.rack-form-dialog:not([open]) {
 }
 .tree-empty-state strong { color: var(--text); }
 
+@media (min-width: 901px) {
+  .tree-host-card > .tree-host-children {
+    display: none;
+  }
+  .tree-host-card.tree-resource-details > .tree-resource-summary::after {
+    transform: translateY(-50%) rotate(0deg);
+  }
+  .tree-host-card.tree-host-selected.tree-resource-details > .tree-resource-summary::after {
+    transform: translateY(-50%) rotate(90deg);
+  }
+}
+
 @media (max-width: 900px) {
+  .tree-kind-layout {
+    display: block;
+    padding: 0;
+  }
+  .tree-desktop-host-detail {
+    display: none;
+  }
+  .tree-host-grid {
+    padding: 0.75rem;
+  }
   .tree-overview-head {
     align-items: stretch;
     flex-direction: column;
@@ -8597,9 +8716,29 @@ dialog.rack-form-dialog:not([open]) {
 }
 
 .cli-terminal::-webkit-scrollbar-button,
+.cli-terminal::-webkit-scrollbar-button:single-button,
+.cli-terminal::-webkit-scrollbar-button:vertical:decrement,
+.cli-terminal::-webkit-scrollbar-button:vertical:increment,
+.cli-terminal::-webkit-scrollbar-button:horizontal:decrement,
+.cli-terminal::-webkit-scrollbar-button:horizontal:increment,
 .cli-terminal::-webkit-scrollbar-corner {
   display: none;
-  width: 0;
-  height: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 0 !important;
+  height: 0 !important;
+  min-width: 0;
+  min-height: 0;
+  max-width: 0;
+  max-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.cli-terminal::-webkit-scrollbar-track-piece:start,
+.cli-terminal::-webkit-scrollbar-track-piece:end {
+  margin-block: 10px;
   background: transparent;
 }

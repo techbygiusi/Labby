@@ -4938,6 +4938,8 @@ function buildInfrastructureTree() {
     const hasChildren = hostGuests.length > 0 || directApps.length > 0;
     const card = document.createElement(hasChildren ? 'details' : 'article');
     card.className = `tree-resource-card tree-host-card${hasChildren ? ' tree-resource-details' : ' tree-resource-leaf'}`;
+    card.dataset.hostId = host.id;
+    card._treeHost = host;
 
     const summary = document.createElement(hasChildren ? 'summary' : 'div');
     summary.className = 'tree-resource-summary tree-host-summary';
@@ -4984,6 +4986,106 @@ function buildInfrastructureTree() {
     return card;
   }
 
+  const desktopTreeMedia = window.matchMedia('(min-width: 901px)');
+
+  function createHostDetailPanel() {
+    const panel = document.createElement('aside');
+    panel.className = 'tree-desktop-host-detail';
+    panel.innerHTML = `
+      <div class="tree-detail-placeholder">
+        <span class="tree-detail-placeholder-icon">↳</span>
+        <strong>Select a host</strong>
+        <span>Choose a host on the left to view its guests and direct applications.</span>
+      </div>
+    `;
+    return panel;
+  }
+
+  function clearHostDetailPanel(grid, panel) {
+    grid.querySelectorAll('.tree-host-card').forEach((card) => card.classList.remove('tree-host-selected'));
+    panel.removeAttribute('data-active-host-id');
+    panel.innerHTML = `
+      <div class="tree-detail-placeholder">
+        <span class="tree-detail-placeholder-icon">↳</span>
+        <strong>Select a host</strong>
+        <span>Choose a host on the left to view its guests and direct applications.</span>
+      </div>
+    `;
+  }
+
+  function renderHostDetailPanel(grid, panel, card) {
+    const host = card._treeHost;
+    if (!host) return;
+
+    grid.querySelectorAll('.tree-host-card').forEach((entry) => entry.classList.toggle('tree-host-selected', entry === card));
+    panel.dataset.activeHostId = host.id;
+    panel.replaceChildren();
+
+    const header = document.createElement('div');
+    header.className = 'tree-detail-header';
+    const main = document.createElement('div');
+    main.className = 'tree-node-main';
+    main.append(resourceIcon(host), resourceText(host, resourceSubtitle(host)));
+    header.appendChild(main);
+
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'tree-detail-close';
+    closeButton.textContent = 'Close';
+    closeButton.addEventListener('click', () => {
+      if (card.tagName === 'DETAILS') card.open = false;
+      clearHostDetailPanel(grid, panel);
+    });
+    header.appendChild(closeButton);
+    panel.appendChild(header);
+
+    const sourceChildren = card.querySelector(':scope > .tree-host-children');
+    if (sourceChildren) {
+      const content = sourceChildren.cloneNode(true);
+      content.classList.add('tree-detail-content');
+      panel.appendChild(content);
+    } else {
+      const empty = document.createElement('div');
+      empty.className = 'tree-detail-empty';
+      empty.innerHTML = '<strong>No linked resources</strong><span>This host has no guests or direct applications.</span>';
+      panel.appendChild(empty);
+    }
+  }
+
+  function bindDesktopHostDetails(grid, panel) {
+    let syncing = false;
+    const cards = Array.from(grid.querySelectorAll('.tree-host-card'));
+
+    function selectCard(card) {
+      if (!desktopTreeMedia.matches) return;
+      syncing = true;
+      cards.forEach((entry) => {
+        if (entry !== card && entry.tagName === 'DETAILS') entry.open = false;
+      });
+      syncing = false;
+      renderHostDetailPanel(grid, panel, card);
+    }
+
+    cards.forEach((card) => {
+      if (card.tagName === 'DETAILS') {
+        card.addEventListener('toggle', () => {
+          if (syncing || !desktopTreeMedia.matches) return;
+          if (card.open) selectCard(card);
+          else if (panel.dataset.activeHostId === card.dataset.hostId) clearHostDetailPanel(grid, panel);
+        });
+      } else {
+        card.tabIndex = 0;
+        card.setAttribute('role', 'button');
+        card.addEventListener('click', () => selectCard(card));
+        card.addEventListener('keydown', (event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          selectCard(card);
+        });
+      }
+    });
+  }
+
   const preferredKindOrder = ['router-gateway', 'switch', 'hypervisor', 'server', 'nas', 'backup', 'pc'];
   const actualKinds = [...new Set(hardware.map((host) => host.hardwareKind || 'server'))];
   const orderedKinds = [
@@ -5006,10 +5108,17 @@ function buildInfrastructureTree() {
     summary.appendChild(countBadge(String(hosts.length), 'group'));
     group.appendChild(summary);
 
+    const layout = document.createElement('div');
+    layout.className = 'tree-kind-layout';
+
     const grid = document.createElement('div');
     grid.className = 'tree-host-grid';
     hosts.forEach((host) => grid.appendChild(createHostCard(host)));
-    group.appendChild(grid);
+
+    const detailPanel = createHostDetailPanel();
+    layout.append(grid, detailPanel);
+    group.appendChild(layout);
+    bindDesktopHostDetails(grid, detailPanel);
     body.appendChild(group);
   });
 
