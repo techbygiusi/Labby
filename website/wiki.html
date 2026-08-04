@@ -1027,6 +1027,14 @@ volumes:
       <h2>Direct SMB/NAS backups</h2>
       <p>No extra Docker mount is needed. Open <code>Config → Backup Config</code>, select <strong>Direct SMB share</strong> and enter the server, share, folder and account details.</p>
       <p>Use <strong>Test SMB connection</strong> to verify that Labby can create and remove files in the destination before enabling the schedule.</p>
+      <h2>Unraid</h2>
+      <p>Labby is available in Unraid Community Apps for a fast deployment on an Unraid server.</p>
+      <ol>
+        <li>Open the <strong>Apps</strong> tab in Unraid.</li>
+        <li>Search for <strong>Labby</strong>.</li>
+        <li>Select the app, review the WebUI port and appdata path, then start the installation.</li>
+      </ol>
+      <p>Unraid stores the persistent Labby data in the configured appdata folder and maps it to <code>/data</code> inside the container.</p>
       <h2>ZimaOS or CasaOS</h2>
       <ul>
         <li>Docker image: <code>techbygiusi/labby</code></li>
