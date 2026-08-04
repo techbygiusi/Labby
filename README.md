@@ -25,7 +25,8 @@ Track your hardware, VMs, LXCs, apps, networks, rack layouts, live status and re
 <table>
   <tr>
     <td align="center">
-      <img width="1920" height="1080" alt="Labby topology dashboard" src="https://github.com/user-attachments/assets/1df3a23b-14ce-4a67-ae5a-73d48adb2237" />
+      <img width="1920" height="1080" alt="Labby topology dashboard" src="https://github.com/user-attachments/assets/abe81b97-0e99-4f9e-a124-5849fec23db6" />
+" />
       <br/>
       <sub><b>Topology Dashboard</b></sub>
     </td>
