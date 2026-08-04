@@ -8,8 +8,8 @@
   <Privileged>false</Privileged>
   <Icon>https://raw.githubusercontent.com/techbygiusi/Labby/main/app/logo.svg</Icon>
   <WebUI>http://[IP]:[PORT:80]</WebUI>
-  <Overview>Labby is a self-hosted homelab inventory, topology, rack, IP documentation, SSH console and encrypted backup platform.</Overview>
-  <Description>Document hardware, VMs, LXC containers, applications, networks, racks and relationships in one responsive interface. Labby includes Tree, Graph and IP views, browser-based SSH sessions, scoped Agent API keys, encrypted local backups and direct SMB backup destinations.</Description>
+  <Overview>Labby is a self-hosted homelab inventory, topology, rack, IP documentation and SSH console platform.</Overview>
+  <Description>Document hardware, VMs, LXC containers, applications, networks, racks and relationships in one responsive interface. Labby includes Tree, Graph and IP views, browser-based SSH sessions, scoped Agent API keys and direct SMB backup destinations.</Description>
   <Category>Network:Management Tools:Utilities</Category>
   <Support>https://github.com/techbygiusi/Labby/issues</Support>
   <Project>https://github.com/techbygiusi/Labby</Project>
