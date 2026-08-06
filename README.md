@@ -25,8 +25,7 @@ Track your hardware, VMs, LXCs, apps, networks, rack layouts, live status and re
 <table>
   <tr>
     <td align="center">
-      <img width="1920" height="1080" alt="Labby topology dashboard" src="https://github.com/user-attachments/assets/abe81b97-0e99-4f9e-a124-5849fec23db6" />
-" />
+      <img width="1920" height="1080" alt="Labby topology dashboard" src="https://github.com/user-attachments/assets/1df3a23b-14ce-4a67-ae5a-73d48adb2237" />
       <br/>
       <sub><b>Topology Dashboard</b></sub>
     </td>
@@ -148,7 +147,7 @@ Labby includes a rack inventory and editor for mapping physical infrastructure.
 - Front and rear rack layouts
 - Drag components into rack slots
 - Link rack components to existing Labby resources
-- Supports servers, switches, routers, patch panels, cable management, UPS, PDU, KVM and blank panels
+- Supports 1U, 2U, 3U and 4U rack components, including servers, UPS units, PDUs, KVMs, blank panels, switches, routers, patch panels and cable management
 - Context menu for opening, editing and deleting racks
 - Rack data is included in normal config export/import
 

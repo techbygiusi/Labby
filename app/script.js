@@ -912,10 +912,10 @@ function backupPanelHtml(status) {
   const hourlyMinute = Number.parseInt(scheduledTime.split(':')[1] || '0', 10);
   const logs = Array.isArray(status?.logs) && status.logs.length
     ? status.logs.map(log => `<li class="backup-log-${escapeAttr(log.level)}"><strong>${escapeHtml(formatBackupDate(log.at))}</strong><span>${escapeHtml(log.message)}</span></li>`).join('')
-    : '<li><span>No backup logs yet.</span></li>';
+    : '<li class="empty-state empty-state-list"><span>No backup logs yet.</span></li>';
   const backups = Array.isArray(status?.backups) && status.backups.length
     ? status.backups.map(backup => `<li><div><strong>${escapeHtml(backup.name)}</strong><span>${escapeHtml(formatBackupDate(backup.createdAt))} · ${Math.ceil((backup.size || 0) / 1024)} KB · ${escapeHtml(backup.target)}</span></div><div class="backup-list-actions"><button class="button secondary" type="button" data-restore-backup="${escapeAttr(backup.id)}" data-restore-target="${escapeAttr(backup.target)}"${disabledAttr}>Restore</button><button class="button danger" type="button" data-delete-backup="${escapeAttr(backup.id)}" data-delete-target="${escapeAttr(backup.target)}"${disabledAttr}>Delete</button></div></li>`).join('')
-    : '<li><span>No encrypted backups found for this target.</span></li>';
+    : '<li class="empty-state empty-state-list"><span>No encrypted backups found for this target.</span></li>';
 
   return `
     <section class="backup-config-panel">
@@ -923,7 +923,7 @@ function backupPanelHtml(status) {
         <div class="backup-card-header">
           <div>
             <div class="backup-card-title">Backup plan</div>
-            <div class="backup-card-subtitle">Encrypted backups for the complete Labby configuration.</div>
+            <div class="backup-card-subtitle">Create encrypted backups manually or on a schedule.</div>
           </div>
         </div>
         <div class="backup-chip-row">
@@ -938,7 +938,7 @@ function backupPanelHtml(status) {
         <div class="backup-card-header">
           <div>
             <div class="backup-card-title">Schedule</div>
-            <div class="backup-card-subtitle">Choose when Labby should create backups.</div>
+            <div class="backup-card-subtitle">Choose when automatic backups should run.</div>
           </div>
         </div>
         <div class="backup-form-grid backup-schedule-grid">
@@ -946,7 +946,7 @@ function backupPanelHtml(status) {
             <input data-backup-field="enabled" type="checkbox" ${cfg.enabled ? 'checked' : ''}${disabledAttr} />
             <span>
               <strong>Enable scheduled backups</strong>
-              <small>Turn the backup job on or off.</small>
+              <small>Run backups automatically.</small>
             </span>
           </label>
           <label>Schedule type
@@ -983,7 +983,7 @@ function backupPanelHtml(status) {
         <div class="backup-card-header">
           <div>
             <div class="backup-card-title">Direct SMB destination</div>
-            <div class="backup-card-subtitle">Configure the share Labby should use for remote backups.</div>
+            <div class="backup-card-subtitle">Choose where remote backups should be stored.</div>
           </div>
         </div>
         <div class="backup-form-grid backup-smb-grid">
@@ -1012,32 +1012,31 @@ function backupPanelHtml(status) {
             <input data-backup-field="clearSmbPassword" type="checkbox"${disabledAttr} />
             <span>
               <strong>Clear saved password</strong>
-              <small>Remove the currently stored SMB password on save.</small>
+              <small>Remove the stored password when saving.</small>
             </span>
           </label>
           <label class="backup-checkbox-card">
             <input data-backup-field="smbEncrypt" type="checkbox" ${cfg.smbEncrypt ? 'checked' : ''}${disabledAttr} />
             <span>
               <strong>Require SMB encryption</strong>
-              <small>Use encrypted transport when the server supports it.</small>
+              <small>Require encrypted SMB transport.</small>
             </span>
           </label>
           <label class="backup-checkbox-card backup-grid-span-2">
             <input data-backup-field="smbGuest" type="checkbox" ${cfg.smbGuest ? 'checked' : ''}${disabledAttr} />
             <span>
               <strong>Use guest access</strong>
-              <small>Disable username and password fields for guest logins.</small>
+              <small>Connect without an SMB account.</small>
             </span>
           </label>
         </div>
-        <p class="note backup-smb-note">The SMB password is encrypted with Labby's backup key and stored only inside the persistent <code>/data</code> volume.</p>
       </div>
 
       <div class="backup-card backup-status-card">
         <div class="backup-card-header">
           <div>
             <div class="backup-card-title">Current status</div>
-            <div class="backup-card-subtitle">Quick overview of the active backup setup.</div>
+            <div class="backup-card-subtitle">Review the selected schedule and destination.</div>
           </div>
         </div>
         <div class="backup-status-grid">
@@ -1736,7 +1735,7 @@ async function renderAgentKeyLists() {
           <button class="button danger" type="button" data-agent-delete>Revoke</button>
         </div>
       </article>
-    `).join('') : '<p class="note">No agent API keys yet.</p>';
+    `).join('') : '<p class="empty-state">No agent API keys yet.</p>';
   });
 }
 
@@ -1833,7 +1832,7 @@ function renderCommandSnippets() {
   cliCommandList.innerHTML = '';
   if (!filtered.length) {
     const empty = document.createElement('div');
-    empty.className = 'cli-command-empty';
+    empty.className = 'empty-state empty-state-compact cli-command-empty';
     empty.textContent = query ? 'No matching commands.' : 'No commands saved yet.';
     cliCommandList.appendChild(empty);
   } else {
@@ -2684,7 +2683,7 @@ function render() {
     col.innerHTML = `<h3>${label(type)} (${list.length})</h3>`;
     if (!list.length) {
       const empty = document.createElement('p');
-      empty.className = 'card-desc';
+      empty.className = 'empty-state empty-state-compact';
       empty.textContent = 'No resources found.';
       col.appendChild(empty);
     }
@@ -4139,7 +4138,7 @@ function buildGraphView() {
 
   if (!graphItems.length) {
     const empty = document.createElement('p');
-    empty.className = 'tree-empty';
+    empty.className = 'tree-empty empty-state empty-state-compact';
     empty.textContent = 'No non-network resources to display in graph view.';
     canvas.appendChild(empty);
     return wrap;
@@ -5046,7 +5045,7 @@ function buildInfrastructureTree() {
       panel.appendChild(content);
     } else {
       const empty = document.createElement('div');
-      empty.className = 'tree-detail-empty';
+      empty.className = 'tree-detail-empty empty-state';
       empty.innerHTML = '<strong>No linked resources</strong><span>This host has no guests or direct applications.</span>';
       panel.appendChild(empty);
     }
@@ -5152,7 +5151,7 @@ function buildInfrastructureTree() {
 
   if (!hardware.length && !guests.length && !apps.length) {
     const empty = document.createElement('div');
-    empty.className = 'tree-empty-state';
+    empty.className = 'tree-empty-state empty-state';
     empty.innerHTML = '<strong>No infrastructure resources yet.</strong><span>Add hardware, VMs, LXCs or apps to build the relationship tree.</span>';
     body.appendChild(empty);
   }
@@ -5193,8 +5192,8 @@ function buildNetworksTree() {
 
     if (!members.length) {
       const empty = document.createElement('p');
-      empty.className = 'tree-empty';
-      empty.textContent = 'No matched resources';
+      empty.className = 'tree-empty empty-state empty-state-compact';
+      empty.textContent = 'No matched resources.';
       membersWrap.appendChild(empty);
     } else {
       members.forEach((member) => {
@@ -5211,7 +5210,7 @@ function buildNetworksTree() {
 
   if (!networks.length) {
     const empty = document.createElement('p');
-    empty.className = 'tree-empty';
+    empty.className = 'tree-empty empty-state empty-state-compact';
     empty.textContent = 'No network resources yet.';
     body.appendChild(empty);
   }
@@ -5966,7 +5965,7 @@ function renderIPInto(container, query) {
 
   if (!matched.length) {
     const empty = document.createElement('p');
-    empty.className = 'tree-empty';
+    empty.className = 'tree-empty empty-state empty-state-compact';
     empty.textContent = query ? 'No matching IP addresses found.' : 'No IP addresses defined yet.';
     container.appendChild(empty);
     return;
@@ -6155,6 +6154,7 @@ const RACK_COMPONENTS = [
   // ── Compute ─────────────────────────────────────────────────
   { componentType: '1u-server',      heightU: 1, label: '1U Server',      category: 'compute' },
   { componentType: '2u-server',      heightU: 2, label: '2U Server',      category: 'compute' },
+  { componentType: '3u-server',      heightU: 3, label: '3U Server',      category: 'compute' },
   { componentType: '4u-server',      heightU: 4, label: '4U Server',      category: 'compute' },
   { componentType: '2pc-1u',         heightU: 1, label: '2× PC (1U)',     category: 'compute', multiDevice: 2 },
   { componentType: '2pc-2u',         heightU: 2, label: '2× PC (2U)',     category: 'compute', multiDevice: 2 },
@@ -6171,14 +6171,18 @@ const RACK_COMPONENTS = [
   // ── Power ────────────────────────────────────────────────────
   { componentType: '1u-ups',         heightU: 1, label: '1U UPS',         category: 'power' },
   { componentType: '2u-ups',         heightU: 2, label: '2U UPS',         category: 'power' },
+  { componentType: '3u-ups',         heightU: 3, label: '3U UPS',         category: 'power' },
   { componentType: '4u-ups',         heightU: 4, label: '4U UPS',         category: 'power' },
   { componentType: '1u-pdu',         heightU: 1, label: '1U PDU',         category: 'power', isPDU: true },
   { componentType: '2u-pdu',         heightU: 2, label: '2U PDU',         category: 'power', isPDU: true },
+  { componentType: '3u-pdu',         heightU: 3, label: '3U PDU',         category: 'power', isPDU: true },
   // ── Management ───────────────────────────────────────────────
   { componentType: '1u-kvm',         heightU: 1, label: '1U KVM',         category: 'mgmt' },
+  { componentType: '2u-kvm',         heightU: 2, label: '2U KVM',         category: 'mgmt' },
   // ── Filler ───────────────────────────────────────────────────
   { componentType: '1u-blank',       heightU: 1, label: '1U Blank',       category: 'filler', isBlank: true },
   { componentType: '2u-blank',       heightU: 2, label: '2U Blank',       category: 'filler', isBlank: true },
+  { componentType: '3u-blank',       heightU: 3, label: '3U Blank',       category: 'filler', isBlank: true },
   { componentType: '4u-blank',       heightU: 4, label: '4U Blank',       category: 'filler', isBlank: true },
 ];
 
@@ -6297,10 +6301,10 @@ function renderRackOverview() {
 
   if (locations.length === 0) {
     const es = document.createElement('div');
-    es.className = 'rack-empty-state';
+    es.className = 'rack-empty-state empty-state empty-state-action';
     es.innerHTML = `
       <div style="font-size:3rem">🗄️</div>
-      <h3>No Racks Yet</h3>
+      <h3>No racks yet</h3>
       <p>Start by creating a location, then add your first rack.</p>
       <button class="button" id="rack-create-first">+ Create your first Rack</button>
     `;
@@ -6346,7 +6350,7 @@ function renderRackOverview() {
     const locationRacks = racks.filter(r => r.locationId === locSel.value);
     if (locationRacks.length === 0) {
       const empty = document.createElement('div');
-      empty.style.cssText = 'color:var(--muted);font:0.8rem/1.4 Space Mono,monospace;padding:1rem 0;';
+      empty.className = 'empty-state empty-state-compact rack-location-empty';
       empty.textContent = 'No racks at this location.';
       grid.appendChild(empty);
     } else {
@@ -6365,9 +6369,9 @@ function renderRackOverview() {
         // Desktop right-click and tablet long press context menu.
         card.addEventListener('contextmenu', e => {
           e.preventDefault();
-          showRackContextMenu(e.clientX, e.clientY, rack, renderCards);
+          showRackContextMenu(e.clientX, e.clientY, rack);
         });
-        bindRackLongPressContext(card, (x, y) => showRackContextMenu(x, y, rack, renderCards));
+        bindRackLongPressContext(card, (x, y, options) => showRackContextMenu(x, y, rack, options));
         grid.appendChild(card);
       });
     }
@@ -6387,11 +6391,15 @@ function bindRackLongPressContext(element, openMenu) {
   element.dataset.rackLongPressBound = 'true';
   let pressState = null;
 
-  const clearPress = () => {
+  const clearPress = ({ releaseCapture = true } = {}) => {
     if (!pressState) return;
+    const pointerId = pressState.pointerId;
     window.clearTimeout(pressState.timer);
     element.classList.remove('rack-context-pressing');
     pressState = null;
+    if (releaseCapture && element.hasPointerCapture?.(pointerId)) {
+      try { element.releasePointerCapture(pointerId); } catch {}
+    }
   };
 
   element.addEventListener('pointerdown', (event) => {
@@ -6399,6 +6407,12 @@ function bindRackLongPressContext(element, openMenu) {
     clearPress();
     const startX = event.clientX;
     const startY = event.clientY;
+
+    // Keep the release event on the original rack or location entry. Without
+    // pointer capture, the menu can appear below the finger and immediately
+    // consume the release that opened it on some tablet browsers.
+    try { element.setPointerCapture(event.pointerId); } catch {}
+
     pressState = {
       pointerId: event.pointerId,
       startX,
@@ -6407,10 +6421,10 @@ function bindRackLongPressContext(element, openMenu) {
       timer: window.setTimeout(() => {
         if (!pressState || pressState.pointerId !== event.pointerId) return;
         pressState.triggered = true;
-        rackContextSuppressClickUntil = Date.now() + 900;
+        rackContextSuppressClickUntil = Date.now() + 1000;
         element.classList.remove('rack-context-pressing');
         navigator.vibrate?.(18);
-        openMenu(startX, startY);
+        openMenu(startX + 14, startY + 14, { openedByTouch: true });
       }, 560),
     };
     element.classList.add('rack-context-pressing');
@@ -6427,18 +6441,20 @@ function bindRackLongPressContext(element, openMenu) {
     clearPress();
     if (triggered) {
       event.preventDefault();
-      event.stopPropagation();
+      event.stopImmediatePropagation();
     }
   };
 
   element.addEventListener('pointerup', finishPress, { passive: false });
-  element.addEventListener('pointercancel', clearPress, { passive: true });
-  element.addEventListener('lostpointercapture', clearPress, { passive: true });
+  element.addEventListener('pointercancel', () => clearPress(), { passive: true });
+  element.addEventListener('lostpointercapture', () => clearPress({ releaseCapture: false }), { passive: true });
 }
 
 function closeContextMenu() {
   const existing = document.getElementById('rack-ctx-menu');
-  if (existing) existing.remove();
+  if (!existing) return;
+  existing._dismissCleanup?.();
+  existing.remove();
 }
 
 function positionRackContextMenu(menu, x, y) {
@@ -6451,14 +6467,26 @@ function positionRackContextMenu(menu, x, y) {
   menu.style.top = `${top}px`;
 }
 
-function bindRackContextMenuDismiss(menu) {
+function bindRackContextMenuDismiss(menu, { openedByTouch = false } = {}) {
+  let armed = !openedByTouch;
+  let armTimer = null;
+
   const outsideHandler = (event) => {
-    if (!menu.contains(event.target)) {
-      closeContextMenu();
-      document.removeEventListener('pointerdown', outsideHandler, true);
-    }
+    if (!armed || menu.contains(event.target)) return;
+    closeContextMenu();
   };
-  setTimeout(() => document.addEventListener('pointerdown', outsideHandler, true), 0);
+
+  const cleanup = () => {
+    window.clearTimeout(armTimer);
+    document.removeEventListener('pointerdown', outsideHandler, true);
+  };
+
+  menu._dismissCleanup = cleanup;
+  document.addEventListener('pointerdown', outsideHandler, true);
+
+  // Ignore the pointer sequence that opened the menu. The next intentional
+  // tap can still select an action because menu clicks are handled directly.
+  if (openedByTouch) armTimer = window.setTimeout(() => { armed = true; }, 180);
 }
 
 function refreshRackWorkspaceAfterDelete(deletedRackIds = []) {
@@ -6497,7 +6525,7 @@ function deleteLocationFromContext(location) {
   return true;
 }
 
-function showRackContextMenu(x, y, rack) {
+function showRackContextMenu(x, y, rack, options = {}) {
   closeContextMenu();
   const menu = document.createElement('div');
   menu.className = 'rack-ctx-menu';
@@ -6521,11 +6549,11 @@ function showRackContextMenu(x, y, rack) {
   });
 
   positionRackContextMenu(menu, x, y);
-  bindRackContextMenuDismiss(menu);
-  menu.querySelector('[data-rack-context-action="open"]')?.focus({ preventScroll: true });
+  bindRackContextMenuDismiss(menu, options);
+  if (!options.openedByTouch) menu.querySelector('[data-rack-context-action="open"]')?.focus({ preventScroll: true });
 }
 
-function showLocationContextMenu(x, y, location) {
+function showLocationContextMenu(x, y, location, options = {}) {
   closeContextMenu();
   const rackCount = racks.filter((rack) => rack.locationId === location.id).length;
   const menu = document.createElement('div');
@@ -6550,8 +6578,8 @@ function showLocationContextMenu(x, y, location) {
   });
 
   positionRackContextMenu(menu, x, y);
-  bindRackContextMenuDismiss(menu);
-  menu.querySelector('[data-location-context-action="edit"]')?.focus({ preventScroll: true });
+  bindRackContextMenuDismiss(menu, options);
+  if (!options.openedByTouch) menu.querySelector('[data-location-context-action="edit"]')?.focus({ preventScroll: true });
 }
 
 document.addEventListener('keydown', (event) => {
@@ -6722,7 +6750,7 @@ function renderRackEditorSidebar() {
       <button class="rack-editor-rack-row ${r.id === rackEditorRackId ? 'active' : ''}" type="button" data-rack-id="${r.id}">
         <span class="rack-editor-rack-name">${escapeHtml(r.name)}</span>
         <span class="rack-editor-rack-meta">${r.heightUnits || 42}U · ${r.formFactor === '10inch' ? '10″' : '19″'}</span>
-      </button>`).join('') : '<p class="rack-editor-empty-list">No racks here.</p>';
+      </button>`).join('') : '<p class="empty-state empty-state-compact rack-editor-empty-list">No racks here.</p>';
     return `
       <section class="rack-editor-location-group ${loc.id === activeLocationId ? 'active' : ''}" data-location-id="${escapeAttr(loc.id)}">
         <div class="rack-editor-location-name" data-location-context="${escapeAttr(loc.id)}">📍 ${escapeHtml(loc.name)}</div>
@@ -6739,7 +6767,7 @@ function renderRackEditorSidebar() {
       </div>
     </div>
     <div class="rack-editor-sidebar-content">
-      ${locationMarkup || '<p class="rack-editor-empty-list">No locations yet.</p>'}
+      ${locationMarkup || '<p class="empty-state empty-state-compact rack-editor-empty-list">No locations yet.</p>'}
     </div>
   `;
 
@@ -6757,9 +6785,9 @@ function renderRackEditorSidebar() {
       const rack = rackById(btn.dataset.rackId);
       if (rack) showRackContextMenu(event.clientX, event.clientY, rack);
     });
-    bindRackLongPressContext(btn, (x, y) => {
+    bindRackLongPressContext(btn, (x, y, options) => {
       const rack = rackById(btn.dataset.rackId);
-      if (rack) showRackContextMenu(x, y, rack);
+      if (rack) showRackContextMenu(x, y, rack, options);
     });
   });
 
@@ -6770,9 +6798,9 @@ function renderRackEditorSidebar() {
       const location = locationById(header.dataset.locationContext);
       if (location) showLocationContextMenu(event.clientX, event.clientY, location);
     });
-    bindRackLongPressContext(header, (x, y) => {
+    bindRackLongPressContext(header, (x, y, options) => {
       const location = locationById(header.dataset.locationContext);
-      if (location) showLocationContextMenu(x, y, location);
+      if (location) showLocationContextMenu(x, y, location, options);
     });
   });
 }

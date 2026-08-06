@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CommunityApplications>
   <Profile>Labby is a self-hosted homelab mapping and documentation platform maintained by TechByGiusi. This repository provides the official Unraid Community Applications template for Labby. Support and issue tracking are available through the Labby GitHub repository.</Profile>
-  <Icon>https://raw.githubusercontent.com/techbygiusi/Labby/main/app/logo.svg</Icon>
+  <Icon>https://raw.githubusercontent.com/techbygiusi/Labby/main/app/labby-unraid-icon.png</Icon>
   <WebPage>https://my-labby.com</WebPage>
   <Forum>https://github.com/techbygiusi/Labby/issues</Forum>
 </CommunityApplications>
