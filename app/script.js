@@ -1111,10 +1111,10 @@ function backupPanelHtml(status) {
   const hourlyMinute = Number.parseInt(scheduledTime.split(':')[1] || '0', 10);
   const logs = Array.isArray(status?.logs) && status.logs.length
     ? status.logs.map(log => `<li class="backup-log-${escapeAttr(log.level)}"><strong>${escapeHtml(formatBackupDate(log.at))}</strong><span>${escapeHtml(log.message)}</span></li>`).join('')
-    : '<li><span>No backup logs yet.</span></li>';
+    : '<li class="empty-state empty-state-list"><span>No backup logs yet.</span></li>';
   const backups = Array.isArray(status?.backups) && status.backups.length
     ? status.backups.map(backup => `<li><div><strong>${escapeHtml(backup.name)}</strong><span>${escapeHtml(formatBackupDate(backup.createdAt))} · ${Math.ceil((backup.size || 0) / 1024)} KB · ${escapeHtml(backup.target)}</span></div><div class="backup-list-actions"><button class="button secondary" type="button" data-restore-backup="${escapeAttr(backup.id)}" data-restore-target="${escapeAttr(backup.target)}"${disabledAttr}>Restore</button><button class="button danger" type="button" data-delete-backup="${escapeAttr(backup.id)}" data-delete-target="${escapeAttr(backup.target)}"${disabledAttr}>Delete</button></div></li>`).join('')
-    : '<li><span>No encrypted backups found for this target.</span></li>';
+    : '<li class="empty-state empty-state-list"><span>No encrypted backups found for this target.</span></li>';
 
   return `
     <section class="backup-config-panel">
@@ -1934,7 +1934,7 @@ async function renderAgentKeyLists() {
           <button class="button danger" type="button" data-agent-delete>Revoke</button>
         </div>
       </article>
-    `).join('') : '<p class="note">No agent API keys yet.</p>';
+    `).join('') : '<p class="empty-state">No agent API keys yet.</p>';
   });
 }
 
@@ -2031,7 +2031,7 @@ function renderCommandSnippets() {
   cliCommandList.innerHTML = '';
   if (!filtered.length) {
     const empty = document.createElement('div');
-    empty.className = 'cli-command-empty';
+    empty.className = 'empty-state empty-state-compact cli-command-empty';
     empty.textContent = query ? 'No matching commands.' : 'No commands saved yet.';
     cliCommandList.appendChild(empty);
   } else {
@@ -2882,7 +2882,7 @@ function render() {
     col.innerHTML = `<h3>${label(type)} (${list.length})</h3>`;
     if (!list.length) {
       const empty = document.createElement('p');
-      empty.className = 'card-desc';
+      empty.className = 'empty-state empty-state-compact';
       empty.textContent = 'No resources found.';
       col.appendChild(empty);
     }
@@ -4337,7 +4337,7 @@ function buildGraphView() {
 
   if (!graphItems.length) {
     const empty = document.createElement('p');
-    empty.className = 'tree-empty';
+    empty.className = 'tree-empty empty-state empty-state-compact';
     empty.textContent = 'No non-network resources to display in graph view.';
     canvas.appendChild(empty);
     return wrap;
@@ -5244,7 +5244,7 @@ function buildInfrastructureTree() {
       panel.appendChild(content);
     } else {
       const empty = document.createElement('div');
-      empty.className = 'tree-detail-empty';
+      empty.className = 'tree-detail-empty empty-state';
       empty.innerHTML = '<strong>No linked resources</strong><span>This host has no guests or direct applications.</span>';
       panel.appendChild(empty);
     }
@@ -5350,7 +5350,7 @@ function buildInfrastructureTree() {
 
   if (!hardware.length && !guests.length && !apps.length) {
     const empty = document.createElement('div');
-    empty.className = 'tree-empty-state';
+    empty.className = 'tree-empty-state empty-state';
     empty.innerHTML = '<strong>No infrastructure resources yet.</strong><span>Add hardware, VMs, LXCs or apps to build the relationship tree.</span>';
     body.appendChild(empty);
   }
@@ -5391,8 +5391,8 @@ function buildNetworksTree() {
 
     if (!members.length) {
       const empty = document.createElement('p');
-      empty.className = 'tree-empty';
-      empty.textContent = 'No matched resources';
+      empty.className = 'tree-empty empty-state empty-state-compact';
+      empty.textContent = 'No matched resources.';
       membersWrap.appendChild(empty);
     } else {
       members.forEach((member) => {
@@ -5409,7 +5409,7 @@ function buildNetworksTree() {
 
   if (!networks.length) {
     const empty = document.createElement('p');
-    empty.className = 'tree-empty';
+    empty.className = 'tree-empty empty-state empty-state-compact';
     empty.textContent = 'No network resources yet.';
     body.appendChild(empty);
   }
@@ -6164,7 +6164,7 @@ function renderIPInto(container, query) {
 
   if (!matched.length) {
     const empty = document.createElement('p');
-    empty.className = 'tree-empty';
+    empty.className = 'tree-empty empty-state empty-state-compact';
     empty.textContent = query ? 'No matching IP addresses found.' : 'No IP addresses defined yet.';
     container.appendChild(empty);
     return;
@@ -6353,6 +6353,7 @@ const RACK_COMPONENTS = [
   // ── Compute ─────────────────────────────────────────────────
   { componentType: '1u-server',      heightU: 1, label: '1U Server',      category: 'compute' },
   { componentType: '2u-server',      heightU: 2, label: '2U Server',      category: 'compute' },
+  { componentType: '3u-server',      heightU: 3, label: '3U Server',      category: 'compute' },
   { componentType: '4u-server',      heightU: 4, label: '4U Server',      category: 'compute' },
   { componentType: '2pc-1u',         heightU: 1, label: '2× PC (1U)',     category: 'compute', multiDevice: 2 },
   { componentType: '2pc-2u',         heightU: 2, label: '2× PC (2U)',     category: 'compute', multiDevice: 2 },
@@ -6369,14 +6370,18 @@ const RACK_COMPONENTS = [
   // ── Power ────────────────────────────────────────────────────
   { componentType: '1u-ups',         heightU: 1, label: '1U UPS',         category: 'power' },
   { componentType: '2u-ups',         heightU: 2, label: '2U UPS',         category: 'power' },
+  { componentType: '3u-ups',         heightU: 3, label: '3U UPS',         category: 'power' },
   { componentType: '4u-ups',         heightU: 4, label: '4U UPS',         category: 'power' },
   { componentType: '1u-pdu',         heightU: 1, label: '1U PDU',         category: 'power', isPDU: true },
   { componentType: '2u-pdu',         heightU: 2, label: '2U PDU',         category: 'power', isPDU: true },
+  { componentType: '3u-pdu',         heightU: 3, label: '3U PDU',         category: 'power', isPDU: true },
   // ── Management ───────────────────────────────────────────────
   { componentType: '1u-kvm',         heightU: 1, label: '1U KVM',         category: 'mgmt' },
+  { componentType: '2u-kvm',         heightU: 2, label: '2U KVM',         category: 'mgmt' },
   // ── Filler ───────────────────────────────────────────────────
   { componentType: '1u-blank',       heightU: 1, label: '1U Blank',       category: 'filler', isBlank: true },
   { componentType: '2u-blank',       heightU: 2, label: '2U Blank',       category: 'filler', isBlank: true },
+  { componentType: '3u-blank',       heightU: 3, label: '3U Blank',       category: 'filler', isBlank: true },
   { componentType: '4u-blank',       heightU: 4, label: '4U Blank',       category: 'filler', isBlank: true },
 ];
 
@@ -6495,10 +6500,10 @@ function renderRackOverview() {
 
   if (locations.length === 0) {
     const es = document.createElement('div');
-    es.className = 'rack-empty-state';
+    es.className = 'rack-empty-state empty-state empty-state-action';
     es.innerHTML = `
       <div style="font-size:3rem">🗄️</div>
-      <h3>No Racks Yet</h3>
+      <h3>No racks yet</h3>
       <p>Start by creating a location, then add your first rack.</p>
       <button class="button" id="rack-create-first">+ Create your first Rack</button>
     `;
@@ -6544,7 +6549,7 @@ function renderRackOverview() {
     const locationRacks = racks.filter(r => r.locationId === locSel.value);
     if (locationRacks.length === 0) {
       const empty = document.createElement('div');
-      empty.style.cssText = 'color:var(--muted);font:0.8rem/1.4 Space Mono,monospace;padding:1rem 0;';
+      empty.className = 'empty-state empty-state-compact rack-location-empty';
       empty.textContent = 'No racks at this location.';
       grid.appendChild(empty);
     } else {
@@ -6944,7 +6949,7 @@ function renderRackEditorSidebar() {
       <button class="rack-editor-rack-row ${r.id === rackEditorRackId ? 'active' : ''}" type="button" data-rack-id="${r.id}">
         <span class="rack-editor-rack-name">${escapeHtml(r.name)}</span>
         <span class="rack-editor-rack-meta">${r.heightUnits || 42}U · ${r.formFactor === '10inch' ? '10″' : '19″'}</span>
-      </button>`).join('') : '<p class="rack-editor-empty-list">No racks here.</p>';
+      </button>`).join('') : '<p class="empty-state empty-state-compact rack-editor-empty-list">No racks here.</p>';
     return `
       <section class="rack-editor-location-group ${loc.id === activeLocationId ? 'active' : ''}" data-location-id="${escapeAttr(loc.id)}">
         <div class="rack-editor-location-name" data-location-context="${escapeAttr(loc.id)}">📍 ${escapeHtml(loc.name)}</div>
@@ -6961,7 +6966,7 @@ function renderRackEditorSidebar() {
       </div>
     </div>
     <div class="rack-editor-sidebar-content">
-      ${locationMarkup || '<p class="rack-editor-empty-list">No locations yet.</p>'}
+      ${locationMarkup || '<p class="empty-state empty-state-compact rack-editor-empty-list">No locations yet.</p>'}
     </div>
   `;
 

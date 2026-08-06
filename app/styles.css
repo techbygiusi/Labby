@@ -8971,6 +8971,10 @@ fieldset,
 @media (max-width: 1100px) {
   .note,
   .config-intro,
+  #config-dialog .note,
+  #config-dialog .config-intro,
+  #mobile-config .note,
+  #mobile-config .config-intro,
   .backup-demo-notice,
   .advanced-resource-subtitle,
   .advanced-section-note,
@@ -9006,5 +9010,243 @@ fieldset,
   .rack-ctx-item {
     min-height: 48px;
     padding: 0.7rem 1rem;
+  }
+}
+
+/* v120: consistent hints, headings and neutral content surfaces. */
+:root {
+  --ui-info-surface: var(--blue);
+  --ui-surface: var(--panel);
+}
+
+/* Informational text always uses one full-width blue dashed callout. */
+.note,
+.config-intro,
+#config-dialog .note,
+#config-dialog .config-intro,
+#mobile-config .note,
+#mobile-config .config-intro,
+.backup-demo-notice,
+.advanced-resource-subtitle,
+.advanced-section-note,
+.rack-link-note,
+.backup-card-subtitle,
+.theme-picker-dialog .tb-section-intro {
+  display: block !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  align-self: stretch !important;
+  margin: 0 0 0.8rem !important;
+  padding: 0.68rem 0.85rem !important;
+  border: 2px dashed var(--line) !important;
+  border-radius: 12px !important;
+  background: var(--ui-info-surface) !important;
+  color: var(--text) !important;
+  font-weight: 700 !important;
+  line-height: 1.4 !important;
+}
+
+.backup-card-header,
+.backup-card-header > div {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Section headings are headings, not cards or information callouts. */
+#config-dialog .config-section-title,
+#mobile-config .config-section-title,
+.theme-section-title,
+.backup-section-title {
+  display: block !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  height: auto !important;
+  box-sizing: border-box !important;
+  margin: 1rem 0 0.75rem !important;
+  padding: 0 0 0.5rem !important;
+  border: 0 !important;
+  border-bottom: 2px solid var(--line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--text) !important;
+  font: 800 0.86rem/1.25 'Space Mono', monospace !important;
+}
+
+.theme-section-title:first-of-type {
+  margin-top: 0.8rem !important;
+}
+
+/* Regular cards and selectable options remain neutral with solid borders. */
+.backup-card,
+.backup-hero-card,
+.backup-schedule-card,
+.backup-smb-settings,
+.backup-status-card,
+.backup-checkbox-card,
+.credential-access-option,
+.agent-scope-option,
+.agent-api-panel,
+.agent-key-card,
+.theme-picker-dialog .tb-section,
+.theme-picker-dialog .tb-color-row {
+  border: 2px solid var(--line) !important;
+  background: var(--ui-surface) !important;
+  color: var(--text) !important;
+}
+
+/* A selected or focused option may be highlighted, but idle checkbox cards stay neutral. */
+.backup-checkbox-card:has(input:checked),
+.credential-access-option:has(input:checked),
+.agent-scope-option:has(input:checked) {
+  background: color-mix(in srgb, var(--yellow) 18%, var(--panel)) !important;
+}
+
+.backup-checkbox-card:has(input:focus-visible),
+.credential-access-option:has(input:focus-visible),
+.agent-scope-option:has(input:focus-visible) {
+  outline: 3px solid color-mix(in srgb, var(--yellow) 38%, transparent);
+  outline-offset: 2px;
+  box-shadow: none !important;
+}
+
+/* Keep compact labels and status chips separate from explanatory callouts. */
+.backup-chip,
+.backup-status-grid,
+.backup-list li,
+.backup-log-list li {
+  background: var(--ui-surface) !important;
+}
+
+@media (max-width: 1100px) {
+  .note,
+  .config-intro,
+  .backup-demo-notice,
+  .advanced-resource-subtitle,
+  .advanced-section-note,
+  .rack-link-note,
+  .backup-card-subtitle,
+  .theme-picker-dialog .tb-section-intro {
+    width: 100% !important;
+    margin-bottom: 0.75rem !important;
+    padding: 0.72rem 0.82rem !important;
+    border-radius: 12px !important;
+  }
+
+  #mobile-config .config-section-title,
+  .theme-section-title,
+  .backup-section-title {
+    margin-top: 0.9rem !important;
+    padding-bottom: 0.48rem !important;
+  }
+}
+
+
+/* v121: one consistent visual language for empty states. */
+.empty-state {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.28rem !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  margin: 0.45rem 0 !important;
+  padding: 0.85rem 1rem !important;
+  border: 2px dashed color-mix(in srgb, var(--line) 78%, transparent) !important;
+  border-radius: 12px !important;
+  background: color-mix(in srgb, var(--panel) 94%, var(--bg)) !important;
+  color: var(--muted) !important;
+  font: 700 0.76rem/1.45 'Space Mono', monospace !important;
+  font-style: normal !important;
+  text-align: center !important;
+  overflow-wrap: anywhere;
+}
+
+.empty-state > * {
+  margin: 0 !important;
+}
+
+.empty-state strong {
+  color: var(--text) !important;
+  font: 800 0.82rem/1.35 'Space Mono', monospace !important;
+}
+
+.empty-state span,
+.empty-state p {
+  color: var(--muted) !important;
+  font-style: normal !important;
+}
+
+.empty-state-compact {
+  min-height: 0 !important;
+  margin: 0.3rem 0 !important;
+  padding: 0.65rem 0.8rem !important;
+}
+
+.empty-state-list {
+  min-height: 56px !important;
+  list-style: none !important;
+}
+
+.empty-state-action {
+  min-height: 220px;
+  padding: 2rem 1rem !important;
+}
+
+.empty-state-action .button {
+  margin-top: 0.5rem !important;
+}
+
+/* Remove older one-off empty-state presentation rules. */
+.tree-empty,
+.ip-empty,
+.theme-empty-note,
+.cli-command-empty,
+.rack-editor-empty-list {
+  color: var(--muted) !important;
+  font-style: normal !important;
+}
+
+.backup-list li.empty-state,
+.backup-log-list li.empty-state {
+  display: flex !important;
+  border: 2px dashed color-mix(in srgb, var(--line) 78%, transparent) !important;
+  background: color-mix(in srgb, var(--panel) 94%, var(--bg)) !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-direction: column !important;
+  min-width: 0 !important;
+}
+
+.tree-detail-empty.empty-state {
+  width: calc(100% - 1.4rem) !important;
+  min-height: 150px !important;
+  margin: 0.7rem !important;
+}
+
+.tree-empty-state.empty-state {
+  min-height: 140px;
+}
+
+.rack-location-empty.empty-state {
+  grid-column: 1 / -1;
+}
+
+#theme-custom-empty.empty-state {
+  margin-top: 0.55rem !important;
+}
+
+@media (max-width: 1100px) {
+  .empty-state {
+    padding: 0.78rem 0.85rem !important;
+    border-radius: 11px !important;
+  }
+
+  .empty-state-action {
+    min-height: 190px;
+    padding: 1.6rem 0.9rem !important;
   }
 }
