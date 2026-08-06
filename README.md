@@ -25,7 +25,7 @@ Track your hardware, VMs, LXCs, apps, networks, rack layouts, live status and re
 <table>
   <tr>
     <td align="center">
-      <img width="1920" height="1080" alt="Labby topology dashboard" src="https://github.com/user-attachments/assets/1df3a23b-14ce-4a67-ae5a-73d48adb2237" />
+      <img width="1920" height="1080" alt="Labby topology dashboard" src="https://github.com/user-attachments/assets/f8d9602b-c235-4626-ac31-2f3c032c8983" />
       <br/>
       <sub><b>Topology Dashboard</b></sub>
     </td>
@@ -37,17 +37,17 @@ Track your hardware, VMs, LXCs, apps, networks, rack layouts, live status and re
 <table>
   <tr>
     <td width="33%" align="center">
-      <img alt="Labby mobile dashboard" src="https://github.com/user-attachments/assets/a485c373-dc5b-4a66-af78-461450831d90" />
+      <img alt="Labby mobile dashboard" src="https://github.com/user-attachments/assets/11011471-9d29-4b33-9fa3-9593db03120d" />
       <br/>
       <sub><b>Dashboard</b></sub>
     </td>
     <td width="33%" align="center">
-      <img alt="Labby mobile IP view" src="https://github.com/user-attachments/assets/4e8b2eb8-bde8-4cd4-aad2-e898a72c8b43" />
+      <img alt="Labby mobile IP view" src="https://github.com/user-attachments/assets/d9622afb-64c7-4fd9-8605-3e62d12e72af" />
       <br/>
       <sub><b>IP View</b></sub>
     </td>
     <td width="33%" align="center">
-      <img alt="Labby mobile config" src="https://github.com/user-attachments/assets/dcb54b1a-d0f5-4cc0-9431-4c180b761c20" />
+      <img alt="Labby mobile config" src="https://github.com/user-attachments/assets/278bf683-9747-4ae4-9774-20f70ac46d57" />
       <br/>
       <sub><b>Config</b></sub>
     </td>
@@ -89,8 +89,6 @@ Labby tracks the important details of your homelab resources without requiring a
 - Clickable web URLs directly from cards
 - Relationship metadata for hosted resources and connected devices
 
-<img width="1920" height="1080" alt="Labby graph view" src="https://github.com/user-attachments/assets/7b72df1e-aae7-4409-b650-93be698d7cf6" />
-
 ---
 
 ## 🌐 Topology Dashboard
@@ -106,6 +104,9 @@ The Topology dashboard is the main working view.
 - See hosted VMs/LXCs, connected devices and app relationships
 - Empty live/action areas stay hidden when no related data is configured
 
+<img width="1920" height="1080" alt="Labby topology view" src="https://github.com/user-attachments/assets/32db796b-ff68-47ce-a0ca-3d9cbd7d6111" />
+
+
 ### Mobile card actions
 
 On mobile, resource cards are optimized for touch:
@@ -117,7 +118,7 @@ On mobile, resource cards are optimized for touch:
 
 ---
 
-## 🌳 Tree & Graph View
+## 🌳 Relationship Tree & Graph View
 
 ### Tree View
 
@@ -125,6 +126,9 @@ On mobile, resource cards are optimized for touch:
 - Shows hardware, guests, apps and networks in a readable hierarchy
 - Works on desktop and mobile
 - Mobile Tree View is available through the More menu
+
+<img width="1920" height="1080" alt="Labby tree view" src="https://github.com/user-attachments/assets/2c265b47-7073-47fe-aac8-c9eb09351cfd" />
+
 
 ### Graph View
 
@@ -151,27 +155,7 @@ Labby includes a rack inventory and editor for mapping physical infrastructure.
 - Context menu for opening, editing and deleting racks
 - Rack data is included in normal config export/import
 
-### Desktop Rack View
-
-Desktop Rack View is designed as a workspace:
-
-- Location and rack overview
-- Fast rack selection
-- Open Rack Editor from the rack overview
-- Front and rear rack grids shown side by side in the editor
-- Component palette available in the editor
-
-### Mobile Rack View
-
-Mobile Rack View is touch optimized:
-
-- Dedicated Rack tab in bottom navigation
-- Front/Rear switching
-- Floating component picker
-- Component picker opens only when needed
-- Rack can be scrolled and managed on smaller screens
-
-<img width="1920" height="1080" alt="Labby rack editor" src="https://github.com/user-attachments/assets/056a501e-fbe8-4504-b427-f61896576c03" />
+<img width="1920" height="1080" alt="Labby rack editor" src="https://github.com/user-attachments/assets/8ef17f50-3d62-466c-b387-3e2b46ab555c" />
 
 ---
 
@@ -201,7 +185,7 @@ Labby has a built-in theme system with classic light themes, dark themes and cus
 - Theme picker and custom editor use a consistent desktop/mobile layout
 - On mobile, theme selection uses a dedicated full-screen view
 
-<img width="1920" height="1080" alt="Labby theme picker" src="https://github.com/user-attachments/assets/a1ba0df4-9a7c-457c-b060-487ec7b9e6a5" />
+<img width="1920" height="1080" alt="Labby theme picker" src="https://github.com/user-attachments/assets/ba982865-0059-4e52-a73a-793f238acfb5" />
 
 ---
 
@@ -234,7 +218,7 @@ config:read
 
 ### API key expiration
 
-<img alt="labby-api-key" src="https://github.com/user-attachments/assets/67c854d4-a935-4871-bcfd-aa2d14101c99" />
+<img width="1920" height="1080" alt="Labby API menu" src="https://github.com/user-attachments/assets/83258d44-8cd0-47d6-8ca1-27f2aea53918" />
 
 Every API key must have an expiration:
 
@@ -369,7 +353,7 @@ API keys are deliberately excluded and cannot be exported or imported.
 - Tutorial status
 - Legacy localStorage exports
 
-<img width="1920" height="1080" alt="Labby config" src="https://github.com/user-attachments/assets/a81a9cdc-a2d8-42db-a9d7-4fbdc64f5aa6" />
+<img width="1920" height="1080" alt="Labby config menu" src="https://github.com/user-attachments/assets/a284e857-a55c-4c7b-b91e-06180188cabd" />
 
 ---
 
