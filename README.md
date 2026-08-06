@@ -42,7 +42,7 @@ Track your hardware, VMs, LXCs, apps, networks, rack layouts, live status and re
       <sub><b>Dashboard</b></sub>
     </td>
     <td width="33%" align="center">
-      <img alt="Labby mobile IP view" src="https://github.com/user-attachments/assets/d9622afb-64c7-4fd9-8605-3e62d12e72af" />
+      <img alt="Labby mobile IP view" src="https://github.com/user-attachments/assets/81164fd6-54fe-4540-9ab3-fc883723d87d" />
       <br/>
       <sub><b>IP View</b></sub>
     </td>
