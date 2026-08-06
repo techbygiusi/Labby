@@ -1122,7 +1122,7 @@ function backupPanelHtml(status) {
         <div class="backup-card-header">
           <div>
             <div class="backup-card-title">Backup plan</div>
-            <div class="backup-card-subtitle">Encrypted backups for the complete Labby configuration.</div>
+            <div class="backup-card-subtitle">Create encrypted backups manually or on a schedule.</div>
           </div>
         </div>
         <div class="backup-chip-row">
@@ -1137,7 +1137,7 @@ function backupPanelHtml(status) {
         <div class="backup-card-header">
           <div>
             <div class="backup-card-title">Schedule</div>
-            <div class="backup-card-subtitle">Choose when Labby should create backups.</div>
+            <div class="backup-card-subtitle">Choose when automatic backups should run.</div>
           </div>
         </div>
         <div class="backup-form-grid backup-schedule-grid">
@@ -1145,7 +1145,7 @@ function backupPanelHtml(status) {
             <input data-backup-field="enabled" type="checkbox" ${cfg.enabled ? 'checked' : ''}${disabledAttr} />
             <span>
               <strong>Enable scheduled backups</strong>
-              <small>Turn the backup job on or off.</small>
+              <small>Run backups automatically.</small>
             </span>
           </label>
           <label>Schedule type
@@ -1182,7 +1182,7 @@ function backupPanelHtml(status) {
         <div class="backup-card-header">
           <div>
             <div class="backup-card-title">Direct SMB destination</div>
-            <div class="backup-card-subtitle">Configure the share Labby should use for remote backups.</div>
+            <div class="backup-card-subtitle">Choose where remote backups should be stored.</div>
           </div>
         </div>
         <div class="backup-form-grid backup-smb-grid">
@@ -1211,32 +1211,31 @@ function backupPanelHtml(status) {
             <input data-backup-field="clearSmbPassword" type="checkbox"${disabledAttr} />
             <span>
               <strong>Clear saved password</strong>
-              <small>Remove the currently stored SMB password on save.</small>
+              <small>Remove the stored password when saving.</small>
             </span>
           </label>
           <label class="backup-checkbox-card">
             <input data-backup-field="smbEncrypt" type="checkbox" ${cfg.smbEncrypt ? 'checked' : ''}${disabledAttr} />
             <span>
               <strong>Require SMB encryption</strong>
-              <small>Use encrypted transport when the server supports it.</small>
+              <small>Require encrypted SMB transport.</small>
             </span>
           </label>
           <label class="backup-checkbox-card backup-grid-span-2">
             <input data-backup-field="smbGuest" type="checkbox" ${cfg.smbGuest ? 'checked' : ''}${disabledAttr} />
             <span>
               <strong>Use guest access</strong>
-              <small>Disable username and password fields for guest logins.</small>
+              <small>Connect without an SMB account.</small>
             </span>
           </label>
         </div>
-        <p class="note backup-smb-note">The SMB password is encrypted with Labby's backup key and stored only inside the persistent <code>/data</code> volume.</p>
       </div>
 
       <div class="backup-card backup-status-card">
         <div class="backup-card-header">
           <div>
             <div class="backup-card-title">Current status</div>
-            <div class="backup-card-subtitle">Quick overview of the active backup setup.</div>
+            <div class="backup-card-subtitle">Review the selected schedule and destination.</div>
           </div>
         </div>
         <div class="backup-status-grid">
@@ -6564,9 +6563,9 @@ function renderRackOverview() {
         // Desktop right-click and tablet long press context menu.
         card.addEventListener('contextmenu', e => {
           e.preventDefault();
-          showRackContextMenu(e.clientX, e.clientY, rack, renderCards);
+          showRackContextMenu(e.clientX, e.clientY, rack);
         });
-        bindRackLongPressContext(card, (x, y) => showRackContextMenu(x, y, rack, renderCards));
+        bindRackLongPressContext(card, (x, y, options) => showRackContextMenu(x, y, rack, options));
         grid.appendChild(card);
       });
     }
@@ -6586,11 +6585,15 @@ function bindRackLongPressContext(element, openMenu) {
   element.dataset.rackLongPressBound = 'true';
   let pressState = null;
 
-  const clearPress = () => {
+  const clearPress = ({ releaseCapture = true } = {}) => {
     if (!pressState) return;
+    const pointerId = pressState.pointerId;
     window.clearTimeout(pressState.timer);
     element.classList.remove('rack-context-pressing');
     pressState = null;
+    if (releaseCapture && element.hasPointerCapture?.(pointerId)) {
+      try { element.releasePointerCapture(pointerId); } catch {}
+    }
   };
 
   element.addEventListener('pointerdown', (event) => {
@@ -6598,6 +6601,12 @@ function bindRackLongPressContext(element, openMenu) {
     clearPress();
     const startX = event.clientX;
     const startY = event.clientY;
+
+    // Keep the release event on the original rack or location entry. Without
+    // pointer capture, the menu can appear below the finger and immediately
+    // consume the release that opened it on some tablet browsers.
+    try { element.setPointerCapture(event.pointerId); } catch {}
+
     pressState = {
       pointerId: event.pointerId,
       startX,
@@ -6606,10 +6615,10 @@ function bindRackLongPressContext(element, openMenu) {
       timer: window.setTimeout(() => {
         if (!pressState || pressState.pointerId !== event.pointerId) return;
         pressState.triggered = true;
-        rackContextSuppressClickUntil = Date.now() + 900;
+        rackContextSuppressClickUntil = Date.now() + 1000;
         element.classList.remove('rack-context-pressing');
         navigator.vibrate?.(18);
-        openMenu(startX, startY);
+        openMenu(startX + 14, startY + 14, { openedByTouch: true });
       }, 560),
     };
     element.classList.add('rack-context-pressing');
@@ -6626,18 +6635,20 @@ function bindRackLongPressContext(element, openMenu) {
     clearPress();
     if (triggered) {
       event.preventDefault();
-      event.stopPropagation();
+      event.stopImmediatePropagation();
     }
   };
 
   element.addEventListener('pointerup', finishPress, { passive: false });
-  element.addEventListener('pointercancel', clearPress, { passive: true });
-  element.addEventListener('lostpointercapture', clearPress, { passive: true });
+  element.addEventListener('pointercancel', () => clearPress(), { passive: true });
+  element.addEventListener('lostpointercapture', () => clearPress({ releaseCapture: false }), { passive: true });
 }
 
 function closeContextMenu() {
   const existing = document.getElementById('rack-ctx-menu');
-  if (existing) existing.remove();
+  if (!existing) return;
+  existing._dismissCleanup?.();
+  existing.remove();
 }
 
 function positionRackContextMenu(menu, x, y) {
@@ -6650,14 +6661,26 @@ function positionRackContextMenu(menu, x, y) {
   menu.style.top = `${top}px`;
 }
 
-function bindRackContextMenuDismiss(menu) {
+function bindRackContextMenuDismiss(menu, { openedByTouch = false } = {}) {
+  let armed = !openedByTouch;
+  let armTimer = null;
+
   const outsideHandler = (event) => {
-    if (!menu.contains(event.target)) {
-      closeContextMenu();
-      document.removeEventListener('pointerdown', outsideHandler, true);
-    }
+    if (!armed || menu.contains(event.target)) return;
+    closeContextMenu();
   };
-  setTimeout(() => document.addEventListener('pointerdown', outsideHandler, true), 0);
+
+  const cleanup = () => {
+    window.clearTimeout(armTimer);
+    document.removeEventListener('pointerdown', outsideHandler, true);
+  };
+
+  menu._dismissCleanup = cleanup;
+  document.addEventListener('pointerdown', outsideHandler, true);
+
+  // Ignore the pointer sequence that opened the menu. The next intentional
+  // tap can still select an action because menu clicks are handled directly.
+  if (openedByTouch) armTimer = window.setTimeout(() => { armed = true; }, 180);
 }
 
 function refreshRackWorkspaceAfterDelete(deletedRackIds = []) {
@@ -6696,7 +6719,7 @@ function deleteLocationFromContext(location) {
   return true;
 }
 
-function showRackContextMenu(x, y, rack) {
+function showRackContextMenu(x, y, rack, options = {}) {
   closeContextMenu();
   const menu = document.createElement('div');
   menu.className = 'rack-ctx-menu';
@@ -6720,11 +6743,11 @@ function showRackContextMenu(x, y, rack) {
   });
 
   positionRackContextMenu(menu, x, y);
-  bindRackContextMenuDismiss(menu);
-  menu.querySelector('[data-rack-context-action="open"]')?.focus({ preventScroll: true });
+  bindRackContextMenuDismiss(menu, options);
+  if (!options.openedByTouch) menu.querySelector('[data-rack-context-action="open"]')?.focus({ preventScroll: true });
 }
 
-function showLocationContextMenu(x, y, location) {
+function showLocationContextMenu(x, y, location, options = {}) {
   closeContextMenu();
   const rackCount = racks.filter((rack) => rack.locationId === location.id).length;
   const menu = document.createElement('div');
@@ -6749,8 +6772,8 @@ function showLocationContextMenu(x, y, location) {
   });
 
   positionRackContextMenu(menu, x, y);
-  bindRackContextMenuDismiss(menu);
-  menu.querySelector('[data-location-context-action="edit"]')?.focus({ preventScroll: true });
+  bindRackContextMenuDismiss(menu, options);
+  if (!options.openedByTouch) menu.querySelector('[data-location-context-action="edit"]')?.focus({ preventScroll: true });
 }
 
 document.addEventListener('keydown', (event) => {
@@ -6956,9 +6979,9 @@ function renderRackEditorSidebar() {
       const rack = rackById(btn.dataset.rackId);
       if (rack) showRackContextMenu(event.clientX, event.clientY, rack);
     });
-    bindRackLongPressContext(btn, (x, y) => {
+    bindRackLongPressContext(btn, (x, y, options) => {
       const rack = rackById(btn.dataset.rackId);
-      if (rack) showRackContextMenu(x, y, rack);
+      if (rack) showRackContextMenu(x, y, rack, options);
     });
   });
 
@@ -6969,9 +6992,9 @@ function renderRackEditorSidebar() {
       const location = locationById(header.dataset.locationContext);
       if (location) showLocationContextMenu(event.clientX, event.clientY, location);
     });
-    bindRackLongPressContext(header, (x, y) => {
+    bindRackLongPressContext(header, (x, y, options) => {
       const location = locationById(header.dataset.locationContext);
-      if (location) showLocationContextMenu(x, y, location);
+      if (location) showLocationContextMenu(x, y, location, options);
     });
   });
 }
