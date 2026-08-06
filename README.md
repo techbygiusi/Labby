@@ -237,13 +237,13 @@ After closing the API Key view, the full token cannot be recovered. Revoke the o
 
 ### API key backup policy
 
-API key records are included in Labby config exports only inside the encrypted secrets bundle. Full one-time tokens are never exported as readable plain text.
+API key records are included in Labby config exports only inside the encrypted secrets bundle.
 
-- API key records are exported only encrypted
-- API key records are restored only when the correct export key is provided during import
-- One-time API tokens cannot be recovered from an export
-- Credentials, SSH private keys and API-key metadata share the same encrypted export flow
-
+- The correct export key is required to restore API key records
+- Raw one-time API tokens are never exported or shown again
+- An already copied token can continue to work after import because its stored key record is restored
+- Imported keys still follow their original expiration and enabled state
+- Credentials, SSH private keys and API key records use the same encrypted export flow
 ---
 
 ## 🔌 Agent API Endpoints
@@ -320,41 +320,39 @@ Mobile is designed as a focused app-like layout:
 
 ## ⚙️ Config & Data
 
-The Config menu contains backup, import/export, customization, API keys and tutorial actions.
+The Config menu provides manual export/import, encrypted backups, themes, API keys and tutorial actions.
 
-### Export includes
+### Manual config export includes
 
-```text
-items
-locations
-racks
-agentStatus
-customThemes
-activeTheme
-tutorialSeen
-```
-
-### Export excludes
-
-```text
-agentKeys
-```
-
-API keys are deliberately excluded and cannot be exported or imported.
-
-### Import restores
-
-- Resources
-- Locations
-- Racks
+- Resources, metadata and relationships
+- Locations and racks
 - Agent status values
-- Custom themes
-- Active theme
+- Saved command snippets
+- Custom themes and the active theme
 - Tutorial status
-- Legacy localStorage exports
+- Backup Config settings and recent backup logs
+- Credentials, SSH private keys and API key records inside the encrypted secrets bundle
+
+Backup Config export includes the schedule, retention, selected target and non-secret SMB settings such as server, share, folder, username, domain, port, encryption and guest access.
+
+### Not included in the manual export
+
+- The saved SMB password
+- `/data/backup.key`
+- Existing `.labbybackup` files
+- Raw one-time API tokens
+
+### Import behavior
+
+Import restores the exported resources, racks, themes, command snippets, Agent API key records, Backup Config settings and recent backup logs.
+
+Encrypted credentials and API key records require the export key shown when the file was created. Raw API tokens cannot be displayed or recovered, but an already copied token can continue to work after import while its restored key record is enabled and not expired.
+
+The SMB password must be entered again after import. Existing encrypted `.labbybackup` files still require the original `/data/backup.key`.
+
+Legacy localStorage exports from older Labby versions are also supported.
 
 <img width="1920" height="1080" alt="Labby config menu" src="https://github.com/user-attachments/assets/a284e857-a55c-4c7b-b91e-06180188cabd" />
-
 ---
 
 ## 🚀 Installation
@@ -570,7 +568,10 @@ For a portable manual snapshot, use:
 Config → Export Config
 ```
 
-The JSON export contains resources, locations, racks, networks, themes, command snippets and Backup Config settings. Saved secrets are included only in the encrypted secrets bundle and require the displayed export key during import. The SMB password and the actual `.labbybackup` files are not included.
+The JSON export contains resources, locations, racks, networks, themes, command snippets, Agent API key records, Backup Config settings and recent backup logs. Credentials, SSH private keys and API key records are included only inside the encrypted secrets bundle and require the displayed export key during import.
+
+Backup Config includes the schedule, retention, storage target and non-secret SMB connection settings. The saved SMB password, `/data/backup.key` and existing `.labbybackup` files are not included.
+
 
 ### Full Docker volume backup
 
@@ -672,8 +673,9 @@ General rules:
 - All browsers and devices connected to the same instance share the same data
 - Old localStorage exports from older Labby versions can be imported via **Config → Import Config**
 - For multi-user or team setups, run Labby behind a reverse proxy with authentication
-- Rack data, custom themes, active theme and agent status are included in JSON export/import
-- API key records and credentials are included in JSON export/import only as encrypted secrets when an export key is used
+- Rack data, command snippets, custom themes, active theme, agent status, Backup Config settings and recent backup logs are included in JSON export/import
+- Credentials, SSH private keys and API key records are included only as encrypted secrets when an export key is used
+- The SMB password, backup key, backup files and raw API tokens are not included in manual config exports
 
 ---
 
