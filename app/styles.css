@@ -9285,3 +9285,45 @@ fieldset,
     margin-top: 0.62rem !important;
   }
 }
+
+/* v123: keep status details inside highlighted backup summary cards transparent. */
+.backup-status-card .backup-status-grid,
+.backup-status-card .backup-status-grid > div {
+  background: transparent !important;
+}
+
+/* v124: keep a clear gap between every heading and its explanatory callout. */
+:root {
+  --ui-heading-callout-gap: 0.65rem;
+}
+
+.note,
+.config-intro,
+#config-dialog .note,
+#config-dialog .config-intro,
+#mobile-config .note,
+#mobile-config .config-intro,
+.backup-demo-notice,
+.advanced-resource-subtitle,
+.advanced-section-note,
+.rack-link-note,
+.theme-picker-dialog .tb-section-intro,
+#mobile-theme-body .tb-section-intro {
+  margin-top: var(--ui-heading-callout-gap) !important;
+}
+
+/* Backup subtitles already use two visual variants, but both keep the same heading gap. */
+.backup-card-header .backup-card-subtitle {
+  margin-top: var(--ui-heading-callout-gap) !important;
+}
+
+/* The advanced settings page has a separate mobile/tablet header rule. */
+.advanced-resource-dialog.mobile-page-open .advanced-resource-subtitle {
+  margin-top: var(--ui-heading-callout-gap) !important;
+}
+
+@media (max-width: 1100px) {
+  :root {
+    --ui-heading-callout-gap: 0.6rem;
+  }
+}
