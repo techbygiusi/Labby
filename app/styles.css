@@ -9250,3 +9250,38 @@ fieldset,
     padding: 1.6rem 0.9rem !important;
   }
 }
+
+/* v122: highlighted backup summary cards and consistent subtitle spacing. */
+.backup-hero-card,
+.backup-status-card {
+  background: var(--blue) !important;
+}
+
+.backup-hero-card .backup-card-subtitle,
+.backup-status-card .backup-card-subtitle {
+  width: 100% !important;
+  margin: 0.38rem 0 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--text) !important;
+}
+
+.backup-schedule-card .backup-card-subtitle,
+.backup-smb-settings .backup-card-subtitle {
+  margin: 0.58rem 0 0.8rem !important;
+}
+
+@media (max-width: 1100px) {
+  .backup-hero-card .backup-card-subtitle,
+  .backup-status-card .backup-card-subtitle {
+    margin-top: 0.42rem !important;
+    padding: 0 !important;
+  }
+
+  .backup-schedule-card .backup-card-subtitle,
+  .backup-smb-settings .backup-card-subtitle {
+    margin-top: 0.62rem !important;
+  }
+}
