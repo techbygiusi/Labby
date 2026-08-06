@@ -353,6 +353,7 @@ The SMB password must be entered again after import. Existing encrypted `.labbyb
 Legacy localStorage exports from older Labby versions are also supported.
 
 <img width="1920" height="1080" alt="Labby config menu" src="https://github.com/user-attachments/assets/a284e857-a55c-4c7b-b91e-06180188cabd" />
+
 ---
 
 ## 🚀 Installation
