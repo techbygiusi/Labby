@@ -7953,6 +7953,8 @@ function isRackPatchPanelComponent(comp) {
   return !!comp && String(comp.componentType || '').includes('patch-panel');
 }
 
+const RACK_PATCH_NOT_PATCHED = '__not_patched__';
+
 function isRackNetworkPortComponent(comp) {
   return isRackSwitchComponent(comp) || isRackRouterComponent(comp);
 }
@@ -8082,7 +8084,9 @@ function showLinkPanel(slotKey, side) {
         <div class="rack-link-row">
           <span class="rack-link-row-label">Port ${i + 1}:</span>
           <select class="rack-patch-port" data-port="${i}">
-            <option value="">- empty -</option>${buildHwOpts(patchLinks[i] || null)}
+            <option value="" ${!patchLinks[i] ? 'selected' : ''}>- empty -</option>
+            <option value="${RACK_PATCH_NOT_PATCHED}" ${patchLinks[i] === RACK_PATCH_NOT_PATCHED ? 'selected' : ''}>Not patched</option>
+            ${buildHwOpts(patchLinks[i] || null)}
           </select>
         </div>`).join('');
     }
@@ -8277,7 +8281,7 @@ function showRackLinkModal(slotKey, side, comp) {
   document.body.appendChild(panel);
   rackLinkPanelTarget = { slotKey, side };
 
-  function openDevicePicker(title, selectedId, onPick, choiceItems = hardwareItems) {
+  function openDevicePicker(title, selectedId, onPick, choiceItems = hardwareItems, emptyLabel = '- empty -', includeNotPatched = false) {
     const oldPicker = document.getElementById('rack-device-picker-active');
     if (oldPicker) oldPicker.remove();
 
@@ -8285,7 +8289,8 @@ function showRackLinkModal(slotKey, side, comp) {
     picker.className = 'rack-device-picker';
     picker.id = 'rack-device-picker-active';
     const choices = [
-      `<button class="rack-device-choice ${!selectedId ? 'selected' : ''}" data-id="" type="button">- empty -</button>`,
+      `<button class="rack-device-choice ${!selectedId ? 'selected' : ''}" data-id="" type="button">${escapeHtml(emptyLabel)}</button>`,
+      ...(includeNotPatched ? [`<button class="rack-device-choice ${selectedId === RACK_PATCH_NOT_PATCHED ? 'selected' : ''}" data-id="${RACK_PATCH_NOT_PATCHED}" type="button">Not patched</button>`] : []),
       ...choiceItems.map(itm => `<button class="rack-device-choice ${selectedId === itm.id ? 'selected' : ''}" data-id="${escapeAttr(itm.id)}" type="button">${escapeHtml(`${itm.symbol || ''} ${itm.name}`.trim())}${['router-gateway', 'switch'].includes(itm.hardwareKind) && itm.switchPorts ? ` · ${escapeHtml(String(itm.switchPorts))} ports` : ''}</button>`)
     ].join('');
     picker.innerHTML = `
@@ -8311,10 +8316,15 @@ function showRackLinkModal(slotKey, side, comp) {
   function pickerButton(label, title, selectedId, field, idx = null, filter = '') {
     const idAttr = idx === null ? '' : ` data-idx="${idx}"`;
     const filterAttr = filter ? ` data-filter="${filter}"` : '';
+    const displayName = field === 'patch-port' && selectedId === RACK_PATCH_NOT_PATCHED
+      ? 'Not patched'
+      : selectedId
+        ? deviceName(selectedId)
+        : '- empty -';
     return `
       <div class="rack-link-row rack-link-picker-row">
         <span class="rack-link-row-label">${escapeHtml(label)}</span>
-        <button class="rack-link-picker-button" data-field="${field}"${idAttr}${filterAttr} type="button">${escapeHtml(deviceName(selectedId))}</button>
+        <button class="rack-link-picker-button" data-field="${field}"${idAttr}${filterAttr} type="button">${escapeHtml(displayName)}</button>
       </div>`;
   }
 
@@ -8362,7 +8372,7 @@ function showRackLinkModal(slotKey, side, comp) {
             comp.pduLinks = comp.pduLinks || {};
             comp.pduLinks[idx] = id;
           }
-        }, choiceItems);
+        }, choiceItems, '- empty -', field === 'patch-port');
       });
     });
   }
