@@ -5,7 +5,7 @@ This repository contains the official Unraid Community Applications template for
 ## Container image
 
 ```text
-techbygiusi/labby:1.0.8
+techbygiusi/labby:1.0.9
 ```
 
 ## Default configuration

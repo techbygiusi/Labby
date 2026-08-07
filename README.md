@@ -62,7 +62,7 @@ Track your hardware, VMs, LXCs, apps, networks, rack layouts, live status and re
 
 - 🖥️ **Resource tracking** for Hardware, VMs, LXCs, Apps and Networks
 - 🌐 **Topology dashboard** with searchable, expandable resource cards
-- 🌳 **Relationship Tree** for hierarchy and hosting relationships
+- 🌳 **Relationship Tree** for hierarchy, direct hosts and nested VM/LXC hosting relationships
 - 🕸️ **Graph View** on desktop for visual relationship mapping
 - 🗄️ **Rack View** with locations, racks, front/rear layouts and linked devices
 - 🌐 **IP View** for used addresses, subnets, ports and gateways
@@ -81,6 +81,8 @@ Labby tracks the important details of your homelab resources without requiring a
 - Resource types: Hardware, VM, LXC, App and Network
 - Hardware types: Server, Router/Gateway, Switch, Hypervisor, NAS, Backup, PC and more
 - Rich metadata: OS, manufacturer, CPU, RAM, disks, notes and links
+- Multiple network ports for Hardware, VMs and LXCs with per-port IP, maximum link speed and a selectable Live Status monitoring port
+- Multiple network ports for Hardware, VMs and LXCs with an IP address and maximum link speed per port
 - NAS/Backup details for shares and RAID groups
 - App details with IP, port and web URL
 - Status field per resource: Online, Offline or Maintenance
@@ -123,6 +125,7 @@ On mobile, resource cards are optimized for touch:
 ### Tree View
 
 - Groups infrastructure by type and hosting relationship
+- Supports nested virtualization where a VM/LXC can host additional VMs or LXCs
 - Shows hardware, guests, apps and networks in a readable hierarchy
 - Works on desktop and mobile
 - Mobile Tree View is available through the More menu
@@ -152,6 +155,7 @@ Labby includes a rack inventory and editor for mapping physical infrastructure.
 - Drag components into rack slots
 - Link rack components to existing Labby resources
 - Supports 1U, 2U, 3U and 4U rack components, including servers, UPS units, PDUs, KVMs, blank panels, switches, routers, patch panels and cable management
+- Patch panels use a configurable port count and support an independent device link for every port
 - Context menu for opening, editing and deleting racks
 - Rack data is included in normal config export/import
 
@@ -483,7 +487,7 @@ http://localhost:9090
 2. 🖥️ Add **Hardware**, such as router, switch, hypervisor, NAS or backup server
 3. 🧱 Add **VMs** and **LXCs**
 4. ⚙️ Add **Apps** with IP, port and web URL
-5. 🔗 Set hosting relationships, for example VM on Hardware or App on VM/LXC
+5. 🔗 Set hosting relationships, for example VM on Hardware, VM/LXC on VM/LXC, or App on VM/LXC
 6. 🌳 Open **Tree View** or **Graph View** to visualize relationships
 7. 🗄️ Open **Rack View** and place devices in racks
 8. 🌐 Open **IP View** to see all used IPs sorted by subnet

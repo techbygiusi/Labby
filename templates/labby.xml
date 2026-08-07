@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Container version="2">
   <Name>Labby</Name>
-  <Repository>techbygiusi/labby:1.0.8</Repository>
+  <Repository>techbygiusi/labby:1.0.9</Repository>
   <Registry>https://hub.docker.com/r/techbygiusi/labby</Registry>
   <Network>bridge</Network>
   <Shell>sh</Shell>
@@ -16,8 +16,8 @@
   <TemplateURL>https://raw.githubusercontent.com/techbygiusi/Labby/main/templates/labby.xml</TemplateURL>
   <ReadMe>https://raw.githubusercontent.com/techbygiusi/Labby/main/UNRAID.md</ReadMe>
   <Requires>Docker must be enabled. The selected host port must be available and the appdata path must be writable.</Requires>
-  <Changes>Version 1.0.8: Fix tablet context menus and add 3U blank, UPS and PDU components plus a 2U KVM to rack modeling.</Changes>
-  <Date>2026-08-06</Date>
+  <Changes>Version 1.0.9: Add configurable patch-panel port mappings, nested virtualization hosting and multi-port resource networking with selectable Live Status monitoring.</Changes>
+  <Date>2026-08-07</Date>
   <License>AGPL-3.0-only</License>
   <Screenshot>https://github.com/user-attachments/assets/1df3a23b-14ce-4a67-ae5a-73d48adb2237</Screenshot>
   <Config Name="WebUI Port" Target="80" Default="8080" Mode="tcp" Description="Host port used to open the Labby web interface." Type="Port" Display="always" Required="true" Mask="false"/>

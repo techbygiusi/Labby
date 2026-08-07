@@ -6173,6 +6173,15 @@ dialog.rack-form-dialog:not([open]) {
   min-height: 132px;
 }
 
+.advanced-resource-body .hosting-option-disabled {
+  opacity: 0.58;
+}
+
+.advanced-resource-body .hosting-option-disabled select:disabled {
+  cursor: not-allowed;
+  background: color-mix(in srgb, var(--panel) 72%, var(--phone));
+}
+
 .advanced-resource-footer {
   flex: 0 0 auto;
   display: grid;
@@ -7276,7 +7285,7 @@ dialog.rack-form-dialog:not([open]) {
     font: 700 0.7rem/1.2 'Space Mono', monospace;
   }
   .rack-link-picker-row {
-    align-items: stretch;
+    align-items: center;
   }
   .rack-link-picker-button {
     flex: 1;
@@ -7459,8 +7468,7 @@ dialog.rack-form-dialog:not([open]) {
     box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28) !important;
     padding: 1rem !important;
     max-height: min(72vh, 620px) !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
+    overflow: hidden !important;
     overscroll-behavior: contain !important;
   }
   .rack-link-modal::before {
@@ -7468,8 +7476,57 @@ dialog.rack-form-dialog:not([open]) {
     content: none !important;
   }
   .rack-link-panel.rack-link-modal .rack-link-multi-wrap {
-    max-height: none !important;
-    overflow: visible !important;
+    max-height: calc(min(72vh, 620px) - 2rem) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain !important;
+    scrollbar-gutter: stable;
+    padding-right: 0.35rem;
+    box-sizing: border-box;
+  }
+  .rack-link-panel.rack-link-modal .rack-link-multi-wrap::-webkit-scrollbar {
+    width: 8px;
+  }
+  .rack-link-panel.rack-link-modal .rack-link-multi-wrap::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .rack-link-panel.rack-link-modal .rack-link-multi-wrap::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--line) 35%, transparent);
+    border-radius: 999px;
+  }
+  .rack-link-panel.rack-link-modal .rack-link-row {
+    display: grid !important;
+    grid-template-columns: minmax(98px, 132px) minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 0.65rem !important;
+  }
+  .rack-link-panel.rack-link-modal .rack-link-row-label {
+    min-width: 0 !important;
+    width: 100% !important;
+    align-self: center !important;
+    justify-self: start !important;
+    display: block !important;
+    line-height: 1.25 !important;
+  }
+  .rack-link-panel.rack-link-modal .rack-link-row > select,
+  .rack-link-panel.rack-link-modal .rack-link-row > input,
+  .rack-link-panel.rack-link-modal .rack-link-row > button,
+  .rack-link-panel.rack-link-modal .rack-link-row > .rack-link-picker-button {
+    min-width: 0 !important;
+    width: 100% !important;
+    align-self: center !important;
+  }
+  .rack-link-panel.rack-link-modal .rack-port-count-row {
+    display: grid !important;
+    grid-template-columns: minmax(98px, 132px) minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 0.65rem !important;
+  }
+  .rack-link-panel.rack-link-modal .rack-port-count-row > input,
+  .rack-link-panel.rack-link-modal .rack-port-count-row > select,
+  .rack-link-panel.rack-link-modal .rack-port-count-row > .rack-port-count-options {
+    min-width: 0 !important;
+    width: 100% !important;
   }
   .rack-device-picker {
     overflow: hidden !important;
@@ -9325,5 +9382,126 @@ fieldset,
 @media (max-width: 1100px) {
   :root {
     --ui-heading-callout-gap: 0.6rem;
+  }
+}
+
+
+/* Resource network interfaces */
+.network-port-row {
+  display: grid;
+  grid-template-columns: minmax(92px, 0.45fr) minmax(0, 1.35fr) minmax(150px, 0.8fr) auto;
+  gap: 0.65rem;
+  align-items: end;
+  padding: 0.75rem;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.network-port-row + .network-port-row {
+  margin-top: 0.55rem;
+}
+
+.network-port-meta {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.38rem;
+  min-width: 0;
+}
+
+.network-port-number {
+  font: 800 0.82rem/1.2 'Space Mono', monospace;
+  color: var(--text);
+}
+
+.network-port-monitor {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 0.38rem;
+  width: max-content;
+  max-width: 100%;
+  color: var(--muted);
+  font: 700 0.68rem/1.2 'Space Mono', monospace;
+  cursor: pointer;
+}
+
+.network-port-monitor input[type='radio'] {
+  width: 16px !important;
+  min-width: 16px !important;
+  height: 16px !important;
+  min-height: 16px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  accent-color: var(--yellow);
+}
+
+.network-port-row label {
+  margin: 0;
+  min-width: 0;
+}
+
+.network-port-row input[data-network-port-ip],
+.network-port-row select[data-network-port-speed] {
+  box-sizing: border-box;
+  height: 42px;
+  min-height: 42px;
+  max-height: 42px;
+}
+
+.network-port-row .network-port-remove {
+  min-height: 42px;
+}
+
+.network-port-row.is-primary .network-port-remove {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@media (max-width: 760px) {
+  .network-port-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .network-port-meta {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .network-port-number {
+    margin-bottom: 0;
+  }
+
+  .network-port-monitor {
+    flex: 0 0 auto;
+  }
+
+  .network-port-row input[data-network-port-ip],
+  .network-port-row select[data-network-port-speed] {
+    height: 44px;
+    min-height: 44px;
+    max-height: 44px;
+  }
+
+  .network-port-row.is-primary .network-port-remove {
+    display: none;
+  }
+}
+
+/* Mobile advanced settings: keep the information hint full width. */
+@media (max-width: 1100px) {
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-head > div {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-subtitle {
+    width: 100% !important;
+    max-width: none !important;
+    box-sizing: border-box !important;
   }
 }

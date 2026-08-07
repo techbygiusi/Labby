@@ -33,6 +33,9 @@ const appHostedOnSelect = document.getElementById('app-hosted-on');
 const appHostedOnWrap = document.getElementById('app-hosted-on-wrap');
 const networkFields = document.getElementById('network-fields');
 const ipInput = document.getElementById('ip-address');
+const networkPortsWrap = document.getElementById('network-ports-wrap');
+const networkPorts = document.getElementById('network-ports');
+const addNetworkPortBtn = document.getElementById('add-network-port');
 const hardwareKindSelect = document.getElementById('hardware-kind');
 const hardwareKindWrap = document.getElementById('hardware-kind-wrap');
 const manufacturerInput = document.getElementById('manufacturer');
@@ -183,6 +186,7 @@ let treeViewMode = 'tree';
 let lastTypeSelection = typeSelect.value;
 let lastHardwareKindSelection = hardwareKindSelect.value;
 let pollingInterval = null;
+let livePollInFlight = false;
 let liveStatusData = {}; // Store live status data { itemId: { ipStatus: 'online'|'offline', urlStatus: 'online'|'offline' } }
 let importedAgentKeysForSave = null;
 let importedBackupConfigForSave = null;
@@ -304,17 +308,27 @@ applyTypeVisibility();
   startPolling();
 })();
 
-async function startPolling() {
+function startPolling() {
   if (pollingInterval) clearInterval(pollingInterval);
-  pollingInterval = setInterval(async () => {
-    await pollLiveStatus();
+  pollingInterval = setInterval(() => {
+    if (!document.hidden) pollLiveStatus();
   }, 5000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) pollLiveStatus();
+  });
 }
 
 function extractHostForLiveCheck(item) {
-  const raw = item?.type === 'app'
-    ? (item.ipPort || item.ip || item.webUrl || '')
-    : (item.ip || item.webUrl || '');
+  let raw = '';
+  if (item?.type === 'app') {
+    raw = item.ipPort || item.ip || item.webUrl || '';
+  } else if (['hardware', 'vm', 'lxc'].includes(item?.type)) {
+    const ports = resourceNetworkPorts(item);
+    const monitoredPort = ports.find((port) => port.monitor) || ports[0];
+    raw = monitoredPort?.ip || (!ports.some((port) => port.ip) ? (item.webUrl || '') : '');
+  } else {
+    raw = item?.ip || item?.webUrl || '';
+  }
 
   if (!raw || typeof raw !== 'string') return '';
 
@@ -343,46 +357,100 @@ function normalizeUrlForLiveCheck(value) {
   return /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
 }
 
-async function pollLiveStatus() {
-  const toMonitor = items.filter((item) => item.ipStatus === 'live' || item.urlStatus === 'live');
-
-  for (const item of toMonitor) {
-    if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
-
-    const pingHost = extractHostForLiveCheck(item);
-
-    if (item.ipStatus === 'live' && pingHost && ['hardware', 'vm', 'lxc', 'app'].includes(item.type)) {
-      try {
-        const res = await fetch(`${API_BASE}/api/ping`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ip: pingHost }),
-        });
-        const data = await res.json();
-        liveStatusData[item.id].ipStatus = data.status;
-      } catch (err) {
-        liveStatusData[item.id].ipStatus = 'offline';
-      }
+async function runTasksWithConcurrency(tasks, limit = 4) {
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, tasks.length) }, async () => {
+    while (cursor < tasks.length) {
+      const task = tasks[cursor++];
+      await task();
     }
+  });
+  await Promise.all(workers);
+}
 
+function refreshLiveStatusCards(changedIds) {
+  if (!boards || !changedIds?.size) return;
+  const cards = Array.from(boards.querySelectorAll('[data-item-id]'));
+  changedIds.forEach((id) => {
+    const item = findById(id);
+    const card = cards.find((node) => node.dataset.itemId === String(id));
+    const liveStatusEl = card?.querySelector('.card-live-status');
+    if (!item || !liveStatusEl) return;
+    const liveStatusHtml = buildLiveStatusHtml(item).trim();
+    if (liveStatusHtml) {
+      liveStatusEl.innerHTML = liveStatusHtml;
+      liveStatusEl.classList.remove('hidden');
+    } else {
+      liveStatusEl.innerHTML = '';
+      liveStatusEl.classList.add('hidden');
+    }
+  });
+}
+
+async function pollLiveStatus() {
+  if (livePollInFlight || document.hidden) return;
+  const toMonitor = items.filter((item) => item.ipStatus === 'live' || item.urlStatus === 'live');
+  if (!toMonitor.length) return;
+
+  livePollInFlight = true;
+  const changedIds = new Set();
+  const tasks = [];
+
+  toMonitor.forEach((item) => {
+    if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
+    const pingHost = extractHostForLiveCheck(item);
     const urlToCheck = normalizeUrlForLiveCheck(item.webUrl || (item.type === 'app' ? item.ipPort : ''));
 
-    if (item.urlStatus === 'live' && urlToCheck && (item.type === 'app' || item.type === 'hardware')) {
-      try {
-        const res = await fetch(`${API_BASE}/api/check-url`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: urlToCheck }),
+    if (item.ipStatus === 'live' && ['hardware', 'vm', 'lxc', 'app'].includes(item.type)) {
+      if (!pingHost) {
+        if (liveStatusData[item.id].ipStatus) {
+          delete liveStatusData[item.id].ipStatus;
+          changedIds.add(item.id);
+        }
+      } else {
+        tasks.push(async () => {
+          const previous = liveStatusData[item.id].ipStatus;
+          let next = 'offline';
+          try {
+            const res = await nativeFetch(`${API_BASE}/api/ping`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ip: pingHost }),
+            });
+            const data = await res.json();
+            next = data.status;
+          } catch {}
+          liveStatusData[item.id].ipStatus = next;
+          if (previous !== next) changedIds.add(item.id);
         });
-        const data = await res.json();
-        liveStatusData[item.id].urlStatus = data.status;
-      } catch (err) {
-        liveStatusData[item.id].urlStatus = 'offline';
       }
     }
-  }
 
-  render();
+    if (item.urlStatus === 'live' && urlToCheck && (item.type === 'app' || item.type === 'hardware')) {
+      tasks.push(async () => {
+        const previous = liveStatusData[item.id].urlStatus;
+        let next = 'offline';
+        try {
+          const res = await nativeFetch(`${API_BASE}/api/check-url`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: urlToCheck }),
+          });
+          const data = await res.json();
+          next = data.status;
+        } catch {}
+        liveStatusData[item.id].urlStatus = next;
+        if (previous !== next) changedIds.add(item.id);
+      });
+    }
+  });
+
+  try {
+    await runTasksWithConcurrency(tasks, 4);
+    refreshLiveStatusCards(changedIds);
+  } finally {
+    livePollInFlight = false;
+  }
 }
 
 function cleanupDuplicateIds(ids) {
@@ -410,7 +478,12 @@ function removeDuplicateLabels(matchFn) {
 
 typeSelect.addEventListener('change', applyTypeVisibility);
 hardwareKindSelect.addEventListener('change', applyTypeVisibility);
-ipInput.addEventListener('input', applyTypeVisibility);
+hostedOnSelect.addEventListener('change', () => syncHostingSelectors('hardware'));
+appHostedOnSelect.addEventListener('change', () => syncHostingSelectors('virtual'));
+ipInput.addEventListener('input', () => {
+  syncPrimaryNetworkPortFromIp();
+  applyTypeVisibility();
+});
 webUrlInput.addEventListener('input', applyTypeVisibility);
 hardwareWebUrlInput.addEventListener('input', applyTypeVisibility);
 ipPortInput.addEventListener('input', applyTypeVisibility);
@@ -418,6 +491,7 @@ addShareBtn.addEventListener('click', () => appendShareRow());
 addRamModuleBtn.addEventListener('click', () => appendRamModuleRow());
 addDiskBtn.addEventListener('click', () => appendDiskRow());
 addRaidBtn.addEventListener('click', () => appendRaidRow());
+if (addNetworkPortBtn) addNetworkPortBtn.addEventListener('click', () => appendNetworkPortRow());
 if (treeModeTree && treeModeGraph) {
   treeModeTree.addEventListener('click', () => setTreeMode('tree'));
   treeModeGraph.addEventListener('click', () => setTreeMode('graph'));
@@ -544,6 +618,7 @@ form.addEventListener('submit', async (event) => {
   const notes = notesInput.value.trim();
   const status = statusSelect.value || '';
   const ip = ipInput.value.trim();
+  const networkPortList = getNetworkPorts(ip);
   const cpuCount = cpuCountSelect.value.trim();
   const ramModuleList = getRamModules();
   const diskRows = getDiskRows();
@@ -551,7 +626,7 @@ form.addEventListener('submit', async (event) => {
   const webUrl = webUrlInput.value.trim();
   const hardwareWebUrl = (document.getElementById('hardware-web-url') ? document.getElementById('hardware-web-url').value.trim() : '') || hardwareWebUrlInput.value.trim();
   const hostedOn = hostedOnSelect.value || '';
-  const appHostedOn = appHostedOnSelect.value || '';
+  const virtualHostedOn = appHostedOnSelect.value || '';
   const subnet = subnetInput.value.trim();
   const gateway = gatewayInput.value.trim();
   const switchPorts = switchPortsInput.value.trim();
@@ -578,6 +653,7 @@ form.addEventListener('submit', async (event) => {
     notes: supportsNotes(type) ? notes : '',
     status: document.getElementById('status').value || '',
     ip: ['hardware', 'vm', 'lxc'].includes(type) ? ip : '',
+    networkPorts: ['hardware', 'vm', 'lxc'].includes(type) ? networkPortList : [],
     cpu: supportsComputeDetails(type) ? formatCpuLabel(type, cpuCount) : '',
     ram: supportsComputeDetails(type) ? formatRamLabel(ramModuleList) : '',
     disks: supportsComputeDetails(type) ? formatDiskLabel(diskRows) : '',
@@ -589,8 +665,9 @@ form.addEventListener('submit', async (event) => {
     subnet: type === 'network' ? subnet : '',
     gateway: type === 'network' ? gateway : '',
     networkColor: type === 'network' ? selectedNetworkColor : '',
-    hostedOn: ['vm', 'lxc'].includes(type) ? hostedOn : '',
-    appHostedOn: type === 'app' ? appHostedOn : '',
+    hostedOn: ['vm', 'lxc'].includes(type) && !virtualHostedOn ? hostedOn : '',
+    virtualHostedOn: ['vm', 'lxc'].includes(type) ? virtualHostedOn : '',
+    appHostedOn: type === 'app' ? virtualHostedOn : '',
     switchPorts: type === 'hardware' && ['router-gateway', 'switch'].includes(hardwareKind) ? switchPorts : '',
     nasShares: supportsStorageGroups(type, hardwareKind) ? shareList : [],
     nasRaids: supportsStorageGroups(type, hardwareKind) ? raidList : [],
@@ -655,14 +732,23 @@ cancelEditBtn.addEventListener('click', () => {
   render();
 });
 
-searchInput.addEventListener('input', render);
-filterType.addEventListener('change', render);
+let boardRenderFrame = 0;
+function scheduleBoardRender() {
+  if (boardRenderFrame) return;
+  boardRenderFrame = requestAnimationFrame(() => {
+    boardRenderFrame = 0;
+    render({ refreshSelectors: false });
+  });
+}
+
+searchInput.addEventListener('input', scheduleBoardRender);
+filterType.addEventListener('change', () => render({ refreshSelectors: false }));
 
 treeToggle.addEventListener('click', () => {
   if (ipDialog.open) ipDialog.close();
   if (configDialog.open) configDialog.close();
-  setTreeMode(treeViewMode);
   treeDialog.showModal();
+  requestAnimationFrame(() => setTreeMode(treeViewMode));
 });
 
 
@@ -674,14 +760,21 @@ const ipSearch = document.getElementById('ip-search');
 ipToggle.addEventListener('click', () => {
   if (treeDialog.open) treeDialog.close();
   if (configDialog.open) configDialog.close();
-  renderIPView();
   ipDialog.showModal();
+  requestAnimationFrame(renderIPView);
 });
 if (ipSearch) ipSearch.addEventListener('input', renderIPView);
 
 function extractIPs(item) {
   const ips = [];
-  if (item.ip) ips.push({ addr: item.ip.split('/')[0].trim(), port: null, item });
+  if (['hardware', 'vm', 'lxc'].includes(item.type)) {
+    resourceNetworkPorts(item).forEach((networkPort, index) => {
+      const addr = String(networkPort.ip || '').split('/')[0].trim();
+      if (addr) ips.push({ addr, port: null, item, networkPortIndex: index, speed: networkPort.speed || '' });
+    });
+  } else if (item.ip) {
+    ips.push({ addr: item.ip.split('/')[0].trim(), port: null, item });
+  }
   if (item.type === 'app' && item.ipPort) {
     const parts = item.ipPort.split(':');
     const host = parts[0].trim();
@@ -714,9 +807,13 @@ function buildIPRow(entry, query) {
   nameEl.innerHTML = query ? highlightMatch(entry.item.name, query) : entry.item.name;
   const typeEl = document.createElement('span');
   typeEl.className = 'ip-row-type';
-  typeEl.textContent = entry.item.type === 'hardware'
+  const resourceType = entry.item.type === 'hardware'
     ? hardwareTypeLabel(entry.item.hardwareKind)
     : labelSingle(entry.item.type);
+  const portMeta = Number.isInteger(entry.networkPortIndex)
+    ? ` · Port ${entry.networkPortIndex + 1}${entry.speed ? ` · ${networkPortSpeedLabel(entry.speed)}` : ''}`
+    : '';
+  typeEl.textContent = `${resourceType}${portMeta}`;
   row.appendChild(addr);
   row.appendChild(nameEl);
   row.appendChild(typeEl);
@@ -883,12 +980,13 @@ function demoBackupStatus() {
   };
 }
 
-async function fetchBackupStatus() {
+async function fetchBackupStatus(options = {}) {
   if (publicDemoBackupsDisabled) {
     lastBackupStatus = demoBackupStatus();
     return lastBackupStatus;
   }
-  const res = await fetch(`${API_BASE}/api/backups/status`);
+  const query = options.forceRefresh ? '?refresh=1' : '';
+  const res = await nativeFetch(`${API_BASE}/api/backups/status${query}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   lastBackupStatus = await res.json();
   return lastBackupStatus;
@@ -902,7 +1000,9 @@ function backupPanelHtml(status) {
   const targets = status?.targets || {};
   const currentTarget = cfg.target === 'smb' ? 'smb' : 'local';
   const smb = targets.smb || {};
-  const smbState = smb.available ? 'Connected' : (smb.configured ? 'Configured, but not reachable' : 'Not configured');
+  const smbState = smb.checking
+    ? (smb.available ? 'Connected, refreshing' : 'Checking connection')
+    : (smb.available ? 'Connected' : (smb.configured ? 'Configured, but not reachable' : 'Not configured'));
   const passwordHint = cfg.smbPasswordConfigured || smb.passwordConfigured
     ? 'Password is saved encrypted. Leave this empty to keep it.'
     : 'Enter the password for the SMB account.';
@@ -1044,7 +1144,7 @@ function backupPanelHtml(status) {
           <div><strong>Target</strong><span>${escapeHtml(currentTarget === 'smb' ? 'Direct SMB share' : (targets.local?.label || 'Local storage'))}</span></div>
           <div><strong>Local path</strong><span>${escapeHtml(targets.local?.path || '/data/backups')}</span></div>
           <div><strong>SMB state</strong><span>${escapeHtml(smb.path || 'Not configured')} · ${escapeHtml(smbState)}</span></div>
-          ${smb.error && !smb.available ? `<div class="backup-grid-span-2"><strong>SMB message</strong><span>${escapeHtml(smb.error)}</span></div>` : ''}
+          ${smb.error && !smb.available && !smb.checking ? `<div class="backup-grid-span-2"><strong>SMB message</strong><span>${escapeHtml(smb.error)}</span></div>` : ''}
         </div>
       </div>
 
@@ -1129,6 +1229,9 @@ function updateBackupPanelState(container) {
 }
 
 function bindBackupPanel(container) {
+  const markDirty = () => { backupConfigFormDirty = true; };
+  container.addEventListener('input', markDirty);
+  container.addEventListener('change', markDirty);
   container.querySelector('[data-backup-field="target"]')?.addEventListener('change', () => updateBackupPanelState(container));
   container.querySelector('[data-backup-field="frequency"]')?.addEventListener('change', () => updateBackupPanelState(container));
   container.querySelector('[data-backup-field="smbGuest"]')?.addEventListener('change', () => updateBackupPanelState(container));
@@ -1140,6 +1243,7 @@ function bindBackupPanel(container) {
       });
       if (!res.ok) throw new Error(await backupApiError(res, 'Could not save backup settings.'));
       showToast('Backup settings saved.');
+      backupConfigFormDirty = false;
       await renderBackupConfigPanels();
     } catch (err) { showToast(err.message || 'Could not save backup settings.', 'error'); console.warn(err); }
   });
@@ -1160,11 +1264,15 @@ function bindBackupPanel(container) {
       const res = await fetch(`${API_BASE}/api/backups/run`, { method: 'POST' });
       if (!res.ok) throw new Error(await backupApiError(res, 'Backup failed.'));
       showToast('Encrypted backup created.');
-      await renderBackupConfigPanels();
+      backupConfigFormDirty = false;
+      await renderBackupConfigPanels({ forceRefresh: readBackupForm(container).target === 'smb' });
     } catch (err) { showToast(err.message || 'Backup failed.', 'error'); console.warn(err); }
   });
 
-  container.querySelector('[data-backup-refresh]')?.addEventListener('click', () => renderBackupConfigPanels());
+  container.querySelector('[data-backup-refresh]')?.addEventListener('click', () => {
+    backupConfigFormDirty = false;
+    renderBackupConfigPanels({ forceRefresh: true });
+  });
   container.querySelectorAll('[data-restore-backup]').forEach((button) => {
     button.addEventListener('click', async () => {
       const id = button.getAttribute('data-restore-backup');
@@ -1191,16 +1299,42 @@ function bindBackupPanel(container) {
         const res = await fetch(`${API_BASE}/api/backups/${encodedTarget}/${encodedId}`, { method: 'DELETE' });
         if (!res.ok) throw new Error(await backupApiError(res, 'Could not delete backup.'));
         showToast('Backup deleted.');
-        await renderBackupConfigPanels();
+        backupConfigFormDirty = false;
+        await renderBackupConfigPanels({ forceRefresh: target === 'smb' });
       } catch (err) { showToast(err.message || 'Could not delete backup.', 'error'); console.warn(err); }
     });
   });
   updateBackupPanelState(container);
 }
 
-async function renderBackupConfigPanels() {
+let backupConfigFormDirty = false;
+let backupStatusRefreshPromise = null;
+
+function activeBackupConfigContainer() {
+  return document.getElementById(isMobile() ? 'mobile-backup-config-body' : 'backup-config-body');
+}
+
+function paintBackupConfig(status) {
+  const container = activeBackupConfigContainer();
+  if (!container) return;
+  container.innerHTML = backupPanelHtml(status);
+  bindBackupPanel(container);
+}
+
+function paintBackupConfigLoading() {
+  const container = activeBackupConfigContainer();
+  if (!container) return;
+  container.innerHTML = '<div class="empty-state"><strong>Loading Backup Config...</strong></div>';
+}
+
+function backupConfigIsVisible() {
+  if (isMobile()) return document.getElementById('mobile-backup-config')?.classList.contains('active');
+  return !!backupConfigDialog?.open;
+}
+
+async function renderBackupConfigPanels(options = {}) {
   let status;
-  try { status = await fetchBackupStatus(); }
+  try { status = await fetchBackupStatus({ forceRefresh: !!options.forceRefresh }); }
   catch (err) {
     status = {
       config: { enabled: false, frequency: 'daily', time: '02:00', weekday: '1', target: 'local', maxBackups: 10, smbPort: 445 },
@@ -1209,15 +1343,22 @@ async function renderBackupConfigPanels() {
       backups: [],
     };
   }
-  ['backup-config-body', 'mobile-backup-config-body'].forEach((id) => {
-    const container = document.getElementById(id);
-    if (!container) return;
-    container.innerHTML = backupPanelHtml(status);
-    bindBackupPanel(container);
-  });
+  paintBackupConfig(status);
+  return status;
+}
+
+function refreshBackupStatusAfterOpen(status) {
+  if (publicDemoBackupsDisabled || !status?.targets?.smb?.checking || backupStatusRefreshPromise) return;
+  backupStatusRefreshPromise = fetchBackupStatus({ forceRefresh: true })
+    .then((freshStatus) => {
+      if (backupConfigIsVisible() && !backupConfigFormDirty) paintBackupConfig(freshStatus);
+    })
+    .catch(() => {})
+    .finally(() => { backupStatusRefreshPromise = null; });
 }
 
 function closeBackupConfigView() {
+  backupConfigFormDirty = false;
   if (isMobile()) {
     showMobileView('mobile-config');
     setActiveMobileNav('nav-more');
@@ -1228,18 +1369,26 @@ function closeBackupConfigView() {
 
 async function openBackupConfig(options = {}) {
   backupConfigReturnToConfig = !!options.returnToConfig;
-  await renderBackupConfigPanels();
+  backupConfigFormDirty = false;
+
   if (isMobile()) {
     showMobileView('mobile-backup-config');
     setActiveMobileNav('nav-more');
-    return;
+  } else {
+    if (configDialog?.open) configDialog.close();
+    backupConfigDialog.onclose = () => {
+      backupConfigFormDirty = false;
+      if (backupConfigReturnToConfig && configDialog && !configDialog.open) configDialog.showModal();
+      backupConfigReturnToConfig = false;
+    };
+    if (typeof backupConfigDialog?.showModal === 'function' && !backupConfigDialog.open) backupConfigDialog.showModal();
   }
-  if (configDialog?.open) configDialog.close();
-  backupConfigDialog.onclose = () => {
-    if (backupConfigReturnToConfig && configDialog && !configDialog.open) configDialog.showModal();
-    backupConfigReturnToConfig = false;
-  };
-  if (typeof backupConfigDialog?.showModal === 'function' && !backupConfigDialog.open) backupConfigDialog.showModal();
+
+  if (lastBackupStatus) paintBackupConfig(lastBackupStatus);
+  else paintBackupConfigLoading();
+
+  const status = await renderBackupConfigPanels();
+  refreshBackupStatusAfterOpen(status);
 }
 
 backupConfigBtn?.addEventListener('click', () => openBackupConfig({ returnToConfig: true }));
@@ -1984,6 +2133,138 @@ function setSelectedColor(color) {
 }
 
 
+const NETWORK_PORT_SPEEDS = ['', '1g', '2.5g', '5g', '10g'];
+
+function normalizeNetworkPortSpeed(value) {
+  const speed = String(value || '').toLowerCase();
+  return NETWORK_PORT_SPEEDS.includes(speed) ? speed : '';
+}
+
+function networkPortSpeedLabel(value) {
+  return ({ '1g': '1 Gbit', '2.5g': '2.5 Gbit', '5g': '5 Gbit', '10g': '10 Gbit' })[String(value || '').toLowerCase()] || '';
+}
+
+function normalizeNetworkPorts(rows, primaryIp = '') {
+  const list = Array.isArray(rows)
+    ? rows.slice(0, 64).map((port) => ({
+        ip: String(port?.ip || '').trim(),
+        speed: normalizeNetworkPortSpeed(port?.speed),
+        monitor: port?.monitor === true,
+      }))
+    : [];
+
+  const cleanPrimaryIp = String(primaryIp || '').trim();
+  if (!list.length) return cleanPrimaryIp ? [{ ip: cleanPrimaryIp, speed: '', monitor: true }] : [];
+  list[0].ip = cleanPrimaryIp || list[0].ip;
+  if (list.length === 1 && !list[0].ip && !list[0].speed) return [];
+
+  const monitoredIndex = list.findIndex((port) => port.monitor);
+  const activeIndex = monitoredIndex >= 0 ? monitoredIndex : 0;
+  list.forEach((port, index) => { port.monitor = index === activeIndex; });
+  return list;
+}
+
+function resourceNetworkPorts(item) {
+  if (!item || !['hardware', 'vm', 'lxc'].includes(item.type)) return [];
+  const ports = normalizeNetworkPorts(item.networkPorts, item.ip);
+  return ports.length ? ports : [{ ip: String(item.ip || '').trim(), speed: '', monitor: true }];
+}
+
+function appendNetworkPortRow(port = { ip: '', speed: '', monitor: false }) {
+  if (!networkPorts) return;
+  const index = networkPorts.querySelectorAll('[data-network-port-row]').length;
+  if (index >= 64) {
+    showToast('A resource can have up to 64 network ports.', 'error');
+    return;
+  }
+  const row = document.createElement('div');
+  row.className = `network-port-row${index === 0 ? ' is-primary' : ''}`;
+  row.dataset.networkPortRow = '';
+  row.innerHTML = `
+    <div class="network-port-meta">
+      <div class="network-port-number">Port ${index + 1}${index === 0 ? ' (Primary)' : ''}</div>
+      <label class="network-port-monitor" title="Use this port for automatic IP Live Status checks">
+        <input type="radio" name="network-live-status-port" data-network-port-monitor ${port.monitor ? 'checked' : ''} />
+        <span>Live status</span>
+      </label>
+    </div>
+    <label>
+      IP address
+      <input type="text" placeholder="e.g. 192.168.10.20" value="${escapeAttr(port.ip)}" data-network-port-ip />
+    </label>
+    <label>
+      Maximum speed
+      <select data-network-port-speed>
+        <option value="">Not set</option>
+        <option value="1g">1 Gbit</option>
+        <option value="2.5g">2.5 Gbit</option>
+        <option value="5g">5 Gbit</option>
+        <option value="10g">10 Gbit</option>
+      </select>
+    </label>
+    <button class="icon-btn network-port-remove" type="button">Remove</button>
+  `;
+  row.querySelector('[data-network-port-speed]').value = normalizeNetworkPortSpeed(port.speed);
+  const ipField = row.querySelector('[data-network-port-ip]');
+  if (index === 0) {
+    ipField.addEventListener('input', () => {
+      if (ipInput.value !== ipField.value) ipInput.value = ipField.value;
+    });
+  }
+  row.querySelector('.network-port-remove').addEventListener('click', () => {
+    if (row.classList.contains('is-primary')) return;
+    row.remove();
+    renumberNetworkPortRows();
+  });
+  networkPorts.appendChild(row);
+
+  if (!networkPorts.querySelector('[data-network-port-monitor]:checked')) {
+    const firstMonitor = networkPorts.querySelector('[data-network-port-monitor]');
+    if (firstMonitor) firstMonitor.checked = true;
+  }
+}
+
+function renumberNetworkPortRows() {
+  if (!networkPorts) return;
+  const rows = [...networkPorts.querySelectorAll('[data-network-port-row]')];
+  rows.forEach((row, index) => {
+    row.classList.toggle('is-primary', index === 0);
+    const number = row.querySelector('.network-port-number');
+    if (number) number.textContent = `Port ${index + 1}${index === 0 ? ' (Primary)' : ''}`;
+  });
+  if (!networkPorts.querySelector('[data-network-port-monitor]:checked')) {
+    const firstMonitor = networkPorts.querySelector('[data-network-port-monitor]');
+    if (firstMonitor) firstMonitor.checked = true;
+  }
+  syncPrimaryNetworkPortFromIp();
+}
+
+function renderNetworkPortRows(rows = [], primaryIp = '') {
+  if (!networkPorts) return;
+  const normalized = normalizeNetworkPorts(rows, primaryIp);
+  const visibleRows = normalized.length ? normalized : [{ ip: String(primaryIp || '').trim(), speed: '', monitor: true }];
+  networkPorts.innerHTML = '';
+  visibleRows.forEach((port) => appendNetworkPortRow(port));
+  syncPrimaryNetworkPortFromIp();
+}
+
+function syncPrimaryNetworkPortFromIp() {
+  const first = networkPorts?.querySelector('[data-network-port-row] [data-network-port-ip]');
+  if (first && first.value !== ipInput.value) first.value = ipInput.value;
+}
+
+function getNetworkPorts(primaryIp = '') {
+  if (!networkPorts) return normalizeNetworkPorts([], primaryIp);
+  const rows = [...networkPorts.querySelectorAll('[data-network-port-row]')].map((row) => ({
+    ip: row.querySelector('[data-network-port-ip]')?.value.trim() || '',
+    speed: normalizeNetworkPortSpeed(row.querySelector('[data-network-port-speed]')?.value),
+    monitor: Boolean(row.querySelector('[data-network-port-monitor]')?.checked),
+  }));
+  if (!rows.length) rows.push({ ip: String(primaryIp || '').trim(), speed: '', monitor: true });
+  rows[0].ip = String(primaryIp || '').trim();
+  return normalizeNetworkPorts(rows, primaryIp);
+}
+
 function appendRamModuleRow(module = { size: '', type: 'DDR4' }) {
   const row = document.createElement('div');
   row.className = 'share-row';
@@ -2121,6 +2402,7 @@ function resetDynamicHardwareFields() {
   appendRamModuleRow();
   appendDiskRow();
   cpuCountSelect.value = '';
+  renderNetworkPortRows([], '');
 }
 
 function appendShareRow(share = { name: '', link: '' }) {
@@ -2286,6 +2568,7 @@ function sanitizeItems(raw) {
       credentials: normalizeCredentials(item.credentials),
       connections: Array.isArray(item.connections) ? [...new Set(item.connections.map(String))] : [],
       ip: item.ip ? String(item.ip) : '',
+      networkPorts: normalizeNetworkPorts(item.networkPorts, item.ip ? String(item.ip) : ''),
       cpu: item.cpu ? String(item.cpu) : '',
       ram: item.ram ? String(item.ram) : '',
       disks: item.disks ? String(item.disks) : '',
@@ -2302,6 +2585,7 @@ function sanitizeItems(raw) {
       gateway: item.gateway ? String(item.gateway) : '',
       networkColor: networkPalette.includes(item.networkColor) ? item.networkColor : networkPalette[0],
       hostedOn: item.hostedOn ? String(item.hostedOn) : '',
+      virtualHostedOn: item.virtualHostedOn ? String(item.virtualHostedOn) : '',
       appHostedOn: item.appHostedOn ? String(item.appHostedOn) : '',
       switchPorts: item.switchPorts ? String(item.switchPorts) : '',
       nasShares: Array.isArray(item.nasShares)
@@ -2320,11 +2604,27 @@ function normalizeItems() {
   items = normalizeList(items);
 }
 
+function wouldCreateVirtualHostCycle(itemId, parentId, list) {
+  if (!itemId || !parentId) return false;
+  const byId = Object.fromEntries(list.map((item) => [item.id, item]));
+  const seen = new Set([itemId]);
+  let currentId = parentId;
+
+  while (currentId) {
+    if (seen.has(currentId)) return true;
+    seen.add(currentId);
+    const current = byId[currentId];
+    if (!current || !['vm', 'lxc'].includes(current.type)) return false;
+    currentId = current.virtualHostedOn || '';
+  }
+  return false;
+}
+
 function normalizeList(list) {
   const known = new Set(list.map((item) => item.id));
   const hardwareIds = new Set(list.filter((item) => item.type === 'hardware').map((item) => item.id));
   const switchIds = new Set(list.filter((item) => item.type === 'hardware' && item.hardwareKind === 'switch').map((item) => item.id));
-  const hostableAppIds = new Set(list.filter((item) => item.type === 'vm' || item.type === 'lxc').map((item) => item.id));
+  const virtualHostIds = new Set(list.filter((item) => item.type === 'vm' || item.type === 'lxc').map((item) => item.id));
 
   const normalized = list.map((item) => {
     const next = { ...item };
@@ -2335,6 +2635,11 @@ function normalizeList(list) {
     if (!['hardware', 'vm', 'lxc'].includes(next.type)) {
       next.ip = '';
       next.os = '';
+      next.networkPorts = [];
+    } else {
+      next.networkPorts = normalizeNetworkPorts(next.networkPorts, next.ip);
+      if (!next.ip && next.networkPorts[0]?.ip) next.ip = next.networkPorts[0].ip;
+      if (next.networkPorts.length) next.networkPorts[0].ip = next.ip || '';
     }
     if (next.type !== 'hardware') {
       next.hardwareKind = '';
@@ -2379,6 +2684,7 @@ function normalizeList(list) {
       next.ipPort = '';
       next.appHostedOn = '';
     }
+    if (!['vm', 'lxc'].includes(next.type)) next.virtualHostedOn = '';
     if (next.type !== 'app' && next.type !== 'hardware') {
       next.webUrl = '';
     }
@@ -2389,8 +2695,18 @@ function normalizeList(list) {
     } else if (!networkPalette.includes(next.networkColor)) {
       next.networkColor = networkPalette[0];
     }
-    if (!['vm', 'lxc'].includes(next.type) || !hardwareIds.has(next.hostedOn)) next.hostedOn = '';
-    if (next.type === 'app' && !hostableAppIds.has(next.appHostedOn)) next.appHostedOn = '';
+    if (['vm', 'lxc'].includes(next.type)) {
+      const validVirtualHost = virtualHostIds.has(next.virtualHostedOn)
+        && next.virtualHostedOn !== next.id
+        && !wouldCreateVirtualHostCycle(next.id, next.virtualHostedOn, list);
+      next.virtualHostedOn = validVirtualHost ? next.virtualHostedOn : '';
+      if (next.virtualHostedOn) next.hostedOn = '';
+      else if (!hardwareIds.has(next.hostedOn)) next.hostedOn = '';
+    } else {
+      next.hostedOn = '';
+      next.virtualHostedOn = '';
+    }
+    if (next.type === 'app' && !virtualHostIds.has(next.appHostedOn)) next.appHostedOn = '';
     if (!['', 'online', 'offline', 'maintenance', 'live'].includes(next.ipStatus)) next.ipStatus = '';
     if (!['', 'online', 'offline', 'maintenance', 'live'].includes(next.urlStatus)) next.urlStatus = '';
     return next;
@@ -2425,7 +2741,11 @@ function inferNetworks(item, list) {
   const networks = list.filter((candidate) => candidate.type === 'network');
 
   const ips = [];
-  if (item.ip) ips.push(item.ip);
+  if (['hardware', 'vm', 'lxc'].includes(item.type)) {
+    resourceNetworkPorts(item).forEach((port) => { if (port.ip) ips.push(port.ip); });
+  } else if (item.ip) {
+    ips.push(item.ip);
+  }
   if (item.type === 'app' && item.ipPort) {
     const hostIp = item.ipPort.split(':')[0].trim();
     if (hostIp) ips.push(hostIp);
@@ -2487,8 +2807,9 @@ function applyTypeVisibility() {
   manufacturerWrap.classList.toggle('hidden', !isHardware);
   osWrap.classList.toggle('hidden', !supportsIp);
   hostedOnWrap.classList.toggle('hidden', !isVmOrLxc);
-  appHostedOnWrap.classList.toggle('hidden', !isApp);
+  appHostedOnWrap.classList.toggle('hidden', !(isApp || isVmOrLxc));
   ipInput.closest('label').classList.toggle('hidden', !supportsIp);
+  networkPortsWrap?.classList.toggle('hidden', !supportsIp);
   switchPortsWrap.classList.toggle('hidden', !(isSwitch || isRouter));
   routerSwitchesWrap.classList.toggle('hidden', !isRouter);
   switchLinksWrap.classList.toggle('hidden', !isSwitch);
@@ -2521,6 +2842,7 @@ function applyTypeVisibility() {
 
   updateAdvancedResourceControls(type, hardwareKind);
   refreshHardwareConnectionOptions();
+  syncHostingSelectors();
 }
 
 function initAdvancedResourceSettings() {
@@ -2528,6 +2850,7 @@ function initAdvancedResourceSettings() {
   const advancedIds = [
     'manufacturer-wrap',
     'os-wrap',
+    'network-ports-wrap',
     'ip-status-wrap',
     'url-status-wrap',
     'compute-fields',
@@ -2640,6 +2963,10 @@ function openAdvancedResourceSettings() {
   const type = typeSelect.value;
   if (type === 'network') return;
   applyTypeVisibility();
+  if (['hardware', 'vm', 'lxc'].includes(type)) {
+    if (!networkPorts?.querySelector('[data-network-port-row]')) renderNetworkPortRows([], ipInput.value);
+    syncPrimaryNetworkPortFromIp();
+  }
   refreshHostOptions();
   refreshAppHostOptions();
   refreshHardwareConnectionOptions();
@@ -2660,10 +2987,12 @@ function closeAdvancedResourceSettings() {
   else advancedResourceDialog.removeAttribute('open');
 }
 
-function render() {
-  refreshHostOptions();
-  refreshAppHostOptions();
-  refreshHardwareConnectionOptions();
+function render(options = {}) {
+  if (options.refreshSelectors !== false) {
+    refreshHostOptions();
+    refreshAppHostOptions();
+    refreshHardwareConnectionOptions();
+  }
 
   const filtered = applyFilters(items);
   const groups = {
@@ -2703,7 +3032,8 @@ function applyFilters(list) {
       ? `${item.manufacturer || ''} ${hardwareTypeLabel(item.hardwareKind)} ${item.switchPorts || ''} ${(item.nasShares || []).map((share) => `${share.name} ${share.link}`).join(' ')}`
       : '';
     const specsText = `${item.os || ''} ${item.cpu || ''} ${item.ram || ''} ${item.disks || ''}`;
-    const text = `${item.name} ${item.description} ${item.notes} ${item.ip} ${specsText} ${appText} ${networkText} ${hardwareText}`.toLowerCase();
+    const portText = resourceNetworkPorts(item).filter((port) => port.ip || port.speed).map((port, index) => `Port ${index + 1} ${port.ip || ''} ${networkPortSpeedLabel(port.speed)}`).join(' ');
+    const text = `${item.name} ${item.description} ${item.notes} ${item.ip} ${portText} ${specsText} ${appText} ${networkText} ${hardwareText}`.toLowerCase();
     return typeMatch && (!query || text.includes(query));
   });
 }
@@ -2711,6 +3041,7 @@ function applyFilters(list) {
 function cardNode(item) {
   const node = createCardShell();
   node.dataset.type = item.type;
+  node.dataset.itemId = String(item.id);
 
   const border = networkBorderColor(item);
   if (border) node.style.borderColor = border;
@@ -3838,10 +4169,16 @@ function networkBorderColor(item) {
   const byId = Object.fromEntries(items.map((entry) => [entry.id, entry]));
   const connectedNetwork = item.connections.map((id) => byId[id]).find((entry) => entry?.type === 'network');
   if (connectedNetwork) return connectedNetwork.networkColor;
-  if ((item.type === 'vm' || item.type === 'lxc') && item.hostedOn) {
-    const host = byId[item.hostedOn];
-    const hostNet = host?.connections.map((id) => byId[id]).find((entry) => entry?.type === 'network');
-    return hostNet?.networkColor || '';
+  if (item.type === 'vm' || item.type === 'lxc') {
+    const seen = new Set([item.id]);
+    let host = byId[item.virtualHostedOn || item.hostedOn];
+    while (host && !seen.has(host.id)) {
+      seen.add(host.id);
+      const hostNet = (host.connections || []).map((id) => byId[id]).find((entry) => entry?.type === 'network');
+      if (hostNet) return hostNet.networkColor || '';
+      if (!['vm', 'lxc'].includes(host.type)) break;
+      host = byId[host.virtualHostedOn || host.hostedOn];
+    }
   }
   return '';
 }
@@ -3852,9 +4189,12 @@ function hostingLabel(item) {
     return guests.length ? `Host VMs/LXCs: ${guests.map((guest) => guest.name).join(', ')}` : 'Host VMs/LXCs: none';
   }
   if (item.type === 'vm' || item.type === 'lxc') {
-    if (!item.hostedOn) return 'Hosted on: not set';
-    const host = findById(item.hostedOn);
-    return `Hosted on: ${host ? host.name : item.hostedOn}`;
+    const parentId = item.virtualHostedOn || item.hostedOn;
+    const host = parentId ? findById(parentId) : null;
+    const nestedGuests = items.filter((candidate) => ['vm', 'lxc'].includes(candidate.type) && candidate.virtualHostedOn === item.id);
+    const parts = [`Hosted on: ${parentId ? (host ? host.name : parentId) : 'not set'}`];
+    if (nestedGuests.length) parts.push(`Hosts VMs/LXCs: ${nestedGuests.map((guest) => guest.name).join(', ')}`);
+    return parts.join(' | ');
   }
   if (item.type === 'app') {
     if (!item.appHostedOn) return 'Host application on: not set';
@@ -3881,20 +4221,55 @@ function refreshHostOptions() {
     option.textContent = host.name;
     hostedOnSelect.appendChild(option);
   });
-  hostedOnSelect.value = selected;
+  hostedOnSelect.value = [...hostedOnSelect.options].some((option) => option.value === selected) ? selected : '';
+  syncHostingSelectors();
+}
+
+function virtualHostWouldBeDescendant(candidateId, ancestorId) {
+  if (!candidateId || !ancestorId) return false;
+  const seen = new Set();
+  let current = findById(candidateId);
+  while (current && ['vm', 'lxc'].includes(current.type) && !seen.has(current.id)) {
+    if (current.id === ancestorId) return true;
+    seen.add(current.id);
+    current = current.virtualHostedOn ? findById(current.virtualHostedOn) : null;
+  }
+  return false;
 }
 
 function refreshAppHostOptions() {
   const selected = appHostedOnSelect.value;
   appHostedOnSelect.innerHTML = '<option value="">Not set</option>';
   items.filter((item) => item.type === 'vm' || item.type === 'lxc').forEach((host) => {
-    if (editingId && host.id === editingId) return;
+    if (editingId && (host.id === editingId || virtualHostWouldBeDescendant(host.id, editingId))) return;
     const option = document.createElement('option');
     option.value = host.id;
     option.textContent = `${host.name} (${label(host.type)})`;
     appHostedOnSelect.appendChild(option);
   });
-  appHostedOnSelect.value = selected;
+  appHostedOnSelect.value = [...appHostedOnSelect.options].some((option) => option.value === selected) ? selected : '';
+  syncHostingSelectors();
+}
+
+function syncHostingSelectors(changed = '') {
+  const isVmOrLxc = ['vm', 'lxc'].includes(typeSelect.value);
+  if (!isVmOrLxc) {
+    hostedOnSelect.disabled = false;
+    appHostedOnSelect.disabled = false;
+    hostedOnWrap.classList.remove('hosting-option-disabled');
+    appHostedOnWrap.classList.remove('hosting-option-disabled');
+    return;
+  }
+
+  if (changed === 'hardware' && hostedOnSelect.value) appHostedOnSelect.value = '';
+  if (changed === 'virtual' && appHostedOnSelect.value) hostedOnSelect.value = '';
+
+  const hasHardwareHost = Boolean(hostedOnSelect.value);
+  const hasVirtualHost = Boolean(appHostedOnSelect.value);
+  hostedOnSelect.disabled = hasVirtualHost;
+  appHostedOnSelect.disabled = hasHardwareHost;
+  hostedOnWrap.classList.toggle('hosting-option-disabled', hasVirtualHost);
+  appHostedOnWrap.classList.toggle('hosting-option-disabled', hasHardwareHost);
 }
 
 function hardwareInfraOptions() {
@@ -3995,6 +4370,7 @@ function startEditing(id) {
   notesInput.value = item.notes || '';
   setCredentialFields(item.credentials);
   ipInput.value = item.ip || '';
+  renderNetworkPortRows(item.networkPorts || [], item.ip || '');
   cpuCountSelect.value = String(item.cpuCount || inferCpuCount(item.cpu));
   switchPortsInput.value = item.switchPorts || '';
   ipPortInput.value = item.ipPort || '';
@@ -4009,7 +4385,8 @@ function startEditing(id) {
   refreshAppHostOptions();
   refreshHardwareConnectionOptions();
   hostedOnSelect.value = item.hostedOn || '';
-  appHostedOnSelect.value = item.appHostedOn || '';
+  appHostedOnSelect.value = item.type === 'app' ? (item.appHostedOn || '') : (item.virtualHostedOn || '');
+  syncHostingSelectors();
   if (item.type === 'hardware' && item.hardwareKind === 'router-gateway') {
     setMultiValues(routerSwitches, item.connections || []);
   }
@@ -4179,7 +4556,10 @@ function buildGraphView() {
   }
 
   graphItems.forEach((item) => {
-    if ((item.type === 'vm' || item.type === 'lxc') && item.hostedOn) addGraphEdge(item.hostedOn, item.id);
+    if (item.type === 'vm' || item.type === 'lxc') {
+      const parentId = item.virtualHostedOn || item.hostedOn;
+      if (parentId) addGraphEdge(parentId, item.id);
+    }
     if (item.type === 'app' && item.appHostedOn) addGraphEdge(item.appHostedOn, item.id);
     if (Array.isArray(item.connections)) {
       item.connections.forEach((targetId) => {
@@ -4194,7 +4574,7 @@ function buildGraphView() {
   }
 
   function parentIdFor(item) {
-    if (item.type === 'vm' || item.type === 'lxc') return graphById[item.hostedOn]?.id || '';
+    if (item.type === 'vm' || item.type === 'lxc') return graphById[item.virtualHostedOn || item.hostedOn]?.id || '';
     if (item.type === 'app') return graphById[item.appHostedOn]?.id || '';
     if (item.type === 'hardware' && item.hardwareKind === 'switch') return linkedHardware(item, (hw) => hw.hardwareKind === 'router-gateway')?.id || '';
     if (item.type === 'hardware' && item.hardwareKind !== 'router-gateway') {
@@ -4903,13 +5283,18 @@ function buildInfrastructureTree() {
     return row;
   }
 
-  function createGuestCard(guest) {
+  function createGuestCard(guest, trail = new Set()) {
+    const nextTrail = new Set(trail);
+    nextTrail.add(guest.id);
+    const nestedGuests = guests
+      .filter((candidate) => candidate.virtualHostedOn === guest.id && !nextTrail.has(candidate.id))
+      .sort(guestSort);
     const guestApps = apps.filter((app) => app.appHostedOn === guest.id).sort(byName);
-    const hasApps = guestApps.length > 0;
-    const card = document.createElement(hasApps ? 'details' : 'article');
-    card.className = `tree-resource-card tree-guest-card ${guest.type}${hasApps ? ' tree-resource-details' : ' tree-resource-leaf'}`;
+    const hasChildren = nestedGuests.length > 0 || guestApps.length > 0;
+    const card = document.createElement(hasChildren ? 'details' : 'article');
+    card.className = `tree-resource-card tree-guest-card ${guest.type}${hasChildren ? ' tree-resource-details' : ' tree-resource-leaf'}`;
 
-    const summary = document.createElement(hasApps ? 'summary' : 'div');
+    const summary = document.createElement(hasChildren ? 'summary' : 'div');
     summary.className = 'tree-resource-summary';
     const main = document.createElement('div');
     main.className = 'tree-node-main';
@@ -4918,14 +5303,34 @@ function buildInfrastructureTree() {
     const badges = document.createElement('div');
     badges.className = 'tree-node-badges';
     badges.appendChild(countBadge(guest.type === 'vm' ? 'VM' : 'LXC', guest.type));
-    if (hasApps) badges.appendChild(countBadge(`${guestApps.length} app${guestApps.length === 1 ? '' : 's'}`, 'app'));
+    if (nestedGuests.length) badges.appendChild(countBadge(`${nestedGuests.length} guest${nestedGuests.length === 1 ? '' : 's'}`, 'guest'));
+    if (guestApps.length) badges.appendChild(countBadge(`${guestApps.length} app${guestApps.length === 1 ? '' : 's'}`, 'app'));
     summary.appendChild(badges);
     card.appendChild(summary);
 
-    if (hasApps) {
+    if (hasChildren) {
       const children = document.createElement('div');
-      children.className = 'tree-resource-children tree-app-grid';
-      guestApps.forEach((app) => children.appendChild(createAppRow(app)));
+      children.className = 'tree-resource-children tree-guest-children';
+      if (nestedGuests.length) {
+        const guestSection = document.createElement('section');
+        guestSection.className = 'tree-child-section';
+        guestSection.innerHTML = `<div class="tree-child-title">Nested guests <span>${nestedGuests.length}</span></div>`;
+        const guestGrid = document.createElement('div');
+        guestGrid.className = 'tree-guest-grid';
+        nestedGuests.forEach((nestedGuest) => guestGrid.appendChild(createGuestCard(nestedGuest, nextTrail)));
+        guestSection.appendChild(guestGrid);
+        children.appendChild(guestSection);
+      }
+      if (guestApps.length) {
+        const appSection = document.createElement('section');
+        appSection.className = 'tree-child-section';
+        appSection.innerHTML = `<div class="tree-child-title">Applications <span>${guestApps.length}</span></div>`;
+        const appGrid = document.createElement('div');
+        appGrid.className = 'tree-app-grid';
+        guestApps.forEach((app) => appGrid.appendChild(createAppRow(app)));
+        appSection.appendChild(appGrid);
+        children.appendChild(appSection);
+      }
       card.appendChild(children);
     }
     return card;
@@ -5121,7 +5526,10 @@ function buildInfrastructureTree() {
     body.appendChild(group);
   });
 
-  const orphanGuests = guests.filter((guest) => !guest.hostedOn || !hardwareById.has(guest.hostedOn)).sort(guestSort);
+  const orphanGuests = guests.filter((guest) => {
+    if (guest.virtualHostedOn) return !guestById.has(guest.virtualHostedOn);
+    return !guest.hostedOn || !hardwareById.has(guest.hostedOn);
+  }).sort(guestSort);
   const orphanApps = apps.filter((app) => {
     if (!app.appHostedOn) return true;
     return !hardwareById.has(app.appHostedOn) && !guestById.has(app.appHostedOn);
@@ -5961,7 +6369,11 @@ function renderIPInto(container, query) {
   const networks = items.filter(i => i.type === 'network');
   const allIPs = [];
   items.forEach(item => extractIPs(item).forEach(e => allIPs.push(e)));
-  const matched = query ? allIPs.filter(e => e.addr.includes(query) || (e.port && e.port.includes(query)) || e.item.name.toLowerCase().includes(query)) : allIPs;
+  const matched = query ? allIPs.filter((e) => {
+    const portLabel = Number.isInteger(e.networkPortIndex) ? `port ${e.networkPortIndex + 1}` : '';
+    const speedLabel = networkPortSpeedLabel(e.speed).toLowerCase();
+    return e.addr.includes(query) || (e.port && e.port.includes(query)) || e.item.name.toLowerCase().includes(query) || portLabel.includes(query) || speedLabel.includes(query);
+  }) : allIPs;
 
   if (!matched.length) {
     const empty = document.createElement('p');
@@ -7174,15 +7586,17 @@ function placeRackComponentAt(side, u, rack) {
     pduPorts: rackDragComponent.pduPorts || null,
     pduLinks: rackDragComponent.pduLinks || null,
     switchPortLinks: rackDragComponent.switchPortLinks || null,
+    patchPanelPorts: rackDragComponent.patchPanelPorts || null,
+    patchPanelLinks: rackDragComponent.patchPanelLinks || null,
     isBlank: rackDragComponent.isBlank || false,
-    isPassive: rackDragComponent.isPassive || false,
+    isPassive: (rackDragComponent.isPassive || false) && !isRackPatchPanelComponent(rackDragComponent),
   };
   const placed = rackDragComponent;
   const sourceSide = placed.fromSlot ? String(placed.fromSlot).split('-')[0] : null;
   saveRackData();
   renderRackDiagram(side);
   if (sourceSide && sourceSide !== side) renderRackDiagram(sourceSide);
-  if (!placed.isBlank && !placed.isPassive) showLinkPanel(slotKey, side);
+  if (!placed.isBlank && (!placed.isPassive || isRackPatchPanelComponent(placed))) showLinkPanel(slotKey, side);
   clearRackComponentSelection();
   closeRackPaletteSheet();
 }
@@ -7247,6 +7661,9 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
       return `<span class="rack-slot-device"><span class="rack-slot-device-idx">${i + 1}.</span> ${name}</span>`;
     }).join('');
     deviceHtml = `<div class="rack-multi-lines">${lines}</div>`;
+  } else if (isRackPatchPanelComponent(comp)) {
+    const portCount = getRackPatchPanelPortCount(comp);
+    if (portCount) deviceHtml = `<span class="rack-slot-device">${portCount} ports</span>`;
   } else if (comp.linkedDeviceId) {
     const dev = findById(comp.linkedDeviceId);
     if (dev) deviceHtml = `<span class="rack-slot-device">${escapeHtml((dev.symbol || '') + ' ' + dev.name)}</span>`;
@@ -7272,7 +7689,7 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
       return;
     }
     if (e.target.classList.contains('rack-slot-remove')) return;
-    if (comp.isBlank || comp.isPassive) return;
+    if (comp.isBlank || (comp.isPassive && !isRackPatchPanelComponent(comp))) return;
     showLinkPanel(slotKey, side);
   });
   el.querySelector('.rack-slot-remove').addEventListener('click', e => {
@@ -7282,7 +7699,7 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
     renderRackDiagram(side);
   });
   el.addEventListener('dragstart', e => {
-    rackDragComponent = { componentType: comp.componentType, heightU: comp.heightU, label: comp.label, category: comp.category || 'compute', linkedDeviceId: comp.linkedDeviceId || null, multiDevice: comp.multiDevice || null, linkedDevices: comp.linkedDevices || null, isPDU: comp.isPDU || false, pduPorts: comp.pduPorts || null, pduLinks: comp.pduLinks || null, switchPortLinks: comp.switchPortLinks || null, isBlank: comp.isBlank || false, isPassive: comp.isPassive || false, fromSlot: slotKey, source: 'rack' };
+    rackDragComponent = { componentType: comp.componentType, heightU: comp.heightU, label: comp.label, category: comp.category || 'compute', linkedDeviceId: comp.linkedDeviceId || null, multiDevice: comp.multiDevice || null, linkedDevices: comp.linkedDevices || null, isPDU: comp.isPDU || false, pduPorts: comp.pduPorts || null, pduLinks: comp.pduLinks || null, switchPortLinks: comp.switchPortLinks || null, patchPanelPorts: comp.patchPanelPorts || null, patchPanelLinks: comp.patchPanelLinks || null, isBlank: comp.isBlank || false, isPassive: comp.isPassive || false, fromSlot: slotKey, source: 'rack' };
     e.dataTransfer.effectAllowed = 'move';
     setTimeout(() => el.style.opacity = '0.4', 0);
   });
@@ -7299,6 +7716,8 @@ function createOccupiedSlot(side, u, comp, slotKey, rack) {
     pduPorts: comp.pduPorts || null,
     pduLinks: comp.pduLinks || null,
     switchPortLinks: comp.switchPortLinks || null,
+    patchPanelPorts: comp.patchPanelPorts || null,
+    patchPanelLinks: comp.patchPanelLinks || null,
     isBlank: !!comp.isBlank,
     isPassive: !!comp.isPassive,
     fromSlot: slotKey,
@@ -7346,8 +7765,24 @@ function isRackRouterComponent(comp) {
   return !!comp && String(comp.componentType || '').includes('router');
 }
 
+function isRackPatchPanelComponent(comp) {
+  return !!comp && String(comp.componentType || '').includes('patch-panel');
+}
+
+const RACK_PATCH_NOT_PATCHED = '__not_patched__';
+
 function isRackNetworkPortComponent(comp) {
   return isRackSwitchComponent(comp) || isRackRouterComponent(comp);
+}
+
+function getRackPatchPanelPortCount(comp) {
+  const count = parseInt(comp?.patchPanelPorts, 10);
+  return Number.isFinite(count) && count > 0 ? Math.min(count, 96) : 0;
+}
+
+function getRackPatchPanelLink(comp, portIndex) {
+  const links = comp?.patchPanelLinks && typeof comp.patchPanelLinks === 'object' ? comp.patchPanelLinks : {};
+  return links[portIndex] || (portIndex === 0 ? comp?.linkedDeviceId || null : null);
 }
 
 function rackPortHardwareKind(comp) {
@@ -7445,6 +7880,71 @@ function showLinkPanel(slotKey, side) {
       const selects = panel.querySelectorAll('.rack-link-multi');
       comp.linkedDevices  = Array.from(selects).map(s => s.value || null);
       comp.linkedDeviceId = comp.linkedDevices[0];
+      saveRackData(); closeLinkPanel(); renderRackDiagram(side);
+    });
+    panel.querySelector('#rack-link-skip').addEventListener('click', () => closeLinkPanel());
+    return;
+  }
+
+  // ── Patch panel: configurable port count with one device assignment per port ─────
+  if (isRackPatchPanelComponent(comp)) {
+    let currentPorts = getRackPatchPanelPortCount(comp) || 24;
+    const patchLinks = {};
+    for (let i = 0; i < currentPorts; i++) {
+      const linkedId = getRackPatchPanelLink(comp, i);
+      if (linkedId) patchLinks[i] = linkedId;
+    }
+
+    function buildPatchPortRows(n) {
+      return Array.from({ length: n }, (_, i) => `
+        <div class="rack-link-row">
+          <span class="rack-link-row-label">Port ${i + 1}:</span>
+          <select class="rack-patch-port" data-port="${i}">
+            <option value="" ${!patchLinks[i] ? 'selected' : ''}>- empty -</option>
+            <option value="${RACK_PATCH_NOT_PATCHED}" ${patchLinks[i] === RACK_PATCH_NOT_PATCHED ? 'selected' : ''}>Not patched</option>
+            ${buildHwOpts(patchLinks[i] || null)}
+          </select>
+        </div>`).join('');
+    }
+
+    function capturePatchLinks() {
+      panel.querySelectorAll('.rack-patch-port').forEach((select) => {
+        const port = parseInt(select.dataset.port, 10);
+        if (select.value) patchLinks[port] = select.value;
+        else delete patchLinks[port];
+      });
+    }
+
+    panel.innerHTML = `
+      <div class="rack-link-multi-wrap">
+        <div class="rack-link-row">
+          <span class="rack-link-row-label">Ports:</span>
+          <input id="rack-patch-count" type="number" min="1" max="96" value="${currentPorts}" inputmode="numeric" />
+        </div>
+        <div id="rack-patch-port-rows">${buildPatchPortRows(currentPorts)}</div>
+        <div class="rack-link-actions">
+          <button class="button" id="rack-link-ok" type="button">✓ OK</button>
+          <button class="button secondary" id="rack-link-skip" type="button">Skip</button>
+        </div>
+      </div>`;
+    document.body.appendChild(panel);
+    rackLinkPanelTarget = { slotKey, side };
+
+    panel.querySelector('#rack-patch-count').addEventListener('change', function() {
+      capturePatchLinks();
+      currentPorts = Math.max(1, Math.min(96, parseInt(this.value, 10) || 1));
+      this.value = currentPorts;
+      Object.keys(patchLinks).forEach((key) => {
+        if (parseInt(key, 10) >= currentPorts) delete patchLinks[key];
+      });
+      panel.querySelector('#rack-patch-port-rows').innerHTML = buildPatchPortRows(currentPorts);
+    });
+    panel.querySelector('#rack-link-ok').addEventListener('click', () => {
+      capturePatchLinks();
+      comp.patchPanelPorts = currentPorts;
+      comp.patchPanelLinks = patchLinks;
+      comp.linkedDeviceId = null;
+      comp.isPassive = false;
       saveRackData(); closeLinkPanel(); renderRackDiagram(side);
     });
     panel.querySelector('#rack-link-skip').addEventListener('click', () => closeLinkPanel());
@@ -7597,7 +8097,7 @@ function showRackLinkModal(slotKey, side, comp) {
   document.body.appendChild(panel);
   rackLinkPanelTarget = { slotKey, side };
 
-  function openDevicePicker(title, selectedId, onPick, choiceItems = hardwareItems) {
+  function openDevicePicker(title, selectedId, onPick, choiceItems = hardwareItems, emptyLabel = '- empty -', includeNotPatched = false) {
     const oldPicker = document.getElementById('rack-device-picker-active');
     if (oldPicker) oldPicker.remove();
 
@@ -7605,7 +8105,8 @@ function showRackLinkModal(slotKey, side, comp) {
     picker.className = 'rack-device-picker';
     picker.id = 'rack-device-picker-active';
     const choices = [
-      `<button class="rack-device-choice ${!selectedId ? 'selected' : ''}" data-id="" type="button">- empty -</button>`,
+      `<button class="rack-device-choice ${!selectedId ? 'selected' : ''}" data-id="" type="button">${escapeHtml(emptyLabel)}</button>`,
+      ...(includeNotPatched ? [`<button class="rack-device-choice ${selectedId === RACK_PATCH_NOT_PATCHED ? 'selected' : ''}" data-id="${RACK_PATCH_NOT_PATCHED}" type="button">Not patched</button>`] : []),
       ...choiceItems.map(itm => `<button class="rack-device-choice ${selectedId === itm.id ? 'selected' : ''}" data-id="${escapeAttr(itm.id)}" type="button">${escapeHtml(`${itm.symbol || ''} ${itm.name}`.trim())}${['router-gateway', 'switch'].includes(itm.hardwareKind) && itm.switchPorts ? ` · ${escapeHtml(String(itm.switchPorts))} ports` : ''}</button>`)
     ].join('');
     picker.innerHTML = `
@@ -7631,10 +8132,15 @@ function showRackLinkModal(slotKey, side, comp) {
   function pickerButton(label, title, selectedId, field, idx = null, filter = '') {
     const idAttr = idx === null ? '' : ` data-idx="${idx}"`;
     const filterAttr = filter ? ` data-filter="${filter}"` : '';
+    const displayName = field === 'patch-port' && selectedId === RACK_PATCH_NOT_PATCHED
+      ? 'Not patched'
+      : selectedId
+        ? deviceName(selectedId)
+        : '- empty -';
     return `
       <div class="rack-link-row rack-link-picker-row">
         <span class="rack-link-row-label">${escapeHtml(label)}</span>
-        <button class="rack-link-picker-button" data-field="${field}"${idAttr}${filterAttr} type="button">${escapeHtml(deviceName(selectedId))}</button>
+        <button class="rack-link-picker-button" data-field="${field}"${idAttr}${filterAttr} type="button">${escapeHtml(displayName)}</button>
       </div>`;
   }
 
@@ -7643,14 +8149,17 @@ function showRackLinkModal(slotKey, side, comp) {
       btn.addEventListener('click', () => {
         const field = btn.dataset.field;
         const idx = btn.dataset.idx !== undefined ? parseInt(btn.dataset.idx, 10) : null;
-        const title = idx === null ? 'Choose linked device' : `Choose device for ${field === 'pdu' ? `Port ${idx + 1}` : `PC ${idx + 1}`}`;
+        const isPortField = field === 'pdu' || field === 'switch-port' || field === 'patch-port';
+        const title = idx === null ? 'Choose linked device' : `Choose device for ${isPortField ? `Port ${idx + 1}` : `PC ${idx + 1}`}`;
         const selected = field === 'single' || field === 'switch-link'
           ? comp.linkedDeviceId
           : field === 'multi'
             ? (comp.linkedDevices || [])[idx]
             : field === 'switch-port'
               ? (comp.switchPortLinks || {})[idx]
-              : (comp.pduLinks || {})[idx];
+              : field === 'patch-port'
+                ? getRackPatchPanelLink(comp, idx)
+                : (comp.pduLinks || {})[idx];
         const choiceItems = btn.dataset.filter
           ? hardwareItems.filter(itm => itm.type === 'hardware' && itm.hardwareKind === btn.dataset.filter)
           : hardwareItems;
@@ -7669,23 +8178,46 @@ function showRackLinkModal(slotKey, side, comp) {
           } else if (field === 'switch-port') {
             comp.switchPortLinks = comp.switchPortLinks || {};
             comp.switchPortLinks[idx] = id;
+          } else if (field === 'patch-port') {
+            comp.patchPanelLinks = comp.patchPanelLinks || {};
+            if (comp.linkedDeviceId && !comp.patchPanelLinks[0]) comp.patchPanelLinks[0] = comp.linkedDeviceId;
+            if (id) comp.patchPanelLinks[idx] = id;
+            else delete comp.patchPanelLinks[idx];
+            comp.linkedDeviceId = null;
           } else if (field === 'pdu') {
             comp.pduLinks = comp.pduLinks || {};
             comp.pduLinks[idx] = id;
           }
-        }, choiceItems);
+        }, choiceItems, '- empty -', field === 'patch-port');
       });
     });
   }
 
   function renderModal() {
-    const title = comp.isPDU ? 'Assign PDU Ports' : isRackNetworkPortComponent(comp) ? `Assign ${isRackRouterComponent(comp) ? 'Router / Gateway' : 'Switch'} Ports` : comp.multiDevice ? 'Assign Multi-Device Slot' : 'Assign Rack Device';
+    const title = comp.isPDU
+      ? 'Assign PDU Ports'
+      : isRackPatchPanelComponent(comp)
+        ? 'Assign Patch Panel Ports'
+        : isRackNetworkPortComponent(comp)
+          ? `Assign ${isRackRouterComponent(comp) ? 'Router / Gateway' : 'Switch'} Ports`
+          : comp.multiDevice
+            ? 'Assign Multi-Device Slot'
+            : 'Assign Rack Device';
     let body = '';
 
     if (comp.multiDevice) {
       const count = comp.multiDevice;
       const devs = comp.linkedDevices || Array(count).fill(null);
       body = Array.from({ length: count }, (_, i) => pickerButton(`PC ${i + 1}:`, title, devs[i], 'multi', i)).join('');
+    } else if (isRackPatchPanelComponent(comp)) {
+      const currentPorts = getRackPatchPanelPortCount(comp) || 24;
+      const rows = Array.from({ length: currentPorts }, (_, i) => pickerButton(`Port ${i + 1}:`, title, getRackPatchPanelLink(comp, i), 'patch-port', i)).join('');
+      body = `
+        <div class="rack-port-count-row">
+          <span class="rack-link-row-label">Ports:</span>
+          <input id="rack-patch-count" type="number" min="1" max="96" value="${currentPorts}" inputmode="numeric" />
+        </div>
+        ${rows}`;
     } else if (isRackNetworkPortComponent(comp)) {
       const expectedKind = rackPortHardwareKind(comp);
       const switchDevice = getRackLinkedPortDevice(comp);
@@ -7722,6 +8254,20 @@ function showRackLinkModal(slotKey, side, comp) {
         </div>
       </div>`;
 
+    panel.querySelector('#rack-patch-count')?.addEventListener('change', function() {
+      const currentLinks = {};
+      const nextCount = Math.max(1, Math.min(96, parseInt(this.value, 10) || 1));
+      for (let i = 0; i < nextCount; i++) {
+        const linkedId = getRackPatchPanelLink(comp, i);
+        if (linkedId) currentLinks[i] = linkedId;
+      }
+      comp.patchPanelPorts = nextCount;
+      comp.patchPanelLinks = currentLinks;
+      comp.linkedDeviceId = null;
+      comp.isPassive = false;
+      renderModal();
+    });
+
     panel.querySelectorAll('.rack-port-count-button').forEach(btn => {
       btn.addEventListener('click', () => {
         comp.pduPorts = parseInt(btn.dataset.count, 10);
@@ -7734,6 +8280,13 @@ function showRackLinkModal(slotKey, side, comp) {
     });
     bindPickerButtons();
     panel.querySelector('#rack-link-ok').addEventListener('click', () => {
+      if (isRackPatchPanelComponent(comp)) {
+        comp.patchPanelPorts = getRackPatchPanelPortCount(comp) || 24;
+        comp.patchPanelLinks = comp.patchPanelLinks || {};
+        if (comp.linkedDeviceId && !comp.patchPanelLinks[0]) comp.patchPanelLinks[0] = comp.linkedDeviceId;
+        comp.linkedDeviceId = null;
+        comp.isPassive = false;
+      }
       saveRackData();
       closeLinkPanel();
       renderRackDiagram(side);
