@@ -186,6 +186,7 @@ let treeViewMode = 'tree';
 let lastTypeSelection = typeSelect.value;
 let lastHardwareKindSelection = hardwareKindSelect.value;
 let pollingInterval = null;
+let livePollInFlight = false;
 let liveStatusData = {}; // Store live status data { itemId: { ipStatus: 'online'|'offline', urlStatus: 'online'|'offline' } }
 let importedAgentKeysForSave = null;
 let importedBackupConfigForSave = null;
@@ -526,11 +527,14 @@ applyTypeVisibility();
   }
 })();
 
-async function startPolling() {
+function startPolling() {
   if (pollingInterval) clearInterval(pollingInterval);
-  pollingInterval = setInterval(async () => {
-    await pollLiveStatus();
+  pollingInterval = setInterval(() => {
+    if (!document.hidden) pollLiveStatus();
   }, 5000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) pollLiveStatus();
+  });
 }
 
 function extractHostForLiveCheck(item) {
@@ -565,46 +569,93 @@ function normalizeUrlForLiveCheck(value) {
   return /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
 }
 
-async function pollLiveStatus() {
-  const toMonitor = items.filter((item) => item.ipStatus === 'live' || item.urlStatus === 'live');
-
-  for (const item of toMonitor) {
-    if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
-
-    const pingHost = extractHostForLiveCheck(item);
-
-    if (item.ipStatus === 'live' && pingHost && ['hardware', 'vm', 'lxc', 'app'].includes(item.type)) {
-      try {
-        const res = await fetch(`${API_BASE}/api/ping`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ip: pingHost }),
-        });
-        const data = await res.json();
-        liveStatusData[item.id].ipStatus = data.status;
-      } catch (err) {
-        liveStatusData[item.id].ipStatus = 'offline';
-      }
+async function runTasksWithConcurrency(tasks, limit = 4) {
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, tasks.length) }, async () => {
+    while (cursor < tasks.length) {
+      const task = tasks[cursor++];
+      await task();
     }
+  });
+  await Promise.all(workers);
+}
 
+function refreshLiveStatusCards(changedIds) {
+  if (!boards || !changedIds?.size) return;
+  const cards = Array.from(boards.querySelectorAll('[data-item-id]'));
+  changedIds.forEach((id) => {
+    const item = findById(id);
+    const card = cards.find((node) => node.dataset.itemId === String(id));
+    const liveStatusEl = card?.querySelector('.card-live-status');
+    if (!item || !liveStatusEl) return;
+    const liveStatusHtml = buildLiveStatusHtml(item).trim();
+    if (liveStatusHtml) {
+      liveStatusEl.innerHTML = liveStatusHtml;
+      liveStatusEl.classList.remove('hidden');
+    } else {
+      liveStatusEl.innerHTML = '';
+      liveStatusEl.classList.add('hidden');
+    }
+  });
+}
+
+async function pollLiveStatus() {
+  if (livePollInFlight || document.hidden) return;
+  const toMonitor = items.filter((item) => item.ipStatus === 'live' || item.urlStatus === 'live');
+  if (!toMonitor.length) return;
+
+  livePollInFlight = true;
+  const changedIds = new Set();
+  const tasks = [];
+
+  toMonitor.forEach((item) => {
+    if (!liveStatusData[item.id]) liveStatusData[item.id] = {};
+    const pingHost = extractHostForLiveCheck(item);
     const urlToCheck = normalizeUrlForLiveCheck(item.webUrl || (item.type === 'app' ? item.ipPort : ''));
 
-    if (item.urlStatus === 'live' && urlToCheck && (item.type === 'app' || item.type === 'hardware')) {
-      try {
-        const res = await fetch(`${API_BASE}/api/check-url`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: urlToCheck }),
-        });
-        const data = await res.json();
-        liveStatusData[item.id].urlStatus = data.status;
-      } catch (err) {
-        liveStatusData[item.id].urlStatus = 'offline';
-      }
+    if (item.ipStatus === 'live' && pingHost && ['hardware', 'vm', 'lxc', 'app'].includes(item.type)) {
+      tasks.push(async () => {
+        const previous = liveStatusData[item.id].ipStatus;
+        let next = 'offline';
+        try {
+          const res = await nativeFetch(`${API_BASE}/api/ping`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip: pingHost }),
+          });
+          const data = await res.json();
+          next = data.status;
+        } catch {}
+        liveStatusData[item.id].ipStatus = next;
+        if (previous !== next) changedIds.add(item.id);
+      });
     }
-  }
 
-  render();
+    if (item.urlStatus === 'live' && urlToCheck && (item.type === 'app' || item.type === 'hardware')) {
+      tasks.push(async () => {
+        const previous = liveStatusData[item.id].urlStatus;
+        let next = 'offline';
+        try {
+          const res = await nativeFetch(`${API_BASE}/api/check-url`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: urlToCheck }),
+          });
+          const data = await res.json();
+          next = data.status;
+        } catch {}
+        liveStatusData[item.id].urlStatus = next;
+        if (previous !== next) changedIds.add(item.id);
+      });
+    }
+  });
+
+  try {
+    await runTasksWithConcurrency(tasks, 4);
+    refreshLiveStatusCards(changedIds);
+  } finally {
+    livePollInFlight = false;
+  }
 }
 
 function cleanupDuplicateIds(ids) {
@@ -886,14 +937,23 @@ cancelEditBtn.addEventListener('click', () => {
   render();
 });
 
-searchInput.addEventListener('input', render);
-filterType.addEventListener('change', render);
+let boardRenderFrame = 0;
+function scheduleBoardRender() {
+  if (boardRenderFrame) return;
+  boardRenderFrame = requestAnimationFrame(() => {
+    boardRenderFrame = 0;
+    render({ refreshSelectors: false });
+  });
+}
+
+searchInput.addEventListener('input', scheduleBoardRender);
+filterType.addEventListener('change', () => render({ refreshSelectors: false }));
 
 treeToggle.addEventListener('click', () => {
   if (ipDialog.open) ipDialog.close();
   if (configDialog.open) configDialog.close();
-  setTreeMode(treeViewMode);
   treeDialog.showModal();
+  requestAnimationFrame(() => setTreeMode(treeViewMode));
 });
 
 
@@ -905,8 +965,8 @@ const ipSearch = document.getElementById('ip-search');
 ipToggle.addEventListener('click', () => {
   if (treeDialog.open) treeDialog.close();
   if (configDialog.open) configDialog.close();
-  renderIPView();
   ipDialog.showModal();
+  requestAnimationFrame(renderIPView);
 });
 if (ipSearch) ipSearch.addEventListener('input', renderIPView);
 
@@ -1125,12 +1185,13 @@ function demoBackupStatus() {
   };
 }
 
-async function fetchBackupStatus() {
+async function fetchBackupStatus(options = {}) {
   if (publicDemoBackupsDisabled) {
     lastBackupStatus = demoBackupStatus();
     return lastBackupStatus;
   }
-  const res = await fetch(`${API_BASE}/api/backups/status`);
+  const query = options.forceRefresh ? '?refresh=1' : '';
+  const res = await nativeFetch(`${API_BASE}/api/backups/status${query}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   lastBackupStatus = await res.json();
   return lastBackupStatus;
@@ -1144,7 +1205,9 @@ function backupPanelHtml(status) {
   const targets = status?.targets || {};
   const currentTarget = cfg.target === 'smb' ? 'smb' : 'local';
   const smb = targets.smb || {};
-  const smbState = smb.available ? 'Connected' : (smb.configured ? 'Configured, but not reachable' : 'Not configured');
+  const smbState = smb.checking
+    ? (smb.available ? 'Connected, refreshing' : 'Checking connection')
+    : (smb.available ? 'Connected' : (smb.configured ? 'Configured, but not reachable' : 'Not configured'));
   const passwordHint = cfg.smbPasswordConfigured || smb.passwordConfigured
     ? 'Password is saved encrypted. Leave this empty to keep it.'
     : 'Enter the password for the SMB account.';
@@ -1286,7 +1349,7 @@ function backupPanelHtml(status) {
           <div><strong>Target</strong><span>${escapeHtml(currentTarget === 'smb' ? 'Direct SMB share' : (targets.local?.label || 'Local storage'))}</span></div>
           <div><strong>Local path</strong><span>${escapeHtml(targets.local?.path || '/data/backups')}</span></div>
           <div><strong>SMB state</strong><span>${escapeHtml(smb.path || 'Not configured')} · ${escapeHtml(smbState)}</span></div>
-          ${smb.error && !smb.available ? `<div class="backup-grid-span-2"><strong>SMB message</strong><span>${escapeHtml(smb.error)}</span></div>` : ''}
+          ${smb.error && !smb.available && !smb.checking ? `<div class="backup-grid-span-2"><strong>SMB message</strong><span>${escapeHtml(smb.error)}</span></div>` : ''}
         </div>
       </div>
 
@@ -1371,6 +1434,9 @@ function updateBackupPanelState(container) {
 }
 
 function bindBackupPanel(container) {
+  const markDirty = () => { backupConfigFormDirty = true; };
+  container.addEventListener('input', markDirty);
+  container.addEventListener('change', markDirty);
   container.querySelector('[data-backup-field="target"]')?.addEventListener('change', () => updateBackupPanelState(container));
   container.querySelector('[data-backup-field="frequency"]')?.addEventListener('change', () => updateBackupPanelState(container));
   container.querySelector('[data-backup-field="smbGuest"]')?.addEventListener('change', () => updateBackupPanelState(container));
@@ -1382,6 +1448,7 @@ function bindBackupPanel(container) {
       });
       if (!res.ok) throw new Error(await backupApiError(res, 'Could not save backup settings.'));
       showToast('Backup settings saved.');
+      backupConfigFormDirty = false;
       await renderBackupConfigPanels();
     } catch (err) { showToast(err.message || 'Could not save backup settings.', 'error'); console.warn(err); }
   });
@@ -1402,11 +1469,15 @@ function bindBackupPanel(container) {
       const res = await fetch(`${API_BASE}/api/backups/run`, { method: 'POST' });
       if (!res.ok) throw new Error(await backupApiError(res, 'Backup failed.'));
       showToast('Encrypted backup created.');
-      await renderBackupConfigPanels();
+      backupConfigFormDirty = false;
+      await renderBackupConfigPanels({ forceRefresh: readBackupForm(container).target === 'smb' });
     } catch (err) { showToast(err.message || 'Backup failed.', 'error'); console.warn(err); }
   });
 
-  container.querySelector('[data-backup-refresh]')?.addEventListener('click', () => renderBackupConfigPanels());
+  container.querySelector('[data-backup-refresh]')?.addEventListener('click', () => {
+    backupConfigFormDirty = false;
+    renderBackupConfigPanels({ forceRefresh: true });
+  });
   container.querySelectorAll('[data-restore-backup]').forEach((button) => {
     button.addEventListener('click', async () => {
       const id = button.getAttribute('data-restore-backup');
@@ -1433,16 +1504,42 @@ function bindBackupPanel(container) {
         const res = await fetch(`${API_BASE}/api/backups/${encodedTarget}/${encodedId}`, { method: 'DELETE' });
         if (!res.ok) throw new Error(await backupApiError(res, 'Could not delete backup.'));
         showToast('Backup deleted.');
-        await renderBackupConfigPanels();
+        backupConfigFormDirty = false;
+        await renderBackupConfigPanels({ forceRefresh: target === 'smb' });
       } catch (err) { showToast(err.message || 'Could not delete backup.', 'error'); console.warn(err); }
     });
   });
   updateBackupPanelState(container);
 }
 
-async function renderBackupConfigPanels() {
+let backupConfigFormDirty = false;
+let backupStatusRefreshPromise = null;
+
+function activeBackupConfigContainer() {
+  return document.getElementById(isMobile() ? 'mobile-backup-config-body' : 'backup-config-body');
+}
+
+function paintBackupConfig(status) {
+  const container = activeBackupConfigContainer();
+  if (!container) return;
+  container.innerHTML = backupPanelHtml(status);
+  bindBackupPanel(container);
+}
+
+function paintBackupConfigLoading() {
+  const container = activeBackupConfigContainer();
+  if (!container) return;
+  container.innerHTML = '<div class="empty-state"><strong>Loading Backup Config...</strong></div>';
+}
+
+function backupConfigIsVisible() {
+  if (isMobile()) return document.getElementById('mobile-backup-config')?.classList.contains('active');
+  return !!backupConfigDialog?.open;
+}
+
+async function renderBackupConfigPanels(options = {}) {
   let status;
-  try { status = await fetchBackupStatus(); }
+  try { status = await fetchBackupStatus({ forceRefresh: !!options.forceRefresh }); }
   catch (err) {
     status = {
       config: { enabled: false, frequency: 'daily', time: '02:00', weekday: '1', target: 'local', maxBackups: 10, smbPort: 445 },
@@ -1451,15 +1548,22 @@ async function renderBackupConfigPanels() {
       backups: [],
     };
   }
-  ['backup-config-body', 'mobile-backup-config-body'].forEach((id) => {
-    const container = document.getElementById(id);
-    if (!container) return;
-    container.innerHTML = backupPanelHtml(status);
-    bindBackupPanel(container);
-  });
+  paintBackupConfig(status);
+  return status;
+}
+
+function refreshBackupStatusAfterOpen(status) {
+  if (publicDemoBackupsDisabled || !status?.targets?.smb?.checking || backupStatusRefreshPromise) return;
+  backupStatusRefreshPromise = fetchBackupStatus({ forceRefresh: true })
+    .then((freshStatus) => {
+      if (backupConfigIsVisible() && !backupConfigFormDirty) paintBackupConfig(freshStatus);
+    })
+    .catch(() => {})
+    .finally(() => { backupStatusRefreshPromise = null; });
 }
 
 function closeBackupConfigView() {
+  backupConfigFormDirty = false;
   if (isMobile()) {
     showMobileView('mobile-config');
     setActiveMobileNav('nav-more');
@@ -1470,18 +1574,26 @@ function closeBackupConfigView() {
 
 async function openBackupConfig(options = {}) {
   backupConfigReturnToConfig = !!options.returnToConfig;
-  await renderBackupConfigPanels();
+  backupConfigFormDirty = false;
+
   if (isMobile()) {
     showMobileView('mobile-backup-config');
     setActiveMobileNav('nav-more');
-    return;
+  } else {
+    if (configDialog?.open) configDialog.close();
+    backupConfigDialog.onclose = () => {
+      backupConfigFormDirty = false;
+      if (backupConfigReturnToConfig && configDialog && !configDialog.open) configDialog.showModal();
+      backupConfigReturnToConfig = false;
+    };
+    if (typeof backupConfigDialog?.showModal === 'function' && !backupConfigDialog.open) backupConfigDialog.showModal();
   }
-  if (configDialog?.open) configDialog.close();
-  backupConfigDialog.onclose = () => {
-    if (backupConfigReturnToConfig && configDialog && !configDialog.open) configDialog.showModal();
-    backupConfigReturnToConfig = false;
-  };
-  if (typeof backupConfigDialog?.showModal === 'function' && !backupConfigDialog.open) backupConfigDialog.showModal();
+
+  if (lastBackupStatus) paintBackupConfig(lastBackupStatus);
+  else paintBackupConfigLoading();
+
+  const status = await renderBackupConfigPanels();
+  refreshBackupStatusAfterOpen(status);
 }
 
 backupConfigBtn?.addEventListener('click', () => openBackupConfig({ returnToConfig: true }));
@@ -3059,10 +3171,12 @@ function closeAdvancedResourceSettings() {
   else advancedResourceDialog.removeAttribute('open');
 }
 
-function render() {
-  refreshHostOptions();
-  refreshAppHostOptions();
-  refreshHardwareConnectionOptions();
+function render(options = {}) {
+  if (options.refreshSelectors !== false) {
+    refreshHostOptions();
+    refreshAppHostOptions();
+    refreshHardwareConnectionOptions();
+  }
 
   const filtered = applyFilters(items);
   const groups = {
@@ -3111,6 +3225,7 @@ function applyFilters(list) {
 function cardNode(item) {
   const node = createCardShell();
   node.dataset.type = item.type;
+  node.dataset.itemId = String(item.id);
 
   const border = networkBorderColor(item);
   if (border) node.style.borderColor = border;

@@ -9345,7 +9345,7 @@ fieldset,
   gap: 0.65rem;
   align-items: end;
   padding: 0.75rem;
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: 12px;
   background: var(--panel);
 }
@@ -9386,5 +9386,20 @@ fieldset,
 
   .network-port-row.is-primary .network-port-remove {
     display: none;
+  }
+}
+
+/* Mobile advanced settings: keep the information hint full width. */
+@media (max-width: 1100px) {
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-head > div {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-subtitle {
+    width: 100% !important;
+    max-width: none !important;
+    box-sizing: border-box !important;
   }
 }

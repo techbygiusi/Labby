@@ -276,9 +276,11 @@ const LOCAL_BACKUP_DIR = path.join(DATA_DIR, 'backups');
 const BACKUP_KEY_PATH = path.join(DATA_DIR, 'backup.key');
 const SMB_SECRET_PATH = path.join(DATA_DIR, 'backup-smb-secret.json');
 const SMB_TMP_ROOT = '/tmp/labby-backups';
-const { spawnSync: spawnSyncProcess } = require('child_process');
+const { spawnSync: spawnSyncProcess, execFile: execFileProcess } = require('child_process');
 let backupTimer = null;
-let smbStatusCache = { key: '', checkedAt: 0, value: null };
+const SMB_STATUS_CACHE_MS = 60 * 1000;
+let smbStatusCache = { key: '', checkedAt: 0, value: null, backups: [] };
+let smbStatusRefresh = { key: '', promise: null };
 
 function defaultBackupConfig() {
   return {
@@ -493,6 +495,61 @@ function runSmbClient(cfgInput, command, options = {}) {
   });
 }
 
+function runSmbClientAsync(cfgInput, command, options = {}) {
+  const cfg = validateSmbConfig(normalizeBackupConfig(cfgInput), options.password);
+  let tempDir = '';
+  let authFile = null;
+
+  if (!cfg.smbGuest) {
+    const password = typeof options.password === 'string' && options.password !== '' ? options.password : getStoredSmbPassword();
+    if (!password) return Promise.reject(new Error('No SMB password is saved.'));
+    if (/[\r\n\0]/.test(password)) return Promise.reject(new Error('The SMB password cannot contain line breaks.'));
+    fs.mkdirSync(SMB_TMP_ROOT, { recursive: true, mode: 0o700 });
+    tempDir = fs.mkdtempSync(path.join(SMB_TMP_ROOT, 'auth-'));
+    authFile = path.join(tempDir, 'credentials');
+    const lines = [
+      `username = ${cfg.smbUsername}`,
+      `password = ${password}`,
+      ...(cfg.smbDomain ? [`domain = ${cfg.smbDomain}`] : []),
+    ];
+    fs.writeFileSync(authFile, `${lines.join('\n')}\n`, { mode: 0o600 });
+  }
+
+  const args = [`//${cfg.smbServer}/${cfg.smbShare}`, '-m', 'SMB3', '-p', String(cfg.smbPort)];
+  if (cfg.smbEncrypt) args.push('-e');
+  if (cfg.smbGuest) args.push('-N');
+  else args.push('-A', authFile);
+  args.push('-c', command);
+
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      if (!tempDir) return;
+      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch {}
+      tempDir = '';
+    };
+
+    execFileProcess('smbclient', args, {
+      encoding: 'utf8',
+      timeout: options.timeout || 30000,
+      env: { ...process.env, LC_ALL: 'C', LANG: 'C' },
+      maxBuffer: 4 * 1024 * 1024,
+    }, (error, stdout = '', stderr = '') => {
+      cleanup();
+      const output = `${stdout || ''}\n${stderr || ''}`.trim();
+      if (error) {
+        if (error.code === 'ENOENT') return reject(new Error('smbclient is not installed in the Labby container. Rebuild the current Docker image.'));
+        if (options.allowFailure && Number.isInteger(error.code)) {
+          return resolve({ ok: false, status: error.code, stdout, stderr, output });
+        }
+        const useful = output.split('\n').map((line) => line.trim()).filter(Boolean).slice(-4).join(' ');
+        if (error.killed) return reject(new Error('SMB request timed out.'));
+        return reject(new Error(useful || error.message || 'SMB command failed.'));
+      }
+      resolve({ ok: true, status: 0, stdout, stderr, output });
+    });
+  });
+}
+
 function ensureSmbFolder(cfgInput, passwordOverride) {
   const cfg = normalizeBackupConfig(cfgInput);
   if (!cfg.smbFolder) return;
@@ -689,26 +746,79 @@ function testSmbConnection(cfgInput, passwordOverride) {
   });
 }
 
-function getSmbStatus(cfgInput, force = false) {
-  const cfg = normalizeBackupConfig(cfgInput);
-  const passwordConfigured = smbPasswordConfigured(cfg);
-  const configured = Boolean(cfg.smbServer && cfg.smbShare && (cfg.smbGuest || cfg.smbUsername) && passwordConfigured);
-  const cacheKey = JSON.stringify({
+function smbStatusKey(cfg, passwordConfigured = smbPasswordConfigured(cfg)) {
+  return JSON.stringify({
     server: cfg.smbServer, share: cfg.smbShare, folder: cfg.smbFolder, username: cfg.smbUsername,
     domain: cfg.smbDomain, port: cfg.smbPort, encrypt: cfg.smbEncrypt, guest: cfg.smbGuest, passwordConfigured,
   });
-  if (!configured) return { configured: false, available: false, passwordConfigured, path: smbTargetPath(cfg), error: 'SMB destination is not fully configured.' };
-  if (!force && smbStatusCache.key === cacheKey && Date.now() - smbStatusCache.checkedAt < 15000 && smbStatusCache.value) return smbStatusCache.value;
-  let value;
-  try {
-    const commands = cfg.smbFolder ? `cd ${smbCommandPath(cfg.smbFolder)}; ls` : 'ls';
-    runSmbClient(cfg, commands, { timeout: 12000 });
-    value = { configured: true, available: true, passwordConfigured, path: smbTargetPath(cfg), error: '' };
-  } catch (err) {
-    value = { configured: true, available: false, passwordConfigured, path: smbTargetPath(cfg), error: err.message };
+}
+
+function baseSmbStatus(cfgInput) {
+  const cfg = normalizeBackupConfig(cfgInput);
+  const passwordConfigured = smbPasswordConfigured(cfg);
+  const configured = Boolean(cfg.smbServer && cfg.smbShare && (cfg.smbGuest || cfg.smbUsername) && passwordConfigured);
+  return {
+    cfg,
+    key: smbStatusKey(cfg, passwordConfigured),
+    value: {
+      configured,
+      available: false,
+      passwordConfigured,
+      path: smbTargetPath(cfg),
+      error: configured ? '' : 'SMB destination is not fully configured.',
+    },
+  };
+}
+
+function cachedSmbStatus(cfgInput) {
+  const base = baseSmbStatus(cfgInput);
+  if (!base.value.configured) return { ...base.value, checking: false, checkedAt: '' };
+  const sameCache = smbStatusCache.key === base.key && smbStatusCache.value;
+  if (!sameCache) return { ...base.value, checking: true, checkedAt: '' };
+  const fresh = Date.now() - smbStatusCache.checkedAt < SMB_STATUS_CACHE_MS;
+  return {
+    ...smbStatusCache.value,
+    checking: !fresh,
+    checkedAt: smbStatusCache.checkedAt ? new Date(smbStatusCache.checkedAt).toISOString() : '',
+  };
+}
+
+function cachedSmbBackups(cfgInput) {
+  const base = baseSmbStatus(cfgInput);
+  return smbStatusCache.key === base.key && Array.isArray(smbStatusCache.backups) ? smbStatusCache.backups : [];
+}
+
+async function refreshSmbStatusCache(cfgInput) {
+  const base = baseSmbStatus(cfgInput);
+  if (!base.value.configured) {
+    smbStatusCache = { key: base.key, checkedAt: Date.now(), value: base.value, backups: [] };
+    return smbStatusCache;
   }
-  smbStatusCache = { key: cacheKey, checkedAt: Date.now(), value };
-  return value;
+
+  let value;
+  let backups = [];
+  try {
+    const commands = base.cfg.smbFolder ? `cd ${smbCommandPath(base.cfg.smbFolder)}; ls` : 'ls';
+    const result = await runSmbClientAsync(base.cfg, commands, { timeout: 12000 });
+    backups = parseSmbBackupList(result.stdout, base.cfg);
+    value = { ...base.value, available: true, error: '' };
+  } catch (err) {
+    value = { ...base.value, available: false, error: err.message };
+  }
+
+  smbStatusCache = { key: base.key, checkedAt: Date.now(), value, backups };
+  return smbStatusCache;
+}
+
+function queueSmbStatusRefresh(cfgInput) {
+  const base = baseSmbStatus(cfgInput);
+  if (!base.value.configured) return Promise.resolve(refreshSmbStatusCache(base.cfg));
+  if (smbStatusRefresh.key === base.key && smbStatusRefresh.promise) return smbStatusRefresh.promise;
+  const promise = refreshSmbStatusCache(base.cfg).finally(() => {
+    if (smbStatusRefresh.promise === promise) smbStatusRefresh = { key: '', promise: null };
+  });
+  smbStatusRefresh = { key: base.key, promise };
+  return promise;
 }
 
 function safeBackupConfigForClient(cfgInput) {
@@ -716,14 +826,24 @@ function safeBackupConfigForClient(cfgInput) {
   return { ...cfg, smbPasswordConfigured: smbPasswordConfigured(cfg) };
 }
 
-app.get('/api/backups/status', (req, res) => {
+app.get('/api/backups/status', async (req, res) => {
   const data = readDb();
   const cfg = normalizeBackupConfig(data.backupConfig);
-  const smb = getSmbStatus(cfg);
+  const forceRefresh = req.query.refresh === '1';
+
+  if (forceRefresh) {
+    try { await queueSmbStatusRefresh(cfg); } catch {}
+  } else {
+    const snapshot = cachedSmbStatus(cfg);
+    if (snapshot.configured && snapshot.checking) queueSmbStatusRefresh(cfg).catch(() => {});
+  }
+
+  const smb = cachedSmbStatus(cfg);
   let backups = [];
   try {
-    backups = cfg.target === 'smb' ? (smb.available ? listSmbBackups(cfg) : []) : listLocalBackups();
+    backups = cfg.target === 'smb' ? cachedSmbBackups(cfg) : listLocalBackups();
   } catch {}
+
   res.json({
     config: safeBackupConfigForClient(cfg),
     targets: {
