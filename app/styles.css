@@ -7285,7 +7285,7 @@ dialog.rack-form-dialog:not([open]) {
     font: 700 0.7rem/1.2 'Space Mono', monospace;
   }
   .rack-link-picker-row {
-    align-items: stretch;
+    align-items: center;
   }
   .rack-link-picker-button {
     flex: 1;
@@ -7468,8 +7468,7 @@ dialog.rack-form-dialog:not([open]) {
     box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28) !important;
     padding: 1rem !important;
     max-height: min(72vh, 620px) !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
+    overflow: hidden !important;
     overscroll-behavior: contain !important;
   }
   .rack-link-modal::before {
@@ -7477,8 +7476,45 @@ dialog.rack-form-dialog:not([open]) {
     content: none !important;
   }
   .rack-link-panel.rack-link-modal .rack-link-multi-wrap {
-    max-height: none !important;
-    overflow: visible !important;
+    max-height: calc(min(72vh, 620px) - 2rem) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain !important;
+    scrollbar-gutter: stable;
+    padding-right: 0.35rem;
+    box-sizing: border-box;
+  }
+  .rack-link-panel.rack-link-modal .rack-link-multi-wrap::-webkit-scrollbar {
+    width: 8px;
+  }
+  .rack-link-panel.rack-link-modal .rack-link-multi-wrap::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .rack-link-panel.rack-link-modal .rack-link-multi-wrap::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--line) 35%, transparent);
+    border-radius: 999px;
+  }
+  .rack-link-panel.rack-link-modal .rack-link-row {
+    display: grid !important;
+    grid-template-columns: minmax(98px, 132px) minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 0.65rem !important;
+  }
+  .rack-link-panel.rack-link-modal .rack-link-row-label {
+    min-width: 0 !important;
+    width: 100% !important;
+    align-self: center !important;
+    justify-self: start !important;
+    display: block !important;
+    line-height: 1.25 !important;
+  }
+  .rack-link-panel.rack-link-modal .rack-link-row > select,
+  .rack-link-panel.rack-link-modal .rack-link-row > input,
+  .rack-link-panel.rack-link-modal .rack-link-row > button,
+  .rack-link-panel.rack-link-modal .rack-link-row > .rack-link-picker-button {
+    min-width: 0 !important;
+    width: 100% !important;
+    align-self: center !important;
   }
   .rack-device-picker {
     overflow: hidden !important;
