@@ -976,7 +976,7 @@ btn.addEventListener('click', () => {
     home:{title:'🧪 Labby Wiki',content:`
       <p>Labby helps you document your homelab in one place: hardware, VMs, LXCs, apps, networks, racks, links, credentials, SSH access and backups.</p>
       <div class="wiki-shot-grid">
-        <figure class="wiki-shot"><img src="images/labby-topology.png" alt="Labby topology overview" loading="lazy" /><figcaption>Topology overview</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-dashboard.png" alt="Labby topology overview" loading="lazy" /><figcaption>Topology overview</figcaption></figure>
       </div>
       <h2>What Labby covers</h2>
       <ul>
@@ -1069,6 +1069,7 @@ Gateway: 192.168.10.1</pre>
       <h2>2. Add hardware</h2>
       <p>Add routers, switches, NAS systems, servers, hypervisors, mini PCs and backup nodes. Useful fields include name, IP, vendor, OS, CPU, RAM, disks, status and notes.</p>
       <h2>3. Link VMs and LXCs</h2>
+      <p>VMs and LXCs can run directly on a hardware host or on another VM/LXC for nested virtualization. In Advanced Settings, setting one hosting target disables the other so each guest has one clear parent.</p>
       <p>Select the host for each VM or LXC. These parent relationships power the Tree and Graph views.</p>
       <pre>VM: docker-01
 Hosted on: Proxmox Node 1</pre>
@@ -1107,7 +1108,7 @@ Browser → /api → Backend → /data</pre>
     `},
     features:{title:'✨ Features',content:`
       <h2>Resource documentation</h2>
-      <p>Document hardware, VMs, LXCs, applications and networks with IP addresses, URLs, notes, status details, credentials and relationships.</p>
+      <p>Document hardware, VMs, LXCs, applications and networks with IP addresses, URLs, notes, status details, credentials and relationships. Hardware, VMs and LXCs can have multiple network ports, each with its own IP address and maximum link speed. The normal Primary IP field is always Port 1.</p>
       <h2>Topology and infrastructure views</h2>
       <p>Explore your homelab through Topology, Tree, Graph and IP views. Relationships between hosts, guests, applications and networks stay visible across the interface.</p>
       <h2>Locations and racks</h2>
@@ -1126,9 +1127,9 @@ Browser → /api → Backend → /data</pre>
     mobileux:{title:'📱 Mobile UX',content:`
       <p>On mobile, Labby uses a dedicated bottom menu so the main areas stay reachable with one hand.</p>
       <div class="wiki-shot-grid mobile-ux-row">
-        <figure class="wiki-shot"><img src="images/labby-mobile-startscreen.png" alt="Mobile startscreen" loading="lazy" /><figcaption>Mobile startscreen</figcaption></figure>
-        <figure class="wiki-shot"><img src="images/labby-mobile-menu.png" alt="Mobile menu" loading="lazy" /><figcaption>Mobile menu</figcaption></figure>
-        <figure class="wiki-shot"><img src="images/labby-mobile-config.png" alt="Mobile config view" loading="lazy" /><figcaption>Mobile config view</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-mobile-startscreen.jpg" alt="Mobile startscreen" loading="lazy" /><figcaption>Mobile startscreen</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-mobile-ip-view.jpg" alt="Mobile IP View" loading="lazy" /><figcaption>Mobile IP View</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-mobile-config.jpg" alt="Mobile config view" loading="lazy" /><figcaption>Mobile config view</figcaption></figure>
       </div>
       <h2>Menu areas</h2>
       <ul>
@@ -1143,7 +1144,7 @@ Browser → /api → Backend → /data</pre>
     `},
     topologycards:{title:'🧩 Topology Cards',content:`
       <div class="wiki-shot-grid">
-        <figure class="wiki-shot"><img src="images/labby-topology.png" alt="Topology cards" loading="lazy" /><figcaption>Topology cards</figcaption></figure>
+        <figure class="wiki-shot"><img src="images/labby-dashboard.png" alt="Topology cards" loading="lazy" /><figcaption>Topology cards</figcaption></figure>
       </div>
       <h2>Layout</h2>
       <p>Topology cards show resource type, name, IPs, URLs, status, technical details, notes and relationships.</p>
@@ -1164,7 +1165,7 @@ Browser → /api → Backend → /data</pre>
       <h2>Locations and racks</h2>
       <p>Create locations and assign racks to them. Racks can have front and rear views.</p>
       <h2>Place devices</h2>
-      <p>Resources can be positioned in racks, so the documentation covers both logical and physical layout. The palette includes server, UPS, PDU, KVM and blank components in multiple sizes, including new 3U options and a 2U KVM.</p>
+      <p>Resources can be positioned in racks, so the documentation covers both logical and physical layout. The palette includes server, UPS, PDU, KVM, patch panel and blank components in multiple sizes, including 3U options and a 2U KVM. Switch and router components inherit their port count from linked hardware, while patch panels use their own configurable port count with an independent device link for every port.</p>
       <h2>Mobile use</h2>
       <p>The rack area stays available on mobile through the bottom navigation.</p>
     `},
@@ -1173,9 +1174,9 @@ Browser → /api → Backend → /data</pre>
         <figure class="wiki-shot"><img src="images/labby-graph-view.png" alt="Graph View" loading="lazy" /><figcaption>Graph View</figcaption></figure>
       </div>
       <h2>Tree View</h2>
-      <p>Tree View shows host, guest, app and network relationships as a classic hierarchy.</p>
+      <p>Tree View shows hardware hosts, nested VM/LXC hosts, guests, apps and networks as a classic hierarchy.</p>
       <h2>Graph View</h2>
-      <p>Graph View visualizes the same relationships. It helps you spot dependencies and missing links quickly.</p>
+      <p>Graph View visualizes the same relationships, including nested VM/LXC hosts and their guests. It helps you spot dependencies and missing links quickly.</p>
       <h2>Maintenance</h2>
       <p>The cleaner your host and parent relationships are, the more useful Tree and Graph become.</p>
     `},

@@ -132,13 +132,18 @@
             <textarea id="notes" rows="3" placeholder="Any details, credentials location, maintenance info..."></textarea>
           </label>
           <label>
-            IP Address (Hardware/VM/LXC)
+            Primary IP Address (Hardware/VM/LXC)
             <input id="ip-address" type="text" placeholder="e.g. 192.168.10.20" />
           </label>
           <label id="hardware-web-url-wrap" class="hidden">
             Web URL (Hardware)
             <input id="hardware-web-url" type="text" placeholder="https://nas.local" />
           </label>
+          <fieldset id="network-ports-wrap" class="network-fields hidden">
+            <legend>Network ports</legend>
+            <div id="network-ports" class="stack"></div>
+            <button id="add-network-port" class="button secondary" type="button">+ Add Network Port</button>
+          </fieldset>
           <fieldset id="compute-fields" class="network-fields">
             <legend>Compute details</legend>
             <label>
