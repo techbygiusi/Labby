@@ -538,9 +538,16 @@ function startPolling() {
 }
 
 function extractHostForLiveCheck(item) {
-  const raw = item?.type === 'app'
-    ? (item.ipPort || item.ip || item.webUrl || '')
-    : (item.ip || item.webUrl || '');
+  let raw = '';
+  if (item?.type === 'app') {
+    raw = item.ipPort || item.ip || item.webUrl || '';
+  } else if (['hardware', 'vm', 'lxc'].includes(item?.type)) {
+    const ports = resourceNetworkPorts(item);
+    const monitoredPort = ports.find((port) => port.monitor) || ports[0];
+    raw = monitoredPort?.ip || (!ports.some((port) => port.ip) ? (item.webUrl || '') : '');
+  } else {
+    raw = item?.ip || item?.webUrl || '';
+  }
 
   if (!raw || typeof raw !== 'string') return '';
 
@@ -613,22 +620,29 @@ async function pollLiveStatus() {
     const pingHost = extractHostForLiveCheck(item);
     const urlToCheck = normalizeUrlForLiveCheck(item.webUrl || (item.type === 'app' ? item.ipPort : ''));
 
-    if (item.ipStatus === 'live' && pingHost && ['hardware', 'vm', 'lxc', 'app'].includes(item.type)) {
-      tasks.push(async () => {
-        const previous = liveStatusData[item.id].ipStatus;
-        let next = 'offline';
-        try {
-          const res = await nativeFetch(`${API_BASE}/api/ping`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ip: pingHost }),
-          });
-          const data = await res.json();
-          next = data.status;
-        } catch {}
-        liveStatusData[item.id].ipStatus = next;
-        if (previous !== next) changedIds.add(item.id);
-      });
+    if (item.ipStatus === 'live' && ['hardware', 'vm', 'lxc', 'app'].includes(item.type)) {
+      if (!pingHost) {
+        if (liveStatusData[item.id].ipStatus) {
+          delete liveStatusData[item.id].ipStatus;
+          changedIds.add(item.id);
+        }
+      } else {
+        tasks.push(async () => {
+          const previous = liveStatusData[item.id].ipStatus;
+          let next = 'offline';
+          try {
+            const res = await nativeFetch(`${API_BASE}/api/ping`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ip: pingHost }),
+            });
+            const data = await res.json();
+            next = data.status;
+          } catch {}
+          liveStatusData[item.id].ipStatus = next;
+          if (previous !== next) changedIds.add(item.id);
+        });
+      }
     }
 
     if (item.urlStatus === 'live' && urlToCheck && (item.type === 'app' || item.type === 'hardware')) {
@@ -2354,23 +2368,28 @@ function normalizeNetworkPorts(rows, primaryIp = '') {
     ? rows.slice(0, 64).map((port) => ({
         ip: String(port?.ip || '').trim(),
         speed: normalizeNetworkPortSpeed(port?.speed),
+        monitor: port?.monitor === true,
       }))
     : [];
 
   const cleanPrimaryIp = String(primaryIp || '').trim();
-  if (!list.length) return cleanPrimaryIp ? [{ ip: cleanPrimaryIp, speed: '' }] : [];
+  if (!list.length) return cleanPrimaryIp ? [{ ip: cleanPrimaryIp, speed: '', monitor: true }] : [];
   list[0].ip = cleanPrimaryIp || list[0].ip;
   if (list.length === 1 && !list[0].ip && !list[0].speed) return [];
+
+  const monitoredIndex = list.findIndex((port) => port.monitor);
+  const activeIndex = monitoredIndex >= 0 ? monitoredIndex : 0;
+  list.forEach((port, index) => { port.monitor = index === activeIndex; });
   return list;
 }
 
 function resourceNetworkPorts(item) {
   if (!item || !['hardware', 'vm', 'lxc'].includes(item.type)) return [];
   const ports = normalizeNetworkPorts(item.networkPorts, item.ip);
-  return ports.length ? ports : [{ ip: String(item.ip || '').trim(), speed: '' }];
+  return ports.length ? ports : [{ ip: String(item.ip || '').trim(), speed: '', monitor: true }];
 }
 
-function appendNetworkPortRow(port = { ip: '', speed: '' }) {
+function appendNetworkPortRow(port = { ip: '', speed: '', monitor: false }) {
   if (!networkPorts) return;
   const index = networkPorts.querySelectorAll('[data-network-port-row]').length;
   if (index >= 64) {
@@ -2381,7 +2400,13 @@ function appendNetworkPortRow(port = { ip: '', speed: '' }) {
   row.className = `network-port-row${index === 0 ? ' is-primary' : ''}`;
   row.dataset.networkPortRow = '';
   row.innerHTML = `
-    <div class="network-port-number">Port ${index + 1}${index === 0 ? ' (Primary)' : ''}</div>
+    <div class="network-port-meta">
+      <div class="network-port-number">Port ${index + 1}${index === 0 ? ' (Primary)' : ''}</div>
+      <label class="network-port-monitor" title="Use this port for automatic IP Live Status checks">
+        <input type="radio" name="network-live-status-port" data-network-port-monitor ${port.monitor ? 'checked' : ''} />
+        <span>Live status</span>
+      </label>
+    </div>
     <label>
       IP address
       <input type="text" placeholder="e.g. 192.168.10.20" value="${escapeAttr(port.ip)}" data-network-port-ip />
@@ -2411,22 +2436,32 @@ function appendNetworkPortRow(port = { ip: '', speed: '' }) {
     renumberNetworkPortRows();
   });
   networkPorts.appendChild(row);
+
+  if (!networkPorts.querySelector('[data-network-port-monitor]:checked')) {
+    const firstMonitor = networkPorts.querySelector('[data-network-port-monitor]');
+    if (firstMonitor) firstMonitor.checked = true;
+  }
 }
 
 function renumberNetworkPortRows() {
   if (!networkPorts) return;
-  [...networkPorts.querySelectorAll('[data-network-port-row]')].forEach((row, index) => {
+  const rows = [...networkPorts.querySelectorAll('[data-network-port-row]')];
+  rows.forEach((row, index) => {
     row.classList.toggle('is-primary', index === 0);
     const number = row.querySelector('.network-port-number');
     if (number) number.textContent = `Port ${index + 1}${index === 0 ? ' (Primary)' : ''}`;
   });
+  if (!networkPorts.querySelector('[data-network-port-monitor]:checked')) {
+    const firstMonitor = networkPorts.querySelector('[data-network-port-monitor]');
+    if (firstMonitor) firstMonitor.checked = true;
+  }
   syncPrimaryNetworkPortFromIp();
 }
 
 function renderNetworkPortRows(rows = [], primaryIp = '') {
   if (!networkPorts) return;
   const normalized = normalizeNetworkPorts(rows, primaryIp);
-  const visibleRows = normalized.length ? normalized : [{ ip: String(primaryIp || '').trim(), speed: '' }];
+  const visibleRows = normalized.length ? normalized : [{ ip: String(primaryIp || '').trim(), speed: '', monitor: true }];
   networkPorts.innerHTML = '';
   visibleRows.forEach((port) => appendNetworkPortRow(port));
   syncPrimaryNetworkPortFromIp();
@@ -2442,11 +2477,11 @@ function getNetworkPorts(primaryIp = '') {
   const rows = [...networkPorts.querySelectorAll('[data-network-port-row]')].map((row) => ({
     ip: row.querySelector('[data-network-port-ip]')?.value.trim() || '',
     speed: normalizeNetworkPortSpeed(row.querySelector('[data-network-port-speed]')?.value),
+    monitor: Boolean(row.querySelector('[data-network-port-monitor]')?.checked),
   }));
-  if (!rows.length) rows.push({ ip: String(primaryIp || '').trim(), speed: '' });
+  if (!rows.length) rows.push({ ip: String(primaryIp || '').trim(), speed: '', monitor: true });
   rows[0].ip = String(primaryIp || '').trim();
-  if (rows.length === 1 && !rows[0].ip && !rows[0].speed) return [];
-  return rows;
+  return normalizeNetworkPorts(rows, primaryIp);
 }
 
 function appendRamModuleRow(module = { size: '', type: 'DDR4' }) {

@@ -7516,6 +7516,18 @@ dialog.rack-form-dialog:not([open]) {
     width: 100% !important;
     align-self: center !important;
   }
+  .rack-link-panel.rack-link-modal .rack-port-count-row {
+    display: grid !important;
+    grid-template-columns: minmax(98px, 132px) minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 0.65rem !important;
+  }
+  .rack-link-panel.rack-link-modal .rack-port-count-row > input,
+  .rack-link-panel.rack-link-modal .rack-port-count-row > select,
+  .rack-link-panel.rack-link-modal .rack-port-count-row > .rack-port-count-options {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
   .rack-device-picker {
     overflow: hidden !important;
   }
@@ -9390,10 +9402,38 @@ fieldset,
   margin-top: 0.55rem;
 }
 
-.network-port-number {
+.network-port-meta {
   align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.38rem;
+  min-width: 0;
+}
+
+.network-port-number {
   font: 800 0.82rem/1.2 'Space Mono', monospace;
   color: var(--text);
+}
+
+.network-port-monitor {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 0.38rem;
+  width: max-content;
+  max-width: 100%;
+  color: var(--muted);
+  font: 700 0.68rem/1.2 'Space Mono', monospace;
+  cursor: pointer;
+}
+
+.network-port-monitor input[type='radio'] {
+  width: 16px !important;
+  min-width: 16px !important;
+  height: 16px !important;
+  min-height: 16px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  accent-color: var(--yellow);
 }
 
 .network-port-row label {
@@ -9424,8 +9464,19 @@ fieldset,
     align-items: stretch;
   }
 
+  .network-port-meta {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
   .network-port-number {
-    margin-bottom: -0.15rem;
+    margin-bottom: 0;
+  }
+
+  .network-port-monitor {
+    flex: 0 0 auto;
   }
 
   .network-port-row input[data-network-port-ip],
