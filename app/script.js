@@ -19,6 +19,7 @@ const storageKey = 'labby-data-v8';
 const themeKey = 'labby-theme';
 const types = ['hardware', 'vm', 'lxc', 'app', 'network'];
 const networkPalette = ['#3b82f6', '#10b981', '#22c55e', '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#a855f7', '#14b8a6', '#84cc16', '#06b6d4', '#8b5cf6'];
+const networkHardwareKinds = ['router-gateway', 'switch', 'access-point'];
 
 const boards = document.getElementById('boards');
 const stats = document.getElementById('stats');
@@ -2752,8 +2753,6 @@ function loadItems() {
 async function saveItems() {
   await saveItemsToAPI(items);
 }
-
-const networkHardwareKinds = ['router-gateway', 'switch', 'access-point'];
 
 function canonicalFormType(type = typeSelect.value) {
   return type === 'network-device' ? 'hardware' : type;
