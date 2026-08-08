@@ -111,6 +111,8 @@ const subnetInput = document.getElementById('subnet');
 const gatewayInput = document.getElementById('gateway');
 const networkKindSelect = document.getElementById('network-kind');
 const networkKindWrap = document.getElementById('network-kind-wrap');
+const networkVlanIdInput = document.getElementById('network-vlan-id');
+const networkVlanIdWrap = document.getElementById('network-vlan-id-wrap');
 const statusWrap = document.getElementById('status-wrap');
 const colorPicker = document.getElementById('network-color-picker');
 const cancelEditBtn = document.getElementById('cancel-edit');
@@ -670,7 +672,8 @@ form.addEventListener('submit', async (event) => {
   const upsWattage = upsWattageInput?.value.trim() || '';
   const upsVa = upsVaInput?.value.trim() || '';
   const upsOutlets = upsOutletsInput?.value.trim() || '';
-  const networkKind = networkKindSelect?.value || 'vlan';
+  const networkKind = normalizeNetworkKind(networkKindSelect?.value);
+  const vlanId = normalizeVlanId(networkVlanIdInput?.value);
   const selectedRouterSwitches = getMultiValues(routerSwitches);
   const selectedSwitchLinks = getMultiValues(switchLinks);
   const selectedSwitchDeviceLinks = getMultiValues(switchDeviceLinks);
@@ -707,6 +710,7 @@ form.addEventListener('submit', async (event) => {
     ipPort: type === 'app' ? ipPort : '',
     webUrl: type === 'app' ? webUrl : (type === 'hardware' ? hardwareWebUrl : ''),
     networkKind: type === 'network' ? networkKind : '',
+    vlanId: type === 'network' ? vlanId : '',
     subnet: type === 'network' ? subnet : '',
     gateway: type === 'network' ? gateway : '',
     networkColor: type === 'network' ? selectedNetworkColor : '',
@@ -767,6 +771,8 @@ form.addEventListener('submit', async (event) => {
   setMultiValues(apNetworkInfrastructure, []);
   setMultiValues(apWirelessNetworks, []);
   setSelectedColor(networkPalette[0]);
+  if (networkKindSelect) networkKindSelect.value = 'wired';
+  if (networkVlanIdInput) networkVlanIdInput.value = '';
   applyTypeVisibility();
   render();
 });
@@ -788,6 +794,8 @@ cancelEditBtn.addEventListener('click', () => {
   setMultiValues(apNetworkInfrastructure, []);
   setMultiValues(apWirelessNetworks, []);
   setSelectedColor(networkPalette[0]);
+  if (networkKindSelect) networkKindSelect.value = 'wired';
+  if (networkVlanIdInput) networkVlanIdInput.value = '';
   applyTypeVisibility();
   render();
 });
@@ -2701,7 +2709,8 @@ function sanitizeItems(raw) {
         : [],
       ipPort: item.ipPort ? String(item.ipPort) : '',
       webUrl: item.webUrl ? String(item.webUrl) : '',
-      networkKind: item.type === 'network' && ['vlan', 'wireless'].includes(item.networkKind) ? item.networkKind : (item.type === 'network' ? 'vlan' : ''),
+      networkKind: item.type === 'network' ? normalizeNetworkKind(item.networkKind) : '',
+      vlanId: item.type === 'network' ? normalizeVlanId(item.vlanId) : '',
       subnet: item.subnet ? String(item.subnet) : '',
       gateway: item.gateway ? String(item.gateway) : '',
       networkColor: networkPalette.includes(item.networkColor) ? item.networkColor : networkPalette[0],
@@ -2750,7 +2759,7 @@ function normalizeList(list) {
   const known = new Set(list.map((item) => item.id));
   const hardwareIds = new Set(list.filter((item) => item.type === 'hardware').map((item) => item.id));
   const networkInfraIds = new Set(list.filter((item) => item.type === 'hardware' && ['router-gateway', 'switch', 'access-point'].includes(item.hardwareKind)).map((item) => item.id));
-  const wirelessNetworkIds = new Set(list.filter((item) => item.type === 'network' && (item.networkKind || 'vlan') === 'wireless').map((item) => item.id));
+  const wirelessNetworkIds = new Set(list.filter((item) => item.type === 'network' && normalizeNetworkKind(item.networkKind) === 'wireless').map((item) => item.id));
   const virtualHostIds = new Set(list.filter((item) => item.type === 'vm' || item.type === 'lxc').map((item) => item.id));
 
   const normalized = list.map((item) => {
@@ -2844,11 +2853,13 @@ function normalizeList(list) {
     }
     if (next.type !== 'network') {
       next.networkKind = '';
+      next.vlanId = '';
       next.subnet = '';
       next.gateway = '';
       next.networkColor = '';
     } else {
-      next.networkKind = ['vlan', 'wireless'].includes(next.networkKind) ? next.networkKind : 'vlan';
+      next.networkKind = normalizeNetworkKind(next.networkKind);
+      next.vlanId = normalizeVlanId(next.vlanId);
       next.status = '';
       next.ipStatus = '';
       next.urlStatus = '';
@@ -2964,6 +2975,7 @@ function applyTypeVisibility() {
 
   networkFields.classList.toggle('hidden', !isNetwork);
   networkKindWrap?.classList.toggle('hidden', !isNetwork);
+  networkVlanIdWrap?.classList.toggle('hidden', !isNetwork);
   statusWrap?.classList.toggle('hidden', isNetwork);
   if (isNetwork) {
     statusSelect.value = '';
@@ -3204,6 +3216,7 @@ function initAdvancedResourceTabs() {
   appendMirror(panels.general, 'type', 'Type', 'advanced-type-wrap');
   appendMirror(panels.general, 'hardware-kind', 'Hardware Type', 'advanced-hardware-kind-wrap');
   appendMirror(panels.general, 'network-kind', 'Network Mode', 'advanced-network-kind-wrap');
+  appendMirror(panels.network, 'network-vlan-id', 'VLAN ID (optional)', 'advanced-network-vlan-id-wrap');
   appendMirror(panels.general, 'name', 'Name', 'advanced-name-wrap');
   appendMirror(panels.general, 'symbol', 'Symbol / Icon (emoji or short text)', 'advanced-symbol-wrap');
   appendMirror(panels.general, 'description', 'Description', 'advanced-description-wrap');
@@ -3441,7 +3454,7 @@ function applyFilters(list) {
       || (selectedType === 'hardware' && item.type === 'hardware' && !isNetworkHardwareKind(item.hardwareKind))
       || (selectedType === 'network' && (item.type === 'network' || (item.type === 'hardware' && isNetworkHardwareKind(item.hardwareKind))))
       || (!['hardware', 'network'].includes(selectedType) && item.type === selectedType);
-    const networkText = item.type === 'network' ? `${networkTypeLabel(item.networkKind)} ${item.subnet} ${item.gateway}` : '';
+    const networkText = item.type === 'network' ? `${networkTypeSummary(item)} ${item.vlanId || ''} ${item.subnet} ${item.gateway}` : '';
     const appText = item.type === 'app' ? `${item.ipPort} ${item.webUrl}` : '';
     const hardwareText = item.type === 'hardware'
       ? `${item.manufacturer || ''} ${hardwareTypeLabel(item.hardwareKind)} ${item.switchPorts || ''} ${item.accessPointRadios || ''} ${item.upsWattage || ''} ${item.upsVa || ''} ${item.upsOutlets || ''} ${(item.nasShares || []).map((share) => `${share.name} ${share.link}`).join(' ')}`
@@ -3467,7 +3480,7 @@ function cardNode(item) {
   setCardText(node, '.card-ip', item.ip ? `IP: ${item.ip}` : '');
   setCardText(node, '.card-app', item.type === 'app' ? appDetails(item) : '');
   setCardText(node, '.card-specs', hardwareDetailsLabel(item) || specsLabel(item));
-  setCardText(node, '.card-network', item.type === 'network' ? `${networkTypeLabel(item.networkKind)} | Subnet: ${item.subnet} | Gateway: ${item.gateway}` : '');
+  setCardText(node, '.card-network', item.type === 'network' ? `${networkTypeSummary(item)} | Subnet: ${item.subnet} | Gateway: ${item.gateway}` : '');
   setCardText(node, '.card-hosting', hostingLabel(item));
   setCardText(node, '.card-links', connectionLabel(item));
 
@@ -4717,7 +4730,7 @@ function updateConnectionSelectLabels(select) {
     const item = findById(option.value);
     if (!item) return;
     if (select === apWirelessNetworks) {
-      option.textContent = `${selected.includes(item.id) ? '✓ ' : ''}${item.name} (${networkTypeLabel(item.networkKind)})`;
+      option.textContent = `${selected.includes(item.id) ? '✓ ' : ''}${item.name} (${networkTypeSummary(item)})`;
     } else if (select === switchDeviceLinks || select === upsDeviceLinks) {
       option.textContent = formatConnectionDeviceOption(item, selected);
     } else {
@@ -4785,11 +4798,11 @@ function refreshHardwareConnectionOptions() {
   if (apWirelessNetworks) {
     apWirelessNetworks.innerHTML = '';
     items
-      .filter((item) => item.type === 'network' && (item.networkKind || 'vlan') === 'wireless')
+      .filter((item) => item.type === 'network' && normalizeNetworkKind(item.networkKind) === 'wireless')
       .forEach((network) => {
         const option = document.createElement('option');
         option.value = network.id;
-        option.textContent = `${selectedWirelessNetworks.includes(network.id) ? '✓ ' : ''}${network.name} (${networkTypeLabel(network.networkKind)})`;
+        option.textContent = `${selectedWirelessNetworks.includes(network.id) ? '✓ ' : ''}${network.name} (${networkTypeSummary(network)})`;
         apWirelessNetworks.appendChild(option);
       });
   }
@@ -4871,7 +4884,7 @@ function relationshipOptionMeta(select, item) {
   if (!item) return '';
   if (select === apWirelessNetworks) {
     const subnet = item.subnet ? ` · ${item.subnet}` : '';
-    return `${networkTypeLabel(item.networkKind)}${subnet}`;
+    return `${networkTypeSummary(item)}${subnet}`;
   }
   if (select === switchDeviceLinks || select === upsDeviceLinks) return hardwareTypeLabel(item.hardwareKind);
   const ports = ['router-gateway', 'switch'].includes(item.hardwareKind) && item.switchPorts ? ` · ${item.switchPorts} ports` : '';
@@ -4978,7 +4991,7 @@ function renderRelationshipEditor(select) {
     if (selected.has(option.value)) return false;
     const item = findById(option.value);
     const haystack = item?.type === 'network'
-      ? `${item?.name || ''} ${item?.networkKind || ''} ${networkTypeLabel(item?.networkKind || '')} ${item?.subnet || ''}`.toLowerCase()
+      ? `${item?.name || ''} ${item?.networkKind || ''} ${networkTypeSummary(item || {})} ${item?.vlanId || ''} ${item?.subnet || ''}`.toLowerCase()
       : `${item?.name || ''} ${item?.hardwareKind || ''} ${hardwareTypeLabel(item?.hardwareKind || '')}`.toLowerCase();
     return !query || haystack.includes(query);
   });
@@ -5043,7 +5056,8 @@ function startEditing(id) {
   ipPortInput.value = item.ipPort || '';
   webUrlInput.value = item.type === 'app' ? (item.webUrl || '') : '';
   hardwareWebUrlInput.value = item.type === 'hardware' ? (item.webUrl || '') : '';
-  if (networkKindSelect) networkKindSelect.value = item.type === 'network' ? (item.networkKind || 'vlan') : 'vlan';
+  if (networkKindSelect) networkKindSelect.value = item.type === 'network' ? normalizeNetworkKind(item.networkKind) : 'wired';
+  if (networkVlanIdInput) networkVlanIdInput.value = item.type === 'network' ? normalizeVlanId(item.vlanId) : '';
   subnetInput.value = item.subnet || '';
   gatewayInput.value = item.gateway || '';
   setSelectedColor(item.networkColor || networkPalette[0]);
@@ -5077,7 +5091,7 @@ function startEditing(id) {
       ? item.wirelessNetworks
       : (item.connections || []).filter((id) => {
           const network = findById(id);
-          return network?.type === 'network' && (network.networkKind || 'vlan') === 'wireless';
+          return network?.type === 'network' && normalizeNetworkKind(network.networkKind) === 'wireless';
         });
     setMultiValues(apNetworkInfrastructure, infrastructureIds);
     setMultiValues(apWirelessNetworks, wirelessIds);
@@ -6270,7 +6284,7 @@ function buildInfrastructureTree() {
 function buildNetworksTree() {
   const section = document.createElement('section');
   section.className = 'tree-section';
-  section.innerHTML = '<h4>Networks (VLAN / Wireless)</h4>';
+  section.innerHTML = '<h4>Networks (Wired / Wireless)</h4>';
 
   const body = document.createElement('div');
   body.className = 'tree-body';
@@ -6283,7 +6297,7 @@ function buildNetworksTree() {
 
     const meta = document.createElement('div');
     meta.className = 'tree-meta';
-    meta.textContent = `${networkTypeLabel(network.networkKind)} • Subnet ${network.subnet} • Gateway ${network.gateway}`;
+    meta.textContent = `${networkTypeSummary(network)} • Subnet ${network.subnet} • Gateway ${network.gateway}`;
     lane.appendChild(meta);
 
     const membersWrap = document.createElement('div');
@@ -6388,8 +6402,26 @@ function hardwareTypeLabel(kind) {
   }[kind] || 'Server';
 }
 
+function normalizeNetworkKind(kind) {
+  return kind === 'wireless' ? 'wireless' : 'wired';
+}
+
+function normalizeVlanId(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 4094 ? String(parsed) : '';
+}
+
 function networkTypeLabel(kind) {
-  return kind === 'wireless' ? 'Wireless' : 'VLAN / Wired';
+  return normalizeNetworkKind(kind) === 'wireless' ? 'Wireless' : 'Wired';
+}
+
+function networkTypeSummary(itemOrKind, vlanValue = '') {
+  const item = itemOrKind && typeof itemOrKind === 'object' ? itemOrKind : null;
+  const kind = item ? item.networkKind : itemOrKind;
+  const vlanId = normalizeVlanId(item ? item.vlanId : vlanValue);
+  return `${networkTypeLabel(kind)}${vlanId ? ` · VLAN ${vlanId}` : ''}`;
 }
 
 function appMeta(app) {
@@ -7013,6 +7045,8 @@ if (mobileFormClose) mobileFormClose.addEventListener('click', () => {
   setMultiValues(apNetworkInfrastructure, []);
   setMultiValues(apWirelessNetworks, []);
   setSelectedColor(networkPalette[0]);
+  if (networkKindSelect) networkKindSelect.value = 'wired';
+  if (networkVlanIdInput) networkVlanIdInput.value = '';
   applyTypeVisibility();
   render();
   hideMobileViews();

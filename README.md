@@ -85,7 +85,7 @@ Labby tracks the important details of your homelab resources without requiring a
 - Multiple network ports for Hardware, network devices, VMs and LXCs with per-port IP, maximum link speed and a selectable Live Status monitoring port
 - UPS details for wattage, VA, outlet count and powered hardware relationships
 - Access Point details for radios and associated Wireless networks
-- Network definitions can be VLAN / Wired or Wireless and do not use device status
+- Network definitions can be Wired or Wireless, can optionally include a VLAN ID, and do not use device status
 - NAS/Backup details for shares and RAID groups
 - App details with IP, port and web URL
 - Status field for device resources: Online, Offline or Maintenance

@@ -76,9 +76,13 @@
           <label id="network-kind-wrap" class="hidden">
             Network Mode
             <select id="network-kind">
-              <option value="vlan">VLAN / Wired</option>
+              <option value="wired">Wired</option>
               <option value="wireless">Wireless</option>
             </select>
+          </label>
+          <label id="network-vlan-id-wrap" class="hidden">
+            VLAN ID (optional)
+            <input id="network-vlan-id" type="number" min="1" max="4094" inputmode="numeric" placeholder="e.g. 20" />
           </label>
           <label>
             Name
