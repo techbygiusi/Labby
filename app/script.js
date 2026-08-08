@@ -4758,6 +4758,7 @@ function refreshHardwareConnectionOptions() {
   updateConnectionSelectLabels(routerSwitches);
   updateConnectionSelectLabels(switchLinks);
   updateConnectionSelectLabels(switchDeviceLinks);
+  renderRelationshipEditors();
 }
 
 function enableToggleMultiSelect(select) {
@@ -4775,6 +4776,169 @@ function enableToggleMultiSelect(select) {
 }
 
 [routerSwitches, switchLinks, switchDeviceLinks].forEach(enableToggleMultiSelect);
+
+function relationshipEditorConfigFor(selectId) {
+  const configs = {
+    'router-switches': {
+      title: 'Connected network infrastructure',
+      description: 'Routers, gateways and switches directly connected to this device.',
+      empty: 'No network infrastructure connected yet.',
+      search: 'Search routers, gateways and switches...',
+    },
+    'switch-links': {
+      title: 'Connected network infrastructure',
+      description: 'Routers, gateways and switches directly connected to this switch.',
+      empty: 'No network infrastructure connected yet.',
+      search: 'Search routers, gateways and switches...',
+    },
+    'switch-device-links': {
+      title: 'Connected hardware devices',
+      description: 'Servers, hypervisors, NAS devices and other hardware connected to this switch.',
+      empty: 'No hardware devices connected yet.',
+      search: 'Search hardware devices...',
+    },
+  };
+  return configs[selectId] || null;
+}
+
+function relationshipOptionMeta(select, item) {
+  if (!item) return '';
+  if (select === switchDeviceLinks) return hardwareTypeLabel(item.hardwareKind);
+  const ports = item.switchPorts ? ` · ${item.switchPorts} ports` : '';
+  return `${hardwareTypeLabel(item.hardwareKind)}${ports}`;
+}
+
+function setRelationshipOptionSelected(select, value, selected) {
+  const option = [...select.options].find((entry) => entry.value === value);
+  if (!option) return;
+  option.selected = selected;
+  updateConnectionSelectLabels(select);
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function ensureRelationshipEditor(select) {
+  if (!select?.id) return null;
+  const wrap = select.closest('label');
+  if (!wrap) return null;
+  const config = relationshipEditorConfigFor(select.id);
+  if (!config) return null;
+
+  wrap.classList.add('relationship-editor-field');
+  select.classList.add('relationship-select-source');
+
+  let editor = wrap.querySelector(':scope > .relationship-editor');
+  if (!editor) {
+    [...wrap.childNodes].forEach((node) => {
+      if (node.nodeType === Node.TEXT_NODE) node.textContent = '';
+    });
+    editor = document.createElement('div');
+    editor.className = 'relationship-editor';
+    editor.dataset.relationshipFor = select.id;
+    editor.innerHTML = `
+      <div class="relationship-editor-heading">
+        <div class="relationship-editor-heading-copy">
+          <strong class="relationship-editor-title"></strong>
+          <span class="relationship-editor-description"></span>
+        </div>
+        <span class="relationship-editor-count"></span>
+      </div>
+      <div class="relationship-selected-list"></div>
+      <button class="button secondary relationship-add-button" type="button">+ Add relationship</button>
+      <div class="relationship-picker hidden">
+        <input class="relationship-search" type="search" autocomplete="off" />
+        <div class="relationship-choice-list"></div>
+      </div>`;
+    wrap.appendChild(editor);
+
+    const addButton = editor.querySelector('.relationship-add-button');
+    const picker = editor.querySelector('.relationship-picker');
+    const search = editor.querySelector('.relationship-search');
+    addButton.addEventListener('click', () => {
+      const opening = picker.classList.contains('hidden');
+      picker.classList.toggle('hidden', !opening);
+      addButton.textContent = opening ? 'Close add relationship' : '+ Add relationship';
+      if (opening) {
+        search.value = '';
+        renderRelationshipEditor(select);
+        requestAnimationFrame(() => search.focus({ preventScroll: true }));
+      }
+    });
+    search.addEventListener('input', () => renderRelationshipEditor(select));
+  }
+  return editor;
+}
+
+function renderRelationshipEditor(select) {
+  const editor = ensureRelationshipEditor(select);
+  if (!editor) return;
+  const config = relationshipEditorConfigFor(select.id);
+  const selected = new Set(getMultiValues(select));
+  const search = editor.querySelector('.relationship-search');
+  const query = (search?.value || '').trim().toLowerCase();
+
+  editor.querySelector('.relationship-editor-title').textContent = config.title;
+  editor.querySelector('.relationship-editor-description').textContent = config.description;
+  editor.querySelector('.relationship-editor-count').textContent = `${selected.size} connected`;
+  if (search) search.placeholder = config.search;
+
+  const selectedList = editor.querySelector('.relationship-selected-list');
+  const selectedOptions = [...select.options].filter((option) => selected.has(option.value));
+  if (!selectedOptions.length) {
+    selectedList.innerHTML = `<div class="relationship-empty">${escapeHtml(config.empty)}</div>`;
+  } else {
+    selectedList.innerHTML = selectedOptions.map((option) => {
+      const item = findById(option.value);
+      const name = item?.name || option.value;
+      const symbol = item?.symbol || '';
+      return `<div class="relationship-selected-item">
+        <div class="relationship-selected-copy">
+          <span class="relationship-selected-name">${escapeHtml(`${symbol} ${name}`.trim())}</span>
+          <span class="relationship-selected-meta">${escapeHtml(relationshipOptionMeta(select, item))}</span>
+        </div>
+        <button class="relationship-remove" type="button" data-relationship-remove="${escapeAttr(option.value)}" aria-label="Remove ${escapeAttr(name)}">×</button>
+      </div>`;
+    }).join('');
+    selectedList.querySelectorAll('[data-relationship-remove]').forEach((button) => {
+      button.addEventListener('click', () => setRelationshipOptionSelected(select, button.dataset.relationshipRemove, false));
+    });
+  }
+
+  const choiceList = editor.querySelector('.relationship-choice-list');
+  const available = [...select.options].filter((option) => {
+    if (selected.has(option.value)) return false;
+    const item = findById(option.value);
+    const haystack = `${item?.name || ''} ${item?.hardwareKind || ''} ${hardwareTypeLabel(item?.hardwareKind || '')}`.toLowerCase();
+    return !query || haystack.includes(query);
+  });
+  if (!available.length) {
+    choiceList.innerHTML = `<div class="relationship-choice-empty">${query ? 'No matching resources found.' : 'All available resources are already connected.'}</div>`;
+  } else {
+    choiceList.innerHTML = available.map((option) => {
+      const item = findById(option.value);
+      const name = item?.name || option.value;
+      const symbol = item?.symbol || '';
+      return `<button class="relationship-choice" type="button" data-relationship-add="${escapeAttr(option.value)}">
+        <span class="relationship-choice-name">${escapeHtml(`${symbol} ${name}`.trim())}</span>
+        <span class="relationship-choice-meta">${escapeHtml(relationshipOptionMeta(select, item))}</span>
+      </button>`;
+    }).join('');
+    choiceList.querySelectorAll('[data-relationship-add]').forEach((button) => {
+      button.addEventListener('click', () => {
+        setRelationshipOptionSelected(select, button.dataset.relationshipAdd, true);
+        if (search) search.value = '';
+      });
+    });
+  }
+}
+
+function renderRelationshipEditors() {
+  [routerSwitches, switchLinks, switchDeviceLinks].forEach((select) => renderRelationshipEditor(select));
+}
+
+[routerSwitches, switchLinks, switchDeviceLinks].forEach((select) => {
+  select?.addEventListener('change', () => renderRelationshipEditor(select));
+});
+
 
 function startEditing(id) {
   const item = findById(id);
@@ -4826,6 +4990,7 @@ function startEditing(id) {
   updateConnectionSelectLabels(routerSwitches);
   updateConnectionSelectLabels(switchLinks);
   updateConnectionSelectLabels(switchDeviceLinks);
+  renderRelationshipEditors();
   nasShares.innerHTML = '';
   nasRaids.innerHTML = '';
   ramModules.innerHTML = '';
