@@ -384,17 +384,64 @@ select option { color: #111; background: #fff; }
 select[multiple] { min-height: 90px; }
 
 .mini-title { margin: 0 0 var(--space-1); font: 700 0.82rem/1.2 "Space Mono", monospace; color: var(--muted); }
-.color-picker { display: grid; grid-template-columns: repeat(6, 1.55rem); justify-content: center; gap: var(--space-2); }
+.color-picker {
+  display: grid;
+  grid-template-columns: repeat(6, 34px);
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
 .color-dot {
-  width: 20px;
-  height: 20px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  justify-self: center;
   border-radius: 999px;
   border: 2px solid var(--line);
   cursor: pointer;
 }
-.color-dot.active { outline: 2px solid var(--text); outline-offset: 1px; }
+.color-dot.active { outline: 3px solid var(--text); outline-offset: 2px; }
+
+/* Keep network color choices large enough for pointer use without allowing the
+   global mobile button minimums to make the six-column palette overlap. */
+@media (max-width: 1100px) {
+  .color-picker {
+    grid-template-columns: repeat(6, 42px);
+    gap: 10px;
+  }
+  .color-dot {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .color-picker {
+    grid-template-columns: repeat(6, 36px);
+    gap: 8px;
+  }
+  .color-dot {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .color-picker {
+    grid-template-columns: repeat(4, 36px);
+  }
+}
 
 .network-fields { border: 2px solid var(--line); border-radius: 12px; padding: var(--space-2); margin: 0; display: grid; gap: var(--space-2); }
+.hardware-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+@media (max-width: 1100px) { .hardware-detail-grid { grid-template-columns: 1fr; } }
 .nested-fields { margin-top: 0.2rem; }
 .share-row.raid-row { grid-template-columns: 1fr 0.9fr 1fr auto; }
 
@@ -9635,7 +9682,9 @@ fieldset,
 /* Relationship editor: clearer connected items plus searchable add flow. */
 .advanced-resource-tab-panel #router-switches-wrap.relationship-editor-field,
 .advanced-resource-tab-panel #switch-links-wrap.relationship-editor-field,
-.advanced-resource-tab-panel #switch-device-links-wrap.relationship-editor-field {
+.advanced-resource-tab-panel #switch-device-links-wrap.relationship-editor-field,
+.advanced-resource-tab-panel #ups-device-links-wrap.relationship-editor-field,
+.advanced-resource-tab-panel #ap-wireless-networks-wrap.relationship-editor-field {
   grid-column: 1 / -1;
   display: block;
   padding: 0;
@@ -9823,3 +9872,69 @@ fieldset,
     max-height: 38dvh;
   }
 }
+
+/* Mobile Advanced Settings: end exactly at the real bottom navigation edge. */
+@media (max-width: 1100px) {
+  :root {
+    --mobile-bottom-nav-height: 82px;
+  }
+
+  .advanced-resource-dialog.mobile-page-open,
+  dialog.advanced-resource-dialog.mobile-page-open[open] {
+    inset: 0 0 var(--mobile-bottom-nav-height) 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    box-sizing: border-box !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-footer {
+    margin: 0 !important;
+  }
+
+  body:has(.advanced-resource-dialog.mobile-page-open) #mobile-add #resource-form > .actions {
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+}
+
+/* Mobile relationship picker: keep addable resources centered and full width. */
+@media (max-width: 1100px) {
+  .relationship-picker {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    align-items: stretch;
+  }
+  .relationship-search,
+  .relationship-choice-list {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    box-sizing: border-box !important;
+  }
+  .relationship-choice-list {
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: stretch !important;
+    justify-items: stretch !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    scrollbar-gutter: auto !important;
+  }
+  .relationship-choice {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+  .relationship-choice-name,
+  .relationship-choice-meta {
+    width: 100%;
+    text-align: left;
+  }
+}
+
