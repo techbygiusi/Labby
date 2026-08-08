@@ -82,6 +82,8 @@ const switchDeviceLinksWrap = document.getElementById('switch-device-links-wrap'
 const switchDeviceLinks = document.getElementById('switch-device-links');
 const upsDeviceLinksWrap = document.getElementById('ups-device-links-wrap');
 const upsDeviceLinks = document.getElementById('ups-device-links');
+const apNetworkInfrastructureWrap = document.getElementById('ap-network-infrastructure-wrap');
+const apNetworkInfrastructure = document.getElementById('ap-network-infrastructure');
 const apWirelessNetworksWrap = document.getElementById('ap-wireless-networks-wrap');
 const apWirelessNetworks = document.getElementById('ap-wireless-networks');
 const nasSharesWrap = document.getElementById('nas-shares-wrap');
@@ -327,7 +329,7 @@ function createPublicDemoSeed() {
     base('demo-access-point', 'hardware', 'Hallway Access Point', {
       hardwareKind: 'access-point', manufacturer: 'Ubiquiti', os: 'UniFi', symbol: '📶', ip: '192.168.10.3',
       description: 'Tri-radio Wi-Fi access point', accessPointRadios: '3',
-      wirelessNetworks: ['demo-network-guest', 'demo-network-iot'], connections: ['demo-network-guest', 'demo-network-iot'], webUrl: 'https://192.168.10.3',
+      wirelessNetworks: ['demo-network-guest', 'demo-network-iot'], connections: ['demo-core-switch', 'demo-network-guest', 'demo-network-iot'], webUrl: 'https://192.168.10.3',
     }),
     base('demo-ups', 'hardware', 'Rack UPS', {
       hardwareKind: 'ups', manufacturer: 'APC', symbol: '🔋', ip: '192.168.10.30', description: 'Rack UPS for core infrastructure',
@@ -927,6 +929,7 @@ form.addEventListener('submit', async (event) => {
   const selectedSwitchLinks = getMultiValues(switchLinks);
   const selectedSwitchDeviceLinks = getMultiValues(switchDeviceLinks);
   const selectedUpsDeviceLinks = getMultiValues(upsDeviceLinks);
+  const selectedApNetworkInfrastructure = getMultiValues(apNetworkInfrastructure);
   const selectedWirelessNetworks = getMultiValues(apWirelessNetworks);
   const shareList = getShares();
   const raidList = getRaids();
@@ -979,7 +982,7 @@ form.addEventListener('submit', async (event) => {
         : type === 'hardware' && hardwareKind === 'ups'
           ? selectedUpsDeviceLinks
           : type === 'hardware' && hardwareKind === 'access-point'
-            ? selectedWirelessNetworks
+            ? [...selectedApNetworkInfrastructure, ...selectedWirelessNetworks]
             : [],
     ipStatus: type === 'network' ? '' : (ipStatusSelect.value || ''),
     urlStatus: type === 'network' ? '' : (urlStatusSelect.value || ''),
@@ -1015,6 +1018,7 @@ form.addEventListener('submit', async (event) => {
   setMultiValues(switchLinks, []);
   setMultiValues(switchDeviceLinks, []);
   setMultiValues(upsDeviceLinks, []);
+  setMultiValues(apNetworkInfrastructure, []);
   setMultiValues(apWirelessNetworks, []);
   setSelectedColor(networkPalette[0]);
   applyTypeVisibility();
@@ -1035,6 +1039,7 @@ cancelEditBtn.addEventListener('click', () => {
   setMultiValues(switchLinks, []);
   setMultiValues(switchDeviceLinks, []);
   setMultiValues(upsDeviceLinks, []);
+  setMultiValues(apNetworkInfrastructure, []);
   setMultiValues(apWirelessNetworks, []);
   setSelectedColor(networkPalette[0]);
   applyTypeVisibility();
@@ -3053,7 +3058,13 @@ function normalizeList(list) {
       next.wirelessNetworks = [];
     } else {
       next.wirelessNetworks = (Array.isArray(next.wirelessNetworks) ? next.wirelessNetworks : []).filter((id) => wirelessNetworkIds.has(id));
-      next.connections = next.connections.filter((id) => wirelessNetworkIds.has(id));
+      next.connections = next.connections.filter((id) => {
+        const target = list.find((entry) => entry.id === id);
+        return target && (
+          (target.type === 'hardware' && ['router-gateway', 'switch'].includes(target.hardwareKind)) ||
+          wirelessNetworkIds.has(id)
+        );
+      });
       next.connections = [...new Set([...next.connections, ...next.wirelessNetworks])];
     }
     if (!(next.type === 'hardware' && next.hardwareKind === 'ups')) {
@@ -3230,6 +3241,7 @@ function applyTypeVisibility() {
   switchLinksWrap.classList.toggle('hidden', !isSwitch);
   switchDeviceLinksWrap.classList.toggle('hidden', !isSwitch);
   upsDeviceLinksWrap?.classList.toggle('hidden', !isUps);
+  apNetworkInfrastructureWrap?.classList.toggle('hidden', !isAccessPoint);
   apWirelessNetworksWrap?.classList.toggle('hidden', !isAccessPoint);
   nasSharesWrap.classList.toggle('hidden', !supportsStorage);
   nasRaidsWrap.classList.toggle('hidden', !supportsStorage);
@@ -3491,6 +3503,7 @@ function initAdvancedResourceTabs() {
     'switch-links-wrap': 'relationships',
     'switch-device-links-wrap': 'relationships',
     'ups-device-links-wrap': 'relationships',
+    'ap-network-infrastructure-wrap': 'relationships',
     'ap-wireless-networks-wrap': 'relationships',
     'credentials-wrap': 'access',
     'ip-status-wrap': 'monitoring',
@@ -4972,6 +4985,7 @@ function refreshHardwareConnectionOptions() {
   const selectedInfra = getMultiValues(switchLinks);
   const selectedDevices = getMultiValues(switchDeviceLinks);
   const selectedUpsDevices = getMultiValues(upsDeviceLinks);
+  const selectedApNetworkInfrastructure = getMultiValues(apNetworkInfrastructure);
   const selectedWirelessNetworks = getMultiValues(apWirelessNetworks);
 
   const infra = hardwareInfraOptions();
@@ -5010,6 +5024,18 @@ function refreshHardwareConnectionOptions() {
       });
   }
 
+  if (apNetworkInfrastructure) {
+    apNetworkInfrastructure.innerHTML = '';
+    hardwareInfraOptions()
+      .filter((item) => ['router-gateway', 'switch'].includes(item.hardwareKind))
+      .forEach((entry) => {
+        const option = document.createElement('option');
+        option.value = entry.id;
+        option.textContent = formatInfraOption(entry, selectedApNetworkInfrastructure);
+        apNetworkInfrastructure.appendChild(option);
+      });
+  }
+
   if (apWirelessNetworks) {
     apWirelessNetworks.innerHTML = '';
     items
@@ -5026,11 +5052,13 @@ function refreshHardwareConnectionOptions() {
   setMultiValues(switchLinks, selectedInfra);
   setMultiValues(switchDeviceLinks, selectedDevices);
   setMultiValues(upsDeviceLinks, selectedUpsDevices);
+  setMultiValues(apNetworkInfrastructure, selectedApNetworkInfrastructure);
   setMultiValues(apWirelessNetworks, selectedWirelessNetworks);
   updateConnectionSelectLabels(routerSwitches);
   updateConnectionSelectLabels(switchLinks);
   updateConnectionSelectLabels(switchDeviceLinks);
   updateConnectionSelectLabels(upsDeviceLinks);
+  updateConnectionSelectLabels(apNetworkInfrastructure);
   updateConnectionSelectLabels(apWirelessNetworks);
   renderRelationshipEditors();
 }
@@ -5049,7 +5077,7 @@ function enableToggleMultiSelect(select) {
   select.addEventListener('change', () => updateConnectionSelectLabels(select));
 }
 
-[routerSwitches, switchLinks, switchDeviceLinks, upsDeviceLinks, apWirelessNetworks].forEach(enableToggleMultiSelect);
+[routerSwitches, switchLinks, switchDeviceLinks, upsDeviceLinks, apNetworkInfrastructure, apWirelessNetworks].forEach(enableToggleMultiSelect);
 
 function relationshipEditorConfigFor(selectId) {
   const configs = {
@@ -5076,6 +5104,12 @@ function relationshipEditorConfigFor(selectId) {
       description: 'Hardware devices connected to outlets on this UPS.',
       empty: 'No hardware devices connected to this UPS yet.',
       search: 'Search hardware devices...',
+    },
+    'ap-network-infrastructure': {
+      title: 'Connected network infrastructure',
+      description: 'Router or switch providing network connectivity to this access point.',
+      empty: 'No network infrastructure connected yet.',
+      search: 'Search routers and switches...',
     },
     'ap-wireless-networks': {
       title: 'Wireless networks',
@@ -5224,10 +5258,10 @@ function renderRelationshipEditor(select) {
 }
 
 function renderRelationshipEditors() {
-  [routerSwitches, switchLinks, switchDeviceLinks, upsDeviceLinks, apWirelessNetworks].forEach((select) => renderRelationshipEditor(select));
+  [routerSwitches, switchLinks, switchDeviceLinks, upsDeviceLinks, apNetworkInfrastructure, apWirelessNetworks].forEach((select) => renderRelationshipEditor(select));
 }
 
-[routerSwitches, switchLinks, switchDeviceLinks, upsDeviceLinks, apWirelessNetworks].forEach((select) => {
+[routerSwitches, switchLinks, switchDeviceLinks, upsDeviceLinks, apNetworkInfrastructure, apWirelessNetworks].forEach((select) => {
   select?.addEventListener('change', () => renderRelationshipEditor(select));
 });
 
@@ -5289,18 +5323,24 @@ function startEditing(id) {
     setMultiValues(upsDeviceLinks, (item.connections || []).filter((id) => findById(id)?.type === 'hardware'));
   }
   if (item.type === 'hardware' && item.hardwareKind === 'access-point') {
+    const infrastructureIds = (item.connections || []).filter((id) => {
+      const target = findById(id);
+      return target?.type === 'hardware' && ['router-gateway', 'switch'].includes(target.hardwareKind);
+    });
     const wirelessIds = (item.wirelessNetworks || []).length
       ? item.wirelessNetworks
       : (item.connections || []).filter((id) => {
           const network = findById(id);
           return network?.type === 'network' && (network.networkKind || 'vlan') === 'wireless';
         });
+    setMultiValues(apNetworkInfrastructure, infrastructureIds);
     setMultiValues(apWirelessNetworks, wirelessIds);
   }
   updateConnectionSelectLabels(routerSwitches);
   updateConnectionSelectLabels(switchLinks);
   updateConnectionSelectLabels(switchDeviceLinks);
   updateConnectionSelectLabels(upsDeviceLinks);
+  updateConnectionSelectLabels(apNetworkInfrastructure);
   updateConnectionSelectLabels(apWirelessNetworks);
   renderRelationshipEditors();
   nasShares.innerHTML = '';
@@ -7224,6 +7264,7 @@ if (mobileFormClose) mobileFormClose.addEventListener('click', () => {
   setMultiValues(switchLinks, []);
   setMultiValues(switchDeviceLinks, []);
   setMultiValues(upsDeviceLinks, []);
+  setMultiValues(apNetworkInfrastructure, []);
   setMultiValues(apWirelessNetworks, []);
   setSelectedColor(networkPalette[0]);
   applyTypeVisibility();

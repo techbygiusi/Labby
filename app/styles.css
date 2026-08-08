@@ -9684,6 +9684,7 @@ fieldset,
 .advanced-resource-tab-panel #switch-links-wrap.relationship-editor-field,
 .advanced-resource-tab-panel #switch-device-links-wrap.relationship-editor-field,
 .advanced-resource-tab-panel #ups-device-links-wrap.relationship-editor-field,
+.advanced-resource-tab-panel #ap-network-infrastructure-wrap.relationship-editor-field,
 .advanced-resource-tab-panel #ap-wireless-networks-wrap.relationship-editor-field {
   grid-column: 1 / -1;
   display: block;
