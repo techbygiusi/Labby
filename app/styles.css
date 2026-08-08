@@ -9505,3 +9505,112 @@ fieldset,
     box-sizing: border-box !important;
   }
 }
+
+
+/* Advanced Settings tabs: keep the existing dialog footprint and fixed footer. */
+.advanced-resource-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 0.45rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 0.15rem 0.7rem 0;
+  margin: -0.15rem 0 0.15rem;
+  scrollbar-width: none;
+}
+.advanced-resource-tabs::-webkit-scrollbar { display: none; }
+.advanced-resource-tab {
+  flex: 0 0 auto;
+  min-height: 36px;
+  border: 2px solid var(--line);
+  border-radius: 11px;
+  background: var(--panel);
+  color: var(--text);
+  padding: 0.42rem 0.72rem;
+  font: 700 0.7rem/1.2 'Space Mono', monospace;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.advanced-resource-tab:hover,
+.advanced-resource-tab:focus-visible {
+  background: color-mix(in srgb, var(--yellow) 25%, var(--panel));
+  outline: none;
+}
+.advanced-resource-tab.active {
+  background: var(--yellow);
+}
+.advanced-resource-body {
+  display: block !important;
+}
+.advanced-resource-tab-panel {
+  display: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  align-content: start;
+}
+.advanced-resource-tab-panel.active {
+  display: grid;
+}
+.advanced-resource-tab-panel > label,
+.advanced-resource-tab-panel > fieldset,
+.advanced-resource-tab-panel > div {
+  min-width: 0;
+  margin: 0;
+}
+.advanced-resource-tab-panel > fieldset,
+.advanced-resource-tab-panel > .credentials-fieldset,
+.advanced-resource-tab-panel > #network-ports-wrap,
+.advanced-resource-tab-panel > #compute-fields,
+.advanced-resource-tab-panel > #nas-shares-wrap,
+.advanced-resource-tab-panel > #nas-raids-wrap {
+  grid-column: 1 / -1;
+}
+@media (min-width: 1101px) {
+  .advanced-resource-tab-panel > fieldset {
+    padding: 0.8rem !important;
+    border-radius: 14px !important;
+  }
+}
+.advanced-resource-tab-panel select[multiple] {
+  min-height: 132px;
+}
+.advanced-resource-mirror-field textarea {
+  min-height: 92px;
+  resize: vertical;
+}
+#advanced-network-color-wrap {
+  grid-column: 1 / -1;
+  padding: 0.8rem;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+}
+#advanced-network-color-wrap .mini-title {
+  margin-top: 0;
+}
+@media (max-width: 1100px) {
+  .advanced-resource-tabs {
+    margin-left: -0.05rem;
+    margin-right: -0.05rem;
+    padding-bottom: 0.65rem;
+    scroll-snap-type: x proximity;
+  }
+  .advanced-resource-tab {
+    min-height: 42px;
+    scroll-snap-align: start;
+  }
+  .advanced-resource-tab-panel,
+  .advanced-resource-tab-panel.active {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+  .advanced-resource-tab-panel > fieldset,
+  .advanced-resource-tab-panel > .credentials-fieldset,
+  .advanced-resource-tab-panel > #network-ports-wrap,
+  .advanced-resource-tab-panel > #compute-fields,
+  .advanced-resource-tab-panel > #nas-shares-wrap,
+  .advanced-resource-tab-panel > #nas-raids-wrap,
+  #advanced-network-color-wrap {
+    grid-column: auto;
+  }
+}

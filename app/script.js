@@ -2349,6 +2349,9 @@ function setSelectedColor(color) {
   colorPicker.querySelectorAll('.color-dot').forEach((dot) => {
     dot.classList.toggle('active', dot.dataset.color === color);
   });
+  document.getElementById('advanced-network-color-picker')?.querySelectorAll('.color-dot').forEach((dot) => {
+    dot.classList.toggle('active', dot.dataset.color === color);
+  });
 }
 
 
@@ -3165,10 +3168,210 @@ function initAdvancedResourceSettings() {
   } else {
     credentialFields = document.getElementById('credentials-wrap');
   }
+  initAdvancedResourceTabs();
+}
+
+
+function initAdvancedResourceTabs() {
+  if (!advancedResourceBody || advancedResourceBody.dataset.tabsReady === '1') return;
+  advancedResourceBody.dataset.tabsReady = '1';
+
+  let tabsHost = document.getElementById('advanced-resource-tabs');
+  if (!tabsHost) {
+    tabsHost = document.createElement('div');
+    tabsHost.id = 'advanced-resource-tabs';
+    tabsHost.className = 'advanced-resource-tabs';
+    tabsHost.setAttribute('role', 'tablist');
+    tabsHost.setAttribute('aria-label', 'Advanced resource settings sections');
+    advancedResourceBody.before(tabsHost);
+  }
+
+  const tabDefs = [
+    ['general', 'General'],
+    ['network', 'Network'],
+    ['compute', 'Compute'],
+    ['relationships', 'Relationships'],
+    ['access', 'Credentials & Access'],
+    ['monitoring', 'Monitoring'],
+  ];
+
+  const panels = {};
+  tabDefs.forEach(([key, labelText]) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'advanced-resource-tab';
+    button.dataset.advancedTab = key;
+    button.setAttribute('role', 'tab');
+    button.setAttribute('aria-controls', `advanced-resource-panel-${key}`);
+    button.textContent = labelText;
+    button.addEventListener('click', () => setAdvancedResourceTab(key));
+    tabsHost.appendChild(button);
+
+    const panel = document.createElement('section');
+    panel.id = `advanced-resource-panel-${key}`;
+    panel.className = 'advanced-resource-tab-panel';
+    panel.dataset.advancedPanel = key;
+    panel.setAttribute('role', 'tabpanel');
+    advancedResourceBody.appendChild(panel);
+    panels[key] = panel;
+  });
+
+  function appendMirror(panel, sourceId, labelText, wrapId) {
+    const source = document.getElementById(sourceId);
+    if (!source) return null;
+    const wrap = document.createElement('label');
+    wrap.id = wrapId;
+    wrap.className = 'advanced-resource-mirror-field';
+    wrap.dataset.advancedMirrorWrap = sourceId;
+    wrap.append(document.createTextNode(labelText));
+    const mirror = source.cloneNode(true);
+    mirror.id = `advanced-${sourceId}`;
+    mirror.removeAttribute('required');
+    mirror.dataset.advancedMirror = sourceId;
+    wrap.appendChild(mirror);
+    panel.appendChild(wrap);
+
+    const pushToSource = (event) => {
+      source.value = mirror.value;
+      const eventType = source.tagName === 'SELECT' ? 'change' : 'input';
+      source.dispatchEvent(new Event(eventType, { bubbles: true }));
+      if (sourceId === 'type' || sourceId === 'hardware-kind') applyTypeVisibility();
+      syncAdvancedResourceMirrors();
+      updateAdvancedResourceMirrorVisibility();
+    };
+    mirror.addEventListener('input', pushToSource);
+    mirror.addEventListener('change', pushToSource);
+    return wrap;
+  }
+
+  appendMirror(panels.general, 'type', 'Type', 'advanced-type-wrap');
+  appendMirror(panels.general, 'name', 'Name', 'advanced-name-wrap');
+  appendMirror(panels.general, 'symbol', 'Symbol / Icon (emoji or short text)', 'advanced-symbol-wrap');
+  appendMirror(panels.general, 'hardware-kind', 'Hardware Type', 'advanced-hardware-kind-wrap');
+  appendMirror(panels.general, 'description', 'Description', 'advanced-description-wrap');
+  appendMirror(panels.general, 'status', 'Status', 'advanced-status-wrap');
+  appendMirror(panels.general, 'notes', 'Notes', 'advanced-notes-wrap');
+
+  appendMirror(panels.network, 'ip-address', 'Primary IP Address (Hardware/VM/LXC)', 'advanced-ip-address-wrap');
+  appendMirror(panels.network, 'hardware-web-url', 'Web URL (Hardware)', 'advanced-hardware-web-url-wrap');
+  appendMirror(panels.network, 'ip-port', 'IP + Port (App)', 'advanced-ip-port-wrap');
+  appendMirror(panels.network, 'web-url', 'Web URL (App)', 'advanced-web-url-wrap');
+  appendMirror(panels.network, 'subnet', 'Subnet (CIDR)', 'advanced-subnet-wrap');
+  appendMirror(panels.network, 'gateway', 'Gateway', 'advanced-gateway-wrap');
+
+  const colorWrap = document.createElement('div');
+  colorWrap.id = 'advanced-network-color-wrap';
+  colorWrap.className = 'advanced-network-color-wrap';
+  colorWrap.innerHTML = '<p class="mini-title">Subnet color</p><div id="advanced-network-color-picker" class="color-picker"></div>';
+  panels.network.appendChild(colorWrap);
+  const advancedColorPicker = colorWrap.querySelector('#advanced-network-color-picker');
+  networkPalette.forEach((color) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'color-dot';
+    btn.style.background = color;
+    btn.dataset.color = color;
+    btn.addEventListener('click', () => setSelectedColor(color));
+    advancedColorPicker.appendChild(btn);
+  });
+
+  const destinations = {
+    'network-ports-wrap': 'network',
+    'manufacturer-wrap': 'compute',
+    'os-wrap': 'compute',
+    'compute-fields': 'compute',
+    'switch-ports-wrap': 'compute',
+    'nas-shares-wrap': 'compute',
+    'nas-raids-wrap': 'compute',
+    'hosted-on-wrap': 'relationships',
+    'app-hosted-on-wrap': 'relationships',
+    'router-switches-wrap': 'relationships',
+    'switch-links-wrap': 'relationships',
+    'switch-device-links-wrap': 'relationships',
+    'credentials-wrap': 'access',
+    'ip-status-wrap': 'monitoring',
+    'url-status-wrap': 'monitoring',
+  };
+
+  Object.entries(destinations).forEach(([id, tab]) => {
+    const node = document.getElementById(id);
+    if (node) panels[tab].appendChild(node);
+  });
+
+  syncAdvancedResourceMirrors();
+  updateAdvancedResourceMirrorVisibility();
+  setAdvancedResourceTab('general');
+}
+
+function syncAdvancedResourceMirrors() {
+  document.querySelectorAll('[data-advanced-mirror]').forEach((mirror) => {
+    const source = document.getElementById(mirror.dataset.advancedMirror);
+    if (!source || document.activeElement === mirror) return;
+    mirror.value = source.value;
+  });
+  const advancedColorPicker = document.getElementById('advanced-network-color-picker');
+  advancedColorPicker?.querySelectorAll('.color-dot').forEach((dot) => {
+    dot.classList.toggle('active', dot.dataset.color === selectedNetworkColor);
+  });
+}
+
+function updateAdvancedResourceMirrorVisibility() {
+  const type = typeSelect.value;
+  const hardwareKind = hardwareKindSelect.value;
+  const isHardware = type === 'hardware';
+  const isVmOrLxc = type === 'vm' || type === 'lxc';
+  const isApp = type === 'app';
+  const isNetwork = type === 'network';
+  const supportsIp = isHardware || isVmOrLxc;
+
+  const setHidden = (id, hidden) => document.getElementById(id)?.classList.toggle('hidden', hidden);
+  setHidden('advanced-hardware-kind-wrap', !isHardware);
+  setHidden('advanced-notes-wrap', !supportsNotes(type));
+  setHidden('advanced-ip-address-wrap', !supportsIp);
+  setHidden('advanced-hardware-web-url-wrap', !isHardware);
+  setHidden('advanced-ip-port-wrap', !isApp);
+  setHidden('advanced-web-url-wrap', !isApp);
+  setHidden('advanced-subnet-wrap', !isNetwork);
+  setHidden('advanced-gateway-wrap', !isNetwork);
+  setHidden('advanced-network-color-wrap', !isNetwork);
+
+  updateAdvancedResourceTabVisibility();
+}
+
+function updateAdvancedResourceTabVisibility() {
+  const tabsHost = document.getElementById('advanced-resource-tabs');
+  if (!tabsHost) return;
+  let firstVisible = null;
+  tabsHost.querySelectorAll('[data-advanced-tab]').forEach((button) => {
+    const key = button.dataset.advancedTab;
+    const panel = document.querySelector(`[data-advanced-panel="${key}"]`);
+    if (!panel) return;
+    const hasVisibleContent = [...panel.children].some((child) => !child.classList.contains('hidden'));
+    button.classList.toggle('hidden', !hasVisibleContent);
+    if (hasVisibleContent && !firstVisible) firstVisible = key;
+  });
+
+  const active = tabsHost.querySelector('[data-advanced-tab].active');
+  if (!active || active.classList.contains('hidden')) setAdvancedResourceTab(firstVisible || 'general');
+}
+
+function setAdvancedResourceTab(tab) {
+  const tabsHost = document.getElementById('advanced-resource-tabs');
+  if (!tabsHost) return;
+  tabsHost.querySelectorAll('[data-advanced-tab]').forEach((button) => {
+    const active = button.dataset.advancedTab === tab && !button.classList.contains('hidden');
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', String(active));
+    button.tabIndex = active ? 0 : -1;
+  });
+  document.querySelectorAll('[data-advanced-panel]').forEach((panel) => {
+    panel.classList.toggle('active', panel.dataset.advancedPanel === tab);
+  });
+  if (advancedResourceBody) advancedResourceBody.scrollTop = 0;
 }
 
 function updateAdvancedResourceControls(type, hardwareKind) {
-  const hasAdvanced = ['hardware', 'vm', 'lxc', 'app'].includes(type);
+  const hasAdvanced = ['hardware', 'vm', 'lxc', 'app', 'network'].includes(type);
   advancedSettingsBtn?.classList.toggle('hidden', !hasAdvanced);
   document.getElementById('credentials-wrap')?.classList.toggle('hidden', !supportsCredentials(type));
   if (advancedResourceSave) advancedResourceSave.textContent = editingId ? 'Save changes' : 'Add item';
@@ -3176,11 +3379,12 @@ function updateAdvancedResourceControls(type, hardwareKind) {
     const typeTitle = type === 'hardware' ? hardwareTypeLabel(hardwareKind) : label(type);
     advancedResourceTitle.textContent = `${typeTitle} Settings`;
   }
+  syncAdvancedResourceMirrors();
+  updateAdvancedResourceMirrorVisibility();
 }
 
 function openAdvancedResourceSettings() {
   const type = typeSelect.value;
-  if (type === 'network') return;
   applyTypeVisibility();
   if (['hardware', 'vm', 'lxc'].includes(type)) {
     if (!networkPorts?.querySelector('[data-network-port-row]')) renderNetworkPortRows([], ipInput.value);
@@ -3189,6 +3393,9 @@ function openAdvancedResourceSettings() {
   refreshHostOptions();
   refreshAppHostOptions();
   refreshHardwareConnectionOptions();
+  syncAdvancedResourceMirrors();
+  updateAdvancedResourceMirrorVisibility();
+  setAdvancedResourceTab('general');
   if (advancedResourceDialog && !advancedResourceDialog.open) {
     if (window.innerWidth <= 1100) {
       advancedResourceDialog.setAttribute('open', '');
@@ -4638,8 +4845,11 @@ function startEditing(id) {
 
   ipStatusSelect.value = item.ipStatus || '';
   urlStatusSelect.value = item.urlStatus || '';
+  syncAdvancedResourceMirrors();
+  updateAdvancedResourceMirrorVisibility();
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  requestAnimationFrame(() => openAdvancedResourceSettings());
 }
 
 function stopEditing() {
