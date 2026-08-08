@@ -19,8 +19,8 @@ Labby stores its configuration, resources, encrypted credentials, local backups 
 
 ## Links
 
-- Project: https://github.com/techbygiusi/Labby
-- Website: https://my-labby.com
+- Project: https://www.my-labby.com/
+- Website: https://www.my-labby.com/
 - Support: https://github.com/techbygiusi/Labby/issues
 - Docker Hub: https://hub.docker.com/r/techbygiusi/labby
 
