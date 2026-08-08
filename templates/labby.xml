@@ -6,20 +6,20 @@
   <Network>bridge</Network>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
-  <Icon>https://github.com/user-attachments/assets/f8d9602b-c235-4626-ac31-2f3c032c8983</Icon>
+  <Icon>https://www.my-labby.com/images/logo.svg</Icon>
   <WebUI>http://[IP]:[PORT:80]</WebUI>
   <Overview>Labby is a self-hosted homelab inventory, topology, rack, IP documentation, SSH console and encrypted backup platform.</Overview>
   <Description>Document hardware, VMs, LXC containers, applications, networks, racks and relationships in one responsive interface. Labby includes Tree, Graph and IP views, browser-based SSH sessions, scoped Agent API keys, encrypted local backups and direct SMB backup destinations.</Description>
   <Category>Network:Management Tools:Utilities</Category>
   <Support>https://github.com/techbygiusi/Labby/issues</Support>
-  <Project>https://github.com/techbygiusi/Labby</Project>
+  <Project>https://www.my-labby.com/</Project>
   <TemplateURL>https://raw.githubusercontent.com/techbygiusi/Labby/main/templates/labby.xml</TemplateURL>
   <ReadMe>https://raw.githubusercontent.com/techbygiusi/Labby/main/UNRAID.md</ReadMe>
   <Requires>Docker must be enabled. The selected host port must be available and the appdata path must be writable.</Requires>
   <Changes>Version 1.0.10: Add categorized Advanced Settings, improved relationship management, unified Network resources, UPS, Access Point and IoT support, and updated mobile layouts.</Changes>
   <Date>2026-08-08</Date>
   <License>AGPL-3.0-only</License>
-  <Screenshot>https://github.com/user-attachments/assets/1df3a23b-14ce-4a67-ae5a-73d48adb2237</Screenshot>
+  <Screenshot>https://github.com/user-attachments/assets/f8d9602b-c235-4626-ac31-2f3c032c8983</Screenshot>
   <Config Name="WebUI Port" Target="80" Default="8080" Mode="tcp" Description="Host port used to open the Labby web interface." Type="Port" Display="always" Required="true" Mask="false"/>
   <Config Name="Appdata" Target="/data" Default="/mnt/user/appdata/labby" Mode="rw" Description="Persistent Labby data, configuration, encrypted SMB credentials, backups and backup key." Type="Path" Display="always" Required="true" Mask="false"/>
 </Container>
