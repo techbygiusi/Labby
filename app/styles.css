@@ -384,17 +384,64 @@ select option { color: #111; background: #fff; }
 select[multiple] { min-height: 90px; }
 
 .mini-title { margin: 0 0 var(--space-1); font: 700 0.82rem/1.2 "Space Mono", monospace; color: var(--muted); }
-.color-picker { display: grid; grid-template-columns: repeat(6, 1.55rem); justify-content: center; gap: var(--space-2); }
+.color-picker {
+  display: grid;
+  grid-template-columns: repeat(6, 34px);
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
 .color-dot {
-  width: 20px;
-  height: 20px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  justify-self: center;
   border-radius: 999px;
   border: 2px solid var(--line);
   cursor: pointer;
 }
-.color-dot.active { outline: 2px solid var(--text); outline-offset: 1px; }
+.color-dot.active { outline: 3px solid var(--text); outline-offset: 2px; }
+
+/* Keep network color choices large enough for pointer use without allowing the
+   global mobile button minimums to make the six-column palette overlap. */
+@media (max-width: 1100px) {
+  .color-picker {
+    grid-template-columns: repeat(6, 42px);
+    gap: 10px;
+  }
+  .color-dot {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .color-picker {
+    grid-template-columns: repeat(6, 36px);
+    gap: 8px;
+  }
+  .color-dot {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .color-picker {
+    grid-template-columns: repeat(4, 36px);
+  }
+}
 
 .network-fields { border: 2px solid var(--line); border-radius: 12px; padding: var(--space-2); margin: 0; display: grid; gap: var(--space-2); }
+.hardware-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+@media (max-width: 1100px) { .hardware-detail-grid { grid-template-columns: 1fr; } }
 .nested-fields { margin-top: 0.2rem; }
 .share-row.raid-row { grid-template-columns: 1fr 0.9fr 1fr auto; }
 
@@ -9505,3 +9552,393 @@ fieldset,
     box-sizing: border-box !important;
   }
 }
+
+
+/* Advanced Settings tabs: keep the existing dialog footprint and fixed footer. */
+.advanced-resource-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 0.45rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 0.15rem 0.7rem 0;
+  margin: -0.15rem 0 0.15rem;
+  scrollbar-width: none;
+}
+.advanced-resource-tabs::-webkit-scrollbar { display: none; }
+.advanced-resource-tab {
+  flex: 0 0 auto;
+  min-height: 36px;
+  border: 2px solid var(--line);
+  border-radius: 11px;
+  background: var(--panel);
+  color: var(--text);
+  padding: 0.42rem 0.72rem;
+  font: 700 0.7rem/1.2 'Space Mono', monospace;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.advanced-resource-tab:hover,
+.advanced-resource-tab:focus-visible {
+  background: color-mix(in srgb, var(--yellow) 25%, var(--panel));
+  outline: none;
+}
+.advanced-resource-tab.active {
+  background: var(--yellow);
+}
+.advanced-resource-body {
+  display: block !important;
+}
+.advanced-resource-tab-panel {
+  display: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  align-content: start;
+}
+.advanced-resource-tab-panel.active {
+  display: grid;
+}
+.advanced-resource-tab-panel > label,
+.advanced-resource-tab-panel > fieldset,
+.advanced-resource-tab-panel > div {
+  min-width: 0;
+  margin: 0;
+}
+.advanced-resource-tab-panel > fieldset,
+.advanced-resource-tab-panel > .credentials-fieldset,
+.advanced-resource-tab-panel > #network-ports-wrap,
+.advanced-resource-tab-panel > #compute-fields,
+.advanced-resource-tab-panel > #nas-shares-wrap,
+.advanced-resource-tab-panel > #nas-raids-wrap {
+  grid-column: 1 / -1;
+}
+@media (min-width: 1101px) {
+  .advanced-resource-tab-panel > fieldset {
+    padding: 0.8rem !important;
+    border-radius: 14px !important;
+  }
+}
+.advanced-resource-tab-panel select[multiple] {
+  min-height: 132px;
+}
+.advanced-resource-mirror-field textarea {
+  min-height: 92px;
+  resize: vertical;
+}
+#advanced-network-color-wrap {
+  grid-column: 1 / -1;
+  padding: 0.8rem;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+}
+#advanced-network-color-wrap .mini-title {
+  margin-top: 0;
+}
+@media (max-width: 1100px) {
+  .advanced-resource-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.55rem;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: visible;
+    margin: 0;
+    padding: 0.85rem max(1rem, env(safe-area-inset-right)) 0.9rem max(1rem, env(safe-area-inset-left));
+    background: var(--phone);
+  }
+  .advanced-resource-tab {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0.5rem 0.55rem;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.2;
+  }
+  .advanced-resource-tab-panel,
+  .advanced-resource-tab-panel.active {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+  .advanced-resource-tab-panel > fieldset,
+  .advanced-resource-tab-panel > .credentials-fieldset,
+  .advanced-resource-tab-panel > #network-ports-wrap,
+  .advanced-resource-tab-panel > #compute-fields,
+  .advanced-resource-tab-panel > #nas-shares-wrap,
+  .advanced-resource-tab-panel > #nas-raids-wrap,
+  #advanced-network-color-wrap {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 560px) {
+  .advanced-resource-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+
+/* Relationship editor: clearer connected items plus searchable add flow. */
+.advanced-resource-tab-panel #router-switches-wrap.relationship-editor-field,
+.advanced-resource-tab-panel #switch-links-wrap.relationship-editor-field,
+.advanced-resource-tab-panel #switch-device-links-wrap.relationship-editor-field,
+.advanced-resource-tab-panel #ups-device-links-wrap.relationship-editor-field,
+.advanced-resource-tab-panel #ap-network-infrastructure-wrap.relationship-editor-field,
+.advanced-resource-tab-panel #ap-wireless-networks-wrap.relationship-editor-field {
+  grid-column: 1 / -1;
+  display: block;
+  padding: 0;
+}
+.relationship-editor-field > select.relationship-select-source {
+  display: none !important;
+}
+.relationship-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.85rem;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+}
+.relationship-editor-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.relationship-editor-heading-copy {
+  min-width: 0;
+}
+.relationship-editor-title {
+  display: block;
+  color: var(--text);
+  font: 700 0.78rem/1.25 'Space Mono', monospace;
+}
+.relationship-editor-description {
+  display: block;
+  margin-top: 0.18rem;
+  color: var(--muted);
+  font: 600 0.68rem/1.35 'Inter', system-ui, sans-serif;
+}
+.relationship-editor-count {
+  flex: 0 0 auto;
+  padding: 0.24rem 0.48rem;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: var(--phone);
+  color: var(--muted);
+  font: 700 0.64rem/1.1 'Space Mono', monospace;
+}
+.relationship-selected-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+.relationship-selected-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  padding: 0.55rem 0.62rem;
+  border: 2px solid var(--line);
+  border-radius: 11px;
+  background: var(--phone);
+}
+.relationship-selected-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.relationship-selected-name,
+.relationship-choice-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font: 700 0.7rem/1.2 'Space Mono', monospace;
+}
+.relationship-selected-meta,
+.relationship-choice-meta {
+  display: block;
+  margin-top: 0.12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font: 600 0.63rem/1.25 'Inter', system-ui, sans-serif;
+}
+.relationship-remove {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+  color: var(--text);
+  font: 800 1rem/1 'Space Mono', monospace;
+  cursor: pointer;
+}
+.relationship-remove:hover,
+.relationship-remove:focus-visible {
+  background: color-mix(in srgb, var(--yellow) 30%, var(--panel));
+  outline: none;
+}
+.relationship-empty {
+  grid-column: 1 / -1;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.7rem 0.75rem;
+  border: 2px dashed color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 11px;
+  background: var(--phone);
+  color: var(--muted);
+  font: 600 0.68rem/1.35 'Inter', system-ui, sans-serif;
+}
+.relationship-add-button {
+  width: 100%;
+  min-height: 40px;
+}
+.relationship-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.65rem;
+  border-top: 2px solid color-mix(in srgb, var(--line) 35%, transparent);
+}
+.relationship-picker.hidden {
+  display: none !important;
+}
+.relationship-search {
+  width: 100%;
+  min-height: 40px;
+}
+.relationship-choice-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+  max-height: 240px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 0.22rem;
+  scrollbar-gutter: stable;
+}
+.relationship-choice-list::-webkit-scrollbar {
+  width: 8px;
+}
+.relationship-choice-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.relationship-choice-list::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--line) 35%, transparent);
+  border-radius: 999px;
+}
+.relationship-choice {
+  min-width: 0;
+  min-height: 50px;
+  padding: 0.48rem 0.58rem;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: var(--phone);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.relationship-choice:hover,
+.relationship-choice:focus-visible {
+  background: color-mix(in srgb, var(--yellow) 28%, var(--phone));
+  outline: none;
+}
+.relationship-choice-empty {
+  grid-column: 1 / -1;
+  padding: 0.65rem;
+  color: var(--muted);
+  font: 600 0.68rem/1.35 'Inter', system-ui, sans-serif;
+}
+@media (max-width: 1100px) {
+  .relationship-selected-list,
+  .relationship-choice-list {
+    grid-template-columns: 1fr;
+  }
+  .relationship-editor {
+    padding: 0.75rem;
+  }
+  .relationship-add-button,
+  .relationship-search {
+    min-height: 44px;
+  }
+  .relationship-choice-list {
+    max-height: 38dvh;
+  }
+}
+
+/* Mobile Advanced Settings: end exactly at the real bottom navigation edge. */
+@media (max-width: 1100px) {
+  :root {
+    --mobile-bottom-nav-height: 82px;
+  }
+
+  .advanced-resource-dialog.mobile-page-open,
+  dialog.advanced-resource-dialog.mobile-page-open[open] {
+    inset: 0 0 var(--mobile-bottom-nav-height) 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    box-sizing: border-box !important;
+  }
+
+  .advanced-resource-dialog.mobile-page-open .advanced-resource-footer {
+    margin: 0 !important;
+  }
+
+  body:has(.advanced-resource-dialog.mobile-page-open) #mobile-add #resource-form > .actions {
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+}
+
+/* Mobile relationship picker: keep addable resources centered and full width. */
+@media (max-width: 1100px) {
+  .relationship-picker {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    align-items: stretch;
+  }
+  .relationship-search,
+  .relationship-choice-list {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    box-sizing: border-box !important;
+  }
+  .relationship-choice-list {
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: stretch !important;
+    justify-items: stretch !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    scrollbar-gutter: auto !important;
+  }
+  .relationship-choice {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+  .relationship-choice-name,
+  .relationship-choice-meta {
+    width: 100%;
+    text-align: left;
+  }
+}
+

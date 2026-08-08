@@ -60,7 +60,7 @@ Track your hardware, VMs, LXCs, apps, networks, rack layouts, live status and re
 
 ### Core
 
-- 🖥️ **Resource tracking** for Hardware, VMs, LXCs, Apps and Networks
+- 🖥️ **Resource tracking** for Hardware, Network, VMs, LXCs and Apps
 - 🌐 **Topology dashboard** with searchable, expandable resource cards
 - 🌳 **Relationship Tree** for hierarchy, direct hosts and nested VM/LXC hosting relationships
 - 🕸️ **Graph View** on desktop for visual relationship mapping
@@ -78,14 +78,17 @@ Track your hardware, VMs, LXCs, apps, networks, rack layouts, live status and re
 
 Labby tracks the important details of your homelab resources without requiring a large CMDB setup.
 
-- Resource types: Hardware, VM, LXC, App and Network
-- Hardware types: Server, Router/Gateway, Switch, Hypervisor, NAS, Backup, PC and more
+- Resource categories: Hardware, Network, VMs, LXCs and Apps
+- Hardware types: Server, Hypervisor, NAS, Backup, PC, UPS and IoT Device
+- Network types: Router/Gateway, Switch, Access Point and Network
 - Rich metadata: OS, manufacturer, CPU, RAM, disks, notes and links
-- Multiple network ports for Hardware, VMs and LXCs with per-port IP, maximum link speed and a selectable Live Status monitoring port
-- Multiple network ports for Hardware, VMs and LXCs with an IP address and maximum link speed per port
+- Multiple network ports for Hardware, network devices, VMs and LXCs with per-port IP, maximum link speed and a selectable Live Status monitoring port
+- UPS details for wattage, VA, outlet count and powered hardware relationships
+- Access Point details for radios and associated Wireless networks
+- Network definitions can be VLAN / Wired or Wireless and do not use device status
 - NAS/Backup details for shares and RAID groups
 - App details with IP, port and web URL
-- Status field per resource: Online, Offline or Maintenance
+- Status field for device resources: Online, Offline or Maintenance
 - Optional live checks for IP and URL status
 - Copy-to-clipboard buttons for IPs and URLs
 - Clickable web URLs directly from cards
@@ -483,11 +486,11 @@ http://localhost:9090
 
 ## 🧭 Quick Start
 
-1. ➕ Add **Networks** first with subnet, gateway and color
-2. 🖥️ Add **Hardware**, such as router, switch, hypervisor, NAS or backup server
+1. 🌐 Add **Network** resources, including routers, switches, access points, VLANs and wireless networks
+2. 🖥️ Add **Hardware**, such as servers, hypervisors, NAS, backup systems, UPS units or IoT devices
 3. 🧱 Add **VMs** and **LXCs**
 4. ⚙️ Add **Apps** with IP, port and web URL
-5. 🔗 Set hosting relationships, for example VM on Hardware, VM/LXC on VM/LXC, or App on VM/LXC
+5. 🔗 Set hosting and device relationships, including wireless networks on access points and powered hardware on UPS units
 6. 🌳 Open **Tree View** or **Graph View** to visualize relationships
 7. 🗄️ Open **Rack View** and place devices in racks
 8. 🌐 Open **IP View** to see all used IPs sorted by subnet

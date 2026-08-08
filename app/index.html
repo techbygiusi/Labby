@@ -51,10 +51,33 @@
             Type
             <select id="type" required>
               <option value="hardware">Hardware</option>
+              <option value="network">Network</option>
               <option value="vm">VM</option>
               <option value="lxc">LXC</option>
               <option value="app">App</option>
+            </select>
+          </label>
+          <label id="hardware-kind-wrap">
+            Hardware Type
+            <select id="hardware-kind">
+              <option value="server">Server</option>
+              <option value="hypervisor">Hypervisor</option>
+              <option value="nas">NAS</option>
+              <option value="backup">Backup</option>
+              <option value="pc">PC</option>
+              <option value="ups">UPS</option>
+              <option value="iot">IoT Device</option>
+              <option value="router-gateway">Router / Gateway</option>
+              <option value="switch">Switch</option>
+              <option value="access-point">Access Point</option>
               <option value="network">Network</option>
+            </select>
+          </label>
+          <label id="network-kind-wrap" class="hidden">
+            Network Mode
+            <select id="network-kind">
+              <option value="vlan">VLAN / Wired</option>
+              <option value="wireless">Wireless</option>
             </select>
           </label>
           <label>
@@ -65,31 +88,19 @@
             Symbol / Icon (emoji or short text)
             <input id="symbol" type="text" maxlength="3" placeholder="e.g. 🖥️" />
           </label>
-          <label id="hardware-kind-wrap">
-            Hardware Type
-            <select id="hardware-kind">
-              <option value="server">Server</option>
-              <option value="hypervisor">Hypervisor</option>
-              <option value="nas">NAS</option>
-              <option value="backup">Backup</option>
-              <option value="pc">PC</option>
-              <option value="router-gateway">Router / Gateway</option>
-              <option value="switch">Switch</option>
-            </select>
-          </label>
           <label id="manufacturer-wrap">
             Manufacturer
             <input id="manufacturer" type="text" placeholder="e.g. Dell, Ubiquiti, Synology" />
           </label>
           <label id="os-wrap">
-            Operating System (Hardware/VM/LXC)
+            Operating System (Hardware/Network/VM/LXC)
             <input id="os" type="text" placeholder="e.g. Debian 12, Proxmox VE 8" />
           </label>
           <label>
             Description
             <input id="description" type="text" placeholder="Short note" />
           </label>
-          <label>
+          <label id="status-wrap">
             Status
             <select id="status">
               <option value="">- Not set -</option>
@@ -123,11 +134,11 @@
             <textarea id="notes" rows="3" placeholder="Any details, credentials location, maintenance info..."></textarea>
           </label>
           <label>
-            Primary IP Address (Hardware/VM/LXC)
+            Primary IP Address (Hardware/Network/VM/LXC)
             <input id="ip-address" type="text" placeholder="e.g. 192.168.10.20" />
           </label>
           <label id="hardware-web-url-wrap" class="hidden">
-            Web URL (Hardware)
+            Web URL (Hardware/Network)
             <input id="hardware-web-url" type="text" placeholder="https://nas.local" />
           </label>
           <fieldset id="network-ports-wrap" class="network-fields hidden">
@@ -156,6 +167,30 @@
             Number of ports
             <input id="switch-ports" type="number" min="1" placeholder="e.g. 24" />
           </label>
+          <fieldset id="access-point-fields" class="network-fields hidden">
+            <legend>Access Point details</legend>
+            <label>
+              Number of radios
+              <input id="access-point-radios" type="number" min="1" placeholder="e.g. 3" />
+            </label>
+          </fieldset>
+          <fieldset id="ups-fields" class="network-fields hidden">
+            <legend>UPS details</legend>
+            <div class="hardware-detail-grid">
+              <label>
+                Wattage
+                <input id="ups-wattage" type="number" min="0" placeholder="e.g. 900" />
+              </label>
+              <label>
+                VA
+                <input id="ups-va" type="number" min="0" placeholder="e.g. 1500" />
+              </label>
+              <label>
+                Number of outlets
+                <input id="ups-outlets" type="number" min="0" placeholder="e.g. 8" />
+              </label>
+            </div>
+          </fieldset>
           <label id="router-switches-wrap" class="hidden">
             Connected routers / gateways / switches
             <select id="router-switches" multiple></select>
@@ -167,6 +202,18 @@
           <label id="switch-device-links-wrap" class="hidden">
             Connected hardware devices
             <select id="switch-device-links" multiple></select>
+          </label>
+          <label id="ups-device-links-wrap" class="hidden">
+            Powered hardware
+            <select id="ups-device-links" multiple></select>
+          </label>
+          <label id="ap-network-infrastructure-wrap" class="hidden">
+            Connected network infrastructure
+            <select id="ap-network-infrastructure" multiple></select>
+          </label>
+          <label id="ap-wireless-networks-wrap" class="hidden">
+            Wireless networks
+            <select id="ap-wireless-networks" multiple></select>
           </label>
           <fieldset id="nas-shares-wrap" class="network-fields hidden">
             <legend>NAS shares</legend>
@@ -246,10 +293,10 @@
           <select id="filter-type">
             <option value="all">All types</option>
             <option value="hardware">Hardware</option>
+            <option value="network">Network</option>
             <option value="vm">VM</option>
             <option value="lxc">LXC</option>
             <option value="app">App</option>
-            <option value="network">Network</option>
           </select>
         </div>
         <div id="stats" class="stats"></div>
