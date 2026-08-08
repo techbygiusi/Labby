@@ -1110,9 +1110,9 @@ Browser → /api → Backend → /data</pre>
       <h2>Resource documentation</h2>
       <p>Document Hardware, Network, VMs, LXCs and applications with IP addresses, URLs, notes, credentials and relationships. The Network category contains routers/gateways, switches, access points and network definitions. Hardware, network devices, VMs and LXCs can have multiple network ports, each with its own IP address and maximum link speed. The normal Primary IP field is always Port 1, and one port can be selected for automatic IP Live Status monitoring.</p>
       <h2>Hardware and network devices</h2>
-      <p>Hardware includes servers, hypervisors, NAS and backup systems, PCs, UPS units and generic IoT devices. Network includes routers/gateways, switches, access points and network definitions. UPS resources can record wattage, VA and outlet count and link powered hardware. Access points can record port and radio counts and associate Wireless network definitions.</p>
+      <p>Hardware includes servers, hypervisors, NAS and backup systems, PCs, UPS units and generic IoT devices. Network includes routers/gateways, switches, access points and network definitions. UPS resources can record wattage, VA and outlet count and link powered hardware. Access points can record radio count, use normal network interface settings and associate Wireless network definitions.</p>
       <h2>Network definitions</h2>
-      <p>Networks can be defined as VLAN / Wired or Wireless. Network definitions describe addressing and membership and therefore do not use the normal device Status field.</p>
+      <p>Networks can be defined as Wired or Wireless with an optional VLAN ID. Network definitions describe addressing and membership and therefore do not use the normal device Status field.</p>
       <h2>Topology and infrastructure views</h2>
       <p>Explore your homelab through Topology, Tree, Graph and IP views. Relationships between hosts, guests, applications and networks stay visible across the interface.</p>
       <h2>Locations and racks</h2>
@@ -1151,7 +1151,7 @@ Browser → /api → Backend → /data</pre>
         <figure class="wiki-shot"><img src="images/labby-dashboard.png" alt="Topology cards" loading="lazy" /><figcaption>Topology cards</figcaption></figure>
       </div>
       <h2>Layout</h2>
-      <p>Topology cards show resource category, name, IPs, URLs, device status, technical details, notes and relationships. Routers/gateways, switches, access points, VLAN / Wired networks and Wireless networks are grouped together in the Network category.</p>
+      <p>Topology cards show resource category, name, IPs, URLs, device status, technical details, notes and relationships. Routers/gateways, switches, access points, Wired and Wireless networks are grouped together in the Network category.</p>
       <h2>Actions</h2>
       <ul>
         <li><strong>Edit</strong>: edit the resource</li>
