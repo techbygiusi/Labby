@@ -6616,8 +6616,9 @@ dialog.rack-form-dialog:not([open]) {
 .cli-terminal {
   min-height: 0;
   overflow: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
   user-select: text;
   -webkit-user-select: text;
   background: #05070a;
@@ -6634,6 +6635,52 @@ dialog.rack-form-dialog:not([open]) {
   background: #f4d371;
   color: #05070a;
 }
+
+/* Real PTY rendering is handled by xterm.js when available. */
+.cli-terminal.xterm-enabled {
+  overflow: hidden !important;
+  white-space: normal !important;
+  padding: 0.65rem 0.18rem 0.65rem 0.65rem !important;
+}
+.cli-terminal.xterm-enabled .xterm { width: 100%; height: 100%; }
+.cli-terminal.xterm-enabled .xterm-viewport {
+  background: transparent !important;
+  overflow-x: hidden !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.42) transparent;
+}
+.cli-terminal.xterm-enabled .xterm-viewport::-webkit-scrollbar { width: 8px; }
+.cli-terminal.xterm-enabled .xterm-viewport::-webkit-scrollbar-track { background: transparent; }
+.cli-terminal.xterm-enabled .xterm-viewport::-webkit-scrollbar-thumb {
+  min-height: 34px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.40);
+  background-clip: padding-box;
+}
+.cli-terminal.xterm-enabled .xterm-viewport::-webkit-scrollbar-button,
+.cli-terminal.xterm-enabled .xterm-viewport::-webkit-scrollbar-corner {
+  display: none;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent;
+}
+.cli-terminal.xterm-enabled .xterm-screen { width: 100%; }
+
+.cli-screen-cursor {
+  display: inline-block;
+  min-width: 0.62em;
+  background: #f4d371 !important;
+  color: #05070a !important;
+  border-radius: 1px;
+  animation: cli-cursor-blink 1s steps(1, end) infinite;
+}
+
+@keyframes cli-cursor-blink {
+  0%, 55% { opacity: 1; }
+  56%, 100% { opacity: 0.35; }
+}
+
 
 .cli-system-link {
   display: inline-block;
@@ -8740,6 +8787,15 @@ dialog.rack-form-dialog:not([open]) {
 
 
 /* Keep the Config intro border consistent with the other Config sections. */
+.app-version {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1;
+  text-align: center;
+  opacity: 0.72;
+}
+
 #config-dialog .config-intro,
 #mobile-config .config-intro {
   border: 2px solid var(--line) !important;
@@ -9594,6 +9650,7 @@ fieldset,
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
   align-content: start;
+  align-items: start;
 }
 .advanced-resource-tab-panel.active {
   display: grid;
@@ -9941,4 +9998,3 @@ fieldset,
     text-align: left;
   }
 }
-

@@ -23,6 +23,7 @@
 
     <link rel="icon" type="image/svg+xml" href="images/logo.svg" />
     <link rel="apple-touch-icon" href="images/logo.svg" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.5.0/xterm.min.css" />
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="demo.css" />
   </head>
@@ -421,9 +422,10 @@
           <div class="config-menu-row config-menu-row-two">
             <button id="theme-btn-mobile" class="button secondary" type="button">🎨 Themes</button>
             <button id="agent-api-btn-mobile" class="button secondary" type="button">🤖 API Keys</button>
-          </div>
-          <button id="show-tutorial-btn-mobile" class="button secondary config-wide-action" type="button">📖 Tutorial</button>
         </div>
+        <button id="show-tutorial-btn-mobile" class="button secondary config-wide-action" type="button">📖 Tutorial</button>
+        <p class="app-version" aria-label="Labby version">Labby 1.0.12</p>
+      </div>
       </div>
       <div class="mobile-view-footer">
         <button class="button secondary" id="mobile-config-close">← Back to Topology</button>
@@ -592,6 +594,7 @@
           <button id="agent-api-btn" class="button secondary" type="button">API Keys</button>
         </div>
         <button id="show-tutorial-btn" class="button secondary config-wide-action" type="button">Tutorial</button>
+        <p class="app-version" aria-label="Labby version">Labby 1.0.12</p>
       </div>
       <div class="dialog-footer">
         <button class="button secondary" onclick="document.getElementById('config-dialog').close()">✕ Close</button>
@@ -792,6 +795,8 @@
     </dialog>
 
     <script>window.DEMO_INTERACTIVE_SECURITY_DISABLED = true;</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.5.0/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
     <script src="script.js"></script>
   </body>
 </html>
