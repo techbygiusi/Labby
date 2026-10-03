@@ -171,8 +171,9 @@ let cliHistoryDraft = '';
 let cliRemoteHistoryLoadedFor = '';
 let cliTerminalState = createCliTerminalState();
 let cliXtermInstances = new Map();
+let cliXtermFitAddons = new Map();
 let cliXtermOutputBuffer = '';
-let cliXtermPreferred = false;
+let cliXtermPreferred = true;
 let cliPlainOutputBuffer = '';
 let cliRemoteHistoryPromise = null;
 
@@ -615,19 +616,6 @@ document.addEventListener('click', (event) => {
 });
 
 
-
-document.addEventListener('keydown', (event) => {
-  if (!isCliVisible()) return;
-  const terminal = activeCliEls()?.terminal;
-  if (!terminal || document.activeElement !== terminal) return;
-  if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-    event.preventDefault();
-    event.stopPropagation();
-    const input = activeCliInput();
-    input?.focus();
-    loadCliHistoryIntoInput(event.key === 'ArrowUp' ? -1 : 1);
-  }
-}, true);
 
 [cliClearKey, mobileCliClearKey].filter(Boolean).forEach((btn) => btn.addEventListener('click', clearCliKnownHostAndReconnect));
 [cliCopy, mobileCliCopy].filter(Boolean).forEach((btn) => btn.addEventListener('click', copyCliOutput));
@@ -3626,11 +3614,34 @@ function cliTerminalFontSize() {
 }
 
 function cliTerminalRows() {
-  return isMobile() ? 28 : 34;
+  const terminal = activeCliEls?.()?.terminal || cliTerminal || mobileCliTerminal;
+  const height = terminal?.clientHeight || (isMobile() ? 520 : 560);
+  const usable = Math.max(220, height - 32);
+  const linePx = cliTerminalFontSize() * 1.5;
+  return Math.max(isMobile() ? 16 : 18, Math.min(isMobile() ? 32 : 45, Math.floor(usable / linePx)));
 }
 
 function cliXtermAvailable() {
   return Boolean(cliXtermPreferred && window.Terminal);
+}
+
+function fitCliXterm(term, terminalEl) {
+  if (!term || !terminalEl) return null;
+  const fitAddon = cliXtermFitAddons.get(terminalEl);
+  if (fitAddon) {
+    try {
+      fitAddon.fit();
+      return { cols: term.cols, rows: term.rows };
+    } catch {}
+  }
+  // Offline/CDN fallback: keep the previous approximation if FitAddon is not
+  // available, but never grow beyond the visible terminal container.
+  try {
+    term.resize(estimateCliTerminalCols(), cliTerminalRows());
+    return { cols: term.cols, rows: term.rows };
+  } catch {
+    return null;
+  }
 }
 
 function getCliXterm(terminalEl) {
@@ -3656,14 +3667,22 @@ function getCliXterm(terminalEl) {
         selectionBackground: '#f4d37188',
       },
     });
+    if (window.FitAddon?.FitAddon) {
+      try {
+        const fitAddon = new window.FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        cliXtermFitAddons.set(terminalEl, fitAddon);
+      } catch {}
+    }
     term.open(terminalEl);
+    fitCliXterm(term, terminalEl);
     term.onData((data) => {
-      // Full-screen tools such as nano need raw keystrokes. Normal command history
-      // stays on the separate Labby input field; click/focus the terminal only when
-      // controlling an interactive program.
-      if (cliSession && document.activeElement === terminalEl) sendCliRawInput(data);
+      // xterm only emits onData while its own terminal input is focused, so this is
+      // the authoritative raw-key path for nano, vim, top, tmux and similar tools.
+      if (cliSession) void sendCliRawInput(data);
     });
     terminalEl.addEventListener('focus', () => term.focus());
+    terminalEl.addEventListener('pointerdown', () => window.setTimeout(() => term.focus(), 0));
     cliXtermInstances.set(terminalEl, term);
     return term;
   } catch (err) {
@@ -3678,10 +3697,9 @@ function activeCliXterm() {
 }
 
 function initActiveCliTerminal() {
-  const term = activeCliXterm();
-  if (term) {
-    try { term.resize(estimateCliTerminalCols(), cliTerminalRows()); } catch {}
-  }
+  const terminalEl = activeCliEls()?.terminal;
+  const term = getCliXterm(terminalEl);
+  if (term) fitCliXterm(term, terminalEl);
   return term;
 }
 
@@ -3734,7 +3752,7 @@ function renderCliPlainOutput() {
 
 
 function createCliTerminalState() {
-  const rows = isMobile() ? 28 : 34;
+  const rows = cliTerminalRows();
   const cols = estimateCliTerminalCols();
   return {
     rows,
@@ -3744,56 +3762,110 @@ function createCliTerminalState() {
     col: 0,
     savedRow: 0,
     savedCol: 0,
+    scrollTop: 0,
+    scrollBottom: rows - 1,
     parser: '',
     osc: false,
     normal: null,
     alt: false,
+    originMode: false,
+    wrapMode: true,
+    cursorVisible: true,
   };
 }
 
 function estimateCliTerminalCols() {
   const terminal = activeCliEls?.()?.terminal || cliTerminal || mobileCliTerminal;
   const width = terminal?.clientWidth || 1200;
-  return Math.max(80, Math.min(220, Math.floor(width / 9)));
+  const horizontalPadding = 40;
+  const charWidth = cliTerminalFontSize() * 0.69;
+  return Math.max(60, Math.min(220, Math.floor(Math.max(520, width - horizontalPadding) / charWidth)));
 }
 
 function resizeCliTerminalState() {
   if (!cliTerminalState) cliTerminalState = createCliTerminalState();
   const cols = estimateCliTerminalCols();
+  const rows = cliTerminalRows();
   cliTerminalState.cols = cols;
-  cliTerminalState.rows = isMobile() ? 28 : 34;
+  if (cliTerminalState.rows !== rows && !cliTerminalState.alt) {
+    cliTerminalState.rows = rows;
+    cliTerminalState.scrollTop = 0;
+    cliTerminalState.scrollBottom = rows - 1;
+  }
 }
 
 function clearCliTerminalBuffer(state = cliTerminalState) {
   state.buffer = Array.from({ length: state.rows }, () => []);
   state.row = 0;
   state.col = 0;
+  state.scrollTop = 0;
+  state.scrollBottom = state.rows - 1;
 }
 
 function ensureCliTerminalLine(state, row) {
-  while (state.buffer.length <= row) state.buffer.push([]);
-  return state.buffer[row];
+  const target = Math.max(0, row);
+  while (state.buffer.length <= target) state.buffer.push([]);
+  return state.buffer[target];
 }
 
-function scrollCliTerminal(state) {
-  state.buffer.push([]);
-  const maxLines = state.alt ? state.rows : 1200;
-  while (state.buffer.length > maxLines) state.buffer.shift();
-  state.row = Math.max(0, Math.min(state.buffer.length - 1, state.row));
+function blankCliTerminalLine() {
+  return [];
+}
+
+function scrollCliRegionUp(state, count = 1) {
+  const top = Math.max(0, Math.min(state.rows - 1, state.scrollTop));
+  const bottom = Math.max(top, Math.min(state.rows - 1, state.scrollBottom));
+  for (let n = 0; n < Math.max(1, count); n += 1) {
+    state.buffer.splice(top, 1);
+    state.buffer.splice(bottom, 0, blankCliTerminalLine());
+  }
+}
+
+function scrollCliRegionDown(state, count = 1) {
+  const top = Math.max(0, Math.min(state.rows - 1, state.scrollTop));
+  const bottom = Math.max(top, Math.min(state.rows - 1, state.scrollBottom));
+  for (let n = 0; n < Math.max(1, count); n += 1) {
+    state.buffer.splice(bottom, 1);
+    state.buffer.splice(top, 0, blankCliTerminalLine());
+  }
+}
+
+function lineFeedCliTerminal(state) {
+  // Normal shell output keeps scrollback history. Alternate-screen programs
+  // (nano/vim/less/htop) use the fixed terminal viewport and scroll regions.
+  if (!state.alt && state.scrollTop === 0 && state.scrollBottom === state.rows - 1) {
+    state.row += 1;
+    if (state.row >= state.buffer.length) state.buffer.push([]);
+    while (state.buffer.length > 1200) {
+      state.buffer.shift();
+      state.row = Math.max(0, state.row - 1);
+    }
+    return;
+  }
+  if (state.row >= state.scrollBottom) {
+    scrollCliRegionUp(state, 1);
+    state.row = state.scrollBottom;
+  } else {
+    state.row = Math.min(state.rows - 1, state.row + 1);
+  }
+}
+
+function reverseIndexCliTerminal(state) {
+  if (state.row <= state.scrollTop) {
+    scrollCliRegionDown(state, 1);
+    state.row = state.scrollTop;
+  } else {
+    state.row = Math.max(0, state.row - 1);
+  }
 }
 
 function putCliTerminalChar(state, ch) {
   if (ch === '\r') { state.col = 0; return; }
-  if (ch === '\n') {
-    state.row += 1;
-    if (state.alt && state.row >= state.rows) state.row = state.rows - 1;
-    else if (state.row >= state.buffer.length) scrollCliTerminal(state);
-    return;
-  }
+  if (ch === '\n' || ch === '\v' || ch === '\f') { lineFeedCliTerminal(state); return; }
   if (ch === '\b') { state.col = Math.max(0, state.col - 1); return; }
   if (ch === '\t') {
-    const spaces = 8 - (state.col % 8);
-    for (let i = 0; i < spaces; i += 1) putCliTerminalChar(state, ' ');
+    const nextTab = Math.min(state.cols - 1, state.col + (8 - (state.col % 8)));
+    state.col = nextTab;
     return;
   }
   if (ch < ' ') return;
@@ -3802,75 +3874,187 @@ function putCliTerminalChar(state, ch) {
   line[state.col] = ch;
   state.col += 1;
   if (state.col >= state.cols) {
+    if (!state.wrapMode) {
+      state.col = state.cols - 1;
+      return;
+    }
     state.col = 0;
-    state.row += 1;
-    if (state.alt && state.row >= state.rows) state.row = state.rows - 1;
-    else if (state.row >= state.buffer.length) scrollCliTerminal(state);
+    lineFeedCliTerminal(state);
   }
 }
 
 function parseCliCsiParams(seq) {
   const final = seq.slice(-1);
-  const raw = seq.slice(0, -1).replace(/[?>!]/g, '');
-  const params = raw.split(';').filter((v) => v !== '').map((v) => Number.parseInt(v, 10) || 0);
-  return { final, params, privateMode: seq.includes('?') };
+  const body = seq.slice(0, -1);
+  const privateMode = body.includes('?');
+  const raw = body.replace(/[?>!]/g, '').replace(/[:]/g, ';');
+  const params = raw.split(';').map((v) => v === '' ? 0 : (Number.parseInt(v, 10) || 0));
+  return { final, params, privateMode };
+}
+
+function cliParam(params, index, fallback = 1) {
+  const value = params[index];
+  return value == null || value === 0 ? fallback : value;
+}
+
+function setCliInteractiveFocus(active) {
+  window.setTimeout(() => {
+    if (active) {
+      const terminal = activeCliEls()?.terminal;
+      terminal?.focus?.({ preventScroll: true });
+    } else {
+      activeCliInput()?.focus?.({ preventScroll: true });
+    }
+  }, 0);
+}
+
+function handleCliPrivateMode(state, seq, enabled) {
+  const body = seq.slice(0, -1);
+  const modes = body.replace(/^\?/, '').split(';').map((v) => Number.parseInt(v, 10)).filter(Number.isFinite);
+  if (modes.some((mode) => [47, 1047, 1049].includes(mode))) {
+    if (enabled && !state.alt) {
+      state.normal = {
+        buffer: state.buffer.map((line) => [...line]),
+        row: state.row,
+        col: state.col,
+        scrollTop: state.scrollTop,
+        scrollBottom: state.scrollBottom,
+      };
+      state.alt = true;
+      clearCliTerminalBuffer(state);
+      setCliInteractiveFocus(true);
+    } else if (!enabled && state.alt) {
+      const normal = state.normal;
+      state.alt = false;
+      state.normal = null;
+      if (normal) {
+        state.buffer = normal.buffer;
+        state.row = normal.row;
+        state.col = normal.col;
+        state.scrollTop = normal.scrollTop;
+        state.scrollBottom = normal.scrollBottom;
+      }
+      setCliInteractiveFocus(false);
+    }
+  }
+  if (modes.includes(6)) state.originMode = enabled;
+  if (modes.includes(7)) state.wrapMode = enabled;
+  if (modes.includes(25)) state.cursorVisible = enabled;
+}
+
+function eraseCliDisplay(state, mode) {
+  if (mode === 2 || mode === 3) {
+    for (let r = 0; r < state.rows; r += 1) state.buffer[r] = [];
+    if (mode === 3) { state.row = 0; state.col = 0; }
+    return;
+  }
+  if (mode === 1) {
+    for (let r = 0; r < state.row; r += 1) state.buffer[r] = [];
+    const line = ensureCliTerminalLine(state, state.row);
+    for (let c = 0; c <= state.col; c += 1) line[c] = ' ';
+    return;
+  }
+  const line = ensureCliTerminalLine(state, state.row);
+  line.length = Math.min(line.length, state.col);
+  for (let r = state.row + 1; r < state.rows; r += 1) state.buffer[r] = [];
+}
+
+function eraseCliLine(state, mode) {
+  const line = ensureCliTerminalLine(state, state.row);
+  if (mode === 2) { state.buffer[state.row] = []; return; }
+  if (mode === 1) {
+    for (let c = 0; c <= state.col; c += 1) line[c] = ' ';
+    return;
+  }
+  line.length = Math.min(line.length, state.col);
 }
 
 function handleCliCsi(seq) {
   const state = cliTerminalState;
   const { final, params, privateMode } = parseCliCsiParams(seq);
-  const first = params[0] || 0;
+  const first = cliParam(params, 0, 1);
+
   if ((final === 'h' || final === 'l') && privateMode) {
-    if (seq.includes('1049') || seq.includes('47') || seq.includes('1047')) {
-      if (final === 'h' && !state.alt) {
-        state.normal = { buffer: state.buffer, row: state.row, col: state.col };
-        state.alt = true;
-        clearCliTerminalBuffer(state);
-      } else if (final === 'l' && state.alt) {
-        const normal = state.normal;
-        state.alt = false;
-        state.normal = null;
-        if (normal) {
-          state.buffer = normal.buffer;
-          state.row = normal.row;
-          state.col = normal.col;
-        }
-      }
-    }
+    handleCliPrivateMode(state, seq, final === 'h');
     return;
   }
-  if (final === 'm') return;
-  if (final === 'A') { state.row = Math.max(0, state.row - (first || 1)); return; }
-  if (final === 'B') { state.row = Math.min(state.buffer.length - 1, state.row + (first || 1)); return; }
-  if (final === 'C') { state.col = Math.min(state.cols - 1, state.col + (first || 1)); return; }
-  if (final === 'D') { state.col = Math.max(0, state.col - (first || 1)); return; }
-  if (final === 'G') { state.col = Math.max(0, Math.min(state.cols - 1, (first || 1) - 1)); return; }
+  if (final === 'm' || final === 'n' || final === 'c' || final === 'q' || final === 't' || final === 'g') return;
+  if (final === 'A') { state.row = Math.max(state.originMode ? state.scrollTop : 0, state.row - first); return; }
+  if (final === 'B' || final === 'e') { state.row = Math.min(state.originMode ? state.scrollBottom : state.rows - 1, state.row + first); return; }
+  if (final === 'C' || final === 'a') { state.col = Math.min(state.cols - 1, state.col + first); return; }
+  if (final === 'D') { state.col = Math.max(0, state.col - first); return; }
+  if (final === 'E') { state.row = Math.min(state.rows - 1, state.row + first); state.col = 0; return; }
+  if (final === 'F') { state.row = Math.max(0, state.row - first); state.col = 0; return; }
+  if (final === 'G' || final === '`') { state.col = Math.max(0, Math.min(state.cols - 1, first - 1)); return; }
+  if (final === 'd') {
+    const base = state.originMode ? state.scrollTop : 0;
+    state.row = Math.max(0, Math.min(state.rows - 1, base + first - 1));
+    return;
+  }
   if (final === 'H' || final === 'f') {
-    state.row = Math.max(0, Math.min(state.buffer.length - 1, (params[0] || 1) - 1));
-    state.col = Math.max(0, Math.min(state.cols - 1, (params[1] || 1) - 1));
+    const base = state.originMode ? state.scrollTop : 0;
+    state.row = Math.max(0, Math.min(state.rows - 1, base + cliParam(params, 0, 1) - 1));
+    state.col = Math.max(0, Math.min(state.cols - 1, cliParam(params, 1, 1) - 1));
     return;
   }
-  if (final === 'J') {
-    if (first === 2 || first === 3) clearCliTerminalBuffer(state);
-    else if (first === 0) {
-      const line = ensureCliTerminalLine(state, state.row);
-      line.length = state.col;
-      for (let r = state.row + 1; r < state.buffer.length; r += 1) state.buffer[r] = [];
+  if (final === 'J') { eraseCliDisplay(state, params[0] || 0); return; }
+  if (final === 'K') { eraseCliLine(state, params[0] || 0); return; }
+  if (final === 'r') {
+    const top = Math.max(0, Math.min(state.rows - 1, cliParam(params, 0, 1) - 1));
+    const bottom = Math.max(top, Math.min(state.rows - 1, cliParam(params, 1, state.rows) - 1));
+    state.scrollTop = top;
+    state.scrollBottom = bottom;
+    state.row = state.originMode ? top : 0;
+    state.col = 0;
+    return;
+  }
+  if (final === 'S') { scrollCliRegionUp(state, first); return; }
+  if (final === 'T') { scrollCliRegionDown(state, first); return; }
+  if (final === 'L') {
+    const count = Math.min(first, state.scrollBottom - state.row + 1);
+    for (let n = 0; n < count; n += 1) {
+      state.buffer.splice(state.row, 0, []);
+      state.buffer.splice(state.scrollBottom + 1, 1);
     }
     return;
   }
-  if (final === 'K') {
+  if (final === 'M') {
+    const count = Math.min(first, state.scrollBottom - state.row + 1);
+    for (let n = 0; n < count; n += 1) {
+      state.buffer.splice(state.row, 1);
+      state.buffer.splice(state.scrollBottom, 0, []);
+    }
+    return;
+  }
+  if (final === '@') {
     const line = ensureCliTerminalLine(state, state.row);
-    if (first === 2) state.buffer[state.row] = [];
-    else if (first === 1) {
-      for (let i = 0; i <= state.col; i += 1) line[i] = ' ';
-    } else {
-      line.length = state.col;
-    }
+    line.splice(state.col, 0, ...Array.from({ length: first }, () => ' '));
+    if (line.length > state.cols) line.length = state.cols;
+    return;
+  }
+  if (final === 'P') {
+    const line = ensureCliTerminalLine(state, state.row);
+    line.splice(state.col, first);
+    return;
+  }
+  if (final === 'X') {
+    const line = ensureCliTerminalLine(state, state.row);
+    for (let c = state.col; c < Math.min(state.cols, state.col + first); c += 1) line[c] = ' ';
     return;
   }
   if (final === 's') { state.savedRow = state.row; state.savedCol = state.col; return; }
   if (final === 'u') { state.row = state.savedRow; state.col = state.savedCol; }
+}
+
+function handleCliEscape(state, parser) {
+  if (parser === '\x1b7') { state.savedRow = state.row; state.savedCol = state.col; return true; }
+  if (parser === '\x1b8') { state.row = state.savedRow; state.col = state.savedCol; return true; }
+  if (parser === '\x1bD') { lineFeedCliTerminal(state); return true; }
+  if (parser === '\x1bM') { reverseIndexCliTerminal(state); return true; }
+  if (parser === '\x1bE') { state.col = 0; lineFeedCliTerminal(state); return true; }
+  if (parser === '\x1bc') { clearCliTerminalBuffer(state); state.originMode = false; state.wrapMode = true; return true; }
+  if (parser === '\x1b=' || parser === '\x1b>') return true;
+  return false;
 }
 
 function appendCliTerminalChunk(text) {
@@ -3886,12 +4070,22 @@ function appendCliTerminalChunk(text) {
     if (state.parser) {
       state.parser += ch;
       if (state.parser === '\x1b]') { state.osc = true; state.parser = ''; continue; }
-      if (state.parser.length === 2 && !['[', '(', ')', '#', ']', '7', '8'].includes(state.parser[1])) { state.parser = ''; continue; }
-      if (state.parser[1] === '[' && /[A-Za-z~]/.test(ch)) { handleCliCsi(state.parser.slice(2)); state.parser = ''; continue; }
-      if (['(', ')', '#'].includes(state.parser[1]) && state.parser.length >= 3) { state.parser = ''; continue; }
-      if (state.parser === '\x1b7') { state.savedRow = state.row; state.savedCol = state.col; state.parser = ''; continue; }
-      if (state.parser === '\x1b8') { state.row = state.savedRow; state.col = state.savedCol; state.parser = ''; continue; }
-      if (state.parser.length > 80) state.parser = '';
+      if (handleCliEscape(state, state.parser)) { state.parser = ''; continue; }
+      const escType = state.parser[1];
+      if (escType === '[') {
+        const code = ch.charCodeAt(0);
+        if (code >= 0x40 && code <= 0x7e) {
+          handleCliCsi(state.parser.slice(2));
+          state.parser = '';
+          continue;
+        }
+      } else if (['(', ')', '#', '*', '+', '-', '.', '/'].includes(escType)) {
+        if (state.parser.length >= 3) { state.parser = ''; continue; }
+      } else if (state.parser.length >= 2 && ![']'].includes(escType)) {
+        state.parser = '';
+        continue;
+      }
+      if (state.parser.length > 120) state.parser = '';
       continue;
     }
     if (ch === '\x1b') { state.parser = ch; continue; }
@@ -3909,7 +4103,27 @@ function renderCliTerminalState() {
   // cursor movement, so appending normalized text would duplicate every frame.
   cliPlainOutputBuffer = text;
   [cliTerminal, mobileCliTerminal].filter(Boolean).forEach((terminal) => {
-    terminal.textContent = text;
+    if (state.alt && state.cursorVisible) {
+      const fragment = document.createDocumentFragment();
+      lines.forEach((line, rowIndex) => {
+        if (rowIndex === state.row) {
+          const padded = line.padEnd(Math.min(state.cols, state.col + 1), ' ');
+          const cursorCol = Math.max(0, Math.min(state.cols - 1, state.col));
+          fragment.appendChild(document.createTextNode(padded.slice(0, cursorCol)));
+          const cursor = document.createElement('span');
+          cursor.className = 'cli-screen-cursor';
+          cursor.textContent = padded[cursorCol] === ' ' || padded[cursorCol] == null ? '\u00a0' : padded[cursorCol];
+          fragment.appendChild(cursor);
+          fragment.appendChild(document.createTextNode(padded.slice(cursorCol + 1)));
+        } else {
+          fragment.appendChild(document.createTextNode(line));
+        }
+        if (rowIndex < lines.length - 1) fragment.appendChild(document.createTextNode('\n'));
+      });
+      terminal.replaceChildren(fragment);
+    } else {
+      terminal.textContent = text;
+    }
     terminal.scrollTop = terminal.scrollHeight;
   });
 }
@@ -3920,9 +4134,34 @@ function setCliOutput(text, append = false) {
     cliTerminalState = createCliTerminalState();
     cliPlainOutputBuffer = '';
   }
-  // Feed the raw SSH stream into the terminal-state parser. This preserves
-  // carriage returns, erase-line commands and cursor movement used by apt,
-  // Docker BuildKit and other installers to update progress in place.
+
+  // Prefer a real terminal emulator for the raw PTY stream. This is required for
+  // full-screen applications (nano/vim/top/tmux) and avoids exposing ANSI/VT100
+  // control sequences as visible text. Keep the internal renderer as an offline
+  // fallback if xterm.js cannot be loaded.
+  if (cliXtermAvailable()) {
+    const term = initActiveCliTerminal();
+    if (term) {
+      if (!append) {
+        clearCliXterms();
+        try { term.reset(); } catch {}
+      }
+      cliXtermOutputBuffer = (append ? cliXtermOutputBuffer : '') + value;
+      if (cliXtermOutputBuffer.length > 200000) cliXtermOutputBuffer = cliXtermOutputBuffer.slice(-100000);
+      cliPlainOutputBuffer = normalizeCliPlainOutput(cliXtermOutputBuffer);
+      try { term.write(value); } catch {}
+
+      // Most curses editors switch to the alternate screen. Move keyboard focus
+      // into xterm automatically so Ctrl+O/Ctrl+X and cursor keys work immediately.
+      if (/\x1b\[\?(?:47|1047|1049)h/.test(value)) {
+        window.setTimeout(() => term.focus(), 0);
+      } else if (/\x1b\[\?(?:47|1047|1049)l/.test(value)) {
+        window.setTimeout(() => activeCliInput()?.focus(), 0);
+      }
+      return;
+    }
+  }
+
   appendCliTerminalChunk(value);
 }
 
@@ -3939,7 +4178,6 @@ async function openCliSession(item, options = {}) {
   const els = activeCliEls();
   if (els.title) els.title.textContent = `CLI - ${item.name || 'Resource'}`;
   if (els.subtitle) els.subtitle.textContent = 'SSH session';
-  setCliOutput('');
 
   if (isMobile()) {
     hideMobileViews?.();
@@ -3949,11 +4187,27 @@ async function openCliSession(item, options = {}) {
     cliDialog.showModal();
   }
 
+  // Measure only after the CLI is visible. Let xterm FitAddon calculate the real
+  // character grid so the remote PTY and the visible browser terminal have the
+  // exact same rows/columns. This keeps nano/vim status bars inside the viewport.
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  const measuredTerm = initActiveCliTerminal();
+  const cols = measuredTerm?.cols || estimateCliTerminalCols();
+  const rows = measuredTerm?.rows || cliTerminalRows();
+  cliTerminalState = createCliTerminalState();
+  cliTerminalState.cols = cols;
+  cliTerminalState.rows = rows;
+  cliTerminalState.scrollBottom = rows - 1;
+  cliTerminalState.buffer = Array.from({ length: rows }, () => []);
+  cliPlainOutputBuffer = '';
+  if (measuredTerm) clearCliXterms();
+  else renderCliTerminalState();
+
   try {
     const res = await fetch(`${API_BASE}/api/ssh/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ host: ip, username, password, privateKey, keyPassphrase, authMethod, clearKnownHost: Boolean(options.clearKnownHost) }),
+      body: JSON.stringify({ host: ip, username, password, privateKey, keyPassphrase, authMethod, cols, rows, clearKnownHost: Boolean(options.clearKnownHost) }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Could not start SSH session.');
@@ -4012,7 +4266,7 @@ function startCliPolling() {
     } catch {
       stopCliPolling();
     }
-  }, 800);
+  }, 120);
 }
 
 function stopCliPolling() {
@@ -4298,13 +4552,19 @@ async function completeCliInputFromRemote(input) {
 }
 
 function cliKeyEventToRawInput(event) {
-  if (event.ctrlKey && !event.altKey && event.key && event.key.length === 1) {
-    const code = event.key.toUpperCase().charCodeAt(0);
-    if (code >= 64 && code <= 95) return String.fromCharCode(code - 64);
+  if (event.ctrlKey && !event.altKey && !event.metaKey) {
+    if (event.key === ' ' || event.key === '@') return '\x00';
+    if (event.key && event.key.length === 1) {
+      const code = event.key.toUpperCase().charCodeAt(0);
+      if (code >= 64 && code <= 95) return String.fromCharCode(code - 64);
+    }
+  }
+  if (event.altKey && !event.ctrlKey && !event.metaKey && event.key && event.key.length === 1) {
+    return `\x1b${event.key}`;
   }
   if (event.key === 'Enter') return '\r';
   if (event.key === 'Backspace') return '\x7f';
-  if (event.key === 'Tab') return '\t';
+  if (event.key === 'Tab') return event.shiftKey ? '\x1b[Z' : '\t';
   if (event.key === 'Escape') return '\x1b';
   if (event.key === 'ArrowUp') return '\x1b[A';
   if (event.key === 'ArrowDown') return '\x1b[B';
@@ -4312,11 +4572,48 @@ function cliKeyEventToRawInput(event) {
   if (event.key === 'ArrowLeft') return '\x1b[D';
   if (event.key === 'Home') return '\x1b[H';
   if (event.key === 'End') return '\x1b[F';
+  if (event.key === 'Insert') return '\x1b[2~';
   if (event.key === 'Delete') return '\x1b[3~';
-  if (!event.ctrlKey && !event.metaKey && event.key && event.key.length === 1) return event.key;
+  if (event.key === 'PageUp') return '\x1b[5~';
+  if (event.key === 'PageDown') return '\x1b[6~';
+  const functionKeys = {
+    F1: '\x1bOP', F2: '\x1bOQ', F3: '\x1bOR', F4: '\x1bOS',
+    F5: '\x1b[15~', F6: '\x1b[17~', F7: '\x1b[18~', F8: '\x1b[19~',
+    F9: '\x1b[20~', F10: '\x1b[21~', F11: '\x1b[23~', F12: '\x1b[24~',
+  };
+  if (functionKeys[event.key]) return functionKeys[event.key];
+  if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key && event.key.length === 1) return event.key;
   return '';
 }
 
+
+function attachCliInteractiveInput() {
+  [cliTerminal, mobileCliTerminal].filter(Boolean).forEach((terminal) => {
+    terminal.addEventListener('pointerdown', () => {
+      window.setTimeout(() => terminal.focus({ preventScroll: true }), 0);
+    });
+    terminal.addEventListener('keydown', (event) => {
+      if (terminal.classList.contains('xterm-enabled')) return;
+      if (!cliSession || activeCliEls()?.terminal !== terminal) return;
+      if ((event.ctrlKey || event.metaKey) && String(event.key || '').toLowerCase() === 'c' && cliSelectionText()) return;
+      const raw = cliKeyEventToRawInput(event);
+      if (!raw) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void sendCliRawInput(raw);
+    });
+    terminal.addEventListener('paste', (event) => {
+      if (terminal.classList.contains('xterm-enabled')) return;
+      if (!cliSession || activeCliEls()?.terminal !== terminal) return;
+      const text = event.clipboardData?.getData('text/plain') || '';
+      if (!text) return;
+      event.preventDefault();
+      void sendCliRawInput(text.replace(/\r?\n/g, '\r'));
+    });
+  });
+}
+
+attachCliInteractiveInput();
 
 function cliConfiguredSudoPassword() {
   const credentials = normalizeCredentials(cliActiveItem?.credentials);

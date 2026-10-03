@@ -1024,6 +1024,9 @@ printf '%s\n' "$LABBY_SSH_KEY_PASSPHRASE"
     }
   }
 
+  const requestedCols = Math.max(40, Math.min(240, Number.parseInt(req.body?.cols, 10) || 120));
+  const requestedRows = Math.max(12, Math.min(80, Number.parseInt(req.body?.rows, 10) || 30));
+
   const sshArgs = [
     '-tt',
     '-o', 'StrictHostKeyChecking=accept-new',
@@ -1040,8 +1043,8 @@ printf '%s\n' "$LABBY_SSH_KEY_PASSPHRASE"
   const env = { ...process.env };
   env.TERM = 'xterm-256color';
   env.COLORTERM = env.COLORTERM || 'truecolor';
-  env.COLUMNS = env.COLUMNS || '160';
-  env.LINES = env.LINES || '34';
+  env.COLUMNS = String(requestedCols);
+  env.LINES = String(requestedRows);
   if (command === 'sshpass') env.SSHPASS = password;
   if (askPassPath) {
     env.SSH_ASKPASS = askPassPath;
@@ -1050,15 +1053,31 @@ printf '%s\n' "$LABBY_SSH_KEY_PASSPHRASE"
     env.LABBY_SSH_KEY_PASSPHRASE = keyPassphrase;
   }
 
+  // Full-screen terminal applications (nano, vim, less, htop, etc.) need the
+  // local SSH client to run inside a real pseudo terminal. util-linux `script`
+  // is already part of the Labby image, so use it as a lightweight PTY wrapper.
+  // The browser sends its measured rows/columns so OpenSSH forwards a useful
+  // terminal size to the remote host. Fall back to the former pipe-based launch
+  // when Labby is run outside Linux or `script` is unavailable.
+  const scriptBinary = ['/usr/bin/script', '/bin/script'].find((candidate) => {
+    try { return fs.existsSync(candidate); } catch { return false; }
+  });
+  const sshCommandLine = [command, ...args].map(shellQuote).join(' ');
+  const ptyCommandLine = `stty rows ${requestedRows} cols ${requestedCols}; exec ${sshCommandLine}`;
+  const launchCommand = scriptBinary || command;
+  const launchArgs = scriptBinary
+    ? ['-q', '-f', '-e', '-c', ptyCommandLine, '/dev/null']
+    : args;
+
   let proc;
   try {
-    proc = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'], env });
+    proc = spawn(launchCommand, launchArgs, { stdio: ['pipe', 'pipe', 'pipe'], env });
   } catch (err) {
     if (tempDir) cleanupSessionFiles({ tempDir });
     return res.status(500).json({ error: `Unable to start ssh: ${err.message}` });
   }
 
-  const session = { id: sessionId, proc, tempDir, output: '', closed: false, createdAt: Date.now(), term: env.TERM, complete: { command, args, env, target } };
+  const session = { id: sessionId, proc, tempDir, output: '', closed: false, createdAt: Date.now(), term: env.TERM, cols: requestedCols, rows: requestedRows, complete: { command, args, env, target } };
   sshSessions.set(sessionId, session);
 
   const collect = (chunk) => {
