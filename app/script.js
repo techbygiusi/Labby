@@ -208,6 +208,7 @@ window.fetch = async (...args) => {
 };
 
 let editingId = null;
+let copyingSourceId = null;
 let selectedNetworkColor = networkPalette[0];
 let items = [];
 let locations = [];
@@ -985,6 +986,7 @@ form.addEventListener('submit', async (event) => {
   };
 
   const wasEditing = Boolean(editingId);
+  const wasCopying = Boolean(copyingSourceId);
 
   if (editingId) {
     const existing = findById(editingId);
@@ -993,11 +995,12 @@ form.addEventListener('submit', async (event) => {
     stopEditing();
   } else {
     items.push({ id: `${type}-${Date.now()}`, ...payload });
+    if (wasCopying) stopEditing();
   }
 
   normalizeItems();
   await saveItems();
-  showToast(wasEditing ? 'Resource updated.' : 'Resource added.');
+  showToast(wasEditing ? 'Resource updated.' : wasCopying ? 'Resource copied.' : 'Resource added.');
   closeAdvancedResourceSettings();
   form.reset();
   statusSelect.value = '';
@@ -3600,14 +3603,14 @@ function updateAdvancedResourceControls(type, hardwareKind) {
   if (computeTab) computeTab.textContent = type === 'hardware' && !supportsComputeDetails(type, hardwareKind) ? 'Hardware' : 'Compute';
   advancedSettingsBtn?.classList.toggle('hidden', !hasAdvanced);
   document.getElementById('credentials-wrap')?.classList.toggle('hidden', !supportsCredentials(type));
-  if (advancedResourceSave) advancedResourceSave.textContent = editingId ? 'Save changes' : 'Add item';
+  if (advancedResourceSave) advancedResourceSave.textContent = editingId ? 'Save changes' : copyingSourceId ? 'Save as new resource' : 'Add item';
   if (advancedResourceTitle) {
     const typeTitle = type === 'hardware'
       ? hardwareTypeLabel(hardwareKind)
       : type === 'network'
         ? `${networkTypeLabel(networkKindSelect?.value)} Network`
         : labelSingle(type);
-    advancedResourceTitle.textContent = `${typeTitle} Settings`;
+    advancedResourceTitle.textContent = `${copyingSourceId ? 'Copy ' : ''}${typeTitle} Settings`;
   }
   syncAdvancedResourceMirrors();
   updateAdvancedResourceMirrorVisibility();
@@ -3773,6 +3776,9 @@ function cardNode(item) {
 
   const editButton = node.querySelector('.edit-btn');
   if (editButton) editButton.addEventListener('click', () => isMobile() ? window.startEditingMobile(item.id) : startEditing(item.id));
+
+  const copyButton = node.querySelector('.copy-resource-btn');
+  if (copyButton) copyButton.addEventListener('click', () => isMobile() ? window.startCopyingMobile(item.id) : startCopying(item.id));
 
   const deleteButton = node.querySelector('.delete-btn');
   if (deleteButton) deleteButton.addEventListener('click', () => removeItem(item.id));
@@ -5053,6 +5059,7 @@ function createCardShell() {
         <h3 class="card-title"></h3>
       </div>
       <div class="card-controls">
+        <button class="icon-btn copy-resource-btn" type="button" title="Copy resource">Copy</button>
         <button class="icon-btn edit-btn" type="button">Edit</button>
         <button class="icon-btn delete-btn" type="button">Delete</button>
       </div>
@@ -5575,13 +5582,15 @@ function renderRelationshipEditors() {
 });
 
 
-function startEditing(id) {
+function startEditing(id, options = {}) {
   const item = findById(id);
   if (!item) return;
 
-  editingId = id;
-  formTitle.textContent = `Edit Resource: ${item.name}`;
-  saveBtn.textContent = 'Save changes';
+  const isCopy = options.copy === true;
+  editingId = isCopy ? null : id;
+  copyingSourceId = isCopy ? id : null;
+  formTitle.textContent = isCopy ? `Copy Resource: ${item.name}` : `Edit Resource: ${item.name}`;
+  saveBtn.textContent = isCopy ? 'Save as new resource' : 'Save changes';
   cancelEditBtn.classList.remove('hidden');
 
   typeSelect.value = formTypeForItem(item);
@@ -5679,8 +5688,13 @@ function startEditing(id) {
   requestAnimationFrame(() => openAdvancedResourceSettings());
 }
 
+function startCopying(id) {
+  startEditing(id, { copy: true });
+}
+
 function stopEditing() {
   editingId = null;
+  copyingSourceId = null;
   formTitle.textContent = 'Add Resource';
   saveBtn.textContent = 'Add item';
   cancelEditBtn.classList.add('hidden');
@@ -7778,6 +7792,18 @@ window.startEditingMobile = function(id) {
   }
 };
 
+window.startCopyingMobile = function(id) {
+  startEditing(id, { copy: true });
+  if (isMobile()) {
+    showMobileView('mobile-add');
+    setActiveMobileNav('nav-add');
+    document.getElementById('mobile-form-title').textContent = 'Copy Resource';
+    const body = document.getElementById('mobile-form-body');
+    const formEl = document.getElementById('resource-form');
+    if (body && formEl && !body.contains(formEl)) body.appendChild(formEl);
+  }
+};
+
 let tutorialStep = 0;
 const tutorialSteps = [
   { title: 'Welcome to Labby! 👋', text: 'Labby helps you map your homelab. Track hardware, VMs, apps and networks, and visualize how everything connects.'},
@@ -9860,5 +9886,3 @@ updateRackSelectedComponentUI();
 // Theme initialization moved after definitions
 try { initTheme();
 initCommandSnippetPanel(); } catch(e){ console.error(e); }
-
-
