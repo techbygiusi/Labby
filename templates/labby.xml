@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Container version="2">
   <Name>Labby</Name>
-  <Repository>techbygiusi/labby:1.0.12</Repository>
+  <Repository>techbygiusi/labby:1.0.13</Repository>
   <Registry>https://hub.docker.com/r/techbygiusi/labby</Registry>
   <Network>bridge</Network>
   <Shell>sh</Shell>
@@ -16,8 +16,8 @@
   <TemplateURL>https://raw.githubusercontent.com/techbygiusi/Labby/main/templates/labby.xml</TemplateURL>
   <ReadMe>https://raw.githubusercontent.com/techbygiusi/Labby/main/UNRAID.md</ReadMe>
   <Requires>Docker must be enabled. The selected host port must be available and the appdata path must be writable.</Requires>
-  <Changes>Version 1.0.12: Publish the current Labby release and update the Unraid template to the matching Docker image.</Changes>
-  <Date>2026-10-03</Date>
+  <Changes>Version 1.0.13: Add resource copying, shared custom themes and a cleaner SSH terminal without visible scrollbars.</Changes>
+  <Date>2026-10-04</Date>
   <License>AGPL-3.0-only</License>
   <Screenshot>https://github.com/user-attachments/assets/f8d9602b-c235-4626-ac31-2f3c032c8983</Screenshot>
   <Config Name="WebUI Port" Target="80" Default="8080" Mode="tcp" Description="Host port used to open the Labby web interface." Type="Port" Display="always" Required="true" Mask="false"/>

@@ -34,6 +34,35 @@ app.use((req, res, next) => {
   next();
 });
 
+const CUSTOM_THEME_VARS = new Set([
+  '--bg', '--bg-bottom', '--phone', '--panel', '--text', '--muted', '--line',
+  '--yellow', '--blue', '--mint', '--danger', '--type-hardware', '--type-vm',
+  '--type-lxc', '--type-app', '--type-network',
+]);
+
+function normalizeCustomThemes(value) {
+  if (!Array.isArray(value)) return null;
+  const seen = new Set();
+  return value.slice(0, 50).filter(theme => theme && typeof theme === 'object').map((theme, index) => {
+    let id = String(theme.id || `custom-${index + 1}`).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64) || `custom-${index + 1}`;
+    while (seen.has(id)) id = `${id}-${index + 1}`.slice(0, 64);
+    seen.add(id);
+    const vars = {};
+    if (theme.vars && typeof theme.vars === 'object') {
+      for (const [key, raw] of Object.entries(theme.vars)) {
+        const color = String(raw || '').trim();
+        if (CUSTOM_THEME_VARS.has(key) && /^#[0-9a-fA-F]{6}$/.test(color)) vars[key] = color;
+      }
+    }
+    return {
+      id,
+      name: String(theme.name || 'Custom').slice(0, 24),
+      dark: !!theme.dark,
+      vars,
+    };
+  });
+}
+
 
 
 // ── Agent API keys and automation endpoints ────────────────────────────────
@@ -41,9 +70,9 @@ const crypto = require('crypto');
 
 function readDb() {
   try {
-    if (!fs.existsSync(DB_PATH)) return { items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], backupConfig: defaultBackupConfig(), backupLogs: [] };
+    if (!fs.existsSync(DB_PATH)) return { items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], customThemes: null, backupConfig: defaultBackupConfig(), backupLogs: [] };
     const raw = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
-    if (Array.isArray(raw)) return { items: raw, locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], backupConfig: defaultBackupConfig(), backupLogs: [] };
+    if (Array.isArray(raw)) return { items: raw, locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], customThemes: null, backupConfig: defaultBackupConfig(), backupLogs: [] };
     return {
       items: Array.isArray(raw.items) ? raw.items : [],
       locations: Array.isArray(raw.locations) ? raw.locations : [],
@@ -51,11 +80,12 @@ function readDb() {
       agentKeys: Array.isArray(raw.agentKeys) ? raw.agentKeys : [],
       agentStatus: raw.agentStatus && typeof raw.agentStatus === 'object' ? raw.agentStatus : {},
       commandSnippets: Array.isArray(raw.commandSnippets) ? raw.commandSnippets : [],
+      customThemes: normalizeCustomThemes(raw.customThemes),
       backupConfig: normalizeBackupConfig(raw.backupConfig),
       backupLogs: normalizeBackupLogs(raw.backupLogs),
     };
   } catch {
-    return { items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], backupConfig: defaultBackupConfig(), backupLogs: [] };
+    return { items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], customThemes: null, backupConfig: defaultBackupConfig(), backupLogs: [] };
   }
 }
 
@@ -68,6 +98,7 @@ function writeDb(data) {
     agentKeys: Array.isArray(data.agentKeys) ? data.agentKeys : existing.agentKeys,
     agentStatus: data.agentStatus && typeof data.agentStatus === 'object' ? data.agentStatus : existing.agentStatus,
     commandSnippets: Array.isArray(data.commandSnippets) ? data.commandSnippets : existing.commandSnippets,
+    customThemes: Array.isArray(data.customThemes) ? normalizeCustomThemes(data.customThemes) : existing.customThemes,
     backupConfig: normalizeBackupConfig(data.backupConfig || existing.backupConfig),
     backupLogs: normalizeBackupLogs(data.backupLogs || existing.backupLogs),
   };
@@ -1199,12 +1230,12 @@ app.post('/api/ssh/:id/close', (req, res) => {
 
 app.get('/api/data', (req, res) => {
   try {
-    if (!fs.existsSync(DB_PATH)) return res.json({ items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], backupConfig: defaultBackupConfig(), backupLogs: [] });
+    if (!fs.existsSync(DB_PATH)) return res.json({ items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], customThemes: null, backupConfig: defaultBackupConfig(), backupLogs: [] });
     const raw = fs.readFileSync(DB_PATH, 'utf8');
     const parsed = JSON.parse(raw);
     // Backward-compat: if stored as a bare array, wrap it
     if (Array.isArray(parsed)) {
-      return res.json({ items: parsed, locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], backupConfig: defaultBackupConfig(), backupLogs: [] });
+      return res.json({ items: parsed, locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], customThemes: null, backupConfig: defaultBackupConfig(), backupLogs: [] });
     }
     const data = {
       items: Array.isArray(parsed.items) ? parsed.items : [],
@@ -1213,12 +1244,13 @@ app.get('/api/data', (req, res) => {
       agentKeys: Array.isArray(parsed.agentKeys) ? parsed.agentKeys : [],
       agentStatus: parsed.agentStatus && typeof parsed.agentStatus === 'object' ? parsed.agentStatus : {},
       commandSnippets: Array.isArray(parsed.commandSnippets) ? parsed.commandSnippets : [],
+      customThemes: normalizeCustomThemes(parsed.customThemes),
       backupConfig: normalizeBackupConfig(parsed.backupConfig),
       backupLogs: normalizeBackupLogs(parsed.backupLogs),
     };
     res.json(data);
   } catch {
-    res.json({ items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], backupConfig: defaultBackupConfig(), backupLogs: [] });
+    res.json({ items: [], locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], customThemes: null, backupConfig: defaultBackupConfig(), backupLogs: [] });
   }
 });
 
@@ -1227,7 +1259,7 @@ app.post('/api/data', (req, res) => {
   let data;
   if (Array.isArray(body)) {
     // Legacy bare-array format: preserve locations/racks from disk if they exist
-    let existing = { locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], backupConfig: defaultBackupConfig(), backupLogs: [] };
+    let existing = { locations: [], racks: [], agentKeys: [], agentStatus: {}, commandSnippets: [], customThemes: null, backupConfig: defaultBackupConfig(), backupLogs: [] };
     try {
       if (fs.existsSync(DB_PATH)) {
         const raw = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
@@ -1237,22 +1269,25 @@ app.post('/api/data', (req, res) => {
           existing.agentKeys = raw.agentKeys || [];
           existing.agentStatus = raw.agentStatus || {};
           existing.commandSnippets = Array.isArray(raw.commandSnippets) ? raw.commandSnippets : [];
+          existing.customThemes = normalizeCustomThemes(raw.customThemes);
           existing.backupConfig = normalizeBackupConfig(raw.backupConfig);
           existing.backupLogs = normalizeBackupLogs(raw.backupLogs);
         }
       }
     } catch {}
-    data = { items: body, locations: existing.locations, racks: existing.racks, agentKeys: existing.agentKeys, agentStatus: existing.agentStatus, commandSnippets: existing.commandSnippets, backupConfig: existing.backupConfig, backupLogs: existing.backupLogs };
+    data = { items: body, locations: existing.locations, racks: existing.racks, agentKeys: existing.agentKeys, agentStatus: existing.agentStatus, commandSnippets: existing.commandSnippets, customThemes: existing.customThemes, backupConfig: existing.backupConfig, backupLogs: existing.backupLogs };
   } else if (body && typeof body === 'object') {
+    const existing = readDb();
     data = {
       items: Array.isArray(body.items) ? body.items : [],
       locations: Array.isArray(body.locations) ? body.locations : [],
       racks: Array.isArray(body.racks) ? body.racks : [],
-      agentKeys: Array.isArray(body.agentKeys) ? body.agentKeys : (readDb().agentKeys || []),
-      agentStatus: body.agentStatus && typeof body.agentStatus === 'object' ? body.agentStatus : (readDb().agentStatus || {}),
-      commandSnippets: Array.isArray(body.commandSnippets) ? body.commandSnippets : (readDb().commandSnippets || []),
-      backupConfig: normalizeBackupConfig(body.backupConfig || readDb().backupConfig),
-      backupLogs: normalizeBackupLogs(body.backupLogs || readDb().backupLogs),
+      agentKeys: Array.isArray(body.agentKeys) ? body.agentKeys : (existing.agentKeys || []),
+      agentStatus: body.agentStatus && typeof body.agentStatus === 'object' ? body.agentStatus : (existing.agentStatus || {}),
+      commandSnippets: Array.isArray(body.commandSnippets) ? body.commandSnippets : (existing.commandSnippets || []),
+      customThemes: Array.isArray(body.customThemes) ? normalizeCustomThemes(body.customThemes) : existing.customThemes,
+      backupConfig: normalizeBackupConfig(body.backupConfig || existing.backupConfig),
+      backupLogs: normalizeBackupLogs(body.backupLogs || existing.backupLogs),
     };
   } else {
     return res.status(400).json({ error: 'Body must be a JSON array or { items, locations, racks } object.' });

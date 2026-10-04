@@ -419,7 +419,6 @@ select[multiple] { min-height: 90px; }
     min-height: 38px !important;
   }
 }
-
 @media (max-width: 560px) {
   .color-picker {
     grid-template-columns: repeat(6, 36px);
@@ -10008,5 +10007,36 @@ fieldset,
   .relationship-choice-meta {
     width: 100%;
     text-align: left;
+  }
+}
+
+/* Terminal history stays scrollable, but the scrollbar is intentionally hidden. */
+.cli-terminal,
+.cli-terminal.xterm-enabled .xterm-viewport {
+  scrollbar-width: none !important;
+  scrollbar-gutter: auto !important;
+  -ms-overflow-style: none;
+}
+
+.cli-terminal::-webkit-scrollbar,
+.cli-terminal.xterm-enabled .xterm-viewport::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.copy-resource-btn {
+  background: color-mix(in srgb, var(--blue) 42%, var(--panel));
+}
+
+@media (max-width: 1100px) {
+  .card-controls {
+    display: flex !important;
+    width: auto !important;
+    margin-left: auto;
+  }
+  .card-controls .edit-btn,
+  .card-controls .delete-btn {
+    display: none !important;
   }
 }

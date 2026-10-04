@@ -5,7 +5,7 @@ This repository contains the official Unraid Community Applications template for
 ## Container image
 
 ```text
-techbygiusi/labby:1.0.12
+techbygiusi/labby:1.0.13
 ```
 
 ## Default configuration
@@ -15,7 +15,7 @@ techbygiusi/labby:1.0.12
 - Network mode: `bridge`
 - Privileged mode: disabled
 
-Labby stores its configuration, resources, encrypted credentials, local backups and backup key in `/data`.
+Labby stores its configuration, resources, shared custom themes, encrypted credentials, local backups and backup key in `/data`.
 
 ## Links
 

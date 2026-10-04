@@ -187,7 +187,7 @@ Labby has a built-in theme system with classic light themes, dark themes and cus
 - Built-in themes: Light, Ocean, Forest, Rose, Solar, Dark, Midnight, Carbon, Nord and Matrix
 - Custom theme editor
 - Theme color fields for background, panels, text, borders, status colors and resource colors
-- Custom themes are stored and included in config export/import
+- Custom themes are stored centrally in `/data/labby.json`, shared across browsers and devices, and included in config export/import
 - Active theme is included in exported config and restored on import
 - Theme picker and custom editor use a consistent desktop/mobile layout
 - On mobile, theme selection uses a dedicated full-screen view

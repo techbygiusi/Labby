@@ -208,6 +208,7 @@ window.fetch = async (...args) => {
 };
 
 let editingId = null;
+let copyingSourceId = null;
 let selectedNetworkColor = networkPalette[0];
 let items = [];
 let locations = [];
@@ -261,7 +262,7 @@ async function loadItemsFromAPI() {
     const data = await res.json();
     if (Array.isArray(data)) {
       // Legacy: bare array
-      return { items: data, locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [], backupConfig: null, backupLogs: [] };
+      return { items: data, locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [], customThemes: null, backupConfig: null, backupLogs: [] };
     }
     return {
       items: Array.isArray(data.items) ? data.items : [],
@@ -270,6 +271,7 @@ async function loadItemsFromAPI() {
       agentStatus: data.agentStatus && typeof data.agentStatus === 'object' ? data.agentStatus : {},
       agentKeys: Array.isArray(data.agentKeys) ? data.agentKeys : [],
       commandSnippets: Array.isArray(data.commandSnippets) ? data.commandSnippets : [],
+      customThemes: Array.isArray(data.customThemes) ? data.customThemes : null,
       backupConfig: data.backupConfig && typeof data.backupConfig === 'object' ? data.backupConfig : null,
       backupLogs: Array.isArray(data.backupLogs) ? data.backupLogs : [],
     };
@@ -281,9 +283,9 @@ async function loadItemsFromAPI() {
       const lsItems = Array.isArray(parsed) ? parsed : (parsed.items || []);
       const lsLocations = Array.isArray(parsed) ? [] : (parsed.locations || []);
       const lsRacks = Array.isArray(parsed) ? [] : (parsed.racks || []);
-      return { items: lsItems, locations: lsLocations, racks: lsRacks, agentStatus: parsed.agentStatus || {}, commandSnippets: Array.isArray(parsed.commandSnippets) ? parsed.commandSnippets : [], backupConfig: parsed.backupConfig && typeof parsed.backupConfig === 'object' ? parsed.backupConfig : null, backupLogs: Array.isArray(parsed.backupLogs) ? parsed.backupLogs : [] };
+      return { items: lsItems, locations: lsLocations, racks: lsRacks, agentStatus: parsed.agentStatus || {}, commandSnippets: Array.isArray(parsed.commandSnippets) ? parsed.commandSnippets : [], customThemes: null, backupConfig: parsed.backupConfig && typeof parsed.backupConfig === 'object' ? parsed.backupConfig : null, backupLogs: Array.isArray(parsed.backupLogs) ? parsed.backupLogs : [] };
     } catch {
-      return { items: [], locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [], backupConfig: null, backupLogs: [] };
+      return { items: [], locations: [], racks: [], agentStatus: {}, agentKeys: [], commandSnippets: [], customThemes: null, backupConfig: null, backupLogs: [] };
     }
   }
 }
@@ -295,6 +297,7 @@ async function saveItemsToAPI(itemList) {
     racks: racks,
     agentStatus: liveStatusData,
     commandSnippets: commandSnippets,
+    customThemes: getCustomThemes(),
   };
   if (Array.isArray(importedAgentKeysForSave)) payload.agentKeys = importedAgentKeysForSave;
   if (importedBackupConfigForSave && typeof importedBackupConfigForSave === 'object') payload.backupConfig = importedBackupConfigForSave;
@@ -336,6 +339,7 @@ applyTypeVisibility();
   racks = loaded.racks || [];
   liveStatusData = loaded.agentStatus || {};
   commandSnippets = normalizeCommandSnippets(loaded.commandSnippets || []);
+  await syncCustomThemesFromServer(loaded.customThemes);
   renderCommandSnippets();
   initAgentApiPanel();
   render();
@@ -728,6 +732,7 @@ form.addEventListener('submit', async (event) => {
   };
 
   const wasEditing = Boolean(editingId);
+  const wasCopying = Boolean(copyingSourceId);
 
   if (editingId) {
     const existing = findById(editingId);
@@ -736,11 +741,12 @@ form.addEventListener('submit', async (event) => {
     stopEditing();
   } else {
     items.push({ id: `${type}-${Date.now()}`, ...payload });
+    if (wasCopying) stopEditing();
   }
 
   normalizeItems();
   await saveItems();
-  showToast(wasEditing ? 'Resource updated.' : 'Resource added.');
+  showToast(wasEditing ? 'Resource updated.' : wasCopying ? 'Resource copied.' : 'Resource added.');
   closeAdvancedResourceSettings();
   form.reset();
   statusSelect.value = '';
@@ -1476,7 +1482,7 @@ ensureBackupConfigMenuButtons();
 clearAll.addEventListener('click', async () => {
   if (!confirm('Delete all resources? This also clears all rack, location, custom theme and API key data.')) return;
   items = []; locations = []; racks = []; commandSnippets = []; selectedCommandSnippetId = null;
-  localStorage.removeItem('labby-custom-themes');
+  replaceCustomThemes([]);
   await clearAllAgentKeys();
   stopEditing();
   await saveItems();
@@ -3343,14 +3349,14 @@ function updateAdvancedResourceControls(type, hardwareKind) {
   if (computeTab) computeTab.textContent = type === 'hardware' && !supportsComputeDetails(type, hardwareKind) ? 'Hardware' : 'Compute';
   advancedSettingsBtn?.classList.toggle('hidden', !hasAdvanced);
   document.getElementById('credentials-wrap')?.classList.toggle('hidden', !supportsCredentials(type));
-  if (advancedResourceSave) advancedResourceSave.textContent = editingId ? 'Save changes' : 'Add item';
+  if (advancedResourceSave) advancedResourceSave.textContent = editingId ? 'Save changes' : copyingSourceId ? 'Save as new resource' : 'Add item';
   if (advancedResourceTitle) {
     const typeTitle = type === 'hardware'
       ? hardwareTypeLabel(hardwareKind)
       : type === 'network'
         ? `${networkTypeLabel(networkKindSelect?.value)} Network`
         : labelSingle(type);
-    advancedResourceTitle.textContent = `${typeTitle} Settings`;
+    advancedResourceTitle.textContent = `${copyingSourceId ? 'Copy ' : ''}${typeTitle} Settings`;
   }
   syncAdvancedResourceMirrors();
   updateAdvancedResourceMirrorVisibility();
@@ -3516,6 +3522,9 @@ function cardNode(item) {
 
   const editButton = node.querySelector('.edit-btn');
   if (editButton) editButton.addEventListener('click', () => isMobile() ? window.startEditingMobile(item.id) : startEditing(item.id));
+
+  const copyButton = node.querySelector('.copy-resource-btn');
+  if (copyButton) copyButton.addEventListener('click', () => isMobile() ? window.startCopyingMobile(item.id) : startCopying(item.id));
 
   const deleteButton = node.querySelector('.delete-btn');
   if (deleteButton) deleteButton.addEventListener('click', () => removeItem(item.id));
@@ -4800,6 +4809,7 @@ function createCardShell() {
         <h3 class="card-title"></h3>
       </div>
       <div class="card-controls">
+        <button class="icon-btn copy-resource-btn" type="button" title="Copy resource">Copy</button>
         <button class="icon-btn edit-btn" type="button">Edit</button>
         <button class="icon-btn delete-btn" type="button">Delete</button>
       </div>
@@ -5322,13 +5332,15 @@ function renderRelationshipEditors() {
 });
 
 
-function startEditing(id) {
+function startEditing(id, options = {}) {
   const item = findById(id);
   if (!item) return;
 
-  editingId = id;
-  formTitle.textContent = `Edit Resource: ${item.name}`;
-  saveBtn.textContent = 'Save changes';
+  const isCopy = options.copy === true;
+  editingId = isCopy ? null : id;
+  copyingSourceId = isCopy ? id : null;
+  formTitle.textContent = isCopy ? `Copy Resource: ${item.name}` : `Edit Resource: ${item.name}`;
+  saveBtn.textContent = isCopy ? 'Save as new resource' : 'Save changes';
   cancelEditBtn.classList.remove('hidden');
 
   typeSelect.value = formTypeForItem(item);
@@ -5426,8 +5438,13 @@ function startEditing(id) {
   requestAnimationFrame(() => openAdvancedResourceSettings());
 }
 
+function startCopying(id) {
+  startEditing(id, { copy: true });
+}
+
 function stopEditing() {
   editingId = null;
+  copyingSourceId = null;
   formTitle.textContent = 'Add Resource';
   saveBtn.textContent = 'Add item';
   cancelEditBtn.classList.add('hidden');
@@ -6781,6 +6798,7 @@ function label(type) {
 }
 
 const customThemesKey = 'labby-custom-themes';
+let customThemes = [];
 let themePreviewPrev = null;
 let editingThemeId = null;
 const themeVars = [
@@ -6825,23 +6843,61 @@ function defaultThemeVars() {
   };
 }
 
-function getCustomThemes() {
+function normalizeCustomThemes(themes) {
+  if (!Array.isArray(themes)) return [];
+  return themes.slice(0, 50).filter(t => t && typeof t === 'object').map(t => {
+    const vars = defaultThemeVars();
+    themeVars.forEach(({ key }) => {
+      const color = String(t.vars?.[key] || '').trim();
+      if (/^#[0-9a-fA-F]{6}$/.test(color)) vars[key] = color;
+    });
+    return {
+      id: String(t.id || ('custom-' + Math.random().toString(36).slice(2))).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64),
+      name: (t.name || 'Custom').toString().slice(0, 24),
+      dark: !!t.dark,
+      vars,
+    };
+  });
+}
+
+function readCustomThemesFromBrowser() {
   try {
     const raw = localStorage.getItem(customThemesKey);
     const arr = raw ? JSON.parse(raw) : [];
-    if (!Array.isArray(arr)) return [];
-    return arr.map(t => ({
-      id: t.id || ('custom-' + Math.random().toString(36).slice(2)),
-      name: (t.name || 'Custom').toString().slice(0, 24),
-      dark: !!t.dark,
-      vars: { ...defaultThemeVars(), ...(t.vars || {}) },
-    }));
+    return normalizeCustomThemes(arr);
   } catch { return []; }
 }
 
+customThemes = readCustomThemesFromBrowser();
+
+function getCustomThemes() {
+  return customThemes.map(theme => ({ ...theme, vars: { ...theme.vars } }));
+}
+
+function replaceCustomThemes(arr) {
+  customThemes = normalizeCustomThemes(arr);
+  try { localStorage.setItem(customThemesKey, JSON.stringify(customThemes)); } catch {}
+  applyCustomThemeStyles(customThemes);
+}
+
 function saveCustomThemes(arr) {
-  localStorage.setItem(customThemesKey, JSON.stringify(arr));
-  applyCustomThemeStyles(arr);
+  replaceCustomThemes(arr);
+  void saveItems();
+}
+
+async function syncCustomThemesFromServer(serverThemes) {
+  if (Array.isArray(serverThemes)) {
+    replaceCustomThemes(serverThemes);
+  } else if (customThemes.length) {
+    // One-time migration for installations that previously kept themes only in
+    // this browser. Once saved, the server becomes authoritative on all clients.
+    await saveItems();
+  }
+
+  const activeTheme = document.documentElement.dataset.theme || localStorage.getItem(themeKey) || 'light';
+  const validThemeIds = new Set([...presetThemes.map(theme => theme.id), ...customThemes.map(theme => theme.id)]);
+  if (!validThemeIds.has(activeTheme)) setTheme('light');
+  renderThemeGrids();
 }
 
 function importCustomThemes(imported) {
@@ -7502,7 +7558,7 @@ const clearAllMobile = document.getElementById('clear-all-mobile');
 if (clearAllMobile) clearAllMobile.addEventListener('click', async () => {
   if (!confirm('Delete all resources? This also clears all rack, location, custom theme and API key data.')) return;
   items = []; locations = []; racks = []; commandSnippets = []; selectedCommandSnippetId = null;
-  localStorage.removeItem('labby-custom-themes');
+  replaceCustomThemes([]);
   await clearAllAgentKeys();
   stopEditing();
   await saveItems();
@@ -7519,6 +7575,18 @@ window.startEditingMobile = function(id) {
     showMobileView('mobile-add');
     setActiveMobileNav('nav-add');
     document.getElementById('mobile-form-title').textContent = 'Edit Resource';
+    const body = document.getElementById('mobile-form-body');
+    const formEl = document.getElementById('resource-form');
+    if (body && formEl && !body.contains(formEl)) body.appendChild(formEl);
+  }
+};
+
+window.startCopyingMobile = function(id) {
+  startEditing(id, { copy: true });
+  if (isMobile()) {
+    showMobileView('mobile-add');
+    setActiveMobileNav('nav-add');
+    document.getElementById('mobile-form-title').textContent = 'Copy Resource';
     const body = document.getElementById('mobile-form-body');
     const formEl = document.getElementById('resource-form');
     if (body && formEl && !body.contains(formEl)) body.appendChild(formEl);
@@ -9607,5 +9675,3 @@ updateRackSelectedComponentUI();
 // Theme initialization moved after definitions
 try { initTheme();
 initCommandSnippetPanel(); } catch(e){ console.error(e); }
-
-
