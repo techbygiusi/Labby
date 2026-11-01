@@ -319,13 +319,13 @@
       ? 'A real node graph for navigating hosting and infrastructure relationships.'
       : 'Follow every resource from its root device down to guests and applications.';
     if (mode === 'graph') {
-      container.innerHTML = `<div class="tree-shell"><div class="proto-view proto-view-native-graph"><header class="proto-concept-head"><div><span class="proto-eyebrow">LABBY VIEW CONCEPT</span><h2>${conceptTitle}</h2><p>${conceptText}</p></div><span class="proto-concept-number">02</span></header>${toolbarHtml(mode)}<main class="proto-native-graph"></main></div></div>`;
+      container.innerHTML = `<div class="tree-shell"><div class="proto-view proto-view-native-graph"><header class="proto-concept-head"><div><h2>${conceptTitle}</h2><p>${conceptText}</p></div></header>${toolbarHtml(mode)}<main class="proto-native-graph"></main></div></div>`;
       const root = container.querySelector('.proto-view');
       root.querySelector('.proto-native-graph').appendChild(buildGraphView());
       bindPrototype(root, model);
       return;
     }
-    container.innerHTML = `<div class="tree-shell"><div class="proto-view"><header class="proto-concept-head"><div><span class="proto-eyebrow">LABBY VIEW CONCEPT</span><h2>${conceptTitle}</h2><p>${conceptText}</p></div><span class="proto-concept-number">${mode === 'graph' ? '02' : '01'}</span></header>${toolbarHtml(mode)}${statsHtml()}<div class="proto-workspace"><main class="proto-main${mode === 'graph' ? ' proto-graph-main' : ''}"></main><aside class="proto-inspector">${inspectorHtml(model)}</aside></div></div></div>`;
+    container.innerHTML = `<div class="tree-shell"><div class="proto-view"><header class="proto-concept-head"><div><h2>${conceptTitle}</h2><p>${conceptText}</p></div></header>${toolbarHtml(mode)}${statsHtml()}<div class="proto-workspace"><main class="proto-main${mode === 'graph' ? ' proto-graph-main' : ''}"></main><aside class="proto-inspector">${inspectorHtml(model)}</aside></div></div></div>`;
     const root = container.querySelector('.proto-view');
     renderTree(root, model);
     bindPrototype(root, model);
