@@ -18,7 +18,8 @@ COPY app/ /usr/share/nginx/html/
 COPY nginx/default.conf /etc/nginx/http.d/default.conf
 COPY docker/start-labby.sh /usr/local/bin/start-labby
 
-RUN chmod +x /usr/local/bin/start-labby \
+RUN sed -i 's/\r$//' /usr/local/bin/start-labby \
+    && chmod +x /usr/local/bin/start-labby \
     && mkdir -p /data /run/nginx \
     && chown -R node:node /data
 
