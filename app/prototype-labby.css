@@ -1,0 +1,610 @@
+/* Second prototype direction: unmistakably Labby. Strong outlines, mono type,
+   playful color blocks and a top-to-bottom topology map. */
+
+#tree-dialog.tree-dialog[open] {
+  background: var(--bg) !important;
+  border: 3px solid var(--line) !important;
+  border-radius: 22px !important;
+  box-shadow: 10px 10px 0 color-mix(in srgb, var(--line) 26%, transparent) !important;
+}
+
+#tree-dialog .tree-head {
+  border-bottom: 0 !important;
+  padding: .25rem .3rem .85rem !important;
+}
+#tree-dialog .prototype-dialog-title small { display: none; }
+#tree-dialog .dialog-footer { background: var(--bg) !important; }
+#tree-dialog .dialog-footer .button { margin-inline: auto; width: calc(100% - 8px); }
+.proto-concept-number { display: none !important; }
+
+/* Hover feedback must not enlarge controls into neighboring borders. */
+.button:hover, .icon-btn:hover, .tree-toggle:hover, .ip-toggle:hover,
+.card-action-copy:hover, .card-action-link:hover { transform: none !important; }
+
+.prototype-dialog-title > span,
+.prototype-dialog-title > small,
+.proto-view,
+.proto-view * { font-family: 'Space Mono', ui-monospace, monospace; }
+
+.proto-view { --proto-line: var(--line); }
+
+/* Compact content-sized rack and location forms on desktop. */
+@media (min-width: 1101px) {
+  dialog#rack-form-dialog[open] {
+    position: fixed !important;
+    inset: 0 !important;
+    transform: none !important;
+    width: min(540px, calc(100vw - 48px)) !important;
+    max-width: calc(100vw - 48px) !important;
+    height: fit-content !important;
+    min-height: 0 !important;
+    max-height: calc(100dvh - 48px) !important;
+    margin: auto !important;
+    overflow-y: auto !important;
+  }
+}
+
+.backup-log-toggle {
+  display: block; width: auto; min-height: 0; margin: .75rem auto 0;
+  padding: .35rem .5rem; border: 0; background: transparent; color: var(--text);
+  font: 700 .8rem/1.3 'Space Mono', monospace; cursor: pointer;
+}
+.backup-log-toggle:hover { text-decoration: underline; }
+.backup-log-toggle:focus-visible { outline: 2px solid var(--line); outline-offset: 2px; border-radius: 4px; }
+#backup-config-dialog, #backup-config-dialog *, #mobile-backup-config, #mobile-backup-config *,
+#theme-picker-dialog, #theme-picker-dialog *, #mobile-theme, #mobile-theme *,
+#agent-api-dialog, #agent-api-dialog *, #mobile-agent-api, #mobile-agent-api * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none;
+}
+#backup-config-dialog::-webkit-scrollbar, #backup-config-dialog *::-webkit-scrollbar,
+#mobile-backup-config::-webkit-scrollbar, #mobile-backup-config *::-webkit-scrollbar,
+#theme-picker-dialog::-webkit-scrollbar, #theme-picker-dialog *::-webkit-scrollbar,
+#mobile-theme::-webkit-scrollbar, #mobile-theme *::-webkit-scrollbar,
+#agent-api-dialog::-webkit-scrollbar, #agent-api-dialog *::-webkit-scrollbar,
+#mobile-agent-api::-webkit-scrollbar, #mobile-agent-api *::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+/* Dialog action rows align with the right edge where buttons are compact. */
+@media (min-width: 1101px) {
+  .rack-link-actions,
+  .rack-form-actions,
+  .cli-command-actions,
+  .cli-command-dialog-actions { justify-content: flex-end; }
+}
+
+/* Keep the Tree concept consistent with Labby's flat surfaces. */
+.proto-view:not(.proto-view-native-graph),
+.proto-view:not(.proto-view-native-graph) * { box-shadow: none !important; }
+
+@media (max-width: 1100px) {
+  #mobile-more-sheet .mobile-sheet-panel,
+  .rack-link-panel:not(.rack-link-modal) {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: min(85dvh, 900px) !important;
+    box-sizing: border-box !important;
+    border: 2px solid var(--line) !important;
+    border-bottom: 0 !important;
+    border-radius: 22px 22px 0 0 !important;
+    padding: 1rem max(1rem, env(safe-area-inset-right)) calc(1rem + env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)) !important;
+    overflow-y: auto !important;
+  }
+  .rack-link-panel:not(.rack-link-modal) { animation: rack-sheet-enter 240ms ease-out; }
+  .rack-link-panel:not(.rack-link-modal) {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none;
+  }
+  .rack-link-panel:not(.rack-link-modal)::-webkit-scrollbar { display: none; width: 0; height: 0; }
+  @keyframes rack-sheet-enter { from { transform: translateY(100%); } to { transform: translateY(0); } }
+}
+
+/* The component list remains scrollable without a visible scrollbar. */
+#rack-editor .rack-palette-items {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none;
+}
+#rack-editor .rack-palette-items::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+/* IP lists remain scrollable on both mobile and desktop. */
+#mobile-ip .mobile-view-body,
+#ip-dialog #ip-content {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none;
+}
+#mobile-ip .mobile-view-body::-webkit-scrollbar,
+#ip-dialog #ip-content::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+/* Keep the delete action inside its own column, including on touch screens. */
+@media (min-width: 1101px) {
+  :root { --rack-u-height: 48px; }
+}
+#rack-editor .rack-slot { grid-template-columns: 26px minmax(0, 1fr) 48px; }
+#rack-editor .rack-slot-remove {
+  position: static !important;
+  justify-self: center;
+  align-self: center;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent;
+  color: var(--danger);
+  font-size: .9rem;
+  opacity: .8;
+  display: grid !important;
+  place-items: center !important;
+  line-height: 1 !important;
+}
+@media (max-width: 1100px) {
+  #rack-editor .rack-slot-remove { opacity: 1 !important; }
+}
+
+.rack-location-picker { position: relative; min-width: 0; width: 100%; flex: 1; }
+.rack-location-picker-summary {
+  display: flex; align-items: center; min-height: 54px; padding: 0 2.8rem 0 .85rem;
+  border: 2px solid var(--line); border-radius: 14px; background: var(--panel);
+  color: var(--text); cursor: pointer; list-style: none;
+  font: 700 .8rem/1.2 'Space Mono', monospace;
+}
+.rack-location-picker-summary::-webkit-details-marker { display: none; }
+.rack-location-picker-summary::after {
+  content: ''; position: absolute; right: 1.05rem; top: 21px; width: 8px; height: 8px;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg);
+}
+.rack-location-picker-summary:focus-visible { outline: 3px solid var(--line); outline-offset: 2px; }
+.rack-location-picker-options {
+  position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0;
+  max-height: 240px; overflow-y: auto; padding: .3rem; border: 2px solid var(--line);
+  border-radius: 12px; background: var(--panel); box-shadow: var(--shadow);
+}
+.rack-location-picker-option {
+  display: block; width: 100%; min-height: 44px; padding: .55rem .7rem; border: 0;
+  border-radius: 8px; background: transparent; color: var(--text); text-align: left;
+  font: 700 .8rem/1.2 'Space Mono', monospace; cursor: pointer;
+}
+.rack-location-picker-option:hover, .rack-location-picker-option:focus-visible { background: var(--yellow); color: #222; }
+#rack-location-select[hidden] { display: none !important; }
+
+.proto-concept-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: .65rem;
+  padding: .85rem 1rem;
+  border: 3px solid var(--line);
+  border-radius: 16px;
+  background: var(--mint);
+  color: var(--text);
+  box-shadow: 5px 5px 0 color-mix(in srgb, var(--line) 22%, transparent);
+}
+
+.proto-concept-head h2 { margin: .18rem 0 .2rem; font-size: 1.08rem; }
+.proto-concept-head p { margin: 0; color: var(--text); font-size: .68rem; font-weight: 700; opacity: .76; }
+.proto-eyebrow { font-size: .55rem; font-weight: 900; letter-spacing: .13em; }
+.proto-concept-number {
+  min-width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border: 3px solid var(--line);
+  border-radius: 12px;
+  background: var(--yellow);
+  color: #202634;
+  font-size: 1rem;
+  font-weight: 900;
+  box-shadow: 3px 3px 0 color-mix(in srgb, var(--line) 28%, transparent);
+}
+
+.proto-toolbar {
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: var(--phone);
+  box-shadow: none;
+  position: static;
+}
+
+.proto-search input {
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  font-size: .68rem;
+}
+
+.proto-mini-btn {
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  font-weight: 900;
+}
+.proto-mini-btn:hover { background: var(--yellow); transform: translateY(-1px); }
+
+.proto-key { font-family: 'Space Mono', monospace; font-size: .56rem; font-weight: 800; }
+.proto-key::before { width: 10px; height: 10px; border: 2px solid var(--line); }
+
+.proto-stats { gap: .48rem; margin: .6rem 0; }
+.proto-stat {
+  min-height: 54px;
+  border: 2px solid var(--line);
+  border-radius: 11px;
+  color: var(--text);
+  box-shadow: 3px 3px 0 color-mix(in srgb, var(--line) 18%, transparent);
+}
+.proto-stat-0 { background: var(--yellow); }
+.proto-stat-1 { background: var(--type-hardware); }
+.proto-stat-2 { background: var(--type-network); }
+.proto-stat-3 { background: var(--type-vm); }
+.proto-stat-4 { background: var(--type-app); }
+.proto-stat span { color: var(--text); font-family: 'Space Mono', monospace; font-weight: 900; }
+.proto-stat strong { color: var(--text); }
+
+.proto-workspace { grid-template-columns: minmax(0, 1.65fr) minmax(390px, 1fr); gap: .65rem; }
+.proto-main,
+.proto-inspector {
+  border: 3px solid var(--line);
+  border-radius: 16px;
+  background: var(--phone);
+  box-shadow: none;
+}
+
+.proto-inspector { background: var(--blue); }
+.proto-inspector-sticky { top: 0; }
+.proto-inspector-empty { color: var(--text); opacity: .8; }
+.proto-inspector-empty strong,
+.proto-inspector-type { color: var(--text); }
+.proto-info-row { border-top: 2px dashed color-mix(in srgb, var(--line) 52%, transparent); }
+.proto-info-row span:first-child { color: var(--text); opacity: .65; }
+.proto-relation-pill { border: 2px solid var(--line); background: var(--panel); font-family: 'Space Mono', monospace; }
+.proto-inspector .proto-relations { margin-top: .5rem; }
+
+/* Tree concept: chunky branch cards with visible rails. */
+.proto-group {
+  border: 3px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  overflow: visible;
+}
+.proto-group:nth-child(1) { background: color-mix(in srgb, var(--type-network) 54%, var(--panel)); }
+.proto-group:nth-child(2) { background: color-mix(in srgb, var(--type-hardware) 54%, var(--panel)); }
+.proto-group:nth-child(3) { background: color-mix(in srgb, var(--type-vm) 44%, var(--panel)); }
+.proto-group-head {
+  padding: .68rem .75rem;
+  border-bottom: 3px solid var(--line);
+  background: transparent;
+}
+.proto-group-title strong { font-size: .76rem; text-transform: uppercase; letter-spacing: .035em; }
+.proto-group-title small { color: var(--text); font-family: 'Space Mono', monospace; font-weight: 700; opacity: .68; }
+.proto-count { border: 2px solid var(--line); background: var(--phone); }
+.proto-tree-roots { gap: .55rem; padding: .7rem; }
+.proto-tree-node {
+  position: relative;
+  border: 2px solid var(--line);
+  border-radius: 11px;
+  background: var(--phone);
+  overflow: visible;
+  box-shadow: 3px 3px 0 color-mix(in srgb, var(--line) 16%, transparent);
+}
+.proto-tree-node[open] { border-color: var(--line); }
+.proto-node-summary { padding: .6rem; }
+.proto-node-summary:hover { background: color-mix(in srgb, var(--yellow) 28%, var(--phone)); border-radius: 9px; }
+.proto-node-symbol { border: 2px solid var(--line); background: var(--yellow); }
+.proto-node-copy strong { font-size: .7rem; }
+.proto-node-copy small { color: var(--text); font-family: 'Space Mono', monospace; opacity: .62; }
+.proto-child-count {
+  min-width: 24px;
+  padding: .24rem .34rem;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text);
+  text-align: center;
+}
+.proto-tree-children {
+  position: relative;
+  margin: .1rem .65rem .65rem 1.8rem;
+  padding: .55rem 0 0 1rem;
+  border-left: 3px solid var(--line);
+  gap: .55rem;
+}
+.proto-tree-children > .proto-tree-node::before {
+  content: '';
+  position: absolute;
+  width: 1rem;
+  left: calc(-1rem - 2px);
+  top: 28px;
+  border-top: 3px solid var(--line);
+}
+.proto-node-selected {
+  border-color: var(--line) !important;
+  background: color-mix(in srgb, var(--yellow) 14%, var(--phone)) !important;
+  box-shadow:
+    inset 6px 0 0 var(--yellow),
+    3px 3px 0 color-mix(in srgb, var(--line) 20%, transparent) !important;
+}
+.proto-node-selected > .proto-node-summary { padding-left: .85rem; }
+.proto-node-selected .proto-node-symbol { background: var(--yellow); }
+
+/* Graph concept: horizontal Labby map bands, read top-to-bottom. */
+.proto-graph-main { background: var(--panel); }
+.proto-graph-scroll {
+  background-color: var(--panel);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--line) 8%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--line) 8%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.proto-graph-board { min-width: 1080px; padding: .8rem; }
+.proto-graph-lanes { grid-template-columns: 1fr; gap: .75rem; }
+.proto-lane {
+  min-height: 125px;
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: .65rem;
+  padding: .65rem;
+  border: 3px solid var(--line);
+  border-radius: 14px;
+  background: var(--phone);
+}
+.proto-lane:nth-child(1) { background: color-mix(in srgb, var(--type-network) 58%, var(--phone)); }
+.proto-lane:nth-child(2) { background: color-mix(in srgb, var(--type-hardware) 58%, var(--phone)); }
+.proto-lane:nth-child(3) { background: color-mix(in srgb, var(--type-vm) 58%, var(--phone)); }
+.proto-lane:nth-child(4) { background: color-mix(in srgb, var(--type-app) 58%, var(--phone)); }
+.proto-lane-head {
+  position: static;
+  align-self: stretch;
+  margin: 0;
+  padding: .65rem;
+  border: 2px dashed var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--phone) 60%, transparent);
+  backdrop-filter: none;
+}
+.proto-lane-head strong { font-size: .7rem; text-transform: uppercase; }
+.proto-lane-head .proto-inspector-type { margin-top: .35rem; font-size: .55rem; line-height: 1.4; opacity: .7; }
+.proto-lane-head > span { align-self: start; min-width: 26px; padding: .22rem .32rem; border: 2px solid var(--line); border-radius: 999px; background: var(--phone); color: var(--text); text-align: center; }
+.proto-lane-nodes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(205px, 1fr));
+  align-content: center;
+  gap: .55rem;
+}
+.proto-graph-node {
+  min-height: 62px;
+  border: 2px solid var(--line);
+  border-radius: 11px;
+  background: var(--phone);
+  box-shadow: 3px 3px 0 color-mix(in srgb, var(--line) 20%, transparent);
+  font-family: 'Space Mono', monospace;
+}
+.proto-graph-node:hover { transform: translate(-1px, -1px); border-color: var(--line); box-shadow: 5px 5px 0 color-mix(in srgb, var(--line) 24%, transparent); }
+.proto-graph-node.is-active { border-color: var(--line); background: var(--yellow); box-shadow: 5px 5px 0 color-mix(in srgb, var(--line) 30%, transparent); }
+.proto-node-kind { border: 1px solid var(--line); background: var(--panel); color: var(--text); font-family: 'Space Mono', monospace; }
+.proto-edge { stroke: var(--line); stroke-width: 3; }
+.proto-edge.hosting { stroke: #5d70c8; }
+.proto-edge.explicit { stroke: #258a73; stroke-dasharray: 7 5; }
+.proto-graph-legend { color: var(--text); font-family: 'Space Mono', monospace; font-weight: 800; }
+
+/* Restore the original Labby view switch without an animated/overlapping slider. */
+#tree-dialog .view-switch {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: none;
+  overflow: visible;
+}
+#tree-dialog .view-switch .icon-btn {
+  min-height: 30px;
+  padding: .2rem .55rem;
+  box-shadow: none !important;
+  transform: none !important;
+}
+#tree-dialog .view-switch .icon-btn:focus,
+#tree-dialog .view-switch .icon-btn:focus-visible {
+  outline: none !important;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--line) 30%, transparent) !important;
+}
+#tree-dialog .view-switch .icon-btn.active { background: var(--yellow); color: #111; }
+
+/* Actual node-link graph: pan and zoom like a network controller topology. */
+.tree-content.graph-mode .tree-shell,
+.proto-view-native-graph { height: 100%; min-height: 0; }
+.proto-view-native-graph {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: .65rem;
+}
+.proto-view-native-graph .proto-concept-head { display: none; }
+.proto-graph-help { display: grid; gap: .18rem; }
+.proto-graph-help strong { font-size: .65rem; }
+.proto-graph-help span { color: var(--muted); font-size: .55rem; font-weight: 700; }
+.proto-native-graph {
+  min-height: 0;
+  overflow: hidden;
+  border: 3px solid var(--line);
+  border-radius: 15px;
+  background-color: var(--panel);
+  background-image:
+    radial-gradient(circle at center, color-mix(in srgb, var(--line) 22%, transparent) 1.2px, transparent 1.3px);
+  background-size: 22px 22px;
+  box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--phone) 45%, transparent);
+}
+.proto-native-graph .graph-wrap {
+  width: 100%;
+  height: 100%;
+  min-height: 500px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+/* Match the topology map's dotted workspace behind both rack views. */
+#rack-editor .rack-views-wrap {
+  background-color: var(--panel) !important;
+  background-image: radial-gradient(circle at center, color-mix(in srgb, var(--line) 22%, transparent) 1.2px, transparent 1.3px) !important;
+  background-size: 22px 22px !important;
+}
+@media (max-width: 1100px) {
+  #rack-editor .rack-editor-body {
+    background-color: var(--panel) !important;
+    background-image: radial-gradient(circle at center, color-mix(in srgb, var(--line) 22%, transparent) 1.2px, transparent 1.3px) !important;
+    background-size: 22px 22px !important;
+  }
+  #rack-editor .rack-views-wrap {
+    min-height: 100% !important;
+    background: transparent !important;
+  }
+  #rack-editor .rack-view-title { background: transparent !important; }
+}
+.proto-native-graph .graph-node {
+  width: 52px;
+  height: 52px;
+  border: 3px solid var(--line);
+  box-shadow: 4px 4px 0 color-mix(in srgb, var(--line) 30%, transparent);
+}
+.proto-native-graph .graph-node.hardware { background: var(--type-hardware); }
+.proto-native-graph .graph-node.vm { background: var(--type-vm); }
+.proto-native-graph .graph-node.lxc { background: var(--type-lxc); }
+.proto-native-graph .graph-node.app { background: var(--type-app); }
+.proto-native-graph .graph-node.network { background: var(--type-network); }
+.proto-native-graph .graph-node-label {
+  width: 190px;
+  max-width: 190px;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: .16rem .34rem;
+  border: 2px solid color-mix(in srgb, var(--line) 74%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--phone) 92%, transparent);
+  text-shadow: none;
+  box-shadow: 2px 2px 0 color-mix(in srgb, var(--line) 16%, transparent);
+  transform: translate(-50%, 34px);
+}
+.proto-native-graph .graph-canvas,
+.proto-native-graph .graph-node,
+.proto-native-graph .graph-node-label { user-select: none; -webkit-user-select: none; }
+
+select:not([multiple]):not([size]) {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  padding-right: 2.5rem !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23283f50' stroke-width='2'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 1rem center !important;
+}
+.labby-select-menu {
+  position: fixed; z-index: 10000; overflow-y: auto; max-height: min(45vh, 300px);
+  padding: .3rem; border: 2px solid var(--line); border-radius: 12px;
+  background: var(--panel); color: var(--text); box-shadow: var(--shadow); box-sizing: border-box;
+}
+.labby-select-menu, .rack-location-picker-options {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none;
+}
+.labby-select-menu::-webkit-scrollbar, .rack-location-picker-options::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.labby-select-menu button {
+  display: block; width: 100%; min-height: 40px; padding: .55rem .7rem; border: 0;
+  border-radius: 8px; background: transparent; color: var(--text); text-align: left;
+  font: 700 .8rem/1.2 'Space Mono', monospace; cursor: pointer;
+}
+.labby-select-menu button + button,
+.rack-location-picker-option + .rack-location-picker-option { margin-top: .3rem; }
+.labby-select-menu button:hover, .labby-select-menu button:focus-visible,
+.labby-select-menu button[aria-selected='true'] { background: var(--yellow); color: #222; }
+.labby-select-menu button:disabled { opacity: .45; }
+.proto-native-graph .graph-link {
+  stroke: color-mix(in srgb, #5577c8 84%, var(--line)) !important;
+  stroke-width: 2.6 !important;
+  stroke-opacity: .88 !important;
+}
+
+@media (max-width: 1100px) {
+  #mobile-tree #mobile-tree-mode-graph { display: inline-flex !important; }
+  #mobile-tree .mobile-view-head { gap: .55rem !important; }
+  #mobile-tree .view-switch {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px !important;
+    flex: 0 0 200px;
+    width: 200px !important;
+    max-width: 58vw;
+    height: 40px;
+    min-height: 40px !important;
+    margin-left: auto;
+    padding: 2px;
+    background: var(--panel) !important;
+    overflow: hidden;
+  }
+  #mobile-tree .view-switch .icon-btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    width: 100%;
+    min-width: 0 !important;
+    min-height: 32px !important;
+    height: 32px !important;
+    padding: .2rem .45rem !important;
+    border: 2px solid var(--line) !important;
+    border-radius: 7px !important;
+    background: var(--panel) !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+  #mobile-tree .view-switch .icon-btn.active {
+    background: var(--yellow) !important;
+  }
+  #tree-dialog.tree-dialog[open] { border-radius: 0 !important; box-shadow: none !important; }
+  .proto-concept-head { box-shadow: none; }
+  .proto-workspace { grid-template-columns: 1fr; }
+  .proto-inspector { order: 2; }
+  .proto-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .proto-lane { grid-template-columns: 150px minmax(620px, 1fr); }
+  .proto-graph-board { min-width: 980px; }
+  #mobile-tree-content:has(.proto-view-native-graph) {
+    padding: .65rem !important;
+    overflow: hidden !important;
+  }
+  #mobile-tree-content .proto-view-native-graph {
+    min-height: calc(100dvh - var(--mobile-tab-head-h, 74px) - 96px - env(safe-area-inset-bottom));
+  }
+  #mobile-tree-content .proto-view-native-graph .proto-toolbar {
+    grid-template-columns: 1fr auto;
+    padding: .55rem;
+  }
+  #mobile-tree-content .proto-view-native-graph .proto-graph-legend { display: none; }
+  #mobile-tree-content .proto-native-graph { min-height: 62dvh; }
+  #mobile-tree-content .proto-native-graph .graph-wrap { min-height: 62dvh !important; }
+  #mobile-tree-content .proto-native-graph .graph-node {
+    position: absolute !important;
+    width: 54px !important;
+    height: 54px !important;
+    font-size: 1.2rem !important;
+    z-index: 3 !important;
+  }
+  #mobile-tree-content .proto-native-graph .graph-node-label {
+    width: 160px !important;
+    max-width: 160px !important;
+    min-height: 32px !important;
+    transform: translate(-50%, 36px) !important;
+    font-size: .7rem !important;
+    line-height: 1.15 !important;
+  }
+}

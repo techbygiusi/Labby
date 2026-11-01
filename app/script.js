@@ -158,6 +158,7 @@ const cliCommandName = document.getElementById('cli-command-name');
 const cliCommandBody = document.getElementById('cli-command-body');
 const cliCommandDescription = document.getElementById('cli-command-description');
 const cliCommandCopy = document.getElementById('cli-command-copy');
+const cliCommandDelete = document.getElementById('cli-command-delete');
 const cliCommandSave = document.getElementById('cli-command-save');
 const cliCommandCancel = document.getElementById('cli-command-cancel');
 
@@ -1326,9 +1327,13 @@ function backupPanelHtml(status) {
   const configuredTime = String(cfg.time || '02:00');
   const scheduledTime = /^\d{2}:\d{2}$/.test(configuredTime) ? configuredTime : '02:00';
   const hourlyMinute = Number.parseInt(scheduledTime.split(':')[1] || '0', 10);
-  const logs = Array.isArray(status?.logs) && status.logs.length
-    ? status.logs.map(log => `<li class="backup-log-${escapeAttr(log.level)}"><strong>${escapeHtml(formatBackupDate(log.at))}</strong><span>${escapeHtml(log.message)}</span></li>`).join('')
+  const backupLogs = Array.isArray(status?.logs) ? status.logs : [];
+  const logs = backupLogs.length
+    ? backupLogs.map((log, index) => `<li class="backup-log-${escapeAttr(log.level)}${index >= 5 ? ' backup-log-extra hidden' : ''}"${index >= 5 ? ' data-backup-log-extra' : ''}><strong>${escapeHtml(formatBackupDate(log.at))}</strong><span>${escapeHtml(log.message)}</span></li>`).join('')
     : '<li class="empty-state empty-state-list"><span>No backup logs yet.</span></li>';
+  const logsToggle = backupLogs.length > 5
+    ? '<button class="backup-log-toggle" type="button" data-backup-log-toggle aria-expanded="false">Show more</button>'
+    : '';
   const backups = Array.isArray(status?.backups) && status.backups.length
     ? status.backups.map(backup => `<li><div><strong>${escapeHtml(backup.name)}</strong><span>${escapeHtml(formatBackupDate(backup.createdAt))} · ${Math.ceil((backup.size || 0) / 1024)} KB · ${escapeHtml(backup.target)}</span></div><div class="backup-list-actions"><button class="button secondary" type="button" data-restore-backup="${escapeAttr(backup.id)}" data-restore-target="${escapeAttr(backup.target)}"${disabledAttr}>Restore</button><button class="button danger" type="button" data-delete-backup="${escapeAttr(backup.id)}" data-delete-target="${escapeAttr(backup.target)}"${disabledAttr}>Delete</button></div></li>`).join('')
     : '<li class="empty-state empty-state-list"><span>No encrypted backups found for this target.</span></li>';
@@ -1475,6 +1480,7 @@ function backupPanelHtml(status) {
       <ul class="backup-list">${backups}</ul>
       <div class="backup-section-title">Latest backup logs</div>
       <ul class="backup-log-list">${logs}</ul>
+      ${logsToggle}
     </section>
   `;
 }
@@ -1548,6 +1554,15 @@ function bindBackupPanel(container) {
   const markDirty = () => { backupConfigFormDirty = true; };
   container.addEventListener('input', markDirty);
   container.addEventListener('change', markDirty);
+  container.querySelector('[data-backup-log-toggle]')?.addEventListener('click', (event) => {
+    const button = event.currentTarget;
+    const willExpand = button.getAttribute('aria-expanded') !== 'true';
+    container.querySelectorAll('[data-backup-log-extra]').forEach((entry) => {
+      entry.classList.toggle('hidden', !willExpand);
+    });
+    button.setAttribute('aria-expanded', String(willExpand));
+    button.textContent = willExpand ? 'Show less' : 'Show more';
+  });
   container.querySelector('[data-backup-field="target"]')?.addEventListener('change', () => updateBackupPanelState(container));
   container.querySelector('[data-backup-field="frequency"]')?.addEventListener('change', () => updateBackupPanelState(container));
   container.querySelector('[data-backup-field="smbGuest"]')?.addEventListener('change', () => updateBackupPanelState(container));
@@ -2337,6 +2352,7 @@ function openCommandSnippetDialog(mode = 'new') {
   if (cliCommandName) cliCommandName.value = existing?.name || '';
   if (cliCommandBody) cliCommandBody.value = existing?.command || '';
   if (cliCommandDescription) cliCommandDescription.value = existing?.description || '';
+  cliCommandDelete?.classList.toggle('hidden', !existing);
   if (cliCommandDialog && !cliCommandDialog.open) cliCommandDialog.showModal();
   window.setTimeout(() => (cliCommandName || cliCommandBody)?.focus(), 40);
 }
@@ -2377,6 +2393,20 @@ async function copyCommandSnippetFromDialog() {
   }
 }
 
+async function deleteCommandSnippetFromDialog() {
+  const existing = commandSnippetById(editingCommandSnippetId);
+  if (!existing) return;
+  const label = existing.name || 'this command';
+  if (!confirm(`Delete "${label}"? This cannot be undone.`)) return;
+  commandSnippets = commandSnippets.filter((entry) => entry.id !== existing.id);
+  if (selectedCommandSnippetId === existing.id) selectedCommandSnippetId = null;
+  editingCommandSnippetId = null;
+  await saveItems();
+  renderCommandSnippets();
+  cliCommandDialog?.close();
+  showToast('Command deleted.');
+}
+
 function initCommandSnippetPanel() {
   renderCommandSnippets();
   cliCommandSearch?.addEventListener('input', renderCommandSnippets);
@@ -2387,6 +2417,7 @@ function initCommandSnippetPanel() {
   });
   cliCommandSave?.addEventListener('click', saveCommandSnippetFromDialog);
   cliCommandCopy?.addEventListener('click', copyCommandSnippetFromDialog);
+  cliCommandDelete?.addEventListener('click', deleteCommandSnippetFromDialog);
   cliCommandCancel?.addEventListener('click', () => cliCommandDialog?.close());
   cliCommandDialog?.addEventListener('cancel', (event) => {
     event.preventDefault();
@@ -3670,7 +3701,8 @@ function render(options = {}) {
   const filtered = applyFilters(items);
   const groups = {
     hardware: filtered.filter((item) => item.type === 'hardware' && !isNetworkHardwareKind(item.hardwareKind)),
-    network: filtered.filter((item) => item.type === 'network' || (item.type === 'hardware' && isNetworkHardwareKind(item.hardwareKind))),
+    'network-device': filtered.filter((item) => item.type === 'hardware' && isNetworkHardwareKind(item.hardwareKind)),
+    network: filtered.filter((item) => item.type === 'network'),
     vm: filtered.filter((item) => item.type === 'vm'),
     lxc: filtered.filter((item) => item.type === 'lxc'),
     app: filtered.filter((item) => item.type === 'app'),
@@ -3700,8 +3732,9 @@ function applyFilters(list) {
   return list.filter((item) => {
     const typeMatch = selectedType === 'all'
       || (selectedType === 'hardware' && item.type === 'hardware' && !isNetworkHardwareKind(item.hardwareKind))
-      || (selectedType === 'network' && (item.type === 'network' || (item.type === 'hardware' && isNetworkHardwareKind(item.hardwareKind))))
-      || (!['hardware', 'network'].includes(selectedType) && item.type === selectedType);
+      || (selectedType === 'network-device' && item.type === 'hardware' && isNetworkHardwareKind(item.hardwareKind))
+      || (selectedType === 'network' && item.type === 'network')
+      || (!['hardware', 'network-device', 'network'].includes(selectedType) && item.type === selectedType);
     const networkText = item.type === 'network' ? `${networkTypeSummary(item)} ${item.vlanId || ''} ${item.subnet} ${item.gateway}` : '';
     const appText = item.type === 'app' ? `${item.ipPort} ${item.webUrl}` : '';
     const hardwareText = item.type === 'hardware'
@@ -5796,7 +5829,7 @@ function buildGraphView() {
   const viewportHeight = Math.max(isMobile() ? 560 : 460, (graphHost?.clientHeight || treeContent.clientHeight || window.innerHeight * 0.65) - 34);
   const minWidthForItems = isMobile()
     ? Math.max(viewportWidth, graphItems.length * 230, 1100)
-    : Math.max(1100, graphItems.length * 190);
+    : Math.max(1200, graphItems.length * 240);
   const minHeightForItems = isMobile()
     ? Math.max(720, Math.ceil(graphItems.length / 5) * 150)
     : Math.max(560, Math.ceil(graphItems.length / 7) * 172);
@@ -5884,6 +5917,16 @@ function buildGraphView() {
     childrenById.set(parentId, childIds);
   });
 
+  // The topology map visualizes one clear infrastructure/hosting hierarchy.
+  // Additional resource relationships remain available in the Tree details,
+  // but drawing them all here makes medium-sized homelabs unreadable.
+  const hierarchyEdges = [];
+  parentById.forEach((parentId, childId) => {
+    if (parentId && graphById[parentId] && graphById[childId]) {
+      hierarchyEdges.push({ sourceId: parentId, targetId: childId });
+    }
+  });
+
   const roots = graphItems
     .filter((item) => !parentById.get(item.id))
     .sort(nodeOrder)
@@ -5891,7 +5934,7 @@ function buildGraphView() {
 
   const rawX = new Map();
   let cursor = 0;
-  const horizontalStep = isMobile() ? 188 : 156;
+  const horizontalStep = isMobile() ? 220 : 240;
 
   function assignX(nodeId, trail = new Set()) {
     if (rawX.has(nodeId)) return rawX.get(nodeId);
@@ -5948,42 +5991,91 @@ function buildGraphView() {
   const depthValues = [...depthCache.values()].filter((value) => Number.isFinite(value));
   const canUseHierarchy = allRawX.length && depthValues.length;
 
-  if (isMobile() && canUseHierarchy) {
-    // Mobile needs readability more than a wide desktop tree. Use a vertical,
-    // scroll/pan friendly hierarchy: one node per row, depth as the horizontal lane.
-    // This avoids the old failure mode where dozens of siblings were squeezed into
-    // one horizontal line and all links crossed over each other.
-    canvas.dataset.mobileGraphLayout = 'vertical';
-    const ordered = [];
-    const seen = new Set();
-    let maxDepthUsed = 0;
+  if (false && isMobile() && canUseHierarchy) {
+    // Give every physical host its own vertical branch. Workloads and apps
+    // stay with that host instead of being mixed alphabetically across one
+    // huge level, which avoids crossing lines on phones and tablets.
+    canvas.dataset.mobileGraphLayout = 'compact';
+    const byBranch = (a, b) => (rawX.get(a.id) ?? 0) - (rawX.get(b.id) ?? 0) || nodeOrder(a, b);
+    const rootsAtTop = graphItems.filter((item) => depthFor(item.id) === 0).sort(byBranch);
+    const infrastructure = graphItems.filter((item) => depthFor(item.id) === 1).sort(byBranch);
+    const branchRoots = graphItems.filter((item) => depthFor(item.id) === 2).sort(byBranch);
+    const laneGap = 270;
+    const horizontalPadding = 160;
+    const layoutWidth = Math.max(
+      viewportWidth + 120,
+      horizontalPadding * 2 + Math.max(1, branchRoots.length - 1) * laneGap,
+    );
 
-    function walk(nodeId, depth = 0) {
-      if (!nodeId || seen.has(nodeId)) return;
-      const item = graphById[nodeId];
-      if (!item) return;
-      seen.add(nodeId);
-      maxDepthUsed = Math.max(maxDepthUsed, depth);
-      ordered.push({ item, depth });
-      const children = (childrenById.get(nodeId) || [])
-        .filter(childId => graphById[childId] && !seen.has(childId))
-        .sort((aId, bId) => nodeOrder(graphById[aId], graphById[bId]));
-      children.forEach(childId => walk(childId, depth + 1));
+    function placeCenteredRow(entries, y) {
+      if (!entries.length) return;
+      const gap = Math.min(230, Math.max(180, (layoutWidth - 260) / Math.max(1, entries.length - 1)));
+      const rowWidth = (entries.length - 1) * gap;
+      const startX = (layoutWidth - rowWidth) / 2;
+      entries.forEach((item, index) => positions.set(item.id, {
+        x: Math.round(startX + index * gap),
+        y,
+      }));
     }
 
-    const rootList = roots.length ? roots : graphItems.sort(nodeOrder).map(item => item.id);
-    rootList.forEach(rootId => walk(rootId, 0));
-    graphItems.sort(nodeOrder).forEach(item => {
-      if (!seen.has(item.id)) walk(item.id, 0);
+    placeCenteredRow(rootsAtTop, 92);
+    placeCenteredRow(infrastructure, 300);
+
+    const branchStartX = (layoutWidth - Math.max(0, branchRoots.length - 1) * laneGap) / 2;
+    branchRoots.forEach((item, index) => positions.set(item.id, {
+      x: Math.round(branchStartX + index * laneGap),
+      y: 520,
+    }));
+
+    const placed = new Set(positions.keys());
+    function placeSubtree(nodeId, x, y, trail = new Set()) {
+      if (trail.has(nodeId)) return y;
+      const nextTrail = new Set(trail);
+      nextTrail.add(nodeId);
+      if (!positions.has(nodeId)) positions.set(nodeId, { x: Math.round(x), y: Math.round(y) });
+      placed.add(nodeId);
+
+      const children = (childrenById.get(nodeId) || [])
+        .map((id) => graphById[id])
+        .filter(Boolean)
+        .sort(byBranch);
+      let cursorY = y + 148;
+      children.forEach((child, index) => {
+        const childX = x + (children.length > 1 ? (index % 2 === 0 ? -42 : 42) : 0);
+        cursorY = placeSubtree(child.id, childX, cursorY, nextTrail) + 42;
+      });
+      return Math.max(cursorY, y + 148);
+    }
+
+    let deepestBranch = 700;
+    branchRoots.forEach((item, index) => {
+      const branchX = branchStartX + index * laneGap;
+      const children = (childrenById.get(item.id) || [])
+        .map((id) => graphById[id])
+        .filter(Boolean)
+        .sort(byBranch);
+      let cursorY = 710;
+      children.forEach((child, childIndex) => {
+        const childX = branchX + (children.length > 1 ? (childIndex % 2 === 0 ? -42 : 42) : 0);
+        cursorY = placeSubtree(child.id, childX, cursorY, new Set([item.id])) + 54;
+      });
+      deepestBranch = Math.max(deepestBranch, cursorY);
     });
 
-    const laneGap = 126;
-    const rowGap = 104;
-    const topPad = 88;
-    const leftPad = 88;
-    const rightLabelSpace = 230;
-    const layoutWidth = Math.max(viewportWidth + 180, leftPad + maxDepthUsed * laneGap + rightLabelSpace);
-    const layoutHeight = Math.max(viewportHeight + 140, topPad + ordered.length * rowGap + 170);
+    // Keep unusual or incomplete relationships visible below the main lanes.
+    const unplaced = graphItems.filter((item) => !placed.has(item.id)).sort(byBranch);
+    let fallbackY = deepestBranch + 80;
+    unplaced.forEach((item, index) => {
+      const column = index % Math.max(1, branchRoots.length || 4);
+      const row = Math.floor(index / Math.max(1, branchRoots.length || 4));
+      positions.set(item.id, {
+        x: Math.round(branchStartX + column * laneGap),
+        y: Math.round(fallbackY + row * 160),
+      });
+    });
+
+    const fallbackRows = Math.ceil(unplaced.length / Math.max(1, branchRoots.length || 4));
+    const layoutHeight = Math.max(viewportHeight + 180, deepestBranch + fallbackRows * 160 + 150);
 
     width = layoutWidth;
     height = layoutHeight;
@@ -5992,15 +6084,15 @@ function buildGraphView() {
     canvas.style.width = `${layoutWidth}px`;
     canvas.style.height = `${layoutHeight}px`;
 
-    ordered.forEach(({ item, depth }, idx) => {
-      positions.set(item.id, {
-        x: Math.round(leftPad + depth * laneGap),
-        y: Math.round(topPad + idx * rowGap),
-      });
-    });
   }
 
-  if (!isMobile() && canUseHierarchy) {
+  if (canUseHierarchy) {
+    if (isMobile()) {
+      canvas.dataset.mobileGraphLayout = 'layered';
+      height = Math.max(viewportHeight, 1100);
+      canvas.style.setProperty('--graph-height', `${height}px`);
+      canvas.style.height = `${height}px`;
+    }
     const minRawX = Math.min(...allRawX);
     const maxRawX = Math.max(...allRawX);
     const rawSpan = Math.max(1, maxRawX - minRawX);
@@ -6059,7 +6151,12 @@ function buildGraphView() {
     const endY = target.y - graphNodeRadius;
 
     const curve = document.createElementNS(svgNS, 'path');
-    if (Math.abs(endY - startY) < 28) {
+    if (isMobile() && canvas.dataset.mobileGraphLayout === 'compact' && endY - startY > 240) {
+      const railX = startX + 106;
+      const exitY = startY + 68;
+      const entryY = endY - 44;
+      curve.setAttribute('d', `M ${startX} ${startY} L ${startX} ${exitY} L ${railX} ${exitY} L ${railX} ${entryY} L ${endX} ${entryY} L ${endX} ${endY}`);
+    } else if (Math.abs(endY - startY) < 28) {
       const midY = startY + (isMobile() ? 48 : 34);
       curve.setAttribute('d', `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`);
     } else {
@@ -6098,6 +6195,7 @@ function buildGraphView() {
     const label = document.createElement('span');
     label.className = 'graph-node-label';
     label.textContent = item.name;
+    label.title = item.name;
     label.style.left = `${pos.x}px`;
     label.style.top = `${pos.y}px`;
 
@@ -6277,6 +6375,8 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
     }
 
     const isVerticalMobileGraph = mobileGraph && canvas.dataset.mobileGraphLayout === 'vertical';
+    const isLayeredMobileGraph = mobileGraph && canvas.dataset.mobileGraphLayout === 'layered';
+    const isCompactMobileGraph = mobileGraph && canvas.dataset.mobileGraphLayout === 'compact';
     const focusW = mobileGraph
       ? Math.max(1, bounds.maxX - bounds.minX)
       : Math.max(1, (bounds.focusMaxX || bounds.maxX) - (bounds.focusMinX || bounds.minX));
@@ -6293,6 +6393,23 @@ function enableGraphPanZoom(wrap, canvas, width, height, bounds) {
       // inventories become unreadably tiny. Users can pan down through the graph.
       scale = Math.max(0.58, Math.min(0.96, fitScaleX));
       panX = Math.max(8, (viewportW - width * scale) / 2);
+      panY = 18 - bounds.minY * scale;
+      applyTransform();
+      return;
+    }
+
+    if (isLayeredMobileGraph) {
+      scale = 0.62;
+      const focusX = Number.isFinite(bounds.focusCenterX) ? bounds.focusCenterX : (bounds.minX + bounds.maxX) / 2;
+      panX = viewportW / 2 - focusX * scale;
+      panY = 24 - bounds.minY * scale;
+      applyTransform();
+      return;
+    }
+
+    if (isCompactMobileGraph) {
+      scale = Math.max(0.48, Math.min(0.72, (viewportW - 28) / width));
+      panX = (viewportW - width * scale) / 2;
       panY = 18 - bounds.minY * scale;
       applyTransform();
       return;
@@ -7040,11 +7157,11 @@ function totalConnections(list) {
 }
 
 function labelSingle(type) {
-  return ({ hardware: 'Hardware', 'network-device': 'Network', vm: 'VM', lxc: 'LXC', app: 'App', network: 'Network' })[type] || type;
+  return ({ hardware: 'Hardware', 'network-device': 'Network Device', vm: 'VM', lxc: 'LXC', app: 'App', network: 'Network' })[type] || type;
 }
 
 function label(type) {
-  return ({ hardware: 'Hardware', 'network-device': 'Network', vm: 'VMs', lxc: 'LXCs', app: 'Apps', network: 'Network' })[type] || type;
+  return ({ hardware: 'Hardware', 'network-device': 'Network Devices', vm: 'VMs', lxc: 'LXCs', app: 'Apps', network: 'Networks' })[type] || type;
 }
 
 const customThemesKey = 'labby-custom-themes';
@@ -8053,6 +8170,39 @@ function renderRackOverview() {
     locSel.appendChild(opt);
   });
 
+  const locationPicker = document.createElement('details');
+  locationPicker.className = 'rack-location-picker';
+  const locationSummary = document.createElement('summary');
+  locationSummary.className = 'rack-location-picker-summary';
+  locationSummary.textContent = locSel.selectedOptions[0]?.textContent || 'Select location';
+  const locationOptions = document.createElement('div');
+  locationOptions.className = 'rack-location-picker-options';
+  locations.forEach((location) => {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'rack-location-picker-option';
+    option.textContent = location.name;
+    option.addEventListener('click', () => {
+      locSel.value = location.id;
+      locationSummary.textContent = location.name;
+      locationPicker.open = false;
+      locSel.dispatchEvent(new Event('change'));
+      locationSummary.focus();
+    });
+    locationOptions.appendChild(option);
+  });
+  locationPicker.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && locationPicker.open) {
+      locationPicker.open = false;
+      locationSummary.focus();
+    }
+  });
+  locationPicker.addEventListener('focusout', (event) => {
+    if (!locationPicker.contains(event.relatedTarget)) locationPicker.open = false;
+  });
+  locationPicker.append(locationSummary, locationOptions);
+  locSel.hidden = true;
+
   // Edit location button
   const editLocBtn = document.createElement('button');
   editLocBtn.className = 'button secondary';
@@ -8062,6 +8212,7 @@ function renderRackOverview() {
 
   locBar.appendChild(locLabel);
   locBar.appendChild(locSel);
+  locBar.appendChild(locationPicker);
   locBar.appendChild(editLocBtn);
   panel.appendChild(locBar);
 

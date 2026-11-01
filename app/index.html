@@ -25,6 +25,8 @@
     <link rel="apple-touch-icon" href="images/logo.svg" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.5.0/xterm.min.css" />
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="prototype.css" />
+    <link rel="stylesheet" href="prototype-labby.css" />
     <link rel="stylesheet" href="demo.css" />
   </head>
   <body>
@@ -307,7 +309,8 @@
           <select id="filter-type">
             <option value="all">All types</option>
             <option value="hardware">Hardware</option>
-            <option value="network">Network</option>
+            <option value="network-device">Network Devices</option>
+            <option value="network">Networks</option>
             <option value="vm">VM</option>
             <option value="lxc">LXC</option>
             <option value="app">App</option>
@@ -324,7 +327,7 @@
 
     <div class="bottom-actions">
       <button id="ip-toggle" class="ip-toggle" type="button">🌐 IP View</button>
-      <button id="tree-toggle" class="tree-toggle" type="button">🌳 Tree View</button>
+      <button id="tree-toggle" class="tree-toggle" type="button">◫ New Topology</button>
       <button id="rack-toggle" class="rack-toggle" type="button">🗄️ Rack View</button>
     </div>
 
@@ -390,9 +393,10 @@
 
     <div class="mobile-view" id="mobile-tree">
       <div class="mobile-view-head">
-        <h2>Relationship Tree</h2>
+        <h2>Topology</h2>
         <div class="view-switch" role="tablist">
           <button id="mobile-tree-mode-tree" class="icon-btn active" type="button">Tree</button>
+          <button id="mobile-tree-mode-graph" class="icon-btn" type="button">Graph</button>
         </div>
       </div>
       <div class="mobile-view-body" id="mobile-tree-content"></div>
@@ -424,7 +428,7 @@
             <button id="agent-api-btn-mobile" class="button secondary" type="button">🤖 API Keys</button>
         </div>
         <button id="show-tutorial-btn-mobile" class="button secondary config-wide-action" type="button">📖 Tutorial</button>
-        <p class="app-version" aria-label="Labby version">Labby 1.0.13</p>
+        <p class="app-version" aria-label="Labby version">Labby 1.0.14</p>
       </div>
       </div>
       <div class="mobile-view-footer">
@@ -510,6 +514,7 @@
         </label>
         <div class="cli-command-dialog-actions">
           <button id="cli-command-copy" class="button secondary" type="button">Copy command</button>
+          <button id="cli-command-delete" class="button danger hidden" type="button">Delete command</button>
           <button id="cli-command-save" class="button" type="button">Save</button>
           <button id="cli-command-cancel" class="button secondary" type="button">Close</button>
         </div>
@@ -557,7 +562,7 @@
 
     <dialog id="tree-dialog" class="tree-dialog">
       <div class="tree-head">
-        <h3>Relationship Tree</h3>
+        <div class="prototype-dialog-title"><span>Topology Explorer</span><small>Tree &amp; Graph concept</small></div>
         <div class="tree-head-actions">
           <div class="view-switch" role="tablist" aria-label="Tree view mode">
             <button id="tree-mode-tree" class="icon-btn active" type="button">Tree</button>
@@ -594,7 +599,7 @@
           <button id="agent-api-btn" class="button secondary" type="button">API Keys</button>
         </div>
         <button id="show-tutorial-btn" class="button secondary config-wide-action" type="button">Tutorial</button>
-        <p class="app-version" aria-label="Labby version">Labby 1.0.13</p>
+        <p class="app-version" aria-label="Labby version">Labby 1.0.14</p>
       </div>
       <div class="dialog-footer">
         <button class="button secondary" onclick="document.getElementById('config-dialog').close()">✕ Close</button>
@@ -799,5 +804,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.5.0/xterm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
     <script src="script.js"></script>
+    <script src="prototype.js"></script>
   </body>
 </html>

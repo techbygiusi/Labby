@@ -1151,9 +1151,10 @@ Browser → /api → Backend → /data</pre>
         <figure class="wiki-shot"><img src="images/labby-dashboard.png" alt="Topology cards" loading="lazy" /><figcaption>Topology cards</figcaption></figure>
       </div>
       <h2>Layout</h2>
-      <p>Topology cards show resource category, name, IPs, URLs, device status, technical details, notes and relationships. Routers/gateways, switches, access points, Wired and Wireless networks are grouped together in the Network category.</p>
+      <p>Topology cards show resource category, name, IPs, URLs, device status, technical details, notes and relationships. Network devices and networks have separate categories.</p>
       <h2>Actions</h2>
       <ul>
+        <li><strong>Copy</strong>: create a new resource from existing settings</li>
         <li><strong>Edit</strong>: edit the resource</li>
         <li><strong>Delete</strong>: remove the resource</li>
         <li><strong>Open</strong>: open the web link</li>
@@ -1178,9 +1179,9 @@ Browser → /api → Backend → /data</pre>
         <figure class="wiki-shot"><img src="images/labby-graph-view.png" alt="Graph View" loading="lazy" /><figcaption>Graph View</figcaption></figure>
       </div>
       <h2>Tree View</h2>
-      <p>Tree View shows hardware hosts, nested VM/LXC hosts, guests, apps and networks as a classic hierarchy.</p>
+      <p>Tree View groups network infrastructure, hardware hosts, nested VM/LXC guests and applications. Search for a name, IP or type, expand or collapse branches, and select a resource to inspect its details and direct relationships.</p>
       <h2>Graph View</h2>
-      <p>Graph View visualizes the same relationships, including nested VM/LXC hosts and their guests. It helps you spot dependencies and missing links quickly.</p>
+      <p>Graph View visualizes infrastructure and hosting relationships as a node map. Drag to move, scroll or pinch to zoom, and use Reset map to return to the initial view. On mobile, tap a node to inspect it.</p>
       <h2>Maintenance</h2>
       <p>The cleaner your host and parent relationships are, the more useful Tree and Graph become.</p>
     `},
@@ -1212,7 +1213,7 @@ Browser → /api → Backend → /data</pre>
       <h2>Requirement</h2>
       <p>A resource needs CLI credentials. After that, you can open an SSH session from its topology card.</p>
       <h2>Command Library</h2>
-      <p>The right panel contains reusable commands. You can search, create, edit and insert them into a session.</p>
+      <p>The right panel contains reusable commands. You can search, create, edit, delete and insert them into a session.</p>
       <h2>Input field</h2>
       <p>Arrow Up and Arrow Down load commands into the input field. Labby combines history from the target machine with commands entered in the current Labby session.</p>
       <h2>Shortcuts</h2>
@@ -1293,7 +1294,7 @@ Browser → /api → Backend → /data</pre>
         <li>Select the execution time and, for weekly backups, the weekday.</li>
         <li>Keep between 1 and 100 backups.</li>
         <li>Use <strong>Run backup now</strong> to create an immediate encrypted backup.</li>
-        <li>Review recent activity under <strong>Latest backup logs</strong>.</li>
+        <li>Review the five most recent entries under <strong>Latest backup logs</strong>; use <strong>Show more</strong> to expand the list.</li>
       </ul>
       <h2>Credentials and encryption key</h2>
       <p>The SMB password is encrypted and stored only in the persistent <code>/data</code> volume. It is not returned by the API and is not included in configuration exports.</p>
