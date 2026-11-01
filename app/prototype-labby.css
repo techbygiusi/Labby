@@ -608,3 +608,23 @@ select:not([multiple]):not([size]) {
     line-height: 1.15 !important;
   }
 }
+
+/* Keep mobile menu content scrollable without showing scrollbars. */
+@media (max-width: 1100px) {
+  .mobile-view:not(#mobile-cli) > .mobile-view-body:not(#mobile-tree-content),
+  #mobile-tree-content:not(:has(.proto-view-native-graph)) {
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none;
+    touch-action: pan-y;
+  }
+  .mobile-view-body::-webkit-scrollbar { display: none; width: 0; height: 0; }
+  .labby-select-menu, .rack-location-picker-options {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+}
